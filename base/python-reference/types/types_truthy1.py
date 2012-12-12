@@ -1,0 +1,8 @@
+if None: raise Exception('None is true instead of false')
+if 0: raise Exception('0 is true instead of false')
+if 0.0: raise Exception('0.0 is true instead of false')
+if '': raise Exception('\'\' is true instead of false')
+if not 1: raise Exception('1 is false instead of true')
+if not 1.0: raise Exception('1.0 is false instead of true')
+if not 'x': raise Exception('\'x\' is false instead of true')
+if not {'x': 1}: raise Exception('{\'x\': 1} is false instead of true')

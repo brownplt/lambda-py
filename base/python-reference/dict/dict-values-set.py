@@ -1,0 +1,13 @@
+k1 = {1:1, 2:2}.items()
+k2 = {1:1, 2:2, 3:3}.items()
+k3 = {4:4}.items()
+
+___assertEqual(k1 - k2, set())
+___assertEqual(k1 - k3, {(1,1), (2,2)})
+___assertEqual(k2 - k1, {(3,3)})
+___assertEqual(k3 - k1, {(4,4)})
+___assertEqual(k1 & k2, {(1,1), (2,2)})
+___assertEqual(k1 & k3, set())
+___assertEqual(k1 | k2, {(1,1), (2,2), (3,3)})
+___assertEqual(k1 ^ k2, {(3,3)})
+___assertEqual(k1 ^ k3, {(1,1), (2,2), (4,4)})
