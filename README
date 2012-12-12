@@ -1,0 +1,35 @@
+Racket implementation of Python.
+
+Overview
+--------
+
+We are testing our implementation against the unit tests of Python
+3.2.3:
+
+http://www.python.org/download/releases/3.2.3/
+
+The source link is at:
+
+http://www.python.org/ftp/python/3.2.3/Python-3.2.3.tgz
+
+The tests in python-reference/ were drawn from the unit tests in the
+Lib/tests directory of that source bundle.
+
+This Repo
+---------
+
+base/
+
+  This contains the base implementation we'll be working from (thanks
+  Sumner, Andrew, and Nathan!).  It looks a lot like cs173-python; you
+  should have a look at that directory's README to get started
+  understanding that implementation.  This is the implementation folks
+  should start building from.
+
+scope/
+
+  This contains the implementation of Kelvin and Victor (thanks guys!),
+  that has the model of scope we'll be attaching to the implementation
+  in base/.
+
+
