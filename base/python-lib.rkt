@@ -291,13 +291,13 @@ that calls the primitive `print`.
       empty empty empty))
 ;; these are builtin functions that we have written in actual python files which
 ;; are pulled in here and desugared for lib purposes
-(define pylib-programs
+(define (get-pylib-programs)
   (map (lambda(file) 
          (desugar 
            (get-structured-python 
              (parse-python/port 
                (open-input-file file)
-               python-path))))
+               (get-pypath)))))
        (list "pylib/range.py"
              "pylib/seq_iter.py"
              "pylib/filter.py"
@@ -317,5 +317,5 @@ that calls the primitive `print`.
              (list (CModule-prelude expr))
              (map (lambda(b) (CAssign (CId (bind-left b) (GlobalId)) (bind-right b)))
                       lib-functions)
-             pylib-programs  
+             (get-pylib-programs)
              (list (CModule-body expr)))))
