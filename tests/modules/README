@@ -1,0 +1,11 @@
+# module and package test
+
+Currently those cases test the following features:
+
+ - the import form with `from` and without `from`
+ - the import form with `as`
+ - the correctness of imported modules
+ - the scope of modules
+ - import execution step
+   - imported module should be added to `sys.modules`
+   - importing module with errors should not be added to `sys.modules`
