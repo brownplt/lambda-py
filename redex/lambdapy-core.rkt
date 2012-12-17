@@ -32,6 +32,13 @@
    (obj-val string ((string ref) ...))
    (fun-val (λ (x ...) e)))
 
+  (id-type global nonlocal local)
+
+  (meta-val
+   (meta-num number)
+   (meta-str string)
+   (meta-list ))
+  
   ;; types of expressions
   (e
    string
@@ -46,12 +53,14 @@
    (assign e e)
    (error e)
    (if e e e)
-   ;; how to do variants for id-type?
-   (id string string)
+   (id string id-type)
    (let (x e) e)
-   ;; how to do optional arguments, for stararg?
-   (app e e ... )
+   ;; we have two variants of app, with and without stararg
+   (app e (e ...))
+   (app-star e (e ...) e)
+   ;; method?
    (fun (x ...) e)
+   (fun-var (x ...) string e)
    (while e e e)
    (return e)
    (prim1 string e)
@@ -61,11 +70,11 @@
    (tuple (e ...))
    (dict ((e e) ...))
    (set (e ...))
-   ;; how to do option types?
+   (reraise)
    (raise e)
    (try e (e ...) e e)
-   ;; option types
-   (except (e ...) string e)
+   (except (e ...) e)
+   (except-name (e ...) string e)
    undefined
    break
    (module e e))
@@ -75,6 +84,4 @@
    hole
    ;; todo
    )
-
-  ;; an arbitrary identifier
-  (x (variable-not-otherwise-mentioned)))
+  )
