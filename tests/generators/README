@@ -19,3 +19,6 @@ Test the basic yield behavior in the first case. In second test, we test yield w
 
 6. send-gen.py
 Test the send function for generator, which will send a value to last yield it is suspended and took it as result for yield.
+
+7. gen-method.py
+Test the methods of a generator iterator.
