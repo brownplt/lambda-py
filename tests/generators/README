@@ -1,0 +1,21 @@
+Generator Tests
+
+We extract our tests from test-generators.py under Lib/test, and add additional tests written by us.
+
+1. basic-gen.py
+Basic generator test, simply test how yield in generator works. And test that expect generator to have similar behavior like iterator when passing it as a parameter to function like iter() and list()
+
+2. gen-comp.py
+Simulate generator comprehension and filter() by actually write a function with yield expression in it. This test is simply modified from filter test in builtin
+
+3. gen-except.py
+We test how exception propagate in a generator object, and also see how yield and try catch can works together. Though StopIteration can stop the generator, but it can be caught in generator as well.
+
+4. gen-in-gen.py
+Generator can call generator in its body. We test how to use a generator inside a generator in this case.
+
+5. gen-multiyield.py
+Test the basic yield behavior in the first case. In second test, we test yield will evaluate to None when it resume to the last yield it suspended. And also test that it might encounter an error when call next to a generator.
+
+6. send-gen.py
+Test the send function for generator, which will send a value to last yield it is suspended and took it as result for yield.
