@@ -1,17 +1,17 @@
-def errorinouter():
+def errorInOuter():
   y = 1
   del y
   print(y)
   def inner():
     return y
 
-def errorininner():
+def errorInInner():
   def inner():
     return y
   y = 1
   del y
   inner()
 
-___assertraises(unboundlocalerror, errorinouter)
-___assertraises(nameerror, errorininner)
+___assertraises(UnboundLocalError, errorInOuter)
+___assertraises(NameError, errorrInInner)
 

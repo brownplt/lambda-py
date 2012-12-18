@@ -1,0 +1,59 @@
+Scope tests
+-----------
+
+We took the scope directory out of python-reference and have added some
+more tests to it. Obviously all of the tests from scope/ should be
+passing at a bare minimum after integrated Kelvin's group's scope
+implementation since they were passing before.
+
+The additions were selected from the scope test in the python3.2.3
+source and are or were written to test more intricate parts of certain
+scope features. They are:
+
+(taken from python3.2.3 source tests)
+complex-defs.py: Provides more tests coverage for star args and
+keyword arguments. I think there are currently only one test for each,
+and the base implementation of keyword agruments is iffy at best. This
+will help make sure we fix that. We will probably want more tests for
+keyword arguments at some point in the near future too.
+
+global-in-class-body.py: Tests declaring a variable as global in
+the body of a class and then using it inside methods. The global class
+variable should not leak into the methods. That is, assignments within
+methods should shadow global class variables, not assign to them.
+
+global-in-parallel-nested-function.py: Tests declaring a variable as
+global in one function, and not doing so in a parallel function. As
+expected, the global variable should not leak into the parallel function
+which only contains a local variable.
+
+unboundlocal-after-del.py: Tests the use of del for variables. The base
+implemenation does not currently handle this (del only applies to
+elements of dictionaries). Variables should no longer have values after
+being deleted from the environment.
+
+unboundlocal-augassign.py: Tests augassigning to a global variable
+inside a function. This should produce an UnboundLocalError?
+
+(written by us)
+mutliple-locals-calls.py: Tests making multiple calls to locals() within
+the body of a function. Each call returns only the local variables which
+have been seen up to the point of the call, not all of the local
+variables in the function. Thus, subsequent calls can return different
+results. Additionally, all calls to locals within a single execution of
+a function return the same dict object. This means that once a dict is
+created by a call to locals it needs to be retained and updated upon
+further calls rather than being replaced by a new dict object. We should
+determine if this functionality is any different for locals used in
+class bodies. I suspect it is.
+
+NB: this test also includes comparison of cyclic data structures. While
+the base implementation currently supports creating cyclic data
+structures, it does not support comparing (or printing) cyclic data
+structures.
+
+nonlocal-from-class-body.py: Tests declaring a nonlocal variable inside
+a method when the referenced variable is in the class body. Nonlocal
+does provide this functionality; nonlocal variables must be reside in a
+function body, not a class body or in global scope. Should produce a
+SyntaxError at runtime: this is not caught by the parser.
