@@ -9,3 +9,4 @@ Currently those cases test the following features:
  - import execution step
    - imported module should be added to `sys.modules`
    - importing module with errors should not be added to `sys.modules`
+- the sys.meta_path feature
