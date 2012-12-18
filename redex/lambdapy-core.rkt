@@ -9,6 +9,7 @@
   (Σ ((ref val) ...))
   ;; type of references
   (ref natural)
+  
   ;; value types
   (val
    ;; core string type, not string class
@@ -28,39 +29,52 @@
    (set-val (ref ...))
    ;; class has name, base, and body
    (class-val string string e)
-   ;; object has class and body-val - not sure how to do meta-vals yet
-   (obj-val string ((string ref) ...))
-   (fun-val (λ (x ...) e)))
-
-  (id-type global nonlocal local)
+   ;; object has class and body-val, with/without meta-val - not sure how to do meta-vals yet
+   (obj-val x meta-val ((string ref) ...))
+   (obj-val x ((string ref) ...))
+   ;; closure
+   (fun-val (λ (x ...) e))
+   ;; undefined
+   (undefined-val))
+  
+  ;; id-type
+  (t global nonlocal local)
 
   (meta-val
    (meta-num number)
    (meta-str string)
-   (meta-list ))
+   (meta-list (val ...))
+   (meta-tuple (val ...))
+   (meta-dict ((val val) ...))
+   (meta-set (val ...))
+   (meta-class string)
+   (meta-none))
   
   ;; types of expressions
   (e
-   string
+   (str string)
    true
    false
    none
-   (class string string e)
-   ;; how to do metavals?
-   (object string ??)
+   (class x x e)
+   ;; with/without meta-val - how to do metavals?
+   (object x)
+   (object x meta-val)
    (get-field e string)
    (seq e e)
    (assign e e)
    (error e)
    (if e e e)
-   (id string id-type)
+   (id x t)
    (let (x e) e)
    ;; we have two variants of app, with and without stararg
    (app e (e ...))
    (app-star e (e ...) e)
-   ;; method?
    (fun (x ...) e)
-   (fun-var (x ...) string e)
+   (fun (x ...) x e)
+   ;; put method as a separate construct for now
+   (method (x ...) e)
+   (method (x ...) x e)
    (while e e e)
    (return e)
    (prim1 string e)
@@ -74,14 +88,34 @@
    (raise e)
    (try e (e ...) e e)
    (except (e ...) e)
-   (except-name (e ...) string e)
+   (except (e ...) x e)
    undefined
    break
-   (module e e))
+   (module e e)
+   val)
 
   ;; types for evaluation.
   (E
    hole
-   ;; todo
+   (module E e)
+   (module val E)
+   (assign e E)
+   (assign E val)
+   (seq E e)
+   (if E e e)
+   (while E e e)
+   (let (x E) e)
+   (app E (e ...))
+   (app val (val ... E e ...))
+   (app-star E (e ...) e)
+   (app-star val (val ... E e ...) e)
+   (app-star val (val ...) E)
+   ;; todo - may need more
    )
+  
+  ;; identifiers, more keywords will be filled in
+  (x (variable-except if while except lambda))
+  
+  (p (e Σ))
+  (P (E Σ))
   )
