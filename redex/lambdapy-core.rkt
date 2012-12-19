@@ -10,6 +10,10 @@
   ;; type of references
   (ref natural)
   
+  ;; environment
+  (ε ((x ref) ...))
+  (εs (ε ...))
+  
   ;; value types
   (val
    ;; core string type, not string class
@@ -39,7 +43,8 @@
   
   ;; id-type
   (t global nonlocal local)
-
+  
+  ;; types of meta-val
   (meta-val
    (meta-num number)
    (meta-str string)
@@ -100,7 +105,6 @@
    (module E e)
    (module val E)
    (assign e E)
-   (assign E val)
    (seq E e)
    (if E e e)
    (while E e e)
@@ -116,6 +120,6 @@
   ;; identifiers, more keywords will be filled in
   (x (variable-except if while except lambda))
   
-  (p (e Σ))
-  (P (E Σ))
+  (p (e εs Σ))
+  (P (E εs Σ))
   )
