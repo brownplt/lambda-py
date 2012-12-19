@@ -1,3 +1,8 @@
+# If this test fails, it is most likely due to an issue
+# with the varargs implementation, rather than scoping
+# per se. Of course, the function returner() should be
+# closing over lst, making it 
+
 def makeReturner(*lst):
   def returner():
     return lst

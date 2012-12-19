@@ -1,6 +1,3 @@
-# recursive functions must work. They aren't that hard, 
-# although we should be sure to test...
-
 def f(x):
     def fact(n):
         if n == 0:
