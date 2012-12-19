@@ -18,7 +18,11 @@ Generator can call generator in its body. We test how to use a generator inside 
 Test the basic yield behavior in the first case. In second test, we test yield will evaluate to None when it resume to the last yield it suspended. And also test that it might encounter an error when call next to a generator.
 
 6. send-gen.py
+<<<<<<< HEAD
+Test the send function for generator, which will send a value to last yield it is suspended and took it as result for yield.
+=======
 Test the send function for generator, which will send a value to last yield it is suspended and took it as result for yield.
 
 7. gen-method.py
 Test the methods of a generator iterator.
+>>>>>>> 3ae4ee03d956d73fe2a927355d2b531aab464276
