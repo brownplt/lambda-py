@@ -17,6 +17,18 @@
    (--> (in-hole P undefined)
         (in-hole P (undefined-val))
         "undefined")
+   (--> (in-hole P (list (val ...)))
+        (in-hole P (obj-val list (meta-list (val ...)) ()))
+        "list")
+   (--> (in-hole P (tuple (val ...)))
+        (in-hole P (obj-val tuple (meta-tuple (val ...)) ()))
+        "tuple")
+   (--> ((in-hole E (fun (x ...) e)) εs Σ)
+        ((in-hole E (fun-val εs (λ (x ...) e))) εs Σ)
+        "fun-novararg")
+   (--> ((in-hole E (fun (x ...) x_1 e)) εs Σ)
+        ((in-hole E (fun-val εs (λ (x ...) (x_1) e))) εs Σ)
+        "fun-vararg")
    (--> (in-hole P (if val e_1 e_2))
         (in-hole P e_1)
         (side-condition (term (truthy? val)))
@@ -72,6 +84,10 @@
   [(truthy? (obj-val any ...)) #t] ;; simply return #t for now
   [(truthy? (undefined-val)) #f])
 
+(define new-loc
+  (let ([n 0])
+    (lambda () (begin (set! n (add1 n)) n))))
+
 (define-metafunction λπ
   extend-env : ε x ref -> ε
   [(extend-env ((x_2 ref_2) ...) x_1 ref_1) ((x_2 ref_2) ... (x_1 ref_1))])
@@ -85,6 +101,7 @@
    ((ref_2 val_2) ... (ref_1 val_1) (ref_3 val_3) ...)
    (side-condition (not (member (term ref_1) (term (ref_2 ...)))))])
 
+;; simply use this subst function for now
 (define-metafunction λπ
   subst : (x ..._1) (any ..._1) e -> e
   [(subst (x ..._1) (any ..._1) e)
@@ -92,6 +109,11 @@
 
 (define-term vnone (obj-val none (meta-none) ()))
 
-(define new-loc
-  (let ([n 0])
-    (lambda () (begin (set! n (add1 n)) n))))
+(define-metafunction λπ
+  cascade : (e ...) εs Σ -> ((val ...) εs Σ)
+  [(cascade () εs Σ)
+   (() εs Σ)]
+  [(cascade (e_1 e_2 ...) εs Σ)
+   ((val_1 val_2 ...) εs_2 Σ_2)
+   (where (val_1 εs_1 Σ_1) ,(apply-reduction-relation* red (term (e_1 εs Σ))))
+   (where ((val_2 ...) εs_2 Σ_2) (cascade (e_2 ...) εs_1 Σ_1))])

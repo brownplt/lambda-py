@@ -16,6 +16,7 @@
   
   ;; value types
   (val
+   #|
    ;; core string type, not string class
    (str-val string)
    ;; built in bool types
@@ -33,11 +34,13 @@
    (set-val (ref ...))
    ;; class has name, base, and body
    (class-val string string e)
+   |#
    ;; object has class and body-val, with/without meta-val - not sure how to do meta-vals yet
    (obj-val x meta-val ((string ref) ...))
    (obj-val x ((string ref) ...))
-   ;; closure
-   (fun-val (λ (x ...) e))
+   ;; closure, with/without vararg
+   (fun-val εs (λ (x ...) e))
+   (fun-val εs (λ (x ...) (x) e))
    ;; undefined
    (undefined-val))
   
@@ -103,12 +106,13 @@
   (E
    hole
    (module E e)
-   (module val E)
    (assign e E)
    (seq E e)
    (if E e e)
    (while E e e)
    (let (x E) e)
+   (list (val ... E e ...))
+   (tuple (val ... E e ...))
    (app E (e ...))
    (app val (val ... E e ...))
    (app-star E (e ...) e)
