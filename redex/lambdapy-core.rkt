@@ -36,7 +36,7 @@
    (class-val string string e)
    |#
    ;; object has class and body-val, with/without meta-val - not sure how to do meta-vals yet
-   (obj-val x meta-val ((string ref) ...))
+   (obj-val x mval ((string ref) ...))
    (obj-val x ((string ref) ...))
    ;; closure, with/without vararg
    (fun-val εs (λ (x ...) e))
@@ -48,7 +48,7 @@
   (t global nonlocal local)
   
   ;; types of meta-val
-  (meta-val
+  (mval
    (meta-num number)
    (meta-str string)
    (meta-list (val ...))
@@ -67,7 +67,7 @@
    (class x x e)
    ;; with/without meta-val - how to do metavals?
    (object x)
-   (object x meta-val)
+   (object x mval)
    (get-field e string)
    (seq e e)
    (assign e e)
@@ -119,6 +119,7 @@
    (let (x E) e)
    (list E)
    (tuple E)
+   (get-field E string)
    (app E (e ...))
    (app val E)
    (app-star E (e ...) e)

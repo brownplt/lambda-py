@@ -37,6 +37,12 @@
    (--> ((in-hole E (fun (x ...) x_1 e)) εs Σ)
         ((in-hole E (fun-val εs (λ (x ...) (x_1) e))) εs Σ)
         "fun-vararg")
+   (--> (in-hole P (object x))
+        (in-hole P (obj-val x ()))
+        "object")
+   (--> (in-hole P (object x mval))
+        (in-hole P (obj-val x mval ()))
+        "object-mval")
    (--> (in-hole P (if val e_1 e_2))
         (in-hole P e_1)
         (side-condition (term (truthy? val)))
@@ -70,19 +76,6 @@
          (override-store Σ ref_new val))
         (fresh x_new)
         (where ref_new ,(new-loc))
-        "let")|#
-   #|
-   (--> ((in-hole E (let (x_1 val_1) e_2))
-         (name env (ε_1 ε ...))
-         Σ)
-        ,(term-let ([(val_2 ε_2 Σ_2) (first (apply-reduction-relation* red (term
-                                                                            (e_2
-                                                                             ((extend-env ε_1 x_1 ref_1) ε ...)
-                                                                             (override-store Σ ref_1 val_1)))))])
-                   (term ((in-hole E val_2)
-                          env
-                          Σ)))
-        (where ref_1 ,(new-loc))
         "let")|#
    (--> ((in-hole E (let (x_1 val_1) e))
          (ε_1 ε ...)
@@ -126,6 +119,26 @@
         (side-condition (not (member (term ref_1) (term (ref_4 ... ref_5 ...)))))
         (side-condition (not (redex-match? λπ (undefined-val) (term val_1)))) ;; TODO: exception for undefined
         "id-local")
+   (--> ((in-hole E (get-field (obj-val x mval ... ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...)) string_1))
+         εs
+         (name store ((ref_4 val_4) ... (ref_1 val_1) (ref_5 val_5) ...)))
+        ((in-hole E val_1)
+         εs
+         store)
+        (side-condition (not (member (term string_1) (term (string_2 ... string_3 ...)))))
+        (side-condition (not (member (term ref_1) (term (ref_4 ... ref_5 ...)))))
+        "get-field")
+   (--> ((in-hole E (get-field (obj-val x mval ... ((string_2 ref_2) ... ("__class__" ref_1) (string_3 ref_3) ...)) string_1))
+         εs
+         (name store ((ref_4 val_4) ... (ref_1 val_1) (ref_5 val_5) ...)))
+        ((in-hole E (get-field val_1 string_1))
+         εs
+         store)
+        (side-condition (not (string=? "__class__" (term string_1))))
+        (side-condition (not (member (term string_1) (term (string_2 ... string_3 ...)))))
+        (side-condition (not (member "__class__" (term (string_2 ... string_3 ...)))))
+        (side-condition (not (member (term ref_1) (term (ref_4 ... ref_5 ...)))))
+        "get-field-class")
    (--> ((in-hole E (assign (id x_1 local) val_1))
          ((name scope ((x_2 ref_2) ...)) ε ...)
          Σ)
@@ -143,6 +156,17 @@
          (override-store Σ ref_1 val_1))
         (side-condition (not (member (term x_1) (term (x_2 ... x_3 ...)))))
         "assign-local-bound")
+   (--> ((in-hole E (assign (get-field
+                             (obj-val x mval ... ((string_2 ref_2) ... (string_1 ref_1) (string_3 ref_3) ...))
+                             string_1)
+                            val_1))
+         εs
+         Σ)
+        ((in-hole E vnone)
+         εs
+         (override-store Σ ref_1 val_1))
+        (side-condition (not (member (term string_1) (term (string_2 ... string_3 ...)))))
+        "assign-field")
    (--> (in-hole P (val ... r e ...))
         (in-hole P (r))
         (side-condition (not (val? (term r))))
