@@ -8,27 +8,27 @@
   (reduction-relation
    λπ
    #:domain p
-   (--> (in-hole P (str string))
-        (in-hole P (obj-val str (meta-str string) ()))
+   (==> (str string)
+        (obj-val str (meta-str string) ())
         "string")
-   (--> (in-hole P none)
-        (in-hole P vnone)
+   (==> none
+        vnone
         "none")
-   (--> (in-hole P undefined)
-        (in-hole P (undefined-val))
+   (==> undefined
+        undefined-val
         "undefined")
-   (--> (in-hole P (list (val ...)))
-        (in-hole P (obj-val list (meta-list (val ...)) ()))
+   (==> (list (val ...))
+        (obj-val list (meta-list (val ...)) ())
         "list")
-   (--> (in-hole P (list (r)))
-        (in-hole P r)
+   (==> (list (r))
+        r
         (side-condition (not (val? (term r))))
         "list-nonval")
-   (--> (in-hole P (tuple (val ...)))
-        (in-hole P (obj-val tuple (meta-tuple (val ...)) ()))
+   (==> (tuple (val ...))
+        (obj-val tuple (meta-tuple (val ...)) ())
         "tuple")
-   (--> (in-hole P (tuple (r)))
-        (in-hole P r)
+   (==> (tuple (r))
+        r
         (side-condition (not (val? (term r))))
         "tuple-nonval")
    (--> ((in-hole E (fun (x ...) e)) εs Σ)
@@ -37,6 +37,7 @@
    (--> ((in-hole E (fun (x ...) x_1 e)) εs Σ)
         ((in-hole E (fun-val εs (λ (x ...) (x_1) e))) εs Σ)
         "fun-vararg")
+<<<<<<< HEAD
    (--> (in-hole P (object x))
         (in-hole P (obj-val x ()))
         "object")
@@ -45,27 +46,31 @@
         "object-mval")
    (--> (in-hole P (if val e_1 e_2))
         (in-hole P e_1)
+=======
+   (==> (if val e_1 e_2)
+        e_1
+>>>>>>> redex: refactor into 'with' expression reduction, simplify a few terms
         (side-condition (term (truthy? val)))
         "if-true")
-   (--> (in-hole P (if val e_1 e_2))
-        (in-hole P e_2)
+   (==> (if val e_1 e_2)
+        e_2
         (side-condition (not (term (truthy? val))))
         "if-false")
-   (--> (in-hole P (if (exception-r val) e_1 e_2))
-        (in-hole P (exception-r val))
+   (==> (if (exception-r val) e_1 e_2)
+        (exception-r val)
         "if-exc") ;; TODO: break-r and return-r throw SyntaxError
-   (--> (in-hole P (seq val e))
-        (in-hole P e)
+   (==> (seq val e)
+        e
         "seq")
-   (--> (in-hole P (seq r e))
-        (in-hole P r)
+   (==> (seq r e)
+        r
         (side-condition (not (val? (term r))))
         "seq-nonval")
-   (--> (in-hole P (while e_1 e_2 e_3))
-        (in-hole P (if e_1 (seq e_2 (while e_1 e_2 e_3)) e_3)) ;; not handle break yet
+   (==> (while e_1 e_2 e_3)
+        (if e_1 (seq e_2 (while e_1 e_2 e_3)) e_3) ;; not handle break yet
         "while")
-   (--> (in-hole P break)
-        (in-hole P (break-r))
+   (==> break
+        break-r
         "break")
    #|
    (--> ((in-hole E (let (x_1 val) e))
@@ -167,11 +172,14 @@
          (override-store Σ ref_1 val_1))
         (side-condition (not (member (term string_1) (term (string_2 ... string_3 ...)))))
         "assign-field")
-   (--> (in-hole P (val ... r e ...))
-        (in-hole P (r))
+   (==> (val ... r e ...)
+        (r)
         (side-condition (not (val? (term r))))
         (side-condition (not (and (empty? (term (val ...))) (empty? (term (e ...))))))
         "cascade-nonval")
+   with
+   [(--> (in-hole P e_1) (in-hole P e_2))
+    (==> e_1 e_2)]
    ))
 
 (define-metafunction λπ

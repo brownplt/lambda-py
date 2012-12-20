@@ -42,7 +42,7 @@
    (fun-val εs (λ (x ...) e))
    (fun-val εs (λ (x ...) (x) e))
    ;; undefined
-   (undefined-val))
+   undefined-val)
   
   ;; id-type
   (t global nonlocal local)
@@ -106,7 +106,7 @@
   (r
    val
    (return-r val)
-   (break-r)
+   break-r
    (exception-r val))
   
   ;; types for evaluation.
