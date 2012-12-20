@@ -100,8 +100,15 @@
    undefined
    break
    (module e e)
-   val)
-
+   r)
+  
+  ;; types for result
+  (r
+   val
+   (return-r val)
+   (break-r)
+   (exception-r val))
+  
   ;; types for evaluation.
   (E
    hole
@@ -109,15 +116,15 @@
    (assign e E)
    (seq E e)
    (if E e e)
-   (while E e e)
    (let (x E) e)
-   (list (val ... E e ...))
-   (tuple (val ... E e ...))
+   (list E)
+   (tuple E)
    (app E (e ...))
-   (app val (val ... E e ...))
+   (app val E)
    (app-star E (e ...) e)
-   (app-star val (val ... E e ...) e)
+   (app-star val E e)
    (app-star val (val ...) E)
+   (val ... E e ...) ;; for list, tuple, app, etc.
    ;; todo - may need more
    )
   
