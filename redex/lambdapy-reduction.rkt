@@ -4,7 +4,10 @@
 (require redex/tut-subst)
 (require "lambdapy-core.rkt")
 
-(define red
+(provide λπ-red)
+
+
+(define λπ-red
   (reduction-relation
    λπ
    #:domain p
@@ -37,19 +40,14 @@
    (--> ((in-hole E (fun (x ...) x_1 e)) εs Σ)
         ((in-hole E (fun-val εs (λ (x ...) (x_1) e))) εs Σ)
         "fun-vararg")
-<<<<<<< HEAD
    (--> (in-hole P (object x))
         (in-hole P (obj-val x ()))
         "object")
    (--> (in-hole P (object x mval))
         (in-hole P (obj-val x mval ()))
         "object-mval")
-   (--> (in-hole P (if val e_1 e_2))
-        (in-hole P e_1)
-=======
    (==> (if val e_1 e_2)
         e_1
->>>>>>> redex: refactor into 'with' expression reduction, simplify a few terms
         (side-condition (term (truthy? val)))
         "if-true")
    (==> (if val e_1 e_2)
