@@ -1,0 +1,44 @@
+Multiple Inheritance
+
+Introduction
+
+Multiple Inheritance in Python is handled using the __mro__ tuple attribute in clases, which is computed at class creation time using the C3 linearization algorithm, if there is no C3 linearization possible, class creation fails with TypeError: MRO conflict among bases.
+Attribute retrieval follows the __mro__ sequential order instead of the single inheritance order.
+
+super() semantics is quite different from the single inheritance case since it is designed to support cooperative multiple inheritance, basically attribute lookup is done in __mro__ order, but skipping all classes up to thisclass, where thisclass is the first argument to super() or the enclosing class in the zero arguments case.
+
+Modifications to base implementation
+
+- Changes to VObject:
+    The VObject used to represent a class needs two new attributes in its dict:
+        1) __bases__: a tuple with the parents given during class creation or object if no paret is given
+        2) __mro__: a tuple with the results of the C3 linearization algorithm
+    The "antecedent" field, which was used for the parent class name is redundant now and, since for instance objects it is used for the class name, it could be ranamed as "classname" with the value 'type for class objects.
+
+-  New syntax that you add to the core
+   CClass (base : symbol) parameter will be changed to a (bases : (listof symbol))
+
+-  New surface syntax that you handle in desugaring
+   No new syntax but some changes needs to be made at desugaring:
+   - the list of bases needs to be passed to CClass, not just the first element.
+   - super needs the class in which it is embeded as an additional argument when it is called without arguments, I need to look more closely at desugar to see how this can be done in the base code. Any ideas are welcomed!
+
+-  Functions/helpers that already exist and and you change
+   At interpreter level I would need to change:
+   CClass case in interp-env to add the new attributes
+   get_field to handle the new lookup order, including super as special case
+
+-  Functions/helpers that you add
+   mro, c3-merge and c3-select for __mro__ calculation.
+
+- New builtin classes
+    super:
+        super is a class with two attributes: __thisclass__ and __self__, these parameters can be given explicitly or provided by desugaring.
+        When an attribute is retrieved from a super object the search is modified to use the __self__ class __mro__, but only past __thisclass__.
+
+    type:
+        for the test set only the one and three argument versions of type constructor are used, the first can be implemented using the $class primitive operation and the second using CClass.
+
+-  Bugs that you find and fix
+
+-  Special notes (if any) for running your tests
