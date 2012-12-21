@@ -1,0 +1,16 @@
+* Missing builtins:
+
+issubclass()
+ord()
+pow()
+round()
+take()
+repr()
+next()
+eval()
+id()
+getattr()
+setattr()
+ascii()
+bin()
+hex()

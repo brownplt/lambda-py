@@ -1,0 +1,10 @@
+* Missing Exceptions:
+
+OverflowError
+MemoryError
+IOError
+InvalidOperation
+SystemError
+ReferenceError
+UnicodeEncodeError
+NotImplementedError

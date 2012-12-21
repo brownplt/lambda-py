@@ -1,0 +1,18 @@
+* Missing asserts:
+
+assertAlmostEqual
+assertGreater
+assertGreaterEqual
+assertLess
+assertLessEqual
+assertIsNone
+assertIsNotNone
+assertSequenceEqual
+assertRegex
+assertRaisesRegex
+assertRunOK
+assertRaisesMessage
+assertTypedEquals
+assertListEqual
+assertWarns
+assertIsInstance (== assertIs(isinstance(....))) ?
