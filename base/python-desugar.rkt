@@ -321,7 +321,18 @@
                   list-id)))]
          (rec-desugar full-expr global? env false)))
 
-
+;;; desugar import name as asname to
+;;; asname = __import__('name')
+(define (desugar-import-py names asnames) : PyExpr
+  (local [(define (helper names asnames result)
+            (cond [(empty? names) result]
+                  [else
+                   (helper (rest names) (rest asnames)
+                           (append result
+                                   (list (PyAssign (list (PyId (first asnames) 'Store))
+                                                   (PyApp (PyId '__import__ 'Load)
+                                                          (list (PyStr (first names))))))))]))]
+         (PySeq (helper names asnames (list)))))
 
 (define (rec-desugar [expr : PyExpr] [global? : boolean]
                      [env : IdEnv] [inclass? : boolean]) : DesugarResult 
@@ -858,7 +869,14 @@
                                     (none)))
                         (DResult-env desugared-slice)))]
                   [else (error 'desugar "We don't know how to delete identifiers yet.")]))]
-)))
+
+    [PyImport (names asnames)
+              (rec-desugar
+               (desugar-import-py names asnames)
+               global?
+               env
+               inclass?)]
+    )))
 
 (define (desugar [expr : PyExpr]) : CExpr
   (type-case DesugarResult (rec-desugar expr true empty false)

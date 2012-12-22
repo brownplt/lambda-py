@@ -72,5 +72,8 @@
   [PyNone]
   [PyBreak]
 
+  ; import, which is desugar to asname = __import__("name")
+  [PyImport (names : (listof string)) (asnames : (listof symbol))]
 )
+
 
