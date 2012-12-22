@@ -39,6 +39,19 @@ Modifications to base implementation
     type:
         for the test set only the one and three argument versions of type constructor are used, the first can be implemented using the $class primitive operation and the second using CClass.
 
--  Bugs that you find and fix
+-  Bugs to be fixed
+    bound methods / class method behavior: the first idea is to introduce add method class, but I will also look up at the descriptor protocol.
 
 -  Special notes (if any) for running your tests
+    none
+
+References:
+    A gentle introduction to Python Method Resolution Order (mro),
+    written by Michele Simionato can be found at
+    http://www.python.org/download/releases/2.3/mro/
+
+    The linearization algorithm is from "A Monotonic Superclass Linearization
+    for Dylan" by Barret et.al. It can be found at
+    http://192.220.96.201/dylan/linearization-oopsla96.html
+
+    Descriptor HowTo Guide: http://docs.python.org/3.2/howto/descriptor.html
