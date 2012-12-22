@@ -1,0 +1,10 @@
+Issue #2
+--------
+ - surface syntax: [PyImport (names : (listof string)) (asnames : (listof symbol))]
+ - add functions : python-desugar.rkt:desugar-import-py
+ - special notes:
+   - desugar-import-py returns PyExpr not DesugarResult.
+
+
+
+
