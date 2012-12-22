@@ -44,6 +44,9 @@
    ;; undefined
    undefined-val)
   
+  ;; primitive operators
+  (op string)
+  
   ;; id-type
   (t global nonlocal local)
   
@@ -85,9 +88,9 @@
    (method (x ...) x e)
    (while e e e)
    (return e)
-   (prim1 string e)
-   (prim2 string e e)
-   (builtin-prim string (e ...))
+   (prim1 op e)
+   (prim2 op e e)
+   (builtin-prim op (e ...))
    (list (e ...))
    (tuple (e ...))
    (dict ((e e) ...))
@@ -120,6 +123,10 @@
    (list E)
    (tuple E)
    (get-field E string)
+   (prim1 op E)
+   (prim2 op E e)
+   (prim2 op val E)
+   (builtin-prim op E)
    (app E (e ...))
    (app val E)
    (app-star E (e ...) e)

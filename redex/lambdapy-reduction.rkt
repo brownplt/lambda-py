@@ -2,7 +2,8 @@
 
 (require redex)
 (require redex/tut-subst)
-(require "lambdapy-core.rkt")
+(require "lambdapy-core.rkt"
+         "lambdapy-prim.rkt")
 
 (provide λπ-red)
 
@@ -40,12 +41,37 @@
    (--> ((in-hole E (fun (x ...) x_1 e)) εs Σ)
         ((in-hole E (fun-val εs (λ (x ...) (x_1) e))) εs Σ)
         "fun-vararg")
-   (--> (in-hole P (object x))
-        (in-hole P (obj-val x ()))
+   (==> (object x)
+        (obj-val x ())
         "object")
-   (--> (in-hole P (object x mval))
-        (in-hole P (obj-val x mval ()))
+   (==> (object x mval)
+        (obj-val x mval ())
         "object-mval")
+   (--> ((in-hole E (prim1 op val)) εs Σ)
+        ((in-hole E (δ op val εs Σ)) εs Σ)
+        "prim1")
+   (==> (prim1 op r)
+        r
+        (side-condition (not (val? (term r))))
+        "prim1-nonval") ;; TODO: raise error for break, return
+   (--> ((in-hole E (prim2 op val_1 val_2)) εs Σ)
+        ((in-hole E (δ op val_1 val_2 εs Σ)) εs Σ)
+        "prim2")
+   (==> (prim2 op r e)
+        r
+        (side-condition (not (val? (term r))))
+        "prim2-nonval-l") ;; TODO: raise error for break, return
+   (==> (prim2 op val r)
+        r
+        (side-condition (not (val? (term r))))
+        "prim2-nonval-r") ;; TODO: raise error for break, return
+   (==> ((in-hole E (builtin-prim op (val ...))) εs Σ)
+        ((in-hole E (δ op val ... εs Σ)) εs Σ)
+        "builtin-prim")
+   (==> (builtin-prim op (r))
+        r
+        (side-condition (not (val? (term r))))
+        "builtin-prim-nonval") ;; TODO: raise error for break, return
    (==> (if val e_1 e_2)
         e_1
         (side-condition (term (truthy? val)))
@@ -180,12 +206,6 @@
     (==> e_1 e_2)]
    ))
 
-(define-metafunction λπ
-  truthy? : val -> #t or #f
-  [(truthy? (fun-val any ...)) #t]
-  [(truthy? (obj-val any ...)) #t] ;; simply return #t for now
-  [(truthy? (undefined-val)) #f])
-
 (define new-loc
   (let ([n 0])
     (lambda () (begin (set! n (add1 n)) n))))
@@ -213,5 +233,3 @@
 
 (define-term mt-env (()))
 (define-term mt-store ())
-
-(define-term vnone (obj-val none (meta-none) ()))
