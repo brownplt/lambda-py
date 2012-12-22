@@ -12,7 +12,15 @@
 (define-metafunction λπ
   truthy? : val -> #t or #f
   [(truthy? (fun-val any ...)) #t]
-  [(truthy? (obj-val any ...)) #t] ;; simply return #t for now
+  [(truthy? (obj-val x (meta-num number) (any ...))) ,(not (= 0 (term number)))]
+  [(truthy? (obj-val x (meta-str string) (any ...))) ,(not (string=? "" (term string)))]
+  [(truthy? (obj-val x (meta-list (val ...)) (any ...))) ,(not (empty? (term (val ...))))]
+  [(truthy? (obj-val x (meta-tuple (val ...)) (any ...))) ,(not (empty? (term (val ...))))]
+  [(truthy? (obj-val x (meta-dict ((val_1 val_2) ...)) (any ...))) ,(not (empty? (term (val_1 ...))))]
+  [(truthy? (obj-val x (meta-set (val ...)) (any ...))) ,(not (empty? (term (val ...))))]
+  [(truthy? (obj-val x (meta-none) (any ...))) #f]
+  [(truthy? (obj-val x mval (any ...))) #t]
+  [(truthy? (obj-val x (any ...))) #t]
   [(truthy? undefined-val) #f])
 
 (define-metafunction λπ
