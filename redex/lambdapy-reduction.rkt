@@ -21,6 +21,12 @@
    (==> undefined
         undefined-val
         "undefined")
+   (==> true
+	vtrue
+	"true")
+   (==> false
+	vfalse
+	"false")
    (==> (list (val ...))
         (obj-val list (meta-list (val ...)) ())
         "list")
