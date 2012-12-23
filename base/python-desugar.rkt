@@ -334,9 +334,13 @@
                                                           (list (PyStr (first names))))))))]))]
          (PySeq (helper names asnames (list)))))
 
-;;; desugar from module import id as id_alias
+;;; desugar from module import name as asname
 ;;; __tmp_module = __import__(module, globals(), locals(), [id], 0)
 ;;; id_alias = __tmp_module.id
+;;; 
+;;;  from module import * will desugar to
+;;; __import__all__(__import__(module, globals(), locals(), ['*'], 0)) 
+;;; where __import__all__ performs importing based on __all__
 (define (desugar-importfrom-py [module : string]
                                [names : (listof string)]
                                [asnames : (listof symbol)]
@@ -349,16 +353,25 @@
                                    (PyApp (PyId '__globals 'Load) (list))
                                    (PyApp (PyId '__locals 'Load) (list))
                                    (PyList (map PyStr names)) ; list type of names
-                                   (PyNum level)))))
-          (define (get-bind-exprs module names asnames)
-            (cond [(empty? names) (list)]
-                  [else
-                   (append (list (PyAssign (list (PyId (first asnames) 'Store))
-                                           (PyDotField module (string->symbol (first names)))))
-                           (get-bind-exprs module (rest names) (rest asnames)))]))
-          (define bind-exprs
-            (get-bind-exprs tmp-module names asnames))]
-    (PySeq (append (list module-expr) bind-exprs))))
+                                   (PyNum level)))))]
+    (cond [(not (equal? (first names) "*"))
+           (local [(define (get-bind-exprs module names asnames)
+                     (cond [(empty? names) (list)]
+                           [else
+                            (append (list (PyAssign (list (PyId (first asnames) 'Store))
+                                                    (PyDotField module (string->symbol (first names)))))
+                                    (get-bind-exprs module (rest names) (rest asnames)))]))
+                   (define bind-exprs
+                     (get-bind-exprs tmp-module names asnames))]
+             (PySeq (append (list module-expr) bind-exprs)))]
+          [else ;; from module import *
+           (PyApp (PyId '__import__all__ 'Load)
+                  (list (PyApp (PyId '__import__ 'Load)
+                               (list (PyStr module)
+                                     (PyApp (PyId '__globals 'Load) (list))
+                                     (PyApp (PyId '__locals 'Load) (list))
+                                     (PyList (list (PyStr "*"))) ; list type of names
+                                     (PyNum level)))))])))
 
 (define (rec-desugar [expr : PyExpr] [global? : boolean]
                      [env : IdEnv] [inclass? : boolean]) : DesugarResult 
