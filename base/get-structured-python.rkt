@@ -344,7 +344,8 @@ structure that you define in python-syntax.rkt
                  ('level level))
      (PyImportFrom module
                    (map (lambda (x)
-                          (hash-ref x 'name)))
+                          (hash-ref x 'name))
+                        names)
                    (map (lambda (x)
                           (let ([as (hash-ref x 'asname)])
                             (if (equal? as #\nul)
