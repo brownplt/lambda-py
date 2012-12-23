@@ -92,6 +92,9 @@
    (==> (try (in-hole T (exception-r val)) (e_exc1 e_exc ...) e_else e_finally)
         vnone ;; TODO: handlers
         "try-exc")
+   (==> (try (in-hole T (exception-r val)) () e_else e_finally)
+        (seq e_finally (exception-r val))
+        "try-exc-nohandler")
    (==> (try (in-hole T r) (e_exc ...) e_else e_finally)
         (seq e_finally r)
         (side-condition (not (val? (term r))))
