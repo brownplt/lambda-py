@@ -21,6 +21,12 @@
    (==> undefined
         undefined-val
         "undefined")
+   (==> true
+	vtrue
+	"true")
+   (==> false
+	vfalse
+	"false")
    (==> (list (val ...))
         (obj-val list (meta-list (val ...)) ())
         "list")
@@ -112,6 +118,25 @@
          (override-store Σ ref_1 val_1))
         (where ref_1 ,(new-loc))
         "let")
+   (--> ((in-hole E (let (x_1 (return-r val_1)) e))
+         (ε_1 ε ...)
+         Σ)
+        ((in-hole E e)
+         ((extend-env ε_1 x_1 ref_1) ε ...)
+         (override-store Σ ref_1 val_1))
+        (where ref_1 ,(new-loc))
+        "let-ret")
+   (--> ((in-hole E (let (x_1 break-r) e))
+         (ε_1 ε ...)
+         Σ)
+        ((in-hole E e)
+         ((extend-env ε_1 x_1 ref_1) ε ...)
+         (override-store Σ ref_1 vnone))
+        (where ref_1 ,(new-loc))
+        "let-brk")
+   (==> (let (x_1 (exception-r val)) e_1)
+        (exception-r val)
+        "let-exc")
    (--> ((in-hole E (id x_1 local))
          (name env (((x_2 ref_2) ... (x_1 ref_1) (x_3 ref_3) ...) ε ...))
          (name store ((ref_4 val_4) ... (ref_1 val_1) (ref_5 val_5) ...)))
