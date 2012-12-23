@@ -50,28 +50,12 @@
    (--> ((in-hole E (prim1 op val)) εs Σ)
         ((in-hole E (δ op val εs Σ)) εs Σ)
         "prim1")
-   (==> (prim1 op r)
-        r
-        (side-condition (not (val? (term r))))
-        "prim1-nonval") ;; TODO: raise error for break, return
    (--> ((in-hole E (prim2 op val_1 val_2)) εs Σ)
         ((in-hole E (δ op val_1 val_2 εs Σ)) εs Σ)
         "prim2")
-   (==> (prim2 op r e)
-        r
-        (side-condition (not (val? (term r))))
-        "prim2-nonval-l") ;; TODO: raise error for break, return
-   (==> (prim2 op val r)
-        r
-        (side-condition (not (val? (term r))))
-        "prim2-nonval-r") ;; TODO: raise error for break, return
    (==> ((in-hole E (builtin-prim op (val ...))) εs Σ)
         ((in-hole E (δ op val ... εs Σ)) εs Σ)
         "builtin-prim")
-   (==> (builtin-prim op (r))
-        r
-        (side-condition (not (val? (term r))))
-        "builtin-prim-nonval") ;; TODO: raise error for break, return
    (==> (if val e_1 e_2)
         e_1
         (side-condition (term (truthy? val)))
@@ -80,22 +64,36 @@
         e_2
         (side-condition (not (term (truthy? val))))
         "if-false")
-   (==> (if (exception-r val) e_1 e_2)
-        (exception-r val)
-        "if-exc") ;; TODO: break-r and return-r throw SyntaxError
    (==> (seq val e)
         e
         "seq")
-   (==> (seq r e)
-        r
-        (side-condition (not (val? (term r))))
-        "seq-nonval")
    (==> (while e_1 e_2 e_3)
         (if e_1 (seq e_2 (while e_1 e_2 e_3)) e_3) ;; not handle break yet
         "while")
    (==> break
         break-r
         "break")
+   (==> (raise val)
+        (exception-r val)
+        "raise") ;; TODO: check type of val
+   (==> (try val (e_exc ...) val_else e_finally)
+        e_finally
+        "try-noexc")
+   (==> (try val (e_exc ...) (in-hole F r) e_finally)
+        (seq e_finally r)
+        (side-condition (not (val? (term r))))
+        "try-else-nonval")
+   (==> (try (in-hole T (exception-r val)) (e_exc1 e_exc ...) e_else e_finally)
+        vnone ;; TODO: handlers
+        "try-exc")
+   (==> (try (in-hole T r) (e_exc ...) e_else e_finally)
+        (seq e_finally r)
+        (side-condition (not (val? (term r))))
+        (side-condition (not (redex-match? λπ (exception-r any) (term r))))
+        "try-nonval")
+   (--> ((in-hole T (exception-r val)) εs Σ)
+        ,(raise-user-error "error") ;; TODO: pretty output
+        "exc-uncatched")
    #|
    (--> ((in-hole E (let (x_1 val) e))
          (ε_1 ε ...)
@@ -114,30 +112,6 @@
          (override-store Σ ref_1 val_1))
         (where ref_1 ,(new-loc))
         "let")
-   (--> ((in-hole E (let (x_1 (return-r val_1)) e))
-         (ε_1 ε ...)
-         Σ)
-        ((in-hole E e)
-         ((extend-env ε_1 x_1 ref_1) ε ...)
-         (override-store Σ ref_1 val_1))
-        (where ref_1 ,(new-loc))
-        "let-ret")
-   (--> ((in-hole E (let (x_1 (break-r)) e))
-         (ε_1 ε ...)
-         Σ)
-        ((in-hole E e)
-         ((extend-env ε_1 x_1 ref_1) ε ...)
-         (override-store Σ ref_1 vnone))
-        (where ref_1 ,(new-loc))
-        "let-brk")
-   (--> ((in-hole E (let (x_1 (exception-r val_1)) e))
-         (ε_1 ε ...)
-         Σ)
-        ((in-hole E e)
-         ((extend-env ε_1 x_1 ref_1) ε ...)
-         (override-store Σ ref_1 val_1))
-        (where ref_1 ,(new-loc))
-        "let-exc")
    (--> ((in-hole E (id x_1 local))
          (name env (((x_2 ref_2) ... (x_1 ref_1) (x_3 ref_3) ...) ε ...))
          (name store ((ref_4 val_4) ... (ref_1 val_1) (ref_5 val_5) ...)))
