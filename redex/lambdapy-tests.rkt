@@ -51,3 +51,7 @@
 ;; binding
 (expect (term (let (x vtrue) (id x local)))
 	(term vtrue))
+(expect (term (let (x (exception-r vtrue)) false))
+	(term (exception-r vtrue)))
+(expect (term (let (x vtrue) (exception-r vfalse)))
+	(term (exception-r vfalse)))
