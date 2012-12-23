@@ -334,6 +334,29 @@
                                                           (list (PyStr (first names))))))))]))]
          (PySeq (helper names asnames (list)))))
 
+;;; desugar from module import id as id_alias
+;;; __tmp_module = __import__(module, globals(), locals(), [id], 0)
+;;; id_alias = __tmp_module.id
+(define (desugar-importfrom-py [module : string]
+                               [names : (listof string)]
+                               [asnames : (listof symbol)]
+                               [level : number]) : PyExpr
+  (PySeq (list)))
+;  (local [(define tmp-expr 
+;            (PyAssign (list (PyId '__tmp_module 'Store))
+;                      (PyApp (PyId '__import__ 'Load)
+;                             (list (PyStr module)
+;                                   (PyApp (PyId '__globals 'Load) (list))
+;                                   (PyApp (PyId '__locals 'Load) (list))
+;                                   ; list type of names
+;                                   level))))
+;          ;(define assign-exprs
+          
+            
+            
+    
+                                   
+
 (define (rec-desugar [expr : PyExpr] [global? : boolean]
                      [env : IdEnv] [inclass? : boolean]) : DesugarResult 
   (begin ;(display expr) (display "\n\n")
@@ -871,12 +894,12 @@
                   [else (error 'desugar "We don't know how to delete identifiers yet.")]))]
 
     [PyImport (names asnames)
-              (rec-desugar
-               (desugar-import-py names asnames)
-               global?
-               env
-               inclass?)]
+              (rec-desugar (desugar-import-py names asnames) global? env inclass?)]
+      
+    [PyImportFrom (module names asnames level)
+                  (rec-desugar (desugar-importfrom-py module names asnames level) global? env inclass?)]
     )))
+
 
 (define (desugar [expr : PyExpr]) : CExpr
   (type-case DesugarResult (rec-desugar expr true empty false)

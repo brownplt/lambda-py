@@ -336,6 +336,22 @@ structure that you define in python-syntax.rkt
                             (string->symbol (hash-ref x 'name))
                             (string->symbol as))))
                     names))]
+    
+    ; largely the same with PyImport.
+    [(hash-table ('nodetype "ImportFrom")
+                 ('module module)
+                 ('names names)
+                 ('level level))
+     (PyImportFrom module
+                   (map (lambda (x)
+                          (hash-ref x 'name)))
+                   (map (lambda (x)
+                          (let ([as (hash-ref x 'asname)])
+                            (if (equal? as #\nul)
+                                (string->symbol (hash-ref x 'name))
+                                (string->symbol as))))
+                        names)
+                   level)]
 
     [(list (hash-table (k v) ...) ..2)
      (PySeq (map get-structured-python pyjson))]
