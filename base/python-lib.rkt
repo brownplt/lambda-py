@@ -10,6 +10,7 @@
          "builtins/bool.rkt"
          "builtins/set.rkt"
          "builtins/none.rkt"
+         "builtins/file.rkt"
          "util.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
@@ -241,6 +242,9 @@ that calls the primitive `print`.
         (bind 'dict (CId '$dict (GlobalId)))
         (bind 'bool bool-class)
         (bind 'set set-class)
+        (bind 'file file-class)
+        (bind 'open file-class)
+
         (bind 'len len-lambda)
         (bind 'min min-lambda)
         (bind 'max max-lambda)
