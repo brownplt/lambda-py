@@ -57,7 +57,7 @@
         (meta-tuple (val ...))
         (meta-dict ((val val) ...))
         (meta-set (val ...))
-        (meta-class string)
+        (meta-class x)
         (meta-none))
   
   ;; types of expressions
@@ -97,7 +97,7 @@
      (raise e)
      (try e (e ...) e e)
      (except (e ...) e)
-     (except (e ...) x e)
+     (except (e ...) (x) e)
      undefined
      break
      (module e e)
@@ -125,7 +125,7 @@
      (builtin-prim op E)
      (raise E)
      (try E (e ...) e e)
-     (try val (e ...) E e)
+     ;(try val (e ...) E e)
      (app E (e ...))
      (app val E)
      (app-star E (e ...) e)
@@ -155,29 +155,6 @@
      (app-star val T e)
      (app-star val (val ...) T)
      (val ... T e ...) ;; for list, tuple, app, etc.
-     ;; todo - may need more
-     )
-  
-  ;; context for except/else branch in try-except-else-finally
-  (F hole
-     (assign e F)
-     (seq F e)
-     (if F e e)
-     (let (x F) e)
-     (list F)
-     (tuple F)
-     (get-field F string)
-     (prim1 op F)
-     (prim2 op F e)
-     (prim2 op val F)
-     (builtin-prim op F)
-     (raise F)
-     (app F (e ...))
-     (app val F)
-     (app-star F (e ...) e)
-     (app-star val F e)
-     (app-star val (val ...) F)
-     (val ... F e ...) ;; for list, tuple, app, etc.
      ;; todo - may need more
      )
   
