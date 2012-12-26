@@ -56,6 +56,7 @@
         (meta-list (val ...))
         (meta-tuple (val ...))
         (meta-dict ((val val) ...))
+        ;; set is like a list in representation, lack of order has to be accounted for in semantics
         (meta-set (val ...))
         (meta-class x)
         (meta-none))
@@ -109,7 +110,7 @@
      break-r
      (exception-r val))
   
-  ;; types for evaluation.
+  ;; evaluation context
   (E hole
      (module E e)
      (assign e E)
@@ -118,6 +119,9 @@
      (let (x E) e)
      (list E)
      (tuple E)
+     (set E)
+     (dict ((val val) ... (e E) (e e) ...))
+     (dict ((val val) ... (E val) (e e) ...)) ;; Python's dict has this evaluation order
      (get-field E string)
      (prim1 op E)
      (prim2 op E e)
@@ -143,6 +147,9 @@
      (let (x T) e)
      (list T)
      (tuple T)
+     (set T)
+     (dict ((val val) ... (e T) (e e) ...))
+     (dict ((val val) ... (T val) (e e) ...)) ;; Python's dict has this evaluation order
      (get-field T string)
      (prim1 op T)
      (prim2 op T e)

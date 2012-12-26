@@ -30,17 +30,15 @@
    (==> (list (val ...))
         (obj-val list (meta-list (val ...)) ())
         "list")
-   (==> (list (r))
-        r
-        (side-condition (not (val? (term r))))
-        "list-nonval")
    (==> (tuple (val ...))
         (obj-val tuple (meta-tuple (val ...)) ())
         "tuple")
-   (==> (tuple (r))
-        r
-        (side-condition (not (val? (term r))))
-        "tuple-nonval")
+   (==> (set (val ...))
+        (obj-val set (meta-set (val ...)) ())
+        "set")
+   (==> (dict ((val_1 val_2) ...))
+        (obj-val $dict (meta-dict ((val_1 val_2) ...)) ())
+        "dict") ;; TODO: duplicated keys
    (--> ((in-hole E (fun (x ...) e)) εs Σ)
         ((in-hole E (fun-val εs (λ (x ...) e))) εs Σ)
         "fun-novararg")
@@ -118,6 +116,9 @@
    (--> ((in-hole T (exception-r val)) εs Σ)
         ,(raise-user-error "error") ;; TODO: pretty output
         "exc-uncatched")
+   (==> (module val e)
+        e
+        "module")
    #|
    (--> ((in-hole E (let (x_1 val) e))
          (ε_1 ε ...)
