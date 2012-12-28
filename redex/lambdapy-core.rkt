@@ -165,8 +165,15 @@
      ;; todo - may need more
      )
   
-  ;; identifiers, more keywords will be filled in
-  (x (variable-except if while except lambda))
+  ;; identifiers, as per
+  ;; http://docs.python.org/3.2/reference/lexical_analysis.html#keywords
+  (x (variable-except False class finally is return
+		      None continue for lambda try
+		      True def from nonlocal while
+		      and del global not with
+		      as elif if or yield
+		      assert else import pass
+		      break except in raise))
   
   (p (e εs Σ))
   (P (E εs Σ))
