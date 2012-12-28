@@ -68,15 +68,30 @@
         e_2
         (side-condition (not (term (truthy? val))))
         "if-false")
+   (==> (if (exception-r val) e_1 e_2)
+	(exception-r val)
+	"if-exception")
    (==> (seq val e)
         e
         "seq")
+   (==> (seq (return-r val) e)
+	(return-r val)
+	"seq-return")
+   (==> (seq break-r e)
+	break-r
+	"seq-break")
+   (==> (seq (exception-r val) e)
+	(exception-r val)
+	"seq-exception")
    (==> (while e_1 e_2 e_3)
         (if e_1 (seq e_2 (while e_1 e_2 e_3)) e_3) ;; not handle break yet
         "while")
    (==> break
         break-r
         "break")
+   (==> (return val)
+	(return-r val)
+	"return")
    (==> (raise val)
         (exception-r val)
         "raise") ;; TODO: check type of val
@@ -113,7 +128,9 @@
         (side-condition (not (val? (term r))))
         (side-condition (not (redex-match? λπ (exception-r any) (term r))))
         "try-nonval")
-   (--> ((in-hole T (exception-r val)) εs Σ)
+   ;; NOTE(dbp): I don't think this is the correct behavior - uncaught exceptions
+   ;; should percolate up as (exception-r val) results, NOT cause racket errors.
+   #;(--> ((in-hole T (exception-r val)) εs Σ)
         ,(raise-user-error "error") ;; TODO: pretty output
         "exc-uncatched")
    (==> (module val e)

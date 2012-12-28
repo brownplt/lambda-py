@@ -8,7 +8,7 @@
 (require redex
          "lambdapy-reduction.rkt"
          "lambdapy-core.rkt"
-	 "lambdapy-prim.rkt")
+         "lambdapy-prim.rkt")
 
 
 (define (reduce-many e)
@@ -39,14 +39,17 @@
 (expect (term (if (exception-r vtrue) false false))
 	(term (exception-r vtrue)))
 (expect (term (seq true false)) (term vfalse))
-(expect (term (seq (exception-r vtrue) false))
+(expect (term (seq (raise vtrue) false))
 	(term (exception-r vtrue)))
-(expect (term (seq false (exception-r vtrue)))
+(expect (term (seq false (raise vtrue)))
 	(term (exception-r vtrue)))
 (expect (term (seq break false))
 	(term break-r))
+(expect (term (seq (return true) false))
+	(term (return-r vtrue)))
 (expect (term (while true break false))
 	(term break-r))
+
 
 ;; binding
 (expect (term (let (x vtrue) (id x local)))

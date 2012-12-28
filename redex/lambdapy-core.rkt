@@ -128,6 +128,7 @@
      (prim2 op val E)
      (builtin-prim op E)
      (raise E)
+     (return E)
      (try E (e ...) e e)
      ;(try val (e ...) E e)
      (app E (e ...))
