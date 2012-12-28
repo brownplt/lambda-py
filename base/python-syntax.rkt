@@ -72,5 +72,8 @@
   [PyNone]
   [PyBreak]
 
+  ; Generators
+  [PyYield (value : PyExpr)]
+  
 )
 

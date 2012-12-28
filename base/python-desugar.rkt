@@ -858,6 +858,8 @@
                                     (none)))
                         (DResult-env desugared-slice)))]
                   [else (error 'desugar "We don't know how to delete identifiers yet.")]))]
+                  
+    [PyYield (value) (error 'desugar "Haven't deal with this case yet")]
 )))
 
 (define (desugar [expr : PyExpr]) : CExpr

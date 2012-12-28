@@ -323,6 +323,10 @@ structure that you define in python-syntax.rkt
                  ('targets targets))
      (PyDelete (map get-structured-python targets))]
 
+    [(hash-table ('nodetype "Yield")
+                 ('value value))
+     (PyYield (get-structured-python value))]             
+
     [(list (hash-table (k v) ...) ..2)
      (PySeq (map get-structured-python pyjson))]
     
