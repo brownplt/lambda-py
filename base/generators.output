@@ -1,0 +1,24 @@
+(PyModule
+  ((PyFunc
+     gen
+     ()
+     ()
+     (PyFor
+       (PyId i Store)
+       (PyApp
+         (PyId range Load)
+         ((PyNum 1) (PyNum 1000)))
+       (PySeq
+         ((PyYield (PyId i Load))
+          (PyFor
+            (PyId j Store)
+            (PyApp
+              (PyId range Load)
+              ((PyNum 0) (PyNum 500)))
+            (PySeq
+              ((PyYield (PyId j Load))
+               (PyYield
+                 (PyBinOp
+                   (PyId i Load)
+                   Add
+                   (PyId j Load))))))))))))
