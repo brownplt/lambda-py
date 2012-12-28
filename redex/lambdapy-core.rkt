@@ -66,6 +66,7 @@
      true
      false
      none
+     (num number)
      (class x x e)
      ;; with/without meta-val - how to do metavals?
      (object x)
