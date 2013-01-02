@@ -1,10 +1,37 @@
-Issue #2
---------
- - surface syntax: [PyImport (names : (listof string)) (asnames : (listof symbol))]
- - add functions : python-desugar.rkt:desugar-import-py
- - special notes:
-   - desugar-import-py returns PyExpr not DesugarResult.
 
+New syntax add to the core
+--------------------------
 
+None.
 
+New surface syntax handled in desugaring
+-----------------------------------------
+
+* [PyImport (names : (listof string)) (asnames : (listof symbol))]
+
+Already existing functions/helpers that are modified
+----------------------------------------------------
+
+base/python-primitives.rkt:
+    * builtin-prim: added file-* functions
+
+New functions/helpers added
+---------------------------
+
+base/util.rkt:
+    * match-varargs macro
+    * py-num, py-len, py-getitem
+
+base/python-desugar.rkt:
+    * desugar-import-py
+
+New files added
+---------------
+
+* base/builtins/file.rkt
+* base/builtins/file-util.rkt
+
+Special Notes
+-------------
+* desugar-import-py returns PyExpr not DesugarResult.
 
