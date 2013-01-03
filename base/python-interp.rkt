@@ -587,7 +587,7 @@
                                          ;(display (v*s*e-v result)) (display "\n\n")
                                          result))]
 
-    [CFunc (args sargs body method?) (begin ;(display "func ") (display env) (display "\n\n")
+    [CFunc (args sargs body method? yield?) (begin ;(display "func ") (display env) (display "\n\n")
            (v*s*e (VClosure (cons (hash empty) (if method?
                                                    (rest env)
                                                    env))
@@ -686,7 +686,14 @@
 
     [CExcept (types name body) (interp-env body env sto)]
     
-    [CBreak () (Break sto env)]))
+    [CBreak () (Break sto env)]
+    
+    [CYield (value)
+            (type-case Result (interp-env value env sto)
+                       [v*s*e (vv sv ev) (Return vv sv ev)]
+                       [Return (vv sv ev) (return-exception ev sv)]
+                       [Break (sv ev) (break-exception ev sv)]
+                       [Exception (vv sv ev) (Exception vv sv ev)])]))
 
 
     ;[else (error 'interp "haven't implemented a case yet")]))

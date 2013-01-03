@@ -13,7 +13,7 @@
                (def '__str__
                     (CFunc (list 'self) (none)
                            (CReturn (make-builtin-str "None"))
-                           true))))))
+                           true false))))))
 (define cnone
   (CObject 
     'none
