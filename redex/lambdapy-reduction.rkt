@@ -70,9 +70,13 @@
         e_2
         (side-condition (not (term (truthy? val))))
         "if-false")
+   ;; NOTE(yao): this may be unnecessary, since context T deals with it
+   ;; I wrote it and then deleted.
+   ;; same thing for "seq-return" etc., if we use context to do it
+   #|
    (==> (if (exception-r val) e_1 e_2)
 	(exception-r val)
-	"if-exception")
+	"if-exception")|#
    (==> (seq val e)
         e
         "seq")
@@ -82,9 +86,10 @@
    (==> (seq break-r e)
 	break-r
 	"seq-break")
+   #|
    (==> (seq (exception-r val) e)
 	(exception-r val)
-	"seq-exception")
+	"seq-exception")|#
    (==> (while e_1 e_2 e_3)
         (if e_1 (seq e_2 (while e_1 e_2 e_3)) e_3) ;; not handle break yet
         "while")
@@ -132,9 +137,11 @@
         "try-nonval")
    ;; NOTE(dbp): I don't think this is the correct behavior - uncaught exceptions
    ;; should percolate up as (exception-r val) results, NOT cause racket errors.
-   #;(--> ((in-hole T (exception-r val)) εs Σ)
-        ,(raise-user-error "error") ;; TODO: pretty output
-        "exc-uncatched")
+   ;;    agreed. (exception-r val) should be the reduction result. -yao
+   (--> ((in-hole T (exception-r val)) εs Σ)
+        ((exception-r val) εs Σ)
+        (side-condition (not (redex-match? λπ hole (term T)))) ;; avoid cycle
+        "exc-uncaught")
    (==> (module val e)
         e
         "module")
@@ -172,9 +179,10 @@
          (override-store Σ ref_1 vnone))
         (where ref_1 ,(new-loc))
         "let-brk")
+   #|
    (==> (let (x_1 (exception-r val)) e_1)
         (exception-r val)
-        "let-exc")
+        "let-exc")|#
    (--> ((in-hole E (id x_1 local))
          (name env (((x_2 ref_2) ... (x_1 ref_1) (x_3 ref_3) ...) ε ...))
          (name store ((ref_4 val_4) ... (ref_1 val_1) (ref_5 val_5) ...)))
