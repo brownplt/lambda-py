@@ -1,3 +1,5 @@
+# make sure we are closing over the same location for x
+
 def f(x):
     def inc():
         nonlocal x

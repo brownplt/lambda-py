@@ -1,3 +1,6 @@
+# should this test fail, I suspect there is something
+# wrong with shadowing/scope type precedence. 
+
 def f(x):
     def g(y):
         x = 42 # check that this masks binding in f()
