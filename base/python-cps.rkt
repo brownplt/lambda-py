@@ -1,8 +1,6 @@
 #lang plai-typed
 
-(require "python-core-syntax.rkt"
-         "python-syntax.rkt"
-         "python-interp.rkt")
+(require "python-core-syntax.rkt")
 
 
 (define (cps [expr : CExpr])
@@ -50,27 +48,36 @@
                                                                                                      (list (CBuiltinPrim op (list (CId '^arg1v (GlobalId)) (CId '^arg2v (GlobalId))))) (none)))
                                                                                       false false)) (none))) false false)) (none))) false false)]
     
-    [CObject (c mval)
-             (CFunc (list '^k) (none)
-                    (CReturn (CApp (CId '^k (GlobalId)) 
-                                   (list (CObject c mval)) (none))) false false)]
+    [CObject (c mval) (cps-atomic expr)]
     
     
     [else (error 'interp "haven't implemented a case yet")]))
 
+;; get and increase unique k
+(define new-k : (-> symbol)
+  (local ([define n 0])
+    (lambda ()
+      (begin (set! n (add1 n))
+             (string->symbol (string-append "^k-" (to-string n)))))))
 
+;; atomic case
+(define (cps-atomic [expr : CExpr]) : CExpr
+  (local ([define k (new-k)])
+    (CFunc (list k) (none) (CReturn (CApp (CId k (GlobalId)) (list expr) (none))) false false)))
 
+(define (identity) : CExpr
+  (CFunc (list '^x) (none) (CReturn (CId '^x (GlobalId))) false false))
 (define (run-cps [e : CExpr])
-  (CApp (cps e) (list (CFunc (list '^x) (none) (CReturn (CId '^x (GlobalId))) false false)) (none)))
+  (CApp (cps e) (list (identity)) (none)))
 
 
 #|(interp (run-cps (CSeq (CPrim2 '+ (CObject 'num (some (MetaNum 3))) (CObject 'num (some (MetaNum 0))))
                (CPrim2 '- (CObject 'num (some (MetaNum 2))) (CObject 'num (some (MetaNum 0)))))))|#
 
 ;(run-cps (CObject 'num (some (MetaNum 3))))
-(interp (run-cps (CObject 'num (some (MetaNum 5))))) 
-(interp (run-cps (CSeq (CObject 'num (some (MetaNum 3)))
-                       (CObject 'num (some (MetaNum 1210))))))
-(interp (run-cps (CBuiltinPrim 'num+ (list (CObject 'num (some (MetaNum 3))) (CObject 'num (some (MetaNum 4)))))))
+;(interp (run-cps (CObject 'num (some (MetaNum 5))))) 
+;(interp (run-cps (CSeq (CObject 'num (some (MetaNum 3)))
+;                       (CObject 'num (some (MetaNum 1210))))))
+;(interp (run-cps (CBuiltinPrim 'num+ (list (CObject 'num (some (MetaNum 3))) (CObject 'num (some (MetaNum 4)))))))
 ;(interp (CApp (cps e) (
 ;(interp (CObject 'num (some (MetaNum 3))))

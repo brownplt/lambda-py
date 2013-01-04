@@ -2,7 +2,7 @@
 
 (require "python-core-syntax.rkt"
          "python-primitives.rkt"
-         ;"python-cps.rkt"
+         "python-cps.rkt"
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/tuple.rkt"
@@ -929,3 +929,9 @@
       [Return (varg1 sarg1 envarg1) (return-exception envarg1 sarg1)]
       [Break (sarg1 envarg1) (break-exception envarg1 sarg1)]
       [Exception (varg1 sarg1 envarg1) (Exception varg1 sarg1 envarg1)]))
+
+;; test
+(interp (run-cps (CObject 'num (some (MetaNum 5))))) 
+(interp (run-cps (CSeq (CObject 'num (some (MetaNum 3)))
+                       (CObject 'num (some (MetaNum 1210))))))
+(interp (run-cps (CBuiltinPrim 'num+ (list (CObject 'num (some (MetaNum 3))) (CObject 'num (some (MetaNum 4)))))))
