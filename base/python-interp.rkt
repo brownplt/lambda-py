@@ -2,6 +2,7 @@
 
 (require "python-core-syntax.rkt"
          "python-primitives.rkt"
+         ;"python-cps.rkt"
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/tuple.rkt"
