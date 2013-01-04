@@ -50,11 +50,21 @@
                                                                                                      (list (CBuiltinPrim op (list (CId '^arg1v (GlobalId)) (CId '^arg2v (GlobalId))))) (none)))
                                                                                       false false)) (none))) false false)) (none))) false false)]
     
+    [CReturn (value)
+             (CFunc (list '^k) (none)
+                    (CReturn (CApp (cps value)
+                                   (list (CId '^k (GlobalId))) (none))) false false)] 
+    
     [CObject (c mval)
              (CFunc (list '^k) (none)
                     (CReturn (CApp (CId '^k (GlobalId)) 
-                                   (list (CObject c mval)) (none))) false false)]
+                                   (list expr) (none))) false false)]
     
+    
+    [CId (x t)
+         (CFunc (list '^k) (none)
+                    (CReturn (CApp (CId '^k (GlobalId)) 
+                                   (list expr) (none))) false false)]
     
     [else (error 'interp "haven't implemented a case yet")]))
 
@@ -72,5 +82,8 @@
 (interp (run-cps (CSeq (CObject 'num (some (MetaNum 3)))
                        (CObject 'num (some (MetaNum 1210))))))
 (interp (run-cps (CBuiltinPrim 'num+ (list (CObject 'num (some (MetaNum 3))) (CObject 'num (some (MetaNum 4)))))))
+(interp (run-cps (CApp (CFunc (list 'x) (none) (CReturn 
+                                                (CBuiltinPrim 'num+ (list (CId 'x (GlobalId)) (CObject 'num (some (MetaNum 4)))))) false false)
+                       (list (CObject 'num (some (MetaNum 5)))) (none))))
 ;(interp (CApp (cps e) (
 ;(interp (CObject 'num (some (MetaNum 3))))
