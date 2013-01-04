@@ -788,7 +788,7 @@
                   (let ([snew (hash-set so (some-v nw) 
 			                        (VObject ante-name
                                        mval
-						                           (hash-set (VObject-dict vo) f w)))])
+                                       (hash-set (VObject-dict vo) f w)))])
       		           	(v*s*e vnone
                              (hash-set snew w v)
 			                       eo))))]))]
@@ -930,7 +930,8 @@
       [Break (sarg1 envarg1) (break-exception envarg1 sarg1)]
       [Exception (varg1 sarg1 envarg1) (Exception varg1 sarg1 envarg1)]))
 
-;; test
+;; test 
+#|
 (interp (run-cps (CObject 'num (some (MetaNum 5))))) 
 (interp (run-cps (CSeq (CObject 'num (some (MetaNum 3)))
                        (CObject 'num (some (MetaNum 1210))))))
@@ -938,3 +939,22 @@
 (interp (run-cps (CApp (CFunc (list 'x) (none) (CReturn 
                                                 (CBuiltinPrim 'num+ (list (CId 'x (GlobalId)) (CObject 'num (some (MetaNum 4)))))) false false)
                        (list (CObject 'num (some (MetaNum 5)))) (none))))
+(interp (run-cps (CSeq
+                  (CAssign
+                   (CId 'x (GlobalId))
+                   (CObject 'int (some (MetaNum 1000))))
+                  (CId 'x (GlobalId)))))
+
+(interp (run-cps 
+         (CSeq
+          (CAssign
+           (CId 'x (GlobalId))
+           (CList
+            (list (CObject 'int (some (MetaNum 1)))
+                  (CObject 'int (some (MetaNum 2)))
+                  (CObject 'int (some (MetaNum 3)))
+                  (CObject 'int (some (MetaNum 4))))))
+          (CId 'x (GlobalId)))))
+
+|#
+
