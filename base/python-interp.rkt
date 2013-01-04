@@ -588,7 +588,7 @@
                                          ;(display (v*s*e-v result)) (display "\n\n")
                                          result))]
 
-    [CFunc (args sargs body method? yield?) (begin ;(display "func ") (display env) (display "\n\n")
+    [CFunc (args sargs body method?) (begin ;(display "func ") (display env) (display "\n\n")
            (v*s*e (VClosure (cons (hash empty) (if method?
                                                    (rest env)
                                                    env))
@@ -937,7 +937,7 @@
                        (CObject 'num (some (MetaNum 1210))))))
 (interp (run-cps (CBuiltinPrim 'num+ (list (CObject 'num (some (MetaNum 3))) (CObject 'num (some (MetaNum 4)))))))
 (interp (run-cps (CApp (CFunc (list 'x) (none) (CReturn 
-                                                (CBuiltinPrim 'num+ (list (CId 'x (GlobalId)) (CObject 'num (some (MetaNum 4)))))) false false)
+                                                (CBuiltinPrim 'num+ (list (CId 'x (GlobalId)) (CObject 'num (some (MetaNum 4)))))) false)
                        (list (CObject 'num (some (MetaNum 5)))) (none))))
 (interp (run-cps (CSeq
                   (CAssign
@@ -955,6 +955,6 @@
                   (CObject 'int (some (MetaNum 3)))
                   (CObject 'int (some (MetaNum 4))))))
           (CId 'x (GlobalId)))))
-
 |#
+
 

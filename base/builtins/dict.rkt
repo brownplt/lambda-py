@@ -24,38 +24,38 @@
                            (CReturn (CBuiltinPrim 'dict-len
                                                   (list
                                                    (CId 'self (LocalId)))))
-                           true false))
+                           true))
               (def '__str__
                    (CFunc (list 'self) (none)
                           (CReturn (CBuiltinPrim 'dict-str
                                                      (list (CId 'self (LocalId)))))
-                          true false))
+                          true))
 
               (def '__list__
                    (CFunc (list 'self) (none)
                           (CReturn (CBuiltinPrim 'dict->list
                                                  (list (CId 'self (LocalId)))))
-                          true false))
+                          true))
 
               (def 'clear
                    (CFunc (list 'self) (none)
                           (CReturn (CBuiltinPrim 'dict-clear
                                                      (list (CId 'self (LocalId)))))
-                          true false))
+                          true))
 
               (def 'update
                    (CFunc (list 'self) (some 'other)
                           (CReturn (CBuiltinPrim 'dict-update
                                                      (list (CId 'self (LocalId))
                                                            (CId 'other (LocalId)))))
-                          true false))
+                          true))
               (def 'get
                    (CFunc (list 'self 'key) (some 'default)
                           (CReturn (CBuiltinPrim 'dict-get 
                                         (list (CId 'self (LocalId)) 
                                               (CId 'key (LocalId)) 
                                               (CId 'default (LocalId)))))
-                          true false))
+                          true))
               (def '__iter__
                    (let ([keys-id (CId (new-id) (LocalId))])
                      (CFunc (list 'self) (none)
@@ -66,14 +66,14 @@
                               (CReturn (CApp (CGetField keys-id '__iter__)
                                     (list keys-id)
                                     (none))))
-                        true false)))
+                        true)))
               (def '__in__
                 (CFunc (list 'self 'other) (none)
                        (CReturn (CBuiltinPrim 'dict-in
                                               (list
                                                (CId 'self (LocalId))
                                                (CId 'other (LocalId)))))
-                       true false))
+                       true))
 
               (def '__eq__
                 (CFunc (list 'self 'other) (none)
@@ -82,32 +82,32 @@
                                         (CId 'self (LocalId))
                                         (CId 'other (LocalId)))
                                       (none)))
-                       true false))
+                       true))
 
               (def 'keys
                    (CFunc (list 'self) (none)
                           (CReturn (CBuiltinPrim 'dict-keys
                                                      (list (CId 'self (LocalId)))))
-                          true false))
+                          true))
 
               (def 'values
                    (CFunc (list 'self) (none)
                           (CReturn (CBuiltinPrim 'dict-values
                                                      (list (CId 'self (LocalId)))))
-                          true false))
+                          true))
               
               (def 'items
                    (CFunc (list 'self) (none)
                           (CReturn (CBuiltinPrim 'dict-items
                                                      (list (CId 'self (LocalId)))))
-                          true false))
+                          true))
 
               (def '__getitem__
                    (CFunc (list 'self 'other) (none)
                           (CReturn (CBuiltinPrim 'dict-getitem
                                                      (list (CId 'self (LocalId))
                                                            (CId 'other (LocalId)))))
-                          true false))
+                          true))
 
               (def '__setitem__
                    (CFunc (list 'self 'target 'value) (none)
@@ -115,14 +115,14 @@
                                                      (list (CId 'self (LocalId))
                                                            (CId 'target (LocalId))
                                                            (CId 'value (LocalId)))))
-                          true false))
+                          true))
 
               (def '__delitem__
                    (CFunc (list 'self 'slice) (none)
                           (CReturn (CBuiltinPrim 'dict-delitem
                                                      (list (CId 'self (LocalId))
                                                            (CId 'slice (LocalId)))))
-                          true false))
+                          true))
 
 ))))
 

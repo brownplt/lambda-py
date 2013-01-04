@@ -25,13 +25,13 @@
                            (CReturn (CBuiltinPrim 'set-len
                                                   (list
                                                    (CId 'self (LocalId)))))
-                           true false))
+                           true))
               (def '__set__
                     (CFunc (list 'self) (none)
                            (CReturn (CBuiltinPrim 'set-set
                                                   (list
                                                    (CId 'self (LocalId)))))
-                           true false))
+                           true))
               (def '__init__
                    (CFunc (list 'self) (some 'args)
                           (CReturn
@@ -53,7 +53,7 @@
                                   (CApp (CGetField (CId 'first-arg (LocalId)) '__set__)
                                         (list (CId 'first-arg (LocalId)))
                                         (none)))))
-                          true false)
+                          true)
                           )
 
                           ;(CReturn (CBuiltinPrim 'set-init
@@ -84,7 +84,7 @@
                                                              (LocalId)))
                                                   (none))) 
                                       (none)))
-                       true false))
+                       true))
               (def '__in__
                 (CFunc (list 'self 'other) (none)
                        (CReturn (CBuiltinPrim 'set-in
@@ -92,7 +92,7 @@
                                                (CId 'self (LocalId))
                                                (CId 'other (LocalId))
                                                )))
-                       true false))
+                       true))
 
               (def '__eq__
                 (CFunc (list 'self 'other) (none)
@@ -101,39 +101,39 @@
                                                (CId 'self (LocalId))
                                                (CId 'other (LocalId))
                                                )))
-                       true false))
+                       true))
 
               (def '__sub__
                 (CFunc (list 'self 'other) (none)
                        (CReturn (CBuiltinPrim 'set-sub
                                               (list (CId 'self (LocalId)) 
                                                     (CId 'other (LocalId)))))
-                       true false))
+                       true))
               (def '__and__
                 (CFunc (list 'self 'other) (none)
                        (CReturn (CBuiltinPrim 'set-and
                                               (list (CId 'self (LocalId)) 
                                                     (CId 'other (LocalId)))))
-                       true false))
+                       true))
 
               (def '__or__
                 (CFunc (list 'self 'other) (none)
                        (CReturn (CBuiltinPrim 'set-or
                                               (list (CId 'self (LocalId))
                                                     (CId 'other (LocalId)))))
-                       true false))
+                       true))
 
               (def '__xor__
                 (CFunc (list 'self 'other) (none)
                        (CReturn (CBuiltinPrim 'set-xor
                                               (list (CId 'self (LocalId))
                                                     (CId 'other (LocalId)))))
-                       true false))
+                       true))
               (def '__list__
                 (CFunc (list 'self) (none)
                        (CReturn (CBuiltinPrim 'set-list
                                               (list (CId 'self (LocalId)))))
-                       true false))
+                       true))
 ))))
 
 ; returns a copy of this set
