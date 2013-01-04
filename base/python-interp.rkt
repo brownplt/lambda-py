@@ -935,3 +935,6 @@
 (interp (run-cps (CSeq (CObject 'num (some (MetaNum 3)))
                        (CObject 'num (some (MetaNum 1210))))))
 (interp (run-cps (CBuiltinPrim 'num+ (list (CObject 'num (some (MetaNum 3))) (CObject 'num (some (MetaNum 4)))))))
+(interp (run-cps (CApp (CFunc (list 'x) (none) (CReturn 
+                                                (CBuiltinPrim 'num+ (list (CId 'x (GlobalId)) (CObject 'num (some (MetaNum 4)))))) false false)
+                       (list (CObject 'num (some (MetaNum 5)))) (none))))
