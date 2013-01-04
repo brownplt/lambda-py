@@ -419,7 +419,7 @@
                               (DResult-env expr-r)))]
 
     ; PyPass is an empty lambda
-    [PyPass () (DResult (CApp (CFunc empty (none) (CNone) false) empty (none)) env)] 
+    [PyPass () (DResult (CApp (CFunc empty (none) (CNone) false false) empty (none)) env)] 
 
     [PyIf (test body orelse)
           (local [(define test-r (rec-desugar test global? env false))
@@ -516,7 +516,7 @@
                                                                     "argument of type '___'" 
                                                                     "is not iterable")))))
                                                   (none))))
-                                     false)
+                                     false false)
                               (list right-c left-c)
                               (none))
                         (DResult-env right-r))]
@@ -557,7 +557,7 @@
                     (CFunc args (none)
                          (CReturn                   
                            (DResult-expr rbody))
-                         false)
+                         false (get-reset-gen))
                     (DResult-env rbody)))]
     
     [PyFunc (name args defargs body)
@@ -593,7 +593,7 @@
             (local [(define body-r (desugar-local-body body args env))]
              (DResult
                (CAssign (CId name (LocalId))
-                        (CFunc args (none) (DResult-expr body-r) inclass?))
+                        (CFunc args (none) (DResult-expr body-r) inclass? (get-reset-gen)))
                env)))]
 
     ; a PyClassFunc is a method whose first argument should be the class rather than self
@@ -615,7 +615,7 @@
                                                                                 args)
                                                                               (LocalId)))))
                                            (DResult-expr body-r))
-                                     inclass?))
+                                     inclass? (get-reset-gen)))
                env))]
 
     [PyFuncVarArg (name args sarg body)
@@ -623,7 +623,7 @@
                             (desugar-local-body body (append args (list sarg)) env))]
                     (DResult
                             (CAssign (CId name (LocalId))
-                                     (CFunc args (some sarg) (DResult-expr body-r) inclass?))
+                                     (CFunc args (some sarg) (DResult-expr body-r) inclass? (get-reset-gen)))
                       env))]
 
     [PyReturn (value)
@@ -711,7 +711,7 @@
                                     (list (make-builtin-str "Assert failure!"))
                                     (none))
                               (DResult-expr pass))
-                            false)
+                            false false)
                      empty
                      (none))
                    (DResult-env pass)))]
@@ -764,7 +764,7 @@
                                               '__class__)
                                             (CBuiltinPrim '$class
                                                           (list (CId 'self (LocalId)))))
-                                          true)))))
+                                          true false)))))
                      (define modenv 
                        (if (member '__init__ names)
                            (DResult-env body-r)
@@ -859,7 +859,11 @@
                         (DResult-env desugared-slice)))]
                   [else (error 'desugar "We don't know how to delete identifiers yet.")]))]
                   
-    [PyYield (value) (error 'desugar "Haven't deal with this case yet")]
+    ;[PyYield (value) (error 'desugar "Haven't deal with this case yet")]
+    [PyYield (value)
+             (local [(define value-y (rec-desugar value global? env false))]
+               (begin (set-gen)
+                      (DResult (CYield (DResult-expr value-y)) (DResult-env value-y))))]
 )))
 
 (define (desugar [expr : PyExpr]) : CExpr
@@ -894,3 +898,15 @@
 (define (add-id [id : symbol] [type : IdType] [env : IdEnv]) : IdEnv
   (local [(define new-env (cons (idpair id type) env))]
     new-env))
+
+;; gen? is a global variable that will be set to true when we desugar PyYield
+;; and when desugar functions when can check if there is a yield inside it hence
+;; know wether it is a generator or not
+(define gen? false)
+(define (get-reset-gen)
+  (let ([return gen?])
+    (begin
+      (set! gen? false)
+      return)))
+(define (set-gen)
+  (set! gen? true))

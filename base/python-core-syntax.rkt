@@ -26,7 +26,7 @@ ParselTongue.
   [CLet (x : symbol) (bind : CExpr) (body : CExpr)]
   [CApp (fun : CExpr) (args : (listof CExpr)) (stararg : (optionof CExpr))]
   [CFunc (args : (listof symbol)) (varargs : (optionof symbol)) (body : CExpr)
-         (method : boolean)]
+         (method : boolean) (yield : boolean)]
   [CWhile (test : CExpr) (body : CExpr) (orelse : CExpr)]
   [CReturn (value : CExpr)]
   [CPrim1 (prim : symbol) (arg : CExpr)]
@@ -42,7 +42,9 @@ ParselTongue.
   [CExcept (types : (listof CExpr)) (name : (optionof symbol)) (body : CExpr)]
   [CUndefined]
   [CBreak]
-  [CModule (prelude : CExpr) (body : CExpr)])
+  [CModule (prelude : CExpr) (body : CExpr)]
+
+  [CYield (value : CExpr)])
 
 (define-type IdType
     [GlobalId]
