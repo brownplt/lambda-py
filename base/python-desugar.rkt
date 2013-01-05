@@ -4,7 +4,8 @@
          "python-core-syntax.rkt"
          "util.rkt"
          "builtins/num.rkt" 
-         "builtins/str.rkt")
+         "builtins/str.rkt"
+         "python-cps.rkt")
 (require (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (append : ((listof 'a) (listof 'a) -> (listof 'a))))
          (typed-in racket/base (cdr : (('a * 'b)  -> 'b)))
@@ -419,7 +420,7 @@
                               (DResult-env expr-r)))]
 
     ; PyPass is an empty lambda
-    [PyPass () (DResult (CApp (CFunc empty (none) (CNone) false false) empty (none)) env)] 
+    [PyPass () (DResult (CApp (CFunc empty (none) (CNone) false) empty (none)) env)] 
 
     [PyIf (test body orelse)
           (local [(define test-r (rec-desugar test global? env false))
@@ -516,7 +517,7 @@
                                                                     "argument of type '___'" 
                                                                     "is not iterable")))))
                                                   (none))))
-                                     false false)
+                                     false)
                               (list right-c left-c)
                               (none))
                         (DResult-env right-r))]
@@ -557,7 +558,7 @@
                     (CFunc args (none)
                          (CReturn                   
                            (DResult-expr rbody))
-                         false (get-reset-gen))
+                         false)
                     (DResult-env rbody)))]
     
     [PyFunc (name args defargs body)
@@ -593,7 +594,7 @@
             (local [(define body-r (desugar-local-body body args env))]
              (DResult
                (CAssign (CId name (LocalId))
-                        (CFunc args (none) (DResult-expr body-r) inclass? (get-reset-gen)))
+                        (CFunc args (none) (DResult-expr body-r) inclass?))
                env)))]
 
     ; a PyClassFunc is a method whose first argument should be the class rather than self
@@ -615,7 +616,7 @@
                                                                                 args)
                                                                               (LocalId)))))
                                            (DResult-expr body-r))
-                                     inclass? (get-reset-gen)))
+                                     inclass?))
                env))]
 
     [PyFuncVarArg (name args sarg body)
@@ -623,7 +624,7 @@
                             (desugar-local-body body (append args (list sarg)) env))]
                     (DResult
                             (CAssign (CId name (LocalId))
-                                     (CFunc args (some sarg) (DResult-expr body-r) inclass? (get-reset-gen)))
+                                     (CFunc args (some sarg) (DResult-expr body-r) inclass?))
                       env))]
 
     [PyReturn (value)
@@ -711,7 +712,7 @@
                                     (list (make-builtin-str "Assert failure!"))
                                     (none))
                               (DResult-expr pass))
-                            false false)
+                            false)
                      empty
                      (none))
                    (DResult-env pass)))]
@@ -764,7 +765,7 @@
                                               '__class__)
                                             (CBuiltinPrim '$class
                                                           (list (CId 'self (LocalId)))))
-                                          true false)))))
+                                          true)))))
                      (define modenv 
                        (if (member '__init__ names)
                            (DResult-env body-r)
