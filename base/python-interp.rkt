@@ -388,11 +388,11 @@
     [CNone () (v*s*e vnone sto env)]
     [CUndefined () (v*s*e (VUndefined) sto env)]
 
-    [CClass (name base body) (begin ;(display "Class ") (display env) (display "\n")
+    [CClass (name bases body) (begin ;(display "Class ") (display env) (display "\n")
                (type-case Result (interp-env body (cons (hash empty) env) sto)
                  [v*s*e (vbody sbody ebody)
                         (local [(define w (new-loc))]
-                          (v*s*e (VObject base 
+                          (v*s*e (VObject (first bases)
                                           (some (MetaClass name)) 
                                           (hash-set (first ebody)
                                                     '__dict__

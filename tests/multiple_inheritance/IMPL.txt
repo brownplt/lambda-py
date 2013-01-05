@@ -29,13 +29,13 @@ Modifications to base implementation
 
 -  New syntax that you add to the core:
     CClass (base : symbol) parameter will be changed to allow a list of bases,
-    probably as a list of references to classes, not symbols to allow the three
-    argument version of type() implementation.
+    represented as a list of base class names, but it should be a tuple of classes
+    to allow dynamic class creation via the three argument version of type().
 
 -  New surface syntax and changes in desugaring
    No new syntax but some changes needs to be made at desugaring:
-   - the list of bases needs to be passed to CClass, not just the first element.
-     Alse it seems better
+   - the list of bases needs to be passed to CClass, not just the first element,
+     initialially as a list of symbols, but should be a tuple base classes.
    - super needs the class in which it is embeded as an additional argument
      when it is called without arguments, since super() is already special-cased
      in desugar and a flag is carried-on to indicate when desugaring takes place
@@ -63,10 +63,13 @@ Modifications to base implementation
         primitive operation and the second using CClass.
 
 -  Bugs to be fixed
+    - ___fail() changed to no parameter to match py-prelude.py
     bound methods / class method behavior: a method class needs to be defined,
     I will also look up at the descriptor protocol to see if it can be used.
 
 -  Special notes (if any) for running your tests
+    test_mro_disagreement was modified to avoid the use of type(name, bases, dict),
+    which is not yet implemented, using equivalent class statements.
     I plan 3 phases which can be tested incrementally:
     1) multiple inheritance support plus type class without changing super()
     2) modify super() to be multiple inheritance aware

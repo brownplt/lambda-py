@@ -96,14 +96,14 @@ that calls the primitive `print`.
     false))
 
 (define fail-lambda
-  (CFunc (list 'arg) (none)
-    (CError (CId 'arg (LocalId)))
+  (CFunc (list) (none)
+    (CError (CStr "Assert failed"))
     false))
 
 (define exception
   (CClass
     'Exception
-    'object
+    (list 'object)
     (seq-ops (list 
                (def '__init__
                     (CFunc (list 'self) (some 'args)
@@ -129,7 +129,7 @@ that calls the primitive `print`.
 (define (make-exception-class [name : symbol]) : CExpr
   (CClass
     name
-    'Exception
+    (list 'Exception)
     (CNone)))
 
 (define len-lambda
@@ -218,6 +218,13 @@ that calls the primitive `print`.
                  (CBuiltinPrim '$super (list (CId 'self (LocalId)))))))
          false))
 
+;; type should be a (meta)class...
+(define type-lambda
+  (CFunc (list 'self) (none)
+         (CReturn
+          (CBuiltinPrim '$class (list (CId 'self (LocalId)))))
+         false))
+
 (define-type LibBinding
   [bind (left : symbol) (right : CExpr)])
 
@@ -252,6 +259,7 @@ that calls the primitive `print`.
         (bind 'callable callable-lambda)
 
         (bind 'super super-lambda)
+        (bind 'type type-lambda)
 
         (bind 'Exception exception)
         (bind 'NameError (make-exception-class 'NameError))

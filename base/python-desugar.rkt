@@ -773,8 +773,8 @@
                  (CAssign (CId name (if global? (GlobalId) (LocalId)))
                           (CClass name
                                   (if (empty? bases)
-                                    'object
-                                    (first bases))
+                                    (list 'object)
+                                    bases)
                                   modbody))
                  modenv))]
     

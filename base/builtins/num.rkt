@@ -22,7 +22,7 @@
 (define int-class
   (CClass
     'int
-    'num
+    (list 'num)
 
     (seq-ops (list
                (def '__init__
@@ -36,7 +36,7 @@
 (define float-class
   (CClass
     'int
-    'num
+    (list 'num)
     (seq-ops (list
                (def '__init__
                     (CFunc (list 'self 'other) (none)
@@ -49,7 +49,7 @@
 (define num-class 
   (CClass
     'num
-    'object
+    (list 'object)
     (seq-ops (list 
                (def '__add__ 
                     (CFunc (list 'self 'other)  (none)
