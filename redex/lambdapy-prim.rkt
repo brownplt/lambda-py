@@ -48,8 +48,8 @@
    ,(make-num (- (term number_1) (term number_2)))]
   [(δ "num*" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
    (obj-val num (meta-num ,(* (term number_1) (term number_2))) ())]
-  [(δ "num*" (name v1 (obj-val x_1 (meta-num number_1) any_1)) (name v2 (obj-val x_2 (meta-num string_2) any_2)) εs Σ)
-   (δ "str*" v2 v1)]
+  [(δ "num*" (name v1 (obj-val x_1 (meta-num number_1) any_1)) (name v2 (obj-val x_2 (meta-str string_2) any_2)) εs Σ)
+   (δ "str*" v2 v1 εs Σ)]
   [(δ "num/" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
    (obj-val num (meta-num ,(/ (term number_1) (term number_2))) ())]
   [(δ "num//" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
@@ -73,6 +73,42 @@
       [else (term (obj-val num (meta-num 0) ()))])]
   [(δ "num-str" (obj-val x (meta-num number) any) εs Σ)
    (obj-val str (meta-str ,(number->string (term number))) ())]
+  ;; strings, no type-checking yet
+  [(δ "str+" (obj-val x_1 (meta-str string_1) any_1) (obj-val x_2 (meta-str string_2) any_2) εs Σ)
+   (obj-val str (meta-str ,(string-append (term string_1) (term string_2))) ())]
+  [(δ "str=" (obj-val x_1 (meta-str string_1) any_1) (obj-val x_2 (meta-str string_2) any_2) εs Σ)
+   ,(if (string=? (term string_1) (term string_2)) (term vtrue) (term vfalse))]
+  [(δ "str*" (obj-val x_1 (meta-str string_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   (obj-val str (meta-str ,(string-append* (build-list (term number_2) (lambda (n) (term string_1))))) ())]
+  [(δ "strcmp" (obj-val x_1 (meta-str string_1) any_1) (obj-val x_2 (meta-str string_2) any_2) εs Σ)
+   ,(cond
+      [(string<? (term string_1) (term string_2)) (term (obj-val num (meta-num -1) ()))]
+      [(string>? (term string_1) (term string_2)) (term (obj-val num (meta-num 1) ()))]
+      [else (term (obj-val num (meta-num 0) ()))])]
+  [(δ "strlen" (obj-val x (meta-str string) any) εs Σ)
+   (obj-val num (meta-num ,(string-length (term string))) ())]
+  [(δ "strbool" (obj-val x (meta-str string) any) εs Σ)
+   ,(if (string=? (term string) "") (term vfalse) (term vtrue))]
+  [(δ "strmin" (obj-val x (meta-str string) any) εs Σ)
+   (obj-val str (meta-str string_new) ())
+   (where string_new ,(make-string 1
+                                   (integer->char
+                                    (foldl (lambda (c res)
+                                             (min res c))
+                                           ;; the maximum char integer is currently #x10FFFF
+                                           ;; should find a better way to do this
+                                           #x110000
+                                           (map char->integer
+                                                (string->list (term string)))))))]
+  [(δ "strmax" (obj-val x (meta-str string) any) εs Σ)
+   (obj-val str (meta-str string_new) ())
+   (where string_new ,(make-string 1
+                                   (integer->char
+                                    (foldl (lambda (c res)
+                                             (max res c))
+                                           -1
+                                           (map char->integer
+                                                (string->list (term string)))))))]
   )
 
 (define-metafunction λπ
