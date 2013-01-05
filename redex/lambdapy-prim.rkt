@@ -40,7 +40,40 @@
   [(δ "isnot" val_1 val_2 εs Σ)
    ,(if (eq? (term val_1) (term val_2)) (term vfalse) (term vtrue))]
   [(δ "isinstance" val_1 (obj-val x (meta-class x_class) any) εs Σ)
-   ,(if (term (object-is? val_1 x_class εs Σ)) (term vtrue) (term vfalse))])
+   ,(if (term (object-is? val_1 x_class εs Σ)) (term vtrue) (term vfalse))]
+  ;; numbers, no type-checking yet
+  [(δ "num+" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   ,(make-num (+ (term number_1) (term number_2)))]
+  [(δ "num-" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   ,(make-num (- (term number_1) (term number_2)))]
+  [(δ "num*" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   (obj-val num (meta-num ,(* (term number_1) (term number_2))) ())]
+  [(δ "num*" (name v1 (obj-val x_1 (meta-num number_1) any_1)) (name v2 (obj-val x_2 (meta-num string_2) any_2)) εs Σ)
+   (δ "str*" v2 v1)]
+  [(δ "num/" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   (obj-val num (meta-num ,(/ (term number_1) (term number_2))) ())]
+  [(δ "num//" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   (obj-val num (meta-num ,(quotient (term number_1) (term number_2))) ())]
+  [(δ "num%" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   (obj-val num (meta-num ,(remainder (term number_1) (term number_2))) ())]
+  [(δ "num=" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   ,(if (= (term number_1) (term number_2)) (term vtrue) (term vfalse))]
+  [(δ "num>" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   ,(if (> (term number_1) (term number_2)) (term vtrue) (term vfalse))]
+  [(δ "num<" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   ,(if (< (term number_1) (term number_2)) (term vtrue) (term vfalse))]
+  [(δ "num>=" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   ,(if (>= (term number_1) (term number_2)) (term vtrue) (term vfalse))]
+  [(δ "num<=" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   ,(if (<= (term number_1) (term number_2)) (term vtrue) (term vfalse))]
+  [(δ "numcmp" (obj-val x_1 (meta-num number_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   ,(cond
+      [(< (term number_1) (term number_2)) (term (obj-val num (meta-num -1) ()))]
+      [(> (term number_1) (term number_2)) (term (obj-val num (meta-num 1) ()))]
+      [else (term (obj-val num (meta-num 0) ()))])]
+  [(δ "num-str" (obj-val x (meta-num number) any) εs Σ)
+   (obj-val str (meta-str ,(number->string (term number))) ())]
+  )
 
 (define-metafunction λπ
   object-is? : val x εs Σ -> #t or #f
@@ -54,3 +87,8 @@
    (side-condition (not (member (term x) (append* (term ((x_1 ...) ...))))))
    (side-condition (not (member (term x) (term (x_2 ... x_3 ...)))))
    (side-condition (not (member (term ref) (term (ref_4 ... ref_5 ...)))))])
+
+(define (make-num n)
+  (term (obj-val ,(if (exact? n) (term int) (term float))
+                 (meta-num ,n)
+                 ())))
