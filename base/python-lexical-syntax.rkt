@@ -66,6 +66,14 @@
   [LexLocalLet (id : symbol) (bind : LexExpr) (body : LexExpr)]
 
 
+  ;old identifiers left in for compatability during migration
+  ;still have the "Py" naming convention to stress that they're
+  ;not really in this language.
+  [PyId (x : symbol)]
+  [PyGlobal (globals : (listof symbol))]
+  [PyNonLocal (locals : (listof symbol))]
+
+  
   ; builtin data structures
   [LexStr (s : string)]
   [LexDict (keys : (listof LexExpr)) (values : (listof LexExpr))]
