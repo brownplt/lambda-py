@@ -2,8 +2,15 @@
 
 (require "python-core-syntax.rkt")
 
+(define (cps-genfunc [expr : CExpr]) : CExpr
+  (type-case CExpr expr
+    [CFunc (args sargs body method?)
+           ;; TODO: cps generator function body
+           ;; temperary cps body for now
+           (cps body)
+           ]))
 
-(define (cps [expr : CExpr])
+(define (cps [expr : CExpr]) : CExpr
   (type-case CExpr expr
     [CSeq (e1 e2) 
           (CFunc (list '^k) (none) 
