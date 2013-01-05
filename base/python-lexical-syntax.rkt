@@ -1,81 +1,81 @@
 #lang plai-typed
 
-(define-type PyExpr
+(define-type LexExpr
   ; control structures
-  [PyIf (test : PyExpr) (body : PyExpr) (orelse : PyExpr)]
-  [PySeq (es : (listof PyExpr))]
+  [LexIf (test : LexExpr) (body : LexExpr) (orelse : LexExpr)]
+  [LexSeq (es : (listof LexExpr))]
   ; the top level seq
-  [PyModule (es : (listof PyExpr))]
-  [PyAssign (targets : (listof PyExpr)) (value : PyExpr)]
-  [PyAugAssign (op : symbol) (target : PyExpr) (value : PyExpr)]
+  [LexModule (es : (listof LexExpr))]
+  [LexAssign (targets : (listof LexExpr)) (value : LexExpr)]
+  [LexAugAssign (op : symbol) (target : LexExpr) (value : LexExpr)]
 
   ; primitive literals
-  [PyNum (n : number)]
-  [PyBool (b : boolean)]
+  [LexNum (n : number)]
+  [LexBool (b : boolean)]
 
   ; exceptions and exception handling
-  [PyRaise (expr : PyExpr)]
-  [PyExcept (types : (listof PyExpr)) (body : PyExpr)]
-  [PyExceptAs (types : (listof PyExpr)) (name : symbol) (body : PyExpr)]
-  [PyTryExceptElseFinally (try : PyExpr) (except : (listof PyExpr))
-                          (orelse : PyExpr) (finally : PyExpr)]
+  [LexRaise (expr : LexExpr)]
+  [LexExcept (types : (listof LexExpr)) (body : LexExpr)]
+  [LexExceptAs (types : (listof LexExpr)) (name : symbol) (body : LexExpr)]
+  [LexTryExceptElseFinally (try : LexExpr) (except : (listof LexExpr))
+                          (orelse : LexExpr) (finally : LexExpr)]
 
   ;loops 
-  [PyWhile (test : PyExpr) (body : PyExpr) (orelse : PyExpr)]
-  [PyFor (target : PyExpr) (iter : PyExpr) (body : PyExpr)]
+  [LexWhile (test : LexExpr) (body : LexExpr) (orelse : LexExpr)]
+  [LexFor (target : LexExpr) (iter : LexExpr) (body : LexExpr)]
   
   ; pass
-  [PyPass]
+  [LexPass]
 
   ; classes and objects 
-  [PyClass (name : symbol) (bases : (listof symbol)) (body : PyExpr)]
-  [PyDotField (value : PyExpr) (attr : symbol)]
+  [LexClass (name : symbol) (bases : (listof symbol)) (body : LexExpr)]
+  [LexDotField (value : LexExpr) (attr : symbol)]
 
   ; operations
-  [PyBinOp (left : PyExpr) (op : symbol) (right : PyExpr)] ;op = 'Add | 'Sub | etc
-  [PyUnaryOp (op : symbol) (operand : PyExpr)]
+  [LexBinOp (left : LexExpr) (op : symbol) (right : LexExpr)] ;op = 'Add | 'Sub | etc
+  [LexUnaryOp (op : symbol) (operand : LexExpr)]
 
-  [PyCompOp (left : PyExpr) 
+  [LexCompOp (left : LexExpr) 
             (ops : (listof symbol)) ;ops = 'Eq | 'NotEq | 'Lt etc
-            (comparators : (listof PyExpr))]
-  [PyBoolOp (op : symbol) (values : (listof PyExpr))] ;op = 'And | 'Or
+            (comparators : (listof LexExpr))]
+  [LexBoolOp (op : symbol) (values : (listof LexExpr))] ;op = 'And | 'Or
 
   ; functions
-  [PyLam (args : (listof symbol)) (body : PyExpr)]
-  [PyFunc (name : symbol) (args : (listof symbol)) (defaults : (listof PyExpr)) (body : PyExpr)]
-  [PyClassFunc (name : symbol) (args : (listof symbol)) (body : PyExpr)]
-  [PyFuncVarArg (name : symbol) (args : (listof symbol)) 
-                (sarg : symbol) (body : PyExpr)]
-  [PyReturn (value : PyExpr)]
-  [PyApp (fun : PyExpr) (args : (listof PyExpr))]
-  [PyAppStarArg (fun : PyExpr) (args : (listof PyExpr)) (stararg : PyExpr)]
+  [LexLam (args : (listof symbol)) (body : LexExpr)]
+  [LexFunc (name : symbol) (args : (listof symbol)) (defaults : (listof LexExpr)) (body : LexExpr)]
+  [LexClassFunc (name : symbol) (args : (listof symbol)) (body : LexExpr)]
+  [LexFuncVarArg (name : symbol) (args : (listof symbol)) 
+                (sarg : symbol) (body : LexExpr)]
+  [LexReturn (value : LexExpr)]
+  [LexApp (fun : LexExpr) (args : (listof LexExpr))]
+  [LexAppStarArg (fun : LexExpr) (args : (listof LexExpr)) (stararg : LexExpr)]
 
-  [PyDelete (targets : (listof PyExpr))]
+  [LexDelete (targets : (listof LexExpr))]
 
   ;
-  [PySubscript (left : PyExpr) (context : symbol) (slice : PyExpr)]
+  [LexSubscript (left : LexExpr) (context : symbol) (slice : LexExpr)]
 
-  [PyListComp (body : PyExpr) (generators : (listof PyExpr))]
-  [PyComprehen (target : PyExpr) (iter : PyExpr)]
+  [LexListComp (body : LexExpr) (generators : (listof LexExpr))]
+  [LexComprehen (target : LexExpr) (iter : LexExpr)]
 
   ;new identifiers for scope.
-  [PyLocalId (x : symbol)]
-  [PyGlobalId (x : symbol)]
-  [PyInstanceId (x : symbol)]
-  [PyGlobalLet (id : symbol) (bind : PyExpr) (body : PyExpr)]
-  [PyLocalLet (id : symbol) (bind : PyExpr) (body : PyExpr)]
+  [LexLocalId (x : symbol)]
+  [LexGlobalId (x : symbol)]
+  [LexInstanceId (x : symbol)]
+  [LexGlobalLet (id : symbol) (bind : LexExpr) (body : LexExpr)]
+  [LexLocalLet (id : symbol) (bind : LexExpr) (body : LexExpr)]
 
 
   ; builtin data structures
-  [PyStr (s : string)]
-  [PyDict (keys : (listof PyExpr)) (values : (listof PyExpr))]
-  [PyList (values : (listof PyExpr))]
-  [PySlice (lower : PyExpr) (upper : PyExpr) (step : PyExpr)]
-  [PyTuple (values : (listof PyExpr))]
-  [PyUndefined]
-  [PySet (elts : (listof PyExpr))]
-  [PyNone]
-  [PyBreak]
+  [LexStr (s : string)]
+  [LexDict (keys : (listof LexExpr)) (values : (listof LexExpr))]
+  [LexList (values : (listof LexExpr))]
+  [LexSlice (lower : LexExpr) (upper : LexExpr) (step : LexExpr)]
+  [LexTuple (values : (listof LexExpr))]
+  [LexUndefined]
+  [LexSet (elts : (listof LexExpr))]
+  [LexNone]
+  [LexBreak]
 
 )
 
