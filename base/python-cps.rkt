@@ -11,9 +11,9 @@
                                 (list (CFunc (list '^_) (none) 
                                              (CReturn (CApp (cps e2) (list (CId '^k (GlobalId))) (none)))
                                              false false)) (none))) false false)]
-    ;; Suppose only one argument 
+    ;; Suppose only take one argument 
     [CApp (fun arges sarg)
-          (CFunc (list '^k) (none)
+             (CFunc (list '^k) (none)
                  (CReturn (CApp (cps fun) 
                                 (list (CFunc (list '^fv) (none)
                                              (CReturn (CApp (cps (first arges)) 
@@ -21,12 +21,13 @@
                                                                          (CReturn (CApp (CApp (CId '^fv (GlobalId)) (list (CId '^av (GlobalId))) (none)) (list (CId '^k (GlobalId))) (none)))
                                                                          false false)) (none))) false false)) (none))) false false)]
     [CFunc (args sargs body method? yield?)
+         (cps-let/cc '^RET
            (CFunc (list '^k) (none)
                   (CReturn (CApp (CId '^k (GlobalId)) 
                                  (list (CFunc (list (first args)) (none)
                                               (CReturn (CFunc (list '^dyn-k) (none)
                                                               (CReturn (CApp (cps body) (list (CId '^dyn-k (GlobalId))) (none)))
-                                                              false false)) false false)) (none))) false false)]
+                                                              false false)) false false)) (none))) false false))]
     
     [CPrim2 (prim arg1 arg2)
             (CFunc (list '^k) (none)
@@ -48,6 +49,20 @@
                                                                                                 (list (CBuiltinPrim op (list (CId '^arg1v (GlobalId)) (CId '^arg2v (GlobalId))))) (none)))
                                                                                  false false)) (none))) false false)) (none))) false false)]
     
+    #|[CLet (x bind body)
+          (cps (CApp (CFunc (list x) (none)
+                            (CReturn body) false false)
+                     (list bind) (none)))]|#
+         
+    [CLet (x bind body)
+          (CFunc (list '^k) (none)
+                 (CReturn (CApp (cps bind)
+                                (list (CFunc (list '^bindv) (none)
+                                             (CReturn (CLet x (CId '^bindv (GlobalId))
+                                                            (CApp (cps body) (list (CId '^k (GlobalId))) (none)))) 
+                                             false false)) (none))) false false)]
+    
+    
     [CId (x t) (cps-atomic expr)]
     [CList (es) (cps-atomic expr)]
     [CTuple (es) (cps-atomic expr)]
@@ -60,10 +75,30 @@
                                                                      (none))) false false)]
     [CObject (c mval) (cps-atomic expr)]
     
-    [CReturn (value)
+    #|[CReturn (value)
              (CFunc (list '^k) (none)
                     (CReturn (CApp (cps value)
-                                   (list (CId '^k (GlobalId))) (none))) false false)]
+                                   (list (CFunc (list '^valuev) (none)
+                                                (CReturn (CApp (CApp (CId '^RET (GlobalId)) (list (CId '^valuev (GlobalId))) (none)) (list (CId '^k (GlobalId))) (none)))
+                                                false false)) (none))) false false)]|#
+    
+    #|[CReturn (value)
+             (CFunc (list '^k) (none)
+                    (CReturn (CApp (cps value)
+                                   (list (CFunc (list '^valuev) (none)
+                                                (CReturn (CApp (CId '^k (GlobalId)) (list (CId '^valuev (GlobalId))) (none)))
+                                                false false)) (none))) false false)]|#
+    
+    [CReturn (value)
+             (cps (CApp (CId '^RET (GlobalId)) (list value) (none)))]
+    
+    #|[CReturn (value)
+             (CFunc (list '^k) (none)
+                    (CReturn (CApp (cps value)
+                                   (list (CId '^return (GlobalId))) (none))) false false)]
+                    ;(CReturn (CApp (CId '^return (GlobalId)) (list (cps value)) (none))) false false)]|#
+   
+          
     
     [else (error 'interp "haven't implemented a case yet")]))
 
@@ -78,6 +113,21 @@
 (define (cps-atomic [expr : CExpr]) : CExpr
   (local ([define k (new-k)])
     (CFunc (list k) (none) (CReturn (CApp (CId k (GlobalId)) (list expr) (none))) false false)))
+
+(define (cps-let/cc [kont : symbol] [body : CExpr]) : CExpr
+  (CFunc (list '^k) (none) 
+         (CReturn (CLet kont (CFunc (list '^v) (none)
+                                     (CReturn (CFunc (list '^dyn-k) (none)
+                                                     (CReturn (CApp (CId '^k (GlobalId)) (list (CId '^v (GlobalId))) (none)) ) false false)) false false)
+                        (CApp body (list (CId '^k (GlobalId))) (none)))) false false))
+                                                     
+
+#|(define (cps-let/cc [^kont : symbol] [body : CExpr]) : CExpr
+  (CFunc (list '^k) (none) 
+         (CReturn (CLet ^kont (CFunc (list '^v) (none)
+                                     (CReturn (CApp (CId '^k (GlobalId)) (list (CId '^v (GlobalId))) (none))) false false)
+                        (CApp body (list (CId '^k (GlobalId))) (none)))) false false))|#
+
 
 (define (identity) : CExpr
   (local ([define k (new-k)])
