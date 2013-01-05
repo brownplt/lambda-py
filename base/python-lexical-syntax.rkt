@@ -59,9 +59,9 @@
   [LexComprehen (target : LexExpr) (iter : LexExpr)]
 
   ;new identifiers for scope.
-  [LexLocalId (x : symbol)]
-  [LexGlobalId (x : symbol)]
-  [LexInstanceId (x : symbol)]
+  [LexLocalId (x : symbol) (ctx : symbol)]
+  [LexGlobalId (x : symbol) (ctx : symbol)]
+  [LexInstanceId (x : symbol) (ctx : symbol)]
   [LexGlobalLet (id : symbol) (bind : LexExpr) (body : LexExpr)]
   [LexLocalLet (id : symbol) (bind : LexExpr) (body : LexExpr)]
 
@@ -69,7 +69,7 @@
   ;old identifiers left in for compatability during migration
   ;still have the "Py" naming convention to stress that they're
   ;not really in this language.
-  [PyLexId (x : symbol)]
+  [PyLexId (x : symbol) (ctx : symbol)]
   [PyLexGlobal (globals : (listof symbol))]
   [PyLexNonLocal (locals : (listof symbol))]
 
