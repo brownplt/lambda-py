@@ -69,9 +69,9 @@
   ;old identifiers left in for compatability during migration
   ;still have the "Py" naming convention to stress that they're
   ;not really in this language.
-  [PyId (x : symbol)]
-  [PyGlobal (globals : (listof symbol))]
-  [PyNonLocal (locals : (listof symbol))]
+  [PyLexId (x : symbol)]
+  [PyLexGlobal (globals : (listof symbol))]
+  [PyLexNonLocal (locals : (listof symbol))]
 
   
   ; builtin data structures
