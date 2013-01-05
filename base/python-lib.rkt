@@ -282,6 +282,7 @@ that calls the primitive `print`.
       (list (bind 'iter (CNone))
             (bind 'FuncIter (CNone))
             (bind 'SeqIter (CNone))
+            (bind 'Generator (CNone))
             (bind 'all (CNone))
             (bind 'any (CNone))
             (bind 'range (CNone))
@@ -304,6 +305,7 @@ that calls the primitive `print`.
              "pylib/any.py"
              "pylib/all.py"
              "pylib/dicteq.py"
+             "pylib/generator.py"
             ; "pylib/assertraises.py"
             )))
              

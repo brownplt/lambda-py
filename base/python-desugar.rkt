@@ -4,7 +4,8 @@
          "python-core-syntax.rkt"
          "util.rkt"
          "builtins/num.rkt" 
-         "builtins/str.rkt")
+         "builtins/str.rkt"
+         "python-cps.rkt")
 (require (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (append : ((listof 'a) (listof 'a) -> (listof 'a))))
          (typed-in racket/base (cdr : (('a * 'b)  -> 'b)))
