@@ -960,27 +960,8 @@
           (CId 'x (GlobalId)))))
 
 ;; tset let/cc ; 
-;; should display 10
 
-
-(interp (CSeq
-          (CAssign 
-           (CId 'gen (GlobalId))
-           (CFunc (list 'z) (none) 
-                  (CSeq 
-                   (CSeq
-                    (CAssign 
-                     (CId 'x (GlobalId))
-                     (CObject 'num (some (MetaNum 3))))
-                    (CReturn 
-                     (CId 'x (GlobalId))))
-                   (CSeq
-                    (CAssign
-                     (CId 'y (GlobalId))
-                     (CObject 'num (some (MetaNum 4))))
-                    (CReturn (CId 'y (GlobalId))))) false))
-          (CApp (CId 'gen (GlobalId)) (list (CObject 'num (some (MetaNum 3)))) (none))))
-
+;; early return, should display 3
 (interp (run-cps 
          (CSeq
           (CAssign 
@@ -1000,26 +981,4 @@
                     (CReturn (CId 'y (GlobalId))))) false))
            (CApp (CId 'gen (GlobalId)) (list (CObject 'num (some (MetaNum 3)))) (none)))))
 
-
-(interp (run-cps 
-         (CSeq
-          (CAssign 
-           (CId 'gen (GlobalId))
-           (CFunc (list 'z) (none) 
-                  (CSeq 
-                   (CSeq
-                    (CAssign 
-                     (CId 'x (GlobalId))
-                     (CObject 'num (some (MetaNum 3))))
-                    (CReturn 
-                     (CId 'x (GlobalId))))
-                   (CSeq
-                    (CAssign
-                     (CId 'y (GlobalId))
-                     (CObject 'num (some (MetaNum 4))))
-                    (CReturn (CId 'y (GlobalId))))) false))
-          (CSeq
-           (CApp (CId 'gen (GlobalId)) (list (CObject 'num (some (MetaNum 3)))) (none))
-           (CObject 'num (some (MetaNum 300)))))))
-                                    
 
