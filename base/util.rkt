@@ -16,6 +16,8 @@
  (typed-in racket/set (set-add : (set? 'a -> set?)))
  )
 
+(print-only-errors #t)
+
 ; a file for utility functions that aren't specific to python stuff
 
 (define python-path "/course/cs173/python/Python-3.2.3/python")
