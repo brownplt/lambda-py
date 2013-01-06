@@ -930,11 +930,79 @@
                  [sto : Store]
                  [env : Env]) : Result
   (local [(define t-bases (MetaTuple-v (some-v (VObject-mval bases))))
-          (define w (new-loc))]
+          (define w (new-loc))
+          (define bases_w (new-loc))]
     (v*s*e (VObject (if (empty? t-bases) 'no-super (MetaClass-c (some-v (VObject-mval (first t-bases)))))
                     (some (MetaClass name)) 
-                    (hash-set h-dict
-                              '__dict__
-                              w))
-           (hash-set sto w (make-under-dict h-dict sto))
+                    (hash-set (hash-set h-dict '__dict__ w)
+                              '__bases__ bases_w))
+           (hash-set (hash-set sto w (make-under-dict h-dict sto))
+                     bases_w bases)
            env)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;; __mro__ calculation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; build-mro: merge the __mro__ of the bases using the C3 algorithm
+;; it raises TypeError if linearization is not possible.
+;; The class should be the first element of __mro__, but since this seems hard
+;; to implement with immutable hashes, it will be prepended on retrieval
+(define (build-mro [name : symbol] [bases : (listof CVal)] [env : Env] [sto : Store]) : Result
+  (type-case (optionof (listof CVal)) (c3-merge (map get-mro bases) empty)
+    [none () (mk-exception 'TypeError
+                           (string-append 
+                            "cannot create a consisten method resolution order for class "
+                            (symbol->string name))
+                           env
+                           sto)]
+    [some (mro-list)
+          (v*s*e (VObject 'tuple (some (MetaTuple mro-list)) (hash empty)) sto env)]))
+
+;; get-mro: fetch __mro__ field as a list of classes, prepended with cls
+(define (get-mro [cls : CVal]) : (listof CVal)
+  empty)
+;  (type-case (optionof Address) (hash-ref (VObject-dict cls) '__mro__)
+;    [some (w) (get-field n (fetch w))]
+;    [none () (error 'get-mro "class without __mro__ field")])
+
+;; 
+;; c3-merge: implements the c3 algorithm to merge mro lists
+;; looks for a candidate (using c3-select)) and removes it from the mro lists
+;; until all the mro lists are empty (success) or no candidate can be found (fail).
+(define (c3-merge [xss : (listof (listof 'a))] 
+                  [acc : (listof 'a)]) : (optionof (listof 'a))
+  (let ([xss-ne (filter cons? xss)])
+    (cond
+      [(empty? xss-ne) (some acc)]
+      [else (type-case (optionof 'b) (c3-select xss-ne 0)
+              [none () (none)]
+              [some (el) (c3-merge
+                          (map (lambda (xs) 
+                                 (filter (lambda (x) (not (eq? x el))) xs)) 
+                               xss-ne)
+                          (append acc (list el)))])])))
+
+;; c3-select: looks sequentially for a head which doesn't appear in the tails
+;; if none is found there is no c3 linearization possible
+(define (c3-select [xss : (listof (listof 'a))] [n : number]) : (optionof 'a)
+  (cond
+    [(>= n (length xss)) (none)]
+    [else (let ([el (first (list-ref xss n))])
+            (if (any (map (lambda (xs) (member el (rest xs))) xss))
+                (c3-select xss (add1 n))
+                (some el)))]))
+
+;; any of a list of boolean
+(define (any [bs : (listof boolean)]) : boolean
+  (foldr (lambda (e1 e2) (or e1 e2)) #f bs))
+
+(define ex1 (list (list 'o)))
+(test (c3-merge ex1 empty) (some (list 'o)))
+(define ex2 (list (list 'a 'o) 
+                  (list 'o)))
+(test (c3-merge ex2 empty) (some (list 'a 'o)))
+(define ex5 (list (list 'd 'c 'b 'a 'o)
+                  (list 'c 'a 'o)
+                  (list 'b 'a 'o)
+                  (list 'a 'o)
+                  (list 'o)))
+(test (c3-merge ex5 empty) (some (list 'd 'c 'b 'a 'o)))
