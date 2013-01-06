@@ -32,8 +32,7 @@
       (map2 (lambda (k v) (hash-set! h k v))
             l1 l2)
       h)))
-
-
+#|
 (test (lists->hash (list "a" "b" "c") (list 1 2 3))
       (let ([h (make-hash empty)])
         (begin
@@ -41,13 +40,13 @@
           (hash-set! h "b" 2)
           (hash-set! h "c" 3) 
           h)))
-
+|#
 (define (list-replace [i : number] [val : 'a] [l : (listof 'a)]) : (listof 'a)
   (cond
     [(empty? l) (error 'util "list-replace out of range")]
     [(= 0 i) (cons val (rest l))]
     [else (cons (first l) (list-replace (- i 1) val (rest l)))]))
-(test (list-replace 2 63 (list 1 2 3 4)) (list 1 2 63 4))
+#|(test (list-replace 2 63 (list 1 2 3 4)) (list 1 2 63 4))|#
 
 (define (immutable-hash-copy h)
   (let ([r (hash empty)])
