@@ -941,7 +941,7 @@
 (interp (run-cps (CApp (CFunc (list 'x) (none) (CReturn 
                                                 (CBuiltinPrim 'num+ (list (CId 'x (LocalId)) (CObject 'num (some (MetaNum 4)))))) false)
                        (list (CObject 'num (some (MetaNum 5)))) (none))))
-#|(interp (run-cps (CSeq
+(interp (run-cps (CSeq
 
                   (CAssign
                    (CId 'x (GlobalId))
@@ -957,7 +957,7 @@
                   (CObject 'int (some (MetaNum 2)))
                   (CObject 'int (some (MetaNum 3)))
                   (CObject 'int (some (MetaNum 4))))))
-          (CId 'x (GlobalId)))))|#
+          (CId 'x (GlobalId)))))
 
 ;; tset let/cc ; 
 ;; should display 10
