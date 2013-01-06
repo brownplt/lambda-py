@@ -388,20 +388,20 @@
     [CNone () (v*s*e vnone sto env)]
     [CUndefined () (v*s*e (VUndefined) sto env)]
 
-    [CClass (name bases body) (begin ;(display "Class ") (display env) (display "\n")
+    [CClass (name bases body)
+            ;; the tuple of bases is evaluated assuming global scope for class names,
+            ;; should be changed for a more general lookup with the new scope implementation
+            (type-case Result (interp-env (CTuple (map (lambda (id) (CId id (GlobalId))) bases)) env sto)
+              [v*s*e (vbases sbases ebases)
                (type-case Result (interp-env body (cons (hash empty) env) sto)
                  [v*s*e (vbody sbody ebody)
-                        (local [(define w (new-loc))]
-                          (v*s*e (VObject (first bases)
-                                          (some (MetaClass name)) 
-                                          (hash-set (first ebody)
-                                                    '__dict__
-                                                    w))
-                                 (hash-set sbody w (make-under-dict (first ebody) sbody))
-                                 env))]
+                        (mk-type name vbases (first ebody) sbody env)]
                  [Return (vval sval eval) (return-exception eval sval)]
                  [Break (sval eval) (break-exception eval sval)]
-                 [Exception (vval sval eval) (Exception vval sval eval)]))]
+                 [Exception (vval sval eval) (Exception vval sval eval)])]
+              [Return (vval sval eval) (return-exception eval sval)]
+              [Break (sval eval) (break-exception eval sval)]
+              [Exception (vval sval eval) (Exception vval sval eval)])]
     
     [CGetField (value attr)
 	       (type-case Result (interp-env value env sto)
@@ -921,3 +921,20 @@
       [Return (varg1 sarg1 envarg1) (return-exception envarg1 sarg1)]
       [Break (sarg1 envarg1) (break-exception envarg1 sarg1)]
       [Exception (varg1 sarg1 envarg1) (Exception varg1 sarg1 envarg1)]))
+
+;; mk-type will compute __mro__ for the class, may return an exception if linearization is not possible
+;; builtins/type.rkt would be a good place for this stuff...
+(define (mk-type [name : symbol]
+                 [bases : CVal]
+                 [h-dict : (hashof symbol Address)]
+                 [sto : Store]
+                 [env : Env]) : Result
+  (local [(define t-bases (MetaTuple-v (some-v (VObject-mval bases))))
+          (define w (new-loc))]
+    (v*s*e (VObject (if (empty? t-bases) 'no-super (MetaClass-c (some-v (VObject-mval (first t-bases)))))
+                    (some (MetaClass name)) 
+                    (hash-set h-dict
+                              '__dict__
+                              w))
+           (hash-set sto w (make-under-dict h-dict sto))
+           env)))

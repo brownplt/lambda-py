@@ -29,13 +29,13 @@ Modifications to base implementation
 
 -  New syntax that you add to the core:
     CClass (base : symbol) parameter will be changed to allow a list of bases,
-    represented as a list of base class names, but it should be a tuple of classes
-    to allow dynamic class creation via the three argument version of type().
+    represented as a list of base class names, expansion to the tuple of class
+    is done at interpreter level to call the three argument version of type().
 
 -  New surface syntax and changes in desugaring
    No new syntax but some changes needs to be made at desugaring:
    - the list of bases needs to be passed to CClass, not just the first element,
-     initialially as a list of symbols, but should be a tuple base classes.
+     as a list of symbols.
    - super needs the class in which it is embeded as an additional argument
      when it is called without arguments, since super() is already special-cased
      in desugar and a flag is carried-on to indicate when desugaring takes place
