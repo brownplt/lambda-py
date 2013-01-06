@@ -938,14 +938,9 @@
 (interp (run-cps (CBuiltinPrim 'num+ (list (CObject 'num (some (MetaNum 3))) (CObject 'num (some (MetaNum 4)))))))
 (interp (run-cps
          (CLet 'x (CObject 'int (some (MetaNum 1))) (CId 'x (GlobalId)))))
-(interp (CApp (cps-let/cc 'esc (cps (CBuiltinPrim 'num+ 
-                                             (list (CObject 'num (some (MetaNum 3)))
-                                                   (CApp (CId 'esc (GlobalId)) (list (CObject 'int (some (MetaNum 10)))) (none)))))) 
-              (list (c-identity)) (none)))
-
-#|(interp (run-cps (CApp (CFunc (list 'x) (none) (CReturn 
+(interp (run-cps (CApp (CFunc (list 'x) (none) (CReturn 
                                                 (CBuiltinPrim 'num+ (list (CId 'x (LocalId)) (CObject 'num (some (MetaNum 4)))))) false)
-                       (list (CObject 'num (some (MetaNum 5)))) (none))))|#
+                       (list (CObject 'num (some (MetaNum 5)))) (none))))
 #|(interp (run-cps (CSeq
 
                   (CAssign
@@ -986,6 +981,25 @@
                     (CReturn (CId 'y (GlobalId))))) false))
           (CApp (CId 'gen (GlobalId)) (list (CObject 'num (some (MetaNum 3)))) (none))))
 
+(interp (run-cps 
+         (CSeq
+          (CAssign 
+           (CId 'gen (GlobalId))
+           (CFunc (list 'z) (none) 
+                  (CSeq 
+                   (CSeq
+                    (CAssign 
+                     (CId 'x (GlobalId))
+                     (CObject 'num (some (MetaNum 3))))
+                    (CReturn 
+                     (CId 'x (GlobalId))))
+                   (CSeq
+                    (CAssign
+                     (CId 'y (GlobalId))
+                     (CObject 'num (some (MetaNum 4))))
+                    (CReturn (CId 'y (GlobalId))))) false))
+           (CApp (CId 'gen (GlobalId)) (list (CObject 'num (some (MetaNum 3)))) (none)))))
+
 
 (interp (run-cps 
          (CSeq
@@ -1004,6 +1018,8 @@
                      (CId 'y (GlobalId))
                      (CObject 'num (some (MetaNum 4))))
                     (CReturn (CId 'y (GlobalId))))) false))
-          (CApp (CId 'gen (GlobalId)) (list (CObject 'num (some (MetaNum 3)))) (none)))))
+          (CSeq
+           (CApp (CId 'gen (GlobalId)) (list (CObject 'num (some (MetaNum 3)))) (none))
+           (CObject 'num (some (MetaNum 300)))))))
                                     
 
