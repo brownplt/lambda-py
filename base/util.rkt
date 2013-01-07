@@ -14,7 +14,12 @@
  (typed-in racket/set (set->list : (set? -> (listof 'a))))
  (typed-in racket/set (set : ( -> set?)))
  (typed-in racket/set (set-add : (set? 'a -> set?)))
+ 
  )
+(require [typed-in racket (format : (string 'a -> string))])
+(require [typed-in racket (flatten : ((listof (listof 'a) ) -> (listof 'a)))])
+(require [typed-in racket (remove-duplicates : ((listof 'a) -> (listof 'a)))])
+
 
 (print-only-errors #t)
 
@@ -43,6 +48,37 @@
           (hash-set! h "b" 2)
           (hash-set! h "c" 3) 
           h)))
+
+(define (list-subtract [big : (listof 'a) ] [small : (listof 'a)] ) : (listof 'a)
+  (local
+   [(define (list-remove [l : (listof 'a) ] [e : 'a]) : (listof 'a)
+      (local [(define (filter-expression [this-elem : 'a] ) : boolean (not (equal? e this-elem)))]
+      (filter filter-expression l)))]
+   (cond
+    [(empty? big) empty]
+    [(empty? small) big]
+    [else (list-subtract (list-remove big (first small)) (rest small))])))
+
+(test (list-subtract (list 'a 'b 'c 'd 'e) (list 'c 'e)) (list 'a 'b 'd))
+
+(define (contains-char? [str : string] [c : char] ) : boolean
+  (not (empty? (filter (lambda (x) (char=? x c)) (string->list str)))))
+
+(define (chr [str : string] ) : char
+  (let ((strlist (string->list str)))
+    (if (and (not (empty? strlist)) (empty? (rest strlist)))
+        (first strlist)
+        (error 'python-desugar:chr (format "cannot convert ~a into a single character" str)))))
+
+(test/exn (chr "hi") "cannot convert hi into a single character")
+(test/exn (chr "") "cannot convert  into a single character")
+
+(test (contains-char? "hello" (chr "l") ) true)
+(test (contains-char? "jasfdjoiewfa" (chr "-") ) false)
+(test (contains-char? "custom-identifier" (chr "-")) true)
+(test (contains-char? "customidentifier" (chr "-")) false)
+
+
 
 (define (list-replace [i : number] [val : 'a] [l : (listof 'a)]) : (listof 'a)
   (cond
