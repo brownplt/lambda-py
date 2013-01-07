@@ -554,7 +554,7 @@
 
     [PyLam (args body)
            (local [(define rbody (rec-desugar body global? env false))]
-                  (DResult 
+                  (DResult
                     (CFunc args (none)
                          (CReturn                   
                            (DResult-expr rbody))
@@ -594,7 +594,9 @@
             (local [(define body-r (desugar-local-body body args env))]
              (DResult
                (CAssign (CId name (LocalId))
-                        (CFunc args (none) (DResult-expr body-r) inclass?))
+                        (if (get-reset-gen)
+                            (cps-genfunc (CFunc args (none) (DResult-expr body-r) inclass?))
+                            (CFunc args (none) (DResult-expr body-r) inclass?)))
                env)))]
 
     ; a PyClassFunc is a method whose first argument should be the class rather than self

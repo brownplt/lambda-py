@@ -932,6 +932,7 @@
 
 ;; test 
 
+#|
 (interp (run-cps (CObject 'num (some (MetaNum 5))))) 
 (interp (run-cps (CSeq (CObject 'num (some (MetaNum 3)))
                        (CObject 'num (some (MetaNum 1210))))))
@@ -980,5 +981,5 @@
                      (CObject 'num (some (MetaNum 4))))
                     (CReturn (CId 'y (GlobalId))))) false))
            (CApp (CId 'gen (GlobalId)) (list (CObject 'num (some (MetaNum 3)))) (none)))))
-
+|#
 
