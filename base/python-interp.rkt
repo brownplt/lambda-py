@@ -29,6 +29,7 @@
          (typed-in racket/list (drop-right : ((listof 'a) number -> (listof 'a))))
          (typed-in racket/list (drop : ((listof 'a) number -> (listof 'a))))
          (typed-in racket/list (take : ((listof 'a) number -> (listof 'a))))
+         (typed-in racket/list (remove-duplicates : ((listof 'a) -> (listof 'a))))
          )
 
 (define (append3 a b c)
@@ -929,40 +930,73 @@
                  [h-dict : (hashof symbol Address)]
                  [sto : Store]
                  [env : Env]) : Result
-  (local [(define t-bases (MetaTuple-v (some-v (VObject-mval bases))))
+  (local [(define bases-list (MetaTuple-v (some-v (VObject-mval bases))))
           (define w (new-loc))
-          (define bases_w (new-loc))]
-    (v*s*e (VObject (if (empty? t-bases) 'no-super (MetaClass-c (some-v (VObject-mval (first t-bases)))))
-                    (some (MetaClass name)) 
-                    (hash-set (hash-set h-dict '__dict__ w)
-                              '__bases__ bases_w))
-           (hash-set (hash-set sto w (make-under-dict h-dict sto))
-                     bases_w bases)
-           env)))
+          (define bases_w (new-loc))
+          (define mro_w (new-loc))]
+    (type-case Result (build-mro name bases-list env sto)
+      [v*s*e (vmro smro emro) 
+             (v*s*e (VObject (if (empty? bases-list) 
+                                 'no-super 
+                                 (MetaClass-c (some-v (VObject-mval (first bases-list)))))
+                             (some (MetaClass name)) 
+                             (hash-set 
+                              (hash-set 
+                               (hash-set h-dict '__dict__ w)
+                               '__bases__ bases_w)
+                              '__mro__ mro_w))
+                    (hash-set 
+                     (hash-set 
+                      (hash-set sto w (make-under-dict h-dict sto))
+                      bases_w bases)
+                     mro_w vmro)
+                    env)]
+      [Return (vmro smro emro) (return-exception emro smro)]
+      [Break (smro emro) (break-exception emro smro)]
+      [Exception (vmro smro emro) (Exception vmro smro emro)])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;; __mro__ calculation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; build-mro: merge the __mro__ of the bases using the C3 algorithm
-;; it raises TypeError if linearization is not possible.
+;; Raises TypeError if there are duplicated bases or linearization is not possible.
 ;; The class should be the first element of __mro__, but since this seems hard
 ;; to implement with immutable hashes, it will be prepended on retrieval
-(define (build-mro [name : symbol] [bases : (listof CVal)] [env : Env] [sto : Store]) : Result
-  (type-case (optionof (listof CVal)) (c3-merge (map get-mro bases) empty)
-    [none () (mk-exception 'TypeError
-                           (string-append 
-                            "cannot create a consisten method resolution order for class "
-                            (symbol->string name))
-                           env
-                           sto)]
-    [some (mro-list)
-          (v*s*e (VObject 'tuple (some (MetaTuple mro-list)) (hash empty)) sto env)]))
+(define (build-mro [name : symbol] 
+                   [bases : (listof CVal)] 
+                   [env : Env] 
+                   [sto : Store]) : Result
+  ;; The mro is the c3-merge of the mro of the bases plus the list of bases
+  (let ([maybe-mro (c3-merge (append (map (lambda (base) (get-mro base sto)) 
+                                          bases)
+                                     (list bases)) empty)])
+    (cond
+      [(< (length (remove-duplicates bases)) (length bases))
+       (mk-exception 'TypeError
+                     (string-append 
+                      "duplicate base class in class "
+                      (symbol->string name))
+                     env
+                     sto)]
+      [(none? maybe-mro) 
+       (mk-exception 'TypeError
+                     (string-append 
+                      "cannot create a consisten method resolution order for class "
+                      (symbol->string name))
+                     env
+                     sto)]
+      [(some? maybe-mro)
+       (begin 
+         ;(display "class: ") (display name) (display " mro: ") 
+         ;(display (map pretty (some-v maybe-mro))) (display "\n")
+         (v*s*e (VObject 'tuple (some (MetaTuple (some-v maybe-mro))) (hash empty))
+                sto env))])))
 
 ;; get-mro: fetch __mro__ field as a list of classes, prepended with cls
-(define (get-mro [cls : CVal]) : (listof CVal)
-  empty)
-;  (type-case (optionof Address) (hash-ref (VObject-dict cls) '__mro__)
-;    [some (w) (get-field n (fetch w))]
-;    [none () (error 'get-mro "class without __mro__ field")])
+(define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
+  (type-case (optionof Address) (hash-ref (VObject-dict cls) '__mro__)
+    [some (w) (cons cls (MetaTuple-v (some-v (VObject-mval (fetch w sto)))))]
+    [none () (error 'get-mro (string-append "class without __mro__ field " 
+                                            (pretty cls)))]))
 
 ;; 
 ;; c3-merge: implements the c3 algorithm to merge mro lists
@@ -999,6 +1033,15 @@
 (test (c3-merge ex1 empty) (some (list 'o)))
 (define ex2 (list (list 'a 'o) 
                   (list 'o)))
+(define ex3 (list (list 'a 'o)
+                  (list 'b 'a 'o)
+                  (list 'a 'b)))
+(test (c3-merge ex3 empty) (none))
+(define ex4 (list (list 'a 'o)
+                  (list 'c 'a 'o)
+                  (list 'b 'a 'o)
+                  (list 'a 'c 'b)))
+(test (c3-merge ex4 empty) (none))
 (test (c3-merge ex2 empty) (some (list 'a 'o)))
 (define ex5 (list (list 'd 'c 'b 'a 'o)
                   (list 'c 'a 'o)
