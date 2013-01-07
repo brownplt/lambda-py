@@ -47,7 +47,7 @@ Modifications to base implementation
    get_field to handle the new lookup order, including super as special case
 
 -  Functions/helpers that you add
-   mro, c3-merge and c3-select for __mro__ calculation.
+   build-mro, get-mro, c3-merge and c3-select for __mro__ calculation.
 
 - New builtin classes
     super:

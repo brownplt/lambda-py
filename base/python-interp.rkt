@@ -738,35 +738,33 @@
                    after)))))))
 
 ;; handles lookup chain for function calls on objects
-;; looks in object dict, then class dict, then base class dicts, then default class
-;; order in which base class dicts are traversed depends on truth value of super
-;; depth-first, left-to-right if super = #f
-;; left-to-right, depth-second if super = #t
+;; multiple inheritance modification : for class lookup call get-field-from-class
 (define (get-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : Result
   (begin ;(display "GET: ") (display n) (display " ") (display c) (display "\n")
          ;(display e) (display "\n\n")
-  (type-case CVal c
-    [VObject (antecedent mval d) 
-                    (let ([w (hash-ref (VObject-dict c) n)])
-              (begin ;(display "loc: ") (display w) (display "\n\n")
-                (type-case (optionof Address) w
-                [some (w) (v*s*e (fetch w s) s e)]
-                [none () (local [(define __class__w (hash-ref (VObject-dict c) '__class__))]
-                           (type-case (optionof Address) __class__w
-                             [some (w) (get-field n (fetch (some-v __class__w) s) e s)]
-                             [none () (let ([mayb-base (lookup antecedent e)])
-                                        (if (some? mayb-base)
-                                          (let ([base (fetch (some-v mayb-base) s)])
-                                            (get-field n base e s))
-                                          (mk-exception 'AttributeError
-                                                        (string-append 
-                                                          (string-append
-                                                            "object"
-                                                            " has no attribute '")
-                                                          (string-append
-                                                            (symbol->string n) "'"))
-                                                        e s)))]))])))]
-    [else (error 'interp "Not an object with functions.")])))
+    (cond 
+      [(equal? n '__mro__) ;; temporary hack for self-reference in __mro__
+       (v*s*e (VObject 'tuple (some (MetaTuple (get-mro c s))) (hash empty)) s e)]
+      [else
+       (type-case CVal c
+         [VObject (antecedent mval d) 
+                  (let ([w (hash-ref (VObject-dict c) n)])
+                    (begin ;(display "loc: ") (display w) (display "\n\n")
+                      (type-case (optionof Address) w
+                        [some (w) 
+                              (v*s*e (fetch w s) s e)]
+                        [none () 
+                              (local [(define __class__w (hash-ref (VObject-dict c) '__class__))]
+                                (type-case (optionof Address) __class__w
+                                  [some (w) (get-field-from-class n (fetch (some-v __class__w) s) e s)]
+                                  [none () (let ([mayb-base (lookup antecedent e)])
+                                             (if (some? mayb-base)
+                                                 (let ([base (fetch (some-v mayb-base) s)])
+                                                   (get-field-from-class n base e s))
+                                                 (error 'get-field (string-append 
+                                                                    "Object without class: "
+                                                                    (pretty c)))))]))])))]
+         [else (error 'interp "Not an object with functions.")])])))
 
 
 (define (assign-to-field o f v e s)
@@ -923,8 +921,12 @@
       [Break (sarg1 envarg1) (break-exception envarg1 sarg1)]
       [Exception (varg1 sarg1 envarg1) (Exception varg1 sarg1 envarg1)]))
 
-;; mk-type will compute __mro__ for the class, may return an exception if linearization is not possible
-;; builtins/type.rkt would be a good place for this stuff...
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; multiple inheritance ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; mk-type will compute __mro__ for the class,
+;; may return an exception if linearization is not possible
+;; builtins/type.rkt would be a good place for this stuff,
+;; but it needs access to mk-exception...
 (define (mk-type [name : symbol]
                  [bases : CVal]
                  [h-dict : (hashof symbol Address)]
@@ -954,8 +956,6 @@
       [Return (vmro smro emro) (return-exception emro smro)]
       [Break (smro emro) (break-exception emro smro)]
       [Exception (vmro smro emro) (Exception vmro smro emro)])))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;; __mro__ calculation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; build-mro: merge the __mro__ of the bases using the C3 algorithm
 ;; Raises TypeError if there are duplicated bases or linearization is not possible.
@@ -991,14 +991,15 @@
          (v*s*e (VObject 'tuple (some (MetaTuple (some-v maybe-mro))) (hash empty))
                 sto env))])))
 
-;; get-mro: fetch __mro__ field as a list of classes, prepended with cls
+
+;; get-mro: fetch __mro__ field as a list of classes
+;; termporarily prepended with cls to avoid self reference in __mro__
 (define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
   (type-case (optionof Address) (hash-ref (VObject-dict cls) '__mro__)
     [some (w) (cons cls (MetaTuple-v (some-v (VObject-mval (fetch w sto)))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
                                             (pretty cls)))]))
-
-;; 
+ 
 ;; c3-merge: implements the c3 algorithm to merge mro lists
 ;; looks for a candidate (using c3-select)) and removes it from the mro lists
 ;; until all the mro lists are empty (success) or no candidate can be found (fail).
@@ -1049,3 +1050,30 @@
                   (list 'a 'o)
                   (list 'o)))
 (test (c3-merge ex5 empty) (some (list 'd 'c 'b 'a 'o)))
+
+;; get-field-from-class: looks for a field in the class __mro__ components
+(define (get-field-from-class [n : symbol] 
+                              [c : CVal] 
+                              [e : Env] 
+                              [s : Store]) : Result
+  (type-case (optionof Address) (lookup-mro (get-mro c s) n)
+    [some (w) (v*s*e (fetch w s) s e)]
+    [none () (mk-exception 'AttributeError
+                           (string-append 
+                            (string-append
+                             "object"
+                             " has no attribute '")
+                            (string-append
+                             (symbol->string n) "'"))
+                           e s)]))
+
+;; lookup-mro: looks for field in mro list
+(define (lookup-mro [mro : (listof CVal)] [n : symbol]) : (optionof Address)
+  (cond
+    [(empty? mro) (none)]
+    [else (type-case CVal (first mro)
+            [VObject (antecedent mval d)
+                     (type-case (optionof Address) (hash-ref d n)
+                       [none () (lookup-mro (rest mro) n)]
+                       [some (value) (some value)])]
+            [else (error 'lookup-mro "an entry in __mro__ list is not an object")])]))
