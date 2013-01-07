@@ -216,7 +216,8 @@
               [LexUndefined [] (LexUndefined)]
               [LexSet (elts) (LexSet (map recur elts))]
               [LexNone [] (LexNone)]
-              [LexBreak [] (LexBreak)]))
+              [LexBreak [] (LexBreak)]
+              [LexBlock [a b] [LexBlock a b]]))
         (define (recur this-expr)
             (call/cc (lambda (k)
                     (call-with-exception-handler
@@ -445,7 +446,8 @@
               [LexUndefined [] empty]
               [LexSet (elts) (flatten (map recur elts))]
               [LexNone [] empty]
-              [LexBreak [] empty]))
+              [LexBreak [] empty]
+              [LexBlock [a b] (recur b)]))
         (define (recur this-expr)
             (call/cc (lambda (k)
                     (call-with-exception-handler

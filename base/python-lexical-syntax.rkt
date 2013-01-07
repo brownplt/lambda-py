@@ -65,6 +65,10 @@
   [LexGlobalLet (id : symbol) (bind : LexExpr) (body : LexExpr)]
   [LexLocalLet (id : symbol) (bind : LexExpr) (body : LexExpr)]
 
+  ;helpful; a "block" denotes a new scope
+  ;the nonlocals list is for function arguments.
+  [LexBlock (nonlocals : (listof symbol)) (body : LexExpr) ]
+
 
   ;old identifiers left in for compatability during migration
   ;still have the "Py" naming convention to stress that they're
