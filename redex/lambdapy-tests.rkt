@@ -67,6 +67,8 @@
 #| ; NOTE(dbp): currently the implementation of numeric primitives,
    ; which we have copied, is buggy, and as a result, these tests don't pass!
    ; see: https://groups.google.com/d/msg/lambda-py/szbm86ron8Q/PbFO7RKOpKMJ
+   ; -- agree with you. i was not sure whether we could change core's semantics
+   ; -- so i just did this... -yao
 (expect (term (prim2 "num+" (mknum 1) (mknum 1))) (make-num 2))
 (expect (term (prim2 "num-" (mknum 2) (mknum 1))) (make-num 1))
 (expect (term (prim2 "num*" (mknum 2) (mknum 3))) (make-num 6))

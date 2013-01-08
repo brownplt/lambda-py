@@ -12,8 +12,8 @@
 (define-metafunction λπ
   mknum : number -> val
   [(mknum number) (obj-val ,(if (exact? (term number)) (term int) (term float))
-			   (meta-num number)
-			   ())])
+                           (meta-num number)
+                           ())])
 
 (define-metafunction λπ
   truthy? : val -> #t or #f
@@ -115,6 +115,29 @@
                                            -1
                                            (map char->integer
                                                 (string->list (term string)))))))]
+  [(δ "strin" (obj-val x_1 (meta-str string_1) any_1) (obj-val x_2 (meta-str string_2) any_2) εs Σ)
+   ,(if (or (< (string-length (string-replace (term string_1) (term string_2) ""))
+               (string-length (term string_1)))
+            (string=? (term string_2) ""))
+        (term vtrue)
+        (term vfalse))]
+  [(δ "str-getitem" (obj-val x_1 (meta-str string_1) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   (obj-val str (meta-str string_new) ())
+   (where string_new ,(make-string 1 (string-ref (term string_1) (term number_2))))]
+  ;; rename it from strlist to str-list for consistency
+  [(δ "str-list" (obj-val x (meta-str string) any) εs Σ)
+   (obj-val list (meta-list ,(map (lambda (s) (term (obj-val str (meta-str ,(make-string 1 s)) ())))
+                                   (string->list (term string))))
+            ())]
+  [(δ "str-tuple" (obj-val x (meta-str string) any) εs Σ)
+   (obj-val tuple (meta-tuple ,(map (lambda (s) (term (obj-val str (meta-str ,(make-string 1 s)) ())))
+                                   (string->list (term string))))
+            ())]
+  ;; bool
+  [(δ "bool-init" (obj-val x (meta-tuple ()) any) εs Σ)
+   vfalse]
+  [(δ "bool-init" (obj-val x (meta-tuple (val_1 val ...)) any) εs Σ)
+   ,(if (term (truthy? val_1)) (term vtrue) (term vfalse))]
   )
 
 (define-metafunction λπ
