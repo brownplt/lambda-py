@@ -8,35 +8,32 @@
     [CFunc (args sargs body method?)
            (CFunc args sargs
                   (make-seq
-                   (list (make-seq (init-genfunc-args args))
+                   (list (make-seq (map (lambda (e) (CAssign (CId e (LocalId)) (CUndefined))) 
+                                        (list '^genobj-temp '^wrapper '^cps-func)))
                          ;; cps generator function body
-                         (make-seq (make-genfunc-body args body))))
+                         (make-seq (make-genfunc-body expr))))
                   method?)]
     
     [else (CId 'TypeError (GlobalId))]))
 
 (define (init-genfunc-args [args : (listof symbol)]) : (listof CExpr)
-  (cons (CAssign (CId '^genobj-temp (LocalId)) (CUndefined))
-        (map (lambda (e) (CAssign (CId e (LocalId)) (CId e (LocalId)))) args)))
+  (map (lambda (e) (CAssign (CId e (LocalId)) (CUndefined))) args))
 
-(define (make-genfunc-body [args : (listof symbol)] [body : CExpr]) : (listof CExpr)
-  (append
-   (cons (CAssign (CId '^genobj-temp (LocalId)) 
-                  (CApp (CId 'Generator (LocalId)) (list
-                    ;; this is where we cps the actual gen func body
-                    ;; by create a function to wrap it and the body is in cps form
-                    (CFunc (list 'self) (none) 
-                            (identity ;; TODO: should change to cps when complete
-                             (make-seq
-                              (list
-                               (make-seq (map (lambda (e) (CAssign (CId e (LocalId)) (CUndefined))) args)) ;; assign arg to undefined
-                               (CSeq (make-seq (map (lambda (e) (CAssign (CId e (LocalId)) (CGetField (CId 'self (LocalId)) e))) args))
-                                     body))))
-                            false))
-                         (none)))
-          (map (lambda (e) (CAssign (CGetField (CId '^genobj-temp (LocalId)) e) (CId e (LocalId)))) args))
-   ;; return generator obj
-   (list (CReturn (CId '^genobj-temp (LocalId))))))
+(define (make-genfunc-body [genfn : CExpr]) : (listof CExpr)
+  (list
+   ;; this is where we cps our genfunc body
+   ;; TODO: change identity -> cps
+   (CAssign (CId '^cps-func (LocalId)) 
+            (CFunc (CFunc-args genfn) (CFunc-varargs genfn) (identity (CFunc-body genfn)) false))
+   (CAssign (CId '^wrapper (LocalId)) 
+            (CFunc (list 'self) (none) 
+                   (CReturn 
+                    (CApp (CId '^cps-func (LocalId)) 
+                          (map (lambda (e) (CId e (LocalId))) (CFunc-args genfn)) (none))) 
+                   false))
+   (CAssign (CId '^genobj-temp (LocalId))
+            (CApp (CId 'Generator (LocalId)) (list (CId '^wrapper (LocalId))) (none)))
+   (CReturn (CId '^genobj-temp (LocalId)))))
 
 (define (make-seq [exprs : (listof CExpr)]) : CExpr
   (foldl (lambda (e1 so-far) (CSeq so-far e1))
