@@ -926,6 +926,7 @@
 ;; mk-type will compute __mro__ for the class,
 ;; may return an exception if linearization is not possible
 ;; builtins/type.rkt would be a good place for this stuff,
+;; it should handle type(name, bases, dict)
 ;; but it needs access to mk-exception...
 (define (mk-type [name : symbol]
                  [bases : CVal]
@@ -990,15 +991,6 @@
          ;(display (map pretty (some-v maybe-mro))) (display "\n")
          (v*s*e (VObject 'tuple (some (MetaTuple (some-v maybe-mro))) (hash empty))
                 sto env))])))
-
-
-;; get-mro: fetch __mro__ field as a list of classes
-;; termporarily prepended with cls to avoid self reference in __mro__
-(define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
-  (type-case (optionof Address) (hash-ref (VObject-dict cls) '__mro__)
-    [some (w) (cons cls (MetaTuple-v (some-v (VObject-mval (fetch w sto)))))]
-    [none () (error 'get-mro (string-append "class without __mro__ field " 
-                                            (pretty cls)))]))
  
 ;; c3-merge: implements the c3 algorithm to merge mro lists
 ;; looks for a candidate (using c3-select)) and removes it from the mro lists
@@ -1025,10 +1017,6 @@
             (if (any (map (lambda (xs) (member el (rest xs))) xss))
                 (c3-select xss (add1 n))
                 (some el)))]))
-
-;; any of a list of boolean
-(define (any [bs : (listof boolean)]) : boolean
-  (foldr (lambda (e1 e2) (or e1 e2)) #f bs))
 
 (define ex1 (list (list 'o)))
 (test (c3-merge ex1 empty) (some (list 'o)))
