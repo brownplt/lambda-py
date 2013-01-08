@@ -10,6 +10,12 @@
 (define-term vfalse (obj-val bool (meta-num 0) ()))
 
 (define-metafunction λπ
+  mknum : number -> val
+  [(mknum number) (obj-val ,(if (exact? (term number)) (term int) (term float))
+			   (meta-num number)
+			   ())])
+
+(define-metafunction λπ
   truthy? : val -> #t or #f
   [(truthy? (fun-val any ...)) #t]
   [(truthy? (obj-val x (meta-num number) (any ...))) ,(not (= 0 (term number)))]

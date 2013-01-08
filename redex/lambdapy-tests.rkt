@@ -62,4 +62,5 @@
 ;; prims
 (expect (term (prim2 "is" true true)) (term vtrue))
 (expect (term (prim2 "is" true false)) (term vfalse))
-(expect (term (prim2 "is" (num 1) (num 1))) (term vfalse))
+(expect (term (prim2 "is" (mknum 1) (mknum 1))) (term vtrue))
+(expect (term (prim2 "is" (mknum 1) (mknum 2))) (term vfalse))

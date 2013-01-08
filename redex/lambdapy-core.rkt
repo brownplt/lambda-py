@@ -66,7 +66,6 @@
      true
      false
      none
-     (num number) ;; do we add it? the Core does not have it
      (class x x e)
      ;; with/without meta-val - how to do metavals?
      (object x)

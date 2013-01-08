@@ -27,8 +27,6 @@
    (==> false
 	vfalse
 	"false")
-   (==> (num number)
-	(obj-val num (meta-num number) ()))
    (==> (list (val ...))
         (obj-val list (meta-list (val ...)) ())
         "list")
