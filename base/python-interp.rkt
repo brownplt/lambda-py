@@ -70,6 +70,13 @@
                                (v*s*e-e (first (reverse result-list)))
                                init-e)))))))
 
+(define (replace-global-scope? [ext : Env] [curr : Env]) : Env
+  (if (and (cons? curr)
+           (cons? ext)
+           (> (hash-count (last curr)) (hash-count (last ext))))
+      (append (drop-right ext 1) (list (last curr)))
+      ext))
+
 (define (interp-capp [fun : CExpr] [arges : (listof CExpr)] 
                      [stararg : (optionof CExpr)] [env : Env] [sto : Store]) : Result
   (begin ;(display "APP: ") (display fun) (display "\n") (display arges) (display "\n\n\n")
@@ -101,18 +108,22 @@
                                                                    (make-builtin-num 0))
                                                                  l))
                                                  (v*s*e-e sarg-r)
-                                                 cenv
+                                                 (replace-global-scope? cenv ec)
                                                  (v*s*e-s sarg-r))) 
                                              (bind-and-execute body argxs vararg
                                                                argvs arges ec
-                                                               cenv
+                                                               (replace-global-scope? cenv ec)
                                                                sc)))]
                               (type-case Result result
-                                [v*s*e (vb sb eb) (v*s*e vnone sb env)]
-                                [Return (vb sb eb) (v*s*e vb sb env)]
-                                [Break (sb eb) (break-exception env sb)]
+                                [v*s*e (vb sb eb) (v*s*e vnone sb
+                                                         (replace-global-scope? env eb))]
+                                [Return (vb sb eb) (v*s*e vb sb 
+                                                          (replace-global-scope? env eb))]
+                                [Break (sb eb) (break-exception 
+                                                 (replace-global-scope? env eb) sb)]
                                 [Exception (vb sb eb)
-                                           (Exception vb sb env)])))))]
+                                           (Exception vb sb
+                                                      (replace-global-scope? env eb))])))))]
       [VObject (b mval d)
                (if (and (some? mval) (MetaClass? (some-v mval)))
                   ; We're calling a class.
@@ -136,7 +147,7 @@
                                                                 (cons (CId 'init (LocalId)) 
                                                                       arges)
                                                                 ec
-                                                                cenv
+                                                                (replace-global-scope? cenv ec)
                                                                 sc))]
                                         (type-case Result result
                                           [v*s*e (vb sb eb) 
@@ -146,12 +157,15 @@
                                                                                eb))
                                                                      sb)])
                                                      obj)
-                                                   sb env)]
+                                                   sb (replace-global-scope? env eb))]
                                          [Return (vb sb eb)
-                                                 (v*s*e vb sb env)]
-                                         [Break (sb eb) (break-exception env sb)]
+                                                 (v*s*e vb sb 
+                                                        (replace-global-scope? env eb))]
+                                         [Break (sb eb) (break-exception 
+                                                          (replace-global-scope? env eb) sb)]
                                          [Exception (vb sb eb)
-                                                 (Exception vb sb env)])))))]
+                                                 (Exception vb sb 
+                                                        (replace-global-scope? env eb))])))))]
                       [else (error 'interp 
                                    "__init__ not found. THIS SHOULDN'T HAPPEN.")]))
                                      
@@ -175,20 +189,20 @@
                                                              (cons (make-builtin-num 0) 
                                                                    arges)
                                                              ec
-                                                             cenv
+                                                             (replace-global-scope? cenv ec)
                                                              sc))]
                                        (type-case Result result
                                          [v*s*e (vb sb eb)
                                                 (v*s*e vb sb
-                                                       env)]
+                                                       (replace-global-scope? env eb))]
                                          [Return (vb sb eb)
-                                                 (v*s*e vb sb env)]
+                                                 (v*s*e vb sb (replace-global-scope? env eb))]
                                          [Break (sb eb)
-                                                (break-exception env
+                                                (break-exception (replace-global-scope? env eb)
                                                                  sb)]
                                          [Exception (vb sb eb)
                                                     (Exception vb sb
-                                                         env)])))))]
+                                                         (replace-global-scope? env eb))])))))]
                       [else (error 'interp 
                                    "Not a closure or constructor.")])]
                       [Return (vfun sfun efun) (return-exception efun sfun)]
@@ -340,20 +354,22 @@
         (Exception (Exception-v exn) hsto henv)))))
 
 (define (interp-let [name : symbol] [value : Result] [body : CExpr]) : Result
-  (local [(define (interp-let/inner env store value)
-            (let ([loc (new-loc)])
-              (interp-env body
-                          (if (global-scope? env)
-                              ; Creating a new localscope for handling CLet in global scope.
-                              ; Assuming that there won't be any local bindings in the let body.
-                              (cons (hash-set (hash (list)) name loc) env) 
-                              (cons (hash-set (first env) name loc) (rest env)))
-                          (hash-set store loc value))))]
+  (let ([loc (new-loc)])
     (type-case Result value
-      [v*s*e (vb sb eb) (interp-let/inner eb sb vb)]
-      [Return (vb sb eb) (interp-let/inner eb sb vb)]
-      [Break (sb eb) (interp-let/inner eb sb vnone)]
-      [Exception (vb sb eb) (interp-let/inner eb sb vb)])))
+      [v*s*e (vb sb eb)
+             (interp-env body
+                         (cons (hash-set (first eb) name loc) (rest eb))
+                         (hash-set sb loc vb))]
+      [Return (vb sb eb) (interp-env body
+                         (cons (hash-set (first eb) name loc) (rest eb))
+                         (hash-set sb loc vb))]
+      [Break (sb eb) (interp-env body
+                         (cons (hash-set (first eb) name loc) (rest eb))
+                         (hash-set sb loc vnone))]
+      [Exception (vb sb eb)
+                 (interp-env body
+                         (cons (hash-set (first eb) name loc) (rest eb))
+                         (hash-set sb loc vb))])))
 
 ;; interp-env : CExpr * Env * Store -> Result
 (define (interp-env [expr : CExpr] [env : Env] [sto : Store]) : Result
@@ -675,13 +691,10 @@
 
     ;[else (error 'interp "haven't implemented a case yet")]))
 
-(define (global-scope? [env : Env]) : boolean
-  (= (length env) 1))
-
 (define (assign-to-id id v e s)
-  (local [(define-values (before scope after global? error)
+  (local [(define-values (before scope after error)
             (type-case IdType (CId-type id)
-              [GlobalId () (values (drop-right e 1) (last e) empty #t (none))]
+              [GlobalId () (values (drop-right e 1) (last e) empty (none))]
               [NonlocalId ()
                 (local [(define (find-scope-level [x : symbol] [env : Env] [idx : number])
                           (cond
@@ -691,7 +704,7 @@
                                       (find-scope-level x (rest env) (add1 idx)))]))
                         (define level-idx (find-scope-level (CId-x id) (rest e) 1))]
                   (if (none? level-idx)
-                      (values empty (hash empty) empty #f
+                      (values empty (hash empty) empty
                               (some
                                 (mk-exception 'SyntaxError
                                    (string-append "no binding for nonlocal '"
@@ -703,18 +716,12 @@
                                          (drop e (some-v level-idx))))]
                         (begin ;(display "left: ") (display left) (display "\n")
                                ;(display "right: ") (display right) (display "\n")
-                              (values left (first right) (rest right) #f (none))))))]
-              [LocalId () (values empty (first e) (rest e) (global-scope? e) (none))]))]
+                              (values left (first right) (rest right) (none))))))]
+              [LocalId () (values empty (first e) (rest e) (none))]))]
     (if (some? error)
         (some-v error)
         (local [(define mayb-w (hash-ref scope (CId-x id)))
-                (define w (if (some? mayb-w) (some-v mayb-w) (new-loc)))
-                (define (set-local scope id loc)
-                  (hash-set scope (CId-x id) loc))
-                (define (set-global scope id loc)
-                  (begin
-                    (hash-set! scope (CId-x id) loc)
-                    scope))]
+                (define w (if (some? mayb-w) (some-v mayb-w) (new-loc)))]
           (begin 
             ;(if (symbol=? 'x (CId-x id))
             ;  (begin
@@ -725,8 +732,8 @@
                  (hash-set s w v) 
                  (append3
                    before
-                   (list (if global? (set-global scope id w)
-                                     (set-local scope id w)))
+                   (list (hash-set scope 
+                             (CId-x id) w))
                    after)))))))
 
 ;; handles lookup chain for function calls on objects
@@ -871,7 +878,7 @@
 
 
 (define (interp expr)
-  (type-case Result (interp-env expr (list (make-hash (list))) (hash (list)))
+  (type-case Result (interp-env expr (list (hash (list))) (hash (list)))
     [v*s*e (vexpr sexpr env) (if (not (MetaNone? (some-v (VObject-mval vexpr))))
                          (begin (display (pretty vexpr)) 
                                 (display "\n"))
