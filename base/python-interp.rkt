@@ -743,9 +743,11 @@
   (begin ;(display "GET: ") (display n) (display " ") (display c) (display "\n")
          ;(display e) (display "\n\n")
     (cond 
-      [(equal? n '__mro__) ;; temporary hack for self-reference in __mro__
-       (v*s*e (VObject 'tuple (some (MetaTuple (get-mro c s))) (hash empty)) s e)]
+      [(and (some? (VObject-mval c)) (MetaClass? (some-v (VObject-mval c))))
+       ;; class lookup
+       (get-field-from-class n c e s)]
       [else
+       ;; instance lookup
        (type-case CVal c
          [VObject (antecedent mval d) 
                   (let ([w (hash-ref (VObject-dict c) n)])
@@ -939,9 +941,7 @@
           (define mro_w (new-loc))]
     (type-case Result (build-mro name bases-list env sto)
       [v*s*e (vmro smro emro) 
-             (v*s*e (VObject (if (empty? bases-list) 
-                                 'no-super 
-                                 (MetaClass-c (some-v (VObject-mval (first bases-list)))))
+             (v*s*e (VObject 'type
                              (some (MetaClass name)) 
                              (hash-set 
                               (hash-set 
@@ -1044,16 +1044,21 @@
                               [c : CVal] 
                               [e : Env] 
                               [s : Store]) : Result
-  (type-case (optionof Address) (lookup-mro (get-mro c s) n)
-    [some (w) (v*s*e (fetch w s) s e)]
-    [none () (mk-exception 'AttributeError
-                           (string-append 
-                            (string-append
-                             "object"
-                             " has no attribute '")
-                            (string-append
-                             (symbol->string n) "'"))
-                           e s)]))
+  (cond 
+    [(equal? n '__mro__) 
+     ;; temporary hack to avoid self-reference in __mro__
+     (v*s*e (VObject 'tuple (some (MetaTuple (get-mro c s))) (hash empty)) s e)]
+    [else
+     (type-case (optionof Address) (lookup-mro (get-mro c s) n)
+       [some (w) (v*s*e (fetch w s) s e)]
+       [none () (mk-exception 'AttributeError
+                              (string-append 
+                               (string-append
+                                "object"
+                                " has no attribute '")
+                               (string-append
+                                (symbol->string n) "'"))
+                              e s)])]))
 
 ;; lookup-mro: looks for field in mro list
 (define (lookup-mro [mro : (listof CVal)] [n : symbol]) : (optionof Address)

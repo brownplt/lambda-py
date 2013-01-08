@@ -121,11 +121,9 @@
 ;; returns true if the given o is an object of the given class or somehow a
 ;; subclass of that one. Modified to look at __mro__ for multiple inheritance. 
 (define (object-is? [o : CVal] [c : symbol] [env : Env] [s : Store]) : boolean
-  (cond
-    [(symbol=? (VObject-antecedent o) 'no-super) false]
-    [else (let ([obj-cls (fetch (some-v (lookup (VObject-antecedent o) env)) s)]
-                [cls (fetch (some-v (lookup c env)) s)])
-            (member cls (get-mro obj-cls s)))]))
+  (let ([obj-cls (fetch (some-v (lookup (VObject-antecedent o) env)) s)]
+        [cls (fetch (some-v (lookup c env)) s)])
+    (member cls (get-mro obj-cls s))))
 
 
 ;; get-mro: fetch __mro__ field as a list of classes

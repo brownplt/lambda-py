@@ -207,15 +207,13 @@ that calls the primitive `print`.
                           (CId 'type (LocalId)))))
     false))
 
-; Returns the $class of self's $class.
-; self's $class is the class of the given instance.
-; the $class of that is its antecedent.
-; So this function returns the super-class of the instance.
+; This function returns the first super-class of the instance.
+; It uses the __mro__, but it doesn't implement cooperative
+; multiple inheritance, yet.
 (define super-lambda
   (CFunc (list 'self) (none)
          (CReturn
-             (CBuiltinPrim '$super (list
-                 (CBuiltinPrim '$super (list (CId 'self (LocalId)))))))
+          (CBuiltinPrim '$super (list (CId 'self (LocalId)))))
          false))
 
 ;; type should be a (meta)class...
