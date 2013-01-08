@@ -11,6 +11,7 @@
          "builtins/set.rkt"
          "builtins/none.rkt"
          "builtins/file.rkt"
+         "builtins/module.rkt"
          "util.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
@@ -19,7 +20,8 @@
          (typed-in racket/base (open-input-file : ('a -> 'b)))
          "python-syntax.rkt"
          "python-desugar.rkt"
-         (typed-in racket/base (append : ((listof 'a) (listof 'a) (listof 'a) (listof 'a) (listof 'a) -> (listof 'a)))))
+         (typed-in racket/base (append : ((listof 'a) (listof 'a) (listof 'a) (listof 'a) (listof 'a) -> (listof 'a))))
+         (typed-in racket/pretty (pretty-print : ('a -> 'b))))
 
 #|
 
@@ -208,6 +210,62 @@ that calls the primitive `print`.
                           (CId 'type (LocalId)))))
     false))
 
+; construct a module object
+; current __import__ can be translated to:
+; def __import__(name):
+;    m = $module(name)
+;    f = open(name+'.py', 'r')
+;    code = f.read()
+;    f.close()
+;    exec(code, m.__dict__)
+;    return m
+; NOTE: Module class is defined as '$module', user cannot get access to $module
+(define import-lambda
+  (CFunc
+   (list 'name)
+   (none)
+   (CSeq
+    (CSeq
+     (CSeq
+      (CAssign (CId 'code (LocalId)) (CUndefined))
+      (CAssign (CId 'f (LocalId)) (CUndefined)))
+     (CAssign (CId 'm (LocalId)) (CUndefined)))
+    (CSeq
+     (CSeq
+      (CSeq
+       (CSeq
+        (CSeq
+         (CAssign
+          (CId 'm (LocalId))
+          (CApp (CId '$module (GlobalId)) (list (CId 'name (LocalId))) (none)))
+         (CAssign
+          (CId 'f (LocalId))
+          (CApp
+           (CId 'open (LocalId))
+           (list
+            (CApp
+             (CGetField (CId 'name (LocalId)) '__add__)
+             (list (CId 'name (LocalId)) (CObject 'str (some (MetaStr ".py"))))
+             (none))
+            (CObject 'str (some (MetaStr "r"))))
+           (none))))
+        (CAssign
+         (CId 'code (LocalId))
+         (CApp
+          (CGetField (CId 'f (LocalId)) 'read)
+          (list (CId 'f (LocalId)))
+          (none))))
+       (CApp
+        (CGetField (CId 'f (LocalId)) 'close)
+        (list (CId 'f (LocalId)))
+        (none)))
+      (CApp
+       (CId 'exec (GlobalId))
+       (list (CId 'code (LocalId)) (CGetField (CId 'm (LocalId)) '__dict__))
+       (none)))
+     (CReturn (CId 'm (LocalId)))))
+   false))
+
 ; Returns the $class of self's $class.
 ; self's $class is the class of the given instance.
 ; the $class of that is its antecedent.
@@ -244,7 +302,8 @@ that calls the primitive `print`.
         (bind 'set set-class)
         (bind 'file file-class)
         (bind 'open file-class)
-
+        (bind '$module module-class)
+        
         (bind 'len len-lambda)
         (bind 'min min-lambda)
         (bind 'max max-lambda)
@@ -252,6 +311,7 @@ that calls the primitive `print`.
         (bind 'abs abs-lambda)
         (bind 'isinstance isinstance-lambda)
         (bind 'print print-lambda)
+        (bind '__import__ import-lambda)        
 
         (bind 'callable callable-lambda)
 
@@ -315,11 +375,12 @@ that calls the primitive `print`.
 (define-type-alias Lib (CExpr -> CExpr))
 
 (define (python-lib [expr : CExpr]) : CExpr
-  (seq-ops (append
-             (map (lambda(b) (CAssign (CId (bind-left b) (GlobalId)) (bind-right b)))
-                      lib-function-dummies)
-             (list (CModule-prelude expr))
-             (map (lambda(b) (CAssign (CId (bind-left b) (GlobalId)) (bind-right b)))
-                      lib-functions)
-             (get-pylib-programs)
-             (list (CModule-body expr)))))
+  (begin ;(pretty-print (get-pylib-programs))
+    (seq-ops (append
+              (map (lambda(b) (CAssign (CId (bind-left b) (GlobalId)) (bind-right b)))
+                   lib-function-dummies)
+              (list (CModule-prelude expr))
+              (map (lambda(b) (CAssign (CId (bind-left b) (GlobalId)) (bind-right b)))
+                   lib-functions)
+              (get-pylib-programs)
+              (list (CModule-body expr))))))

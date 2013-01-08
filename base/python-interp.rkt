@@ -879,10 +879,11 @@
 
 (define (interp expr)
   (type-case Result (interp-env expr (list (hash (list))) (hash (list)))
-    [v*s*e (vexpr sexpr env) (if (not (MetaNone? (some-v (VObject-mval vexpr))))
+    [v*s*e (vexpr sexpr env) (begin ;(display vexpr) (display "|\n")
+           (if (not (MetaNone? (some-v (VObject-mval vexpr))))
                          (begin (display (pretty vexpr)) 
                                 (display "\n"))
-                         (display ""))]
+                         (display "")))]
     [Return (vexpr sexpr env) (raise-user-error "SyntaxError: 'return' outside function")]
     [Break (sexpr env) (raise-user-error "SyntaxError: 'break' outside loop")]
     [Exception (vexpr sexpr env) (raise-user-error
