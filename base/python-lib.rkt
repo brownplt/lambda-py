@@ -217,11 +217,14 @@ that calls the primitive `print`.
 ;    f = open(name+'.py', 'r')
 ;    code = f.read()
 ;    f.close()
-;    exec(code, m.__dict__)
+;    m.__dict__ = $exec_to_dict(code)
 ;    return m
-; NOTE: Module class is defined as '$module', user cannot get access to $module
+;
+; NOTE: - Module class is defined as '$module', user cannot get access to $module
+;       - exec_to_dict should be in CBuiltinPrim.
+
 (define import-lambda
-  (CFunc
+(CFunc
    (list 'name)
    (none)
    (CSeq
@@ -241,7 +244,7 @@ that calls the primitive `print`.
          (CAssign
           (CId 'f (LocalId))
           (CApp
-           (CId 'open (LocalId))
+           (CId 'open (GlobalId))
            (list
             (CApp
              (CGetField (CId 'name (LocalId)) '__add__)
@@ -259,12 +262,21 @@ that calls the primitive `print`.
         (CGetField (CId 'f (LocalId)) 'close)
         (list (CId 'f (LocalId)))
         (none)))
-      (CApp
-       (CId 'exec (GlobalId))
-       (list (CId 'code (LocalId)) (CGetField (CId 'm (LocalId)) '__dict__))
-       (none)))
+      (CAssign
+       (CGetField (CId 'm (LocalId)) '__dict__)
+       (CApp
+        (CId '$exec_to_dict (GlobalId))
+        (list (CId 'code (LocalId)))
+        (none))))
      (CReturn (CId 'm (LocalId)))))
-   false))
+   #f))
+
+;; invoke the internal exec-to-dict primitive
+(define exec_to_dict-lambda
+  (CFunc (list 'code) (none)
+         (CReturn
+          (CBuiltinPrim 'exec-to-dict (list (CId 'code (LocalId)))))
+         false))
 
 ; Returns the $class of self's $class.
 ; self's $class is the class of the given instance.
@@ -311,7 +323,8 @@ that calls the primitive `print`.
         (bind 'abs abs-lambda)
         (bind 'isinstance isinstance-lambda)
         (bind 'print print-lambda)
-        (bind '__import__ import-lambda)        
+        (bind '__import__ import-lambda)
+        (bind '$exec_to_dict exec_to_dict-lambda)
 
         (bind 'callable callable-lambda)
 

@@ -29,6 +29,7 @@
          (typed-in racket/list (drop-right : ((listof 'a) number -> (listof 'a))))
          (typed-in racket/list (drop : ((listof 'a) number -> (listof 'a))))
          (typed-in racket/list (take : ((listof 'a) number -> (listof 'a))))
+         (typed-in racket/pretty (pretty-print : ('a -> 'b)))
          )
 
 (define (append3 a b c)
@@ -623,15 +624,23 @@
                                  (if (< 0 (length exn?))
                                      (first exn?)
                                      (let ([val-list (map v*s*e-v result-list)])
-                                       (local [(define mayb-val 
-                                               (builtin-prim op val-list new-e new-s))] 
-                                              (if (some? mayb-val)
-                                       (v*s*e (some-v mayb-val)
-                                              new-s
-                                              new-e)
-                                       ;; todo: more useful errors
-                                       (mk-exception 'TypeError "Bad types in builtin call" env
-                                                     sto)))))))]
+                                       (cond [(not (eq? op 'exec-to-dict))
+                                              (local [(define mayb-val 
+                                                        (builtin-prim op val-list new-e new-s))] 
+                                                     (if (some? mayb-val)
+                                                         (v*s*e (some-v mayb-val)
+                                                                new-s
+                                                                new-e)
+                                                         ;; todo: more useful errors
+                                                         (mk-exception 'TypeError
+                                                                       "Bad types in builtin call" env sto)))]
+                                        ;else exec-to-dict
+                                             [(not (and (VObject? (first val-list))
+                                                        (some? (VObject-mval (first val-list)))
+                                                        (MetaStr? (some-v (VObject-mval (first val-list))))))
+                                              (mk-exception 'TypeError "exec only accept str" env sto)]
+                                             [else (error 'interp "not implement exec-to-dict yet")]
+                                           )))))]
     [CRaise (expr) 
             (if (some? expr)
                 (type-case Result (interp-env (some-v expr) env sto)
@@ -879,7 +888,8 @@
 
 (define (interp expr)
   (type-case Result (interp-env expr (list (hash (list))) (hash (list)))
-    [v*s*e (vexpr sexpr env) (begin ;(display vexpr) (display "|\n")
+    [v*s*e (vexpr sexpr env) (begin 
+              ;(pretty-print vexpr) (display "|\nenv:") (pretty-print env) (display "\nstore:") (pretty-print sexpr)
            (if (not (MetaNone? (some-v (VObject-mval vexpr))))
                          (begin (display (pretty vexpr)) 
                                 (display "\n"))

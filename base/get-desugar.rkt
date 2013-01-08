@@ -13,13 +13,15 @@
 
 (get-desugar "
 
+
 def __import__(name):
    m = module(name)
-   f = open(name+'py', 'r')
+   f = open(name+'.py', 'r')
    code = f.read()
    f.close()
-   exec(code, m.__dict__)
+   m.__dict__ = exec_to_dict(code)
    return m
+
 
 
 ") 

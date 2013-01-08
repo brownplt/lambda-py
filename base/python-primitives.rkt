@@ -14,7 +14,8 @@
          (typed-in racket/string (string-join : ((listof string) string -> string)))
          (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (quotient : (number number -> number)))
-         (typed-in racket/base (remainder : (number number -> number))))
+         (typed-in racket/base (remainder : (number number -> number)))
+         (typed-in racket/pretty (pretty-print : ('a -> 'b))))
 
 #|
 
@@ -245,5 +246,12 @@ primitives here.
     ['$locals (begin
                ; (display env) (display "\n\n")
                 (some (make-under-dict (first env) sto)))]
+
+    ['exec-to-dict ;remove this! implement in upper level
+     (let ((arg (first args)))
+       (begin (pretty-print arg) ;debug
+              (display "\n")
+              (pretty-print env)
+              (some (make-under-dict (hash empty) sto))))]
 
 ))
