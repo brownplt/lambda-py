@@ -1,1 +1,0 @@
-("5.3.1" ("0f3d7ef3e0290b18a645206b46f532d31e9cc02e" . "a273bca41e8e22ccc24fe1586152c833045e86b0") #"/home/kechpaja/class/cs173/lambda-py/base/python-core-syntax.rkt" (collects #"racket" #"base.rkt") #"/home/kechpaja/.racket/5.3.1/collects/plai-typed/main.rkt" (collects #"racket" #"string.rkt") (collects #"racket" #"main.rkt") (collects #"racket" #"set.rkt"))
