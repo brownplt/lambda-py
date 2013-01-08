@@ -122,6 +122,8 @@
 (define (lexexpr-modify-tree [expr : LexExpr] [special-func : (LexExpr -> LexExpr)]) : LexExpr
   (local (
         (define (default this-expr)
+          (begin
+            ;(display "we actually recur\n")
             (type-case LexExpr this-expr
                                         ; control structures
               [LexIf (test body orelse) (LexIf (recur test) (recur body) (recur orelse))]
@@ -217,7 +219,7 @@
               [LexSet (elts) (LexSet (map recur elts))]
               [LexNone [] (LexNone)]
               [LexBreak [] (LexBreak)]
-              [LexBlock [a b] [LexBlock a b]]))
+              [LexBlock [a b] [LexBlock a (recur b)]])))
         (define (recur this-expr)
             (call/cc (lambda (k)
                     (call-with-exception-handler
@@ -227,8 +229,11 @@
                      (lambda ()
                        (k (special-func this-expr))
                        ))))))
-          (recur expr)
-          ))
+          (let ((ret (recur expr)))
+            (begin
+              #;(display "done\n")
+              ret
+          ))))
 
 (test (pyexpr-modify-tree
        (PyTuple (list (PyStr "ji") (PyTuple (list (PyStr "yo")))))

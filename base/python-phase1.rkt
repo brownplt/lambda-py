@@ -21,13 +21,21 @@
          
 (define (assert-on-tree [fun : (LexExpr -> boolean)] [message : string] [expr : LexExpr] ) : LexExpr
   (call/cc
-   (lambda (k) 
-     (lexexpr-modify-tree expr (lambda (x) (if (fun x) (haiku-error) (k (error 'assert-failed: message))))))))
+   (lambda (outer)
+     (begin
+       (call/cc
+        (lambda (inner)
+          (outer (lexexpr-modify-tree expr (lambda (x) (if (fun x) (haiku-error) (inner (display message))))))))
+       (error 'assert-on-tree: message)
+       ))))
 
 (define (cascade-nonlocal [args : (listof symbol)] [body : LexExpr] ) : LexExpr
-  (LexSeq (list (PyLexNonLocal  args) body)))
+  (if (empty? args)
+      body
+      (LexSeq (list (PyLexNonLocal  args) body))))
 
 (define (pre-desugar [expr : PyExpr]) : LexExpr
+  (assert-on-tree (lambda (y) true) "assert-on-tree seems to work" 
   (pyexpr-modify-tree
    expr
    (lambda (y)
@@ -38,7 +46,7 @@
        [PyClassFunc (name args body) (LexClassFunc name args (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
        [PyFuncVarArg (name args sarg body) (LexFuncVarArg name args sarg (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
        [else (haiku-error)]
-       ))))
+       )))))
 
 (define (scope-phase [expr : PyExpr] ) : LexExpr
   (let-phase
@@ -117,7 +125,8 @@
     expr
     (lambda (exp)
       (type-case LexExpr exp
-        [LexGlobalId (x ctx) (list x)]
+        ;[LexGlobalId (x ctx) (list x)]
+        [LexAssign (lhs rhs) (filter (lambda (y) (LexGlobalId? y)) lhs )]
         [else (error 'desugar:extract-all "we should not get here")])))))
 
 
@@ -249,13 +258,18 @@
 
 (define (make-all-global [expr : LexExpr]) : LexExpr
 ;  (lexexpr-modify-tree
-  (lexexpr-modify-tree
-   expr
-   (lambda (x)
-     (type-case LexExpr x
-       [PyLexId (x ctx) (LexGlobalId x ctx)]
-       [else (haiku-error)]))); (lambda (x) false) (lambda (x) (haiku-error)))
-  )
+  (assert-on-tree
+   (lambda (y) (not (PyLexId? y))) "make-all-global failed: PyLexId present"
+   (begin
+     ;(display "recurring into make-all-global\n")
+     (lexexpr-modify-tree
+      expr
+      (lambda (x)
+        (type-case LexExpr x
+          [PyLexId (x ctx) (begin #;(display "it's an ID\n") (LexGlobalId x ctx))]
+                                        ;[LexReturn (r) (LexReturn (make-all-global r))]
+          [else (begin #;(display "executing default\n") (haiku-error))]))))
+      ))
 
 ;finds all PyLexNonLocal designators in this block
 (define (extract-nonlocals [expr : LexExpr] ) : (listof symbol)
