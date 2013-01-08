@@ -1,3 +1,5 @@
+# Should produce a syntax error
+
 x = 9
 
 def f():

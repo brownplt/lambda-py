@@ -1,3 +1,5 @@
+# This should produce a Syntax Error
+
 x = 8
 class C:
 	x = 7
