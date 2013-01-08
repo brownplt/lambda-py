@@ -30,6 +30,12 @@
          (typed-in racket/list (drop : ((listof 'a) number -> (listof 'a))))
          (typed-in racket/list (take : ((listof 'a) number -> (listof 'a))))
          (typed-in racket/pretty (pretty-print : ('a -> 'b)))
+         (typed-in "parse-python.rkt" (parse-python/string : (string 'a -> 'b)))
+         (typed-in "get-structured-python.rkt"
+                   (get-structured-python : ('a -> 'b)))
+         "python-desugar.rkt"
+         (typed-in "python-lib.rkt" (python-lib : ('a -> 'b)))
+         
          )
 
 (define (append3 a b c)
@@ -639,7 +645,25 @@
                                                         (some? (VObject-mval (first val-list)))
                                                         (MetaStr? (some-v (VObject-mval (first val-list))))))
                                               (mk-exception 'TypeError "exec only accept str" env sto)]
-                                             [else (error 'interp "not implement exec-to-dict yet")]
+                                             [else
+                                              (begin (let* ((module
+                                                              (desugar
+                                                               (get-structured-python
+                                                                (parse-python/string
+                                                                 (MetaStr-s (some-v (VObject-mval (first val-list))))
+                                                                 (get-pypath)))))
+                                                            (v-module
+                                                             (interp-env
+                                                              (python-lib module)
+                                                              (list (hash empty))
+                                                              (hash empty))))
+                                                       (begin
+                                                         (pretty-print module)
+                                                         (pretty-print "current env:") (pretty-print env) (display "\nover\n")
+                                                         (pretty-print (v*s*e-e v-module))
+                                                         (pretty-print (v*s*e-s v-module))                                                         
+                                                         ))
+                                                     (error 'interp "not implement exec-to-dict yet"))]
                                            )))))]
     [CRaise (expr) 
             (if (some? expr)
