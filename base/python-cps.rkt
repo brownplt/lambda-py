@@ -16,9 +16,6 @@
     
     [else (CId 'TypeError (GlobalId))]))
 
-(define (init-genfunc-args [args : (listof symbol)]) : (listof CExpr)
-  (map (lambda (e) (CAssign (CId e (LocalId)) (CUndefined))) args))
-
 (define (make-genfunc-body [genfn : CExpr]) : (listof CExpr)
   (list
    ;; this is where we cps our genfunc body
