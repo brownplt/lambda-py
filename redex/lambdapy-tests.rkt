@@ -64,3 +64,32 @@
 (expect (term (prim2 "is" true false)) (term vfalse))
 (expect (term (prim2 "is" (mknum 1) (mknum 1))) (term vtrue))
 (expect (term (prim2 "is" (mknum 1) (mknum 2))) (term vfalse))
+#| ; NOTE(dbp): currently the implementation of numeric primitives,
+   ; which we have copied, is buggy, and as a result, these tests don't pass!
+   ; see: https://groups.google.com/d/msg/lambda-py/szbm86ron8Q/PbFO7RKOpKMJ
+(expect (term (prim2 "num+" (mknum 1) (mknum 1))) (make-num 2))
+(expect (term (prim2 "num-" (mknum 2) (mknum 1))) (make-num 1))
+(expect (term (prim2 "num*" (mknum 2) (mknum 3))) (make-num 6))
+(expect (term (prim2 "num/" (mknum 4) (mknum 2))) (make-num 2))
+(expect (term (prim2 "num//" (mknum 5) (mknum 2))) (make-num 2))
+(expect (term (prim2 "num%" (mknum 5) (mknum 2))) (make-num 1))
+|#
+(expect (term (prim2 "num=" (mknum 1) (mknum 1))) (term vtrue))
+(expect (term (prim2 "num=" (mknum 1) (mknum 2))) (term vfalse))
+(expect (term (prim2 "num>" (mknum 1) (mknum 1))) (term vfalse))
+(expect (term (prim2 "num>" (mknum 2) (mknum 1))) (term vtrue))
+(expect (term (prim2 "num>" (mknum 1) (mknum 2))) (term vfalse))
+
+(expect (term (prim2 "num<" (mknum 1) (mknum 1))) (term vfalse))
+(expect (term (prim2 "num<" (mknum 2) (mknum 1))) (term vfalse))
+(expect (term (prim2 "num<" (mknum 1) (mknum 2))) (term vtrue))
+
+(expect (term (prim2 "num<=" (mknum 1) (mknum 1))) (term vtrue))
+(expect (term (prim2 "num<=" (mknum 2) (mknum 1))) (term vfalse))
+(expect (term (prim2 "num<=" (mknum 1) (mknum 2))) (term vtrue))
+
+(expect (term (prim2 "num>=" (mknum 1) (mknum 1))) (term vtrue))
+(expect (term (prim2 "num>=" (mknum 2) (mknum 1))) (term vtrue))
+(expect (term (prim2 "num>=" (mknum 1) (mknum 2))) (term vfalse))
+
+
