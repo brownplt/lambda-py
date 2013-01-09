@@ -10,7 +10,6 @@
 (require [typed-in racket (member : ('a (listof 'a) -> boolean))])
 (require [typed-in racket (flatten : ((listof (listof 'a) ) -> (listof 'b)))])
 (require [typed-in racket (remove-duplicates : ((listof 'a) -> (listof 'a)))])
-
  
 
 
@@ -52,7 +51,29 @@
   (let-phase
    (let ((replaced-locals (replace-all-locals  (replace-all-instance (pre-desugar expr)) empty))) ;replaces all locals everywhere based on assignment
      (let ((fully-transformed (make-all-global replaced-locals))) ;replaces all remaining PyId 
-       (remove-unneeded-pypass (remove-nonlocal (remove-global (bind-locals fully-transformed)))))))) ;surround every block with PyLet of locals
+       (remove-blocks (remove-unneeded-pypass (remove-nonlocal (remove-global (process-syntax-errors (bind-locals fully-transformed)))))))))) ;surround every block with PyLet of locals
+
+(define (process-syntax-errors [expr : LexExpr]) : LexExpr
+  (local
+   [(define (bindings-for-nonlocal [bindings : (listof symbol)] [expr : LexExpr]) : LexExpr
+      (call/cc
+       (lambda (k)
+         (k (lexexpr-modify-tree
+             expr
+             (lambda (e)
+               (type-case LexExpr e
+                 [PyLexNonLocal (locals) (if
+                                          (empty? (list-subtract locals bindings))
+                                          (PyLexNonLocal locals)
+                                          (k (LexModule
+                                              (list (LexRaise
+                                                     (LexApp
+                                                      (LexGlobalId 'SyntaxError 'Load)
+                                                      (list (LexStr (string-append "no binding for nonlocal '"
+                                                                                   (string-append (symbol->string (first locals)) "' found"))))))))))]
+                 [else (haiku-error)]
+                 )))))))]
+   (bindings-for-nonlocal empty expr)))
 
 (define (let-phase [expr : LexExpr] ) : LexExpr
 (collapse-pyseq (cascade-undefined-globals (extract-post-transform-globals expr) expr))) ;all globals, not just the current scope
@@ -90,6 +111,15 @@
                 [(empty? (rest filtered-seq)) (remove-unneeded-pypass (first filtered-seq))]
                 [else (LexSeq (map remove-unneeded-pypass filtered-seq))]))]
        [else (haiku-error)]))))
+
+(define (remove-blocks expr)
+  (lexexpr-modify-tree
+   expr
+   (lambda (x)
+     (type-case LexExpr x
+       [LexBlock (nls e) (remove-blocks e)]
+       [else (haiku-error)]))))
+
 
 
 #;(define (assert-pyblock-exists expr)
