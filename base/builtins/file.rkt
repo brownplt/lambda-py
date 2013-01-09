@@ -17,7 +17,7 @@
 (define file-class : CExpr
   (CClass
    'file
-   'object
+   (list 'object)
    (seq-ops (list
              (def '__init__
                     (CFunc (list 'self 'path 'mode) (none)
