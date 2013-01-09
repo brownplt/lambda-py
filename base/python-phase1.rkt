@@ -80,7 +80,7 @@
                            (lambda (y)
                              (type-case LexExpr y
                                [LexSeq (es)
-                                       (if (and ( > (length es) 1)
+                                       (if (and ( = (length es) 2)
                                                 (LexAssign? (first es))
                                                 (LexUndefined? (LexAssign-value (first es))))
                                                 (let ((replace-scope
@@ -99,6 +99,7 @@
                                                     )
                                                 )
                                                 (LexSeq (map remove-unneeded-assigns es)))]
+                               
                                [else (haiku-error)]))))
 (define (optimization-pass expr)
   expr)
