@@ -816,23 +816,23 @@
                                              '__class__)
                                             (CBuiltinPrim '$class
                                                           (list (CId 'self (LocalId)))))
-                                           true)))))
-                       (define modenv 
-                         (if (member '__init__ names)
-                             (DResult-env body-r)
-                             (add-id '__init__ (LocalId) (DResult-env body-r))))]
-                 (DResult
-                  (CAssign (CId name (if global? (GlobalId) (LocalId)))
-                           (CClass name
-                                   (if (empty? bases)
-                                       'object
-                                       (first bases))
-                                   modbody))
-                  modenv))]
-      
-      [PyDotField (value attr)
-                  (local [(define value-r (rec-desugar value global? env false))]
-                    (DResult
+                                          true)))))
+                     (define modenv 
+                       (if (member '__init__ names)
+                           (DResult-env body-r)
+                           (add-id '__init__ (LocalId) (DResult-env body-r))))]
+               (DResult
+                 (CAssign (CId name (if global? (GlobalId) (LocalId)))
+                          (CClass name
+                                  (if (empty? bases)
+                                    (list 'object)
+                                    bases)
+                                  modbody))
+                 modenv))]
+    
+    [PyDotField (value attr)
+                (local [(define value-r (rec-desugar value global? env false))]
+                   (DResult
                      (CGetField (DResult-expr value-r) attr)
                      (DResult-env value-r)))]
       

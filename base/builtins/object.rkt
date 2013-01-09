@@ -10,7 +10,7 @@
 (define object-class
   (CClass 
     'object
-    'no-super
+    (list)
     (seq-ops (list
                (def '__init__ 
                     (CFunc (list 'self) (none)

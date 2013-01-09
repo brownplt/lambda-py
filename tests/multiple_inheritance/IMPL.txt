@@ -1,0 +1,107 @@
+                            Multiple Inheritance
+
+Introduction
+
+Multiple Inheritance in Python is handled using the __mro__ tuple attribute in
+clases, which is computed at class creation time using the C3 linearization
+algorithm, if there is no C3 linearization possible, class creation fails with
+TypeError: MRO conflict among bases.
+Attribute retrieval follows the __mro__ sequential order instead of the single
+inheritance order.
+
+super() semantics is quite different from the single inheritance case since it
+is designed to support cooperative multiple inheritance, basically attribute
+lookup is done in __mro__ order, but skipping all classes up to thisclass,
+where thisclass is the first argument to super() or the enclosing class in the
+zero arguments case.
+
+Modifications to base implementation
+
+- Changes to VObject:
+    The VObject used to represent a class needs two new attributes in its dict:
+        1) __bases__: a tuple with the parents given during class creation or
+                      object if no paret is given
+        2) __mro__: a tuple with the results of the C3 linearization algorithm
+    The "antecedent" field, which was used for the parent class name is
+    redundant now and, since for instance objects it is used for the class name,
+    it could be ranamed as "classname" with the value 'type (or any other type
+    name if metaclass support is incorporated in the future) for class objects.
+
+-  New syntax that you add to the core:
+    CClass (base : symbol) parameter will be changed to allow a list of bases,
+    represented as a list of base class names, expansion to the tuple of class
+    is done at interpreter level to call the three argument version of type().
+
+-  New surface syntax and changes in desugaring
+   No new syntax but some changes needs to be made at desugaring:
+   - the list of bases needs to be passed to CClass, not just the first element,
+     as a list of symbols.
+   - super needs the class in which it is embeded as an additional argument
+     when it is called without arguments, since super() is already special-cased
+     in desugar and a flag is carried-on to indicate when desugaring takes place
+     inclass I plan to change that boolean to an optional class name.
+
+-  Functions/helpers that already exist and and you change   
+    In python-interp.rkt:
+        interp-env: CClass case to retrieve the base classes and call the new
+        function mk-type for class creation.
+        get-field: to handle the new lookup order, the recursive calls were replaced
+        by calls to the new function get-field-from-class.
+    In util.rkt:
+        object-is: modified to look at __mro__ for inheritance relation.
+
+-  Functions/helpers that you add
+    In python-interp.rkt:
+        mk-type: class construction, it should handle type(name, bases, dict).
+        build-mro:  merge the __mro__ of the bases using the C3 algorithm,
+        raises TypeError if there are duplicated bases or linearization is not
+        possible.
+        c3-merge: implements the c3 algorithm to merge mro lists.
+        c3-select: helper function to find the next candidate in c3 algorithm.
+    In util.rkt:
+        get-mro: retrieves the __mro__ attribute prepending the class, to avoid
+        the need of self-reference.
+        any: any of a list of boolean (used in the c3 mro algorithm)
+        
+- New builtin classes
+    super:
+        super is a class with two attributes: __thisclass__ and __self__,
+        these parameters can be given explicitly or provided by desugaring when
+        used inside a class.
+        When an attribute is retrieved from a super object the search is
+        modified to use the __self__ class __mro__, but only past __thisclass__.
+
+    type:
+        for the test set the one and three argument versions of type
+        constructor are used, the first can be implemented using the $class
+        primitive operation, but the second cannot use CClass, it is a more
+        kind of operation.
+
+-  Bugs to be fixed
+    - ___fail() changed to no parameter to match py-prelude.py
+    bound methods / class method behavior: a method class needs to be defined,
+    I will also look up at the descriptor protocol to see if it can be used.
+
+-  Special notes (if any) for running your tests
+    test_mro_disagreement was modified to avoid the use of type(name, bases, dict),
+    which is not yet implemented, using equivalent class statements.
+    I plan 3 phases which can be tested incrementally:
+    1) multiple inheritance support plus type class without changing super()
+    2) modify super() to be multiple inheritance aware
+    3) fix methods binding behavior / introduce descriptors
+
+- Status (2013-01-08):
+    Basic multiple inheritance is passing all python-reference tests and 5 of 7
+    multiple inheritance tests, the 2 left are related to super and method
+    objects which are not implemented yet.
+    
+References:
+    A gentle introduction to Python Method Resolution Order (mro),
+    written by Michele Simionato can be found at
+    http://www.python.org/download/releases/2.3/mro/
+
+    The linearization algorithm is from "A Monotonic Superclass Linearization
+    for Dylan" by Barret et.al. It can be found at
+    http://192.220.96.201/dylan/linearization-oopsla96.html
+
+    Descriptor HowTo Guide: http://docs.python.org/3.2/howto/descriptor.html

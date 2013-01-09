@@ -217,15 +217,20 @@
                (none))))]))
 
 ;; returns true if the given o is an object of the given class or somehow a
-;; subclass of that one 
+;; subclass of that one. Modified to look at __mro__ for multiple inheritance. 
 (define (object-is? [o : CVal] [c : symbol] [env : Env] [s : Store]) : boolean
-  (cond
-    [(symbol=? (VObject-antecedent o) 'no-super) false]
-    [(symbol=? (VObject-antecedent o) c) true]
-    [else (object-is?
-            (fetch (some-v (lookup (VObject-antecedent o) env)) s)
-                     c env s)]))
+  (let ([obj-cls (fetch (some-v (lookup (VObject-antecedent o) env)) s)]
+        [cls (fetch (some-v (lookup c env)) s)])
+    (member cls (get-mro obj-cls s))))
 
+
+;; get-mro: fetch __mro__ field as a list of classes
+;; termporarily prepended with cls to avoid self reference in __mro__
+(define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
+  (type-case (optionof Address) (hash-ref (VObject-dict cls) '__mro__)
+    [some (w) (cons cls (MetaTuple-v (some-v (VObject-mval (fetch w sto)))))]
+    [none () (error 'get-mro (string-append "class without __mro__ field " 
+                                            (pretty cls)))]))
 (define (is? [v1 : CVal]
              [v2 : CVal]) : boolean
   (begin
@@ -333,3 +338,7 @@
                  (set-add st elt))
          (set)
          vals))
+
+;; any: any of a list of boolean (used in the c3 mro algorithm)
+(define (any [bs : (listof boolean)]) : boolean
+  (foldr (lambda (e1 e2) (or e1 e2)) #f bs))
