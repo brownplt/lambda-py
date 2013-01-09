@@ -48,10 +48,72 @@
        )))))
 
 (define (scope-phase [expr : PyExpr] ) : LexExpr
-  (let-phase
-   (let ((replaced-locals (replace-all-locals  (replace-all-instance (pre-desugar expr)) empty))) ;replaces all locals everywhere based on assignment
-     (let ((fully-transformed (make-all-global replaced-locals))) ;replaces all remaining PyId 
-       (remove-blocks (remove-unneeded-pypass (remove-nonlocal (remove-global (process-syntax-errors (bind-locals fully-transformed)))))))))) ;surround every block with PyLet of locals
+  (LexModule
+   (list 
+    (optimization-pass
+     (let-phase
+      (let ((replaced-locals (replace-all-locals  (replace-all-instance (pre-desugar expr)) empty))) ;replaces all locals everywhere based on assignment
+        (let ((fully-transformed (make-all-global replaced-locals))) ;replaces all remaining PyId 
+          (remove-blocks
+           (remove-unneeded-pypass
+            (remove-nonlocal
+             (remove-global
+              (replace-lexmodule
+               (process-syntax-errors
+                (bind-locals fully-transformed)))))))))))))) ;surround every block with PyLet of locals
+
+(define (replace-lexmodule expr)
+  (lexexpr-modify-tree expr
+                       (lambda (y)
+                         (type-case LexExpr y
+                           [LexModule (es ) (LexSeq (map replace-lexmodule es))]
+                           [else (haiku-error)]))))
+
+(define (optimization-pass expr) expr)
+;this isn't correct, and probably isn't necessary, so I'm going to comment it out for now.
+#;(define (optimization-pass [expr : LexExpr]) : LexExpr
+  (lexexpr-modify-tree
+   expr
+   (lambda (e)
+     (type-case LexExpr e
+       [LexGlobalLet
+        (id bind body)
+        (let (
+              (newbod (optimization-pass body))
+              (newbind (optimization-pass bind)))
+          (LexGlobalLet id newbind
+              (call/cc
+               (lambda (k) 
+                 (lexexpr-modify-tree
+                  newbod
+                  (lambda (y)
+                    (type-case LexExpr y
+                      [LexSeq (es)
+                              (if
+                               (type-case LexExpr (first es)
+                                 [LexAssign (targets rhs)
+                                            (and (empty? (rest targets))
+                                                (type-case LexExpr (first targets)
+                                                  [LexGlobalId (x ctx) (if (equal? x id)
+                                                                           (begin (set! newbind rhs) true)
+                                                                           false)]
+                                                  [else false]))]
+                                 [else false])
+                              (LexSeq (rest es))
+                              (k newbod))]
+                      [LexAssign (targets rhs)
+                                 (if (and (empty? (rest targets))
+                                      (type-case LexExpr (first targets)
+                                        [LexGlobalId (x ctx) (if (equal? x id)
+                                                                 (begin (set! newbind rhs) true)
+                                                                 false)]
+                                        [else false]))
+                                     (LexPass)
+                                     (k newbod))]
+                      [else (k newbod)]
+                      )))))))]
+       ;more here
+       [else (haiku-error)]))))
 
 (define (process-syntax-errors [expr : LexExpr]) : LexExpr
   (call/cc
