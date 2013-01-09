@@ -226,6 +226,17 @@
                                     (hash->list contents))
                                ", "))
               "}")]
+    [MetaSimpleDict (contents)
+              (string-append
+              (string-append "{"
+                             (string-join
+                               (map (lambda (pair)
+                                      (string-append (symbol->string (car pair))
+                                        (string-append ": "
+                                                       (to-string (cdr pair)))))
+                                    (hash->list contents))
+                               ", "))
+              "}")]
     [MetaNone () "None"]
     [MetaSet (elts)
               (string-append

@@ -2,10 +2,12 @@
 
 (require "python-core-syntax.rkt"
          "util.rkt"
+         "builtins/none.rkt"
          "builtins/str.rkt"
          "builtins/list.rkt"
          "builtins/tuple.rkt"
          "builtins/dict.rkt"
+         "builtins/simpledict.rkt"
          "builtins/set.rkt"
          "builtins/num.rkt"
          "builtins/object.rkt"
@@ -46,6 +48,35 @@ primitives here.
   (case op
     [(print) (begin (print arg) arg)]
     [(callable) (callable arg)]))
+
+(define (python-prim2 op arg1 arg2 env store) : Result
+  (case op
+    [(simpledict-find) (letrec ([contents (MetaSimpleDict-contents (some-v (VObject-mval arg1)))]
+                                [key (string->symbol (MetaStr-s (some-v (VObject-mval arg2))))]
+                                [mayb-loc (hash-ref contents key)]
+                                ; returning -1 on not-found as it is hard to raise exception from here.
+                                [loc (if (some? mayb-loc) (some-v mayb-loc) -1)])
+                         (v*s*e (VObject 'num (some (MetaNum loc)) (make-hash empty))
+                                   store
+                                   env))]
+    [(simpledict-bind) (let ([contents (MetaSimpleDict-contents (some-v (VObject-mval arg1)))]
+                  [key (string->symbol (MetaStr-s (some-v (VObject-mval arg2))))]
+                  [loc (new-loc)])
+              (v*s*e (VObject '$simpledict
+                              (some (MetaSimpleDict (hash-set contents key loc)))
+                              (make-hash empty))
+                     (hash-set store loc (VUndefined))
+                     env))]
+    [(set-store) (let ([loc (MetaNum-n (some-v (VObject-mval arg1)))])
+                   (v*s*e vnone
+                          (if (= loc -1)
+                              store
+                              (hash-set store loc arg2))
+                          env))]
+    [else (error 'interp (string-append "Haven't implemented a case yet: "
+                                        (symbol->string op)))]
+))
+
 
 (define (builtin-prim [op : symbol] [args : (listof CVal)] 
                       [env : Env] [sto : Store]) : (optionof CVal)
@@ -174,6 +205,14 @@ primitives here.
     ['dict-setitem (dict-setitem args env sto)]
     ['dict-delitem (dict-delitem args env sto)]
     ['dict->list (dict->list args env sto)]
+
+    ;simpledict
+    ['simpledict-init (simpledict-init args env sto)]
+    ['simpledict-len (simpledict-len args env sto)]
+    ['simpledict-str (simpledict-str args env sto)]
+    ['simpledict-in (simpledict-in args env sto)]
+    ['simpledict-get (simpledict-get args env sto)]
+    ['simpledict-getitem (simpledict-getitem args env sto)]
 
     ;set
     ['set-set (set-set args env sto)]

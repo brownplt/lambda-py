@@ -912,9 +912,7 @@
                     ['IsNot (if (not (is? varg1 varg2))
                            (v*s*e true-val sarg2 envarg2)
                            (v*s*e false-val sarg2 envarg2))]
-                    [else (error 'interp (string-append "Haven't implemented a case yet: "
-                                                        (symbol->string
-                                                          prim)))])]
+                    [else (python-prim2 prim varg1 varg2 env sto)])]
              [Return (varg2 sarg2 envarg2) (return-exception envarg2 sarg2)]
              [Break (sarg2 envarg2) (break-exception envarg2 sarg2)]
              [Exception (varg2 sarg2 envarg2) (Exception varg2 sarg2 envarg2)])]

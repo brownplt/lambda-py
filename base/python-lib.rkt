@@ -6,6 +6,7 @@
          "builtins/list.rkt"
          "builtins/tuple.rkt"
          "builtins/dict.rkt"
+         "builtins/simpledict.rkt"
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/set.rkt"
@@ -240,6 +241,10 @@ that calls the primitive `print`.
         ; we should do this $ thing for all builtin names for this reason
         (bind '$dict dict-class) 
         (bind 'dict (CId '$dict (GlobalId)))
+
+        (bind '$simpledict simpledict-class)
+        (bind 'simpledict (CId '$simpledict (GlobalId)))
+
         (bind 'bool bool-class)
         (bind 'set set-class)
         (bind 'file file-class)
