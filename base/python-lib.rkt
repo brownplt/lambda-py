@@ -220,6 +220,12 @@ that calls the primitive `print`.
                  (CBuiltinPrim '$super (list (CId 'self (LocalId)))))))
          false))
 
+(define globals-lambda
+  (CFunc (list) (none)
+         (CReturn
+          (CBuiltinPrim 'globals (list)))
+         false))
+
 (define-type LibBinding
   [bind (left : symbol) (right : CExpr)])
 
@@ -261,6 +267,8 @@ that calls the primitive `print`.
         (bind 'callable callable-lambda)
 
         (bind 'super super-lambda)
+
+        (bind 'globals globals-lambda)
 
         (bind 'Exception exception)
         (bind 'NameError (make-exception-class 'NameError))

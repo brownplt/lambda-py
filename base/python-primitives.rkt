@@ -16,7 +16,8 @@
          (typed-in racket/string (string-join : ((listof string) string -> string)))
          (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (quotient : (number number -> number)))
-         (typed-in racket/base (remainder : (number number -> number))))
+         (typed-in racket/base (remainder : (number number -> number)))
+         (typed-in racket/list (last : ((listof 'a) -> 'a))))
 
 #|
 
@@ -285,4 +286,7 @@ primitives here.
                ; (display env) (display "\n\n")
                 (some (make-under-dict (first env) sto)))]
 
+    ['globals (some (VObject '$simpledict
+                             (some (MetaSimpleDict (last env)))
+                             (make-hash empty)))]
 ))
