@@ -1,5 +1,10 @@
 #lang plai-typed
 
+(define-type LocalOrGlobal
+  [Locally-scoped]
+  [Globally-scoped]
+  [Unknown-scope])
+
 (define-type LexExpr
   ; control structures
   [LexIf (test : LexExpr) (body : LexExpr) (orelse : LexExpr)]
@@ -28,7 +33,7 @@
   [LexPass]
 
   ; classes and objects 
-  [LexClass (name : symbol) (bases : (listof symbol)) (body : LexExpr)]
+  [LexClass (scope : LocalOrGlobal) (name : symbol) (bases : (listof symbol)) (body : LexExpr)]
   [LexDotField (value : LexExpr) (attr : symbol)]
 
   ; operations
@@ -42,9 +47,9 @@
 
   ; functions
   [LexLam (args : (listof symbol)) (body : LexExpr)]
-  [LexFunc (name : symbol) (args : (listof symbol)) (defaults : (listof LexExpr)) (body : LexExpr)]
-  [LexClassFunc (name : symbol) (args : (listof symbol)) (body : LexExpr)]
-  [LexFuncVarArg (name : symbol) (args : (listof symbol)) 
+  [LexFunc (scope : LocalOrGlobal) (name : symbol) (args : (listof symbol)) (defaults : (listof LexExpr)) (body : LexExpr)]
+  [LexClassFunc (scope : LocalOrGlobal) (name : symbol) (args : (listof symbol)) (body : LexExpr)]
+  [LexFuncVarArg (scope : LocalOrGlobal) (name : symbol) (args : (listof symbol)) 
                 (sarg : symbol) (body : LexExpr)]
   [LexReturn (value : LexExpr)]
   [LexApp (fun : LexExpr) (args : (listof LexExpr))]

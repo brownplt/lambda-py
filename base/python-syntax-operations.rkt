@@ -57,7 +57,7 @@
               
                                         ; classes and objects 
               [PyClass (name bases body)
-                       (LexClass name bases (recur body))]
+                       (LexClass (Unknown-scope) name bases (recur body))]
               [PyDotField (value attr) (LexDotField (recur value) attr)]
 
                                         ; operations
@@ -73,11 +73,11 @@
               [PyLam (args body)
                      (LexLam args (recur body))]
               [PyFunc (name args defaults body)
-                      (LexFunc name args (map recur defaults) (recur body))]
+                      (LexFunc (Unknown-scope) name args (map recur defaults) (recur body))]
               [PyClassFunc (name args body)
-                           (LexClassFunc name args (recur body))]
+                           (LexClassFunc (Unknown-scope) name args (recur body))]
               [PyFuncVarArg (name args sarg body)
-                            (LexFuncVarArg name args sarg (recur body))]
+                            (LexFuncVarArg (Unknown-scope) name args sarg (recur body))]
               [PyReturn (value) (LexReturn (recur value))]
               [PyApp (fun args) (LexApp (recur fun) (map recur args))]
               [PyAppStarArg (fun args stararg)
@@ -168,8 +168,8 @@
               [LexPass () (LexPass)]
               
                                         ; classes and objects 
-              [LexClass (name bases body)
-                       (LexClass name bases (recur body))]
+              [LexClass (scope name bases body)
+                       (LexClass scope name bases (recur body))]
               [LexDotField (value attr) (LexDotField (recur value) attr)]
 
                                         ; operations
@@ -184,12 +184,12 @@
                                         ; functions
               [LexLam (args body)
                      (LexLam args (recur body))]
-              [LexFunc (name args defaults body)
-                      (LexFunc name args (map recur defaults) (recur body))]
-              [LexClassFunc (name args body)
-                           (LexClassFunc name args (recur body))]
-              [LexFuncVarArg (name args sarg body)
-                            (LexFuncVarArg name args sarg (recur body))]
+              [LexFunc (scope name args defaults body)
+                      (LexFunc scope name args (map recur defaults) (recur body))]
+              [LexClassFunc (scope name args body)
+                           (LexClassFunc scope name args (recur body))]
+              [LexFuncVarArg (scope name args sarg body)
+                            (LexFuncVarArg scope name args sarg (recur body))]
               [LexReturn (value) (LexReturn (recur value))]
               [LexApp (fun args) (LexApp (recur fun) (map recur args))]
               [LexAppStarArg (fun args stararg)
@@ -399,7 +399,7 @@
               [LexPass () empty]
               
                                         ; classes and objects 
-              [LexClass (name bases body)
+              [LexClass (scope name bases body)
                        (recur body)]
               [LexDotField (value attr)  (recur value)]
 
@@ -415,11 +415,11 @@
                                         ; functions
               [LexLam (args body)
                      (recur body)]
-              [LexFunc (name args defaults body)
+              [LexFunc (scope name args defaults body)
                       (flatten (list (map recur defaults) (list (recur body))))]
-              [LexClassFunc (name args body)
+              [LexClassFunc (scope name args body)
                            (recur body)]
-              [LexFuncVarArg (name args sarg body)
+              [LexFuncVarArg (scope name args sarg body)
                             (recur body)]
               [LexReturn (value) (recur value)]
               [LexApp (fun args) (flatten (list (list (recur fun)) (map recur args)))]

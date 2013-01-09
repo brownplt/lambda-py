@@ -39,11 +39,15 @@
    expr
    (lambda (y)
      (type-case PyExpr y
-       [PyClass (name bases body) (LexClass name bases (LexBlock empty (pre-desugar body)))]
+       [PyClass (name bases body) (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexUndefined))
+                                                (LexClass (Unknown-scope) name bases (LexBlock empty (pre-desugar body)))))]
        [PyLam (args body) (LexLam args (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
-       [PyFunc (name args defaults body) (LexFunc name args (map pre-desugar defaults) (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
-       [PyClassFunc (name args body) (LexClassFunc name args (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
-       [PyFuncVarArg (name args sarg body) (LexFuncVarArg name args sarg (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
+       [PyFunc (name args defaults body) (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexUndefined))
+                                                 (LexFunc (Unknown-scope) name args (map pre-desugar defaults) (LexBlock args (cascade-nonlocal args (pre-desugar body))))))]
+       [PyClassFunc (name args body) (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexUndefined))
+                                             (LexClassFunc (Unknown-scope) name args (LexBlock args (cascade-nonlocal args (pre-desugar body))))))]
+       [PyFuncVarArg (name args sarg body) (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexUndefined))
+                                                   (LexFuncVarArg (Unknown-scope) name args sarg (LexBlock args (cascade-nonlocal args (pre-desugar body))))))]
        [else (haiku-error)]
        )))))
 
@@ -59,8 +63,9 @@
             (remove-nonlocal
              (remove-global
               (replace-lexmodule
-               (process-syntax-errors
-                (bind-locals fully-transformed)))))))))))))) ;surround every block with PyLet of locals
+               (remove-unneeded-assigns
+                (process-syntax-errors
+                 (bind-locals fully-transformed))))))))))))))) ;surround every block with PyLet of locals
 
 (define (replace-lexmodule expr)
   (lexexpr-modify-tree expr
@@ -69,7 +74,35 @@
                            [LexModule (es ) (LexSeq (map replace-lexmodule es))]
                            [else (haiku-error)]))))
 
-(define (optimization-pass expr) expr)
+
+(define (remove-unneeded-assigns expr)
+      (lexexpr-modify-tree expr
+                           (lambda (y)
+                             (type-case LexExpr y
+                               [LexSeq (es)
+                                       (if (and ( > (length es) 1)
+                                                (LexAssign? (first es))
+                                                (LexUndefined? (LexAssign-value (first es))))
+                                                (let ((replace-scope
+                                                       (if (LexLocalId? (first (LexAssign-targets (first es))))
+                                                           (Locally-scoped)
+                                                           (Globally-scoped))))
+                                                  (type-case LexExpr (second es)
+                                                    [LexClass (scope name bases body)
+                                                              (LexClass replace-scope name bases (remove-unneeded-assigns body))]
+                                                    [LexFunc (scope name args defaults body)
+                                                             (LexFunc replace-scope name args (map remove-unneeded-assigns defaults)
+                                                                      (remove-unneeded-assigns body))]
+                                                    [LexClassFunc (scope name args body) (LexClassFunc replace-scope name args (remove-unneeded-assigns body))]
+                                                    [LexFuncVarArg (scope name args sarg body) (LexFuncVarArg replace-scope name args sarg (remove-unneeded-assigns body))]
+                                                    [else (error 'remove-unneeded-assigns "undefined pattern present without declaration")]
+                                                    )
+                                                )
+                                                (LexSeq (map remove-unneeded-assigns es)))]
+                               [else (haiku-error)]))))
+(define (optimization-pass expr)
+  expr)
+
 
 (define (process-syntax-errors [expr : LexExpr]) : LexExpr
   (call/cc
@@ -241,8 +274,9 @@
        expr
        (lambda (x)
          (type-case LexExpr x
-           [LexClass (name bases body)
+           [LexClass (scope name bases body)
                            (LexClass
+                            scope
                             name
                             bases
                             (type-case LexExpr body
@@ -271,7 +305,7 @@
                                                       targets) value)]
                [LexAugAssign (op target value) (LexAugAssign op (assign-func target) value)]
                [LexBlock (nls e) (LexBlock nls (toplevel e))]
-               [LexClass (name super body) (toplevel x)]
+               [LexClass (scope name super body) (toplevel x)]
                [else (haiku-error)]))))))
     (define (find-all-instance expr)
       (let [[post-remove
