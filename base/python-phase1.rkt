@@ -70,50 +70,6 @@
                            [else (haiku-error)]))))
 
 (define (optimization-pass expr) expr)
-;this isn't correct, and probably isn't necessary, so I'm going to comment it out for now.
-#;(define (optimization-pass [expr : LexExpr]) : LexExpr
-  (lexexpr-modify-tree
-   expr
-   (lambda (e)
-     (type-case LexExpr e
-       [LexGlobalLet
-        (id bind body)
-        (let (
-              (newbod (optimization-pass body))
-              (newbind (optimization-pass bind)))
-          (LexGlobalLet id newbind
-              (call/cc
-               (lambda (k) 
-                 (lexexpr-modify-tree
-                  newbod
-                  (lambda (y)
-                    (type-case LexExpr y
-                      [LexSeq (es)
-                              (if
-                               (type-case LexExpr (first es)
-                                 [LexAssign (targets rhs)
-                                            (and (empty? (rest targets))
-                                                (type-case LexExpr (first targets)
-                                                  [LexGlobalId (x ctx) (if (equal? x id)
-                                                                           (begin (set! newbind rhs) true)
-                                                                           false)]
-                                                  [else false]))]
-                                 [else false])
-                              (LexSeq (rest es))
-                              (k newbod))]
-                      [LexAssign (targets rhs)
-                                 (if (and (empty? (rest targets))
-                                      (type-case LexExpr (first targets)
-                                        [LexGlobalId (x ctx) (if (equal? x id)
-                                                                 (begin (set! newbind rhs) true)
-                                                                 false)]
-                                        [else false]))
-                                     (LexPass)
-                                     (k newbod))]
-                      [else (k newbod)]
-                      )))))))]
-       ;more here
-       [else (haiku-error)]))))
 
 (define (process-syntax-errors [expr : LexExpr]) : LexExpr
   (call/cc
