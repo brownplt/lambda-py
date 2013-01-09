@@ -73,7 +73,7 @@
                                                         (list (LexStr (string-append "no binding for nonlocal '"
                                                                                      (string-append (symbol->string (first locals)) "' found"))))))))))]
                    [LexBlock (nls e) (LexBlock nls (bindings-for-nonlocal
-                                                    (remove-duplicates (flatten (list bindings these-locals)))
+                                                    (remove-duplicates (flatten (list bindings these-locals nls)))
                                                     e))]
                    [LexLocalId (x ctx) (begin (set! these-locals (cons x these-locals)) e)]
                    [else (haiku-error)]
