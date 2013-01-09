@@ -1,0 +1,46 @@
+
+New syntax add to the core
+--------------------------
+
+None.
+
+New surface syntax handled in desugaring
+-----------------------------------------
+
+* [PyImport (names : (listof string)) (asnames : (listof symbol))]
+
+Already existing functions/helpers that are modified
+----------------------------------------------------
+
+base/python-primitives.rkt:
+    * builtin-prim: added file-* functions
+
+base/python-interp.rkt:
+    * interp: made globals is a mutable hash
+    * interp-let: 
+        Creating a new local scope when CLet is used in the global scope. 
+        Assuming that there won't be any local bindings in the let body.
+    * interp-capp: no need to call replace-global-scope as globals are a multable hash
+    * replace-global-scope: removed this function
+    * assign-to-id: use hash-set! instead of hash-set when used in global scope
+
+New functions/helpers added
+---------------------------
+
+base/util.rkt:
+    * match-varargs macro
+    * py-num, py-len, py-getitem
+
+base/python-desugar.rkt:
+    * desugar-import-py
+
+New files added
+---------------
+
+* base/builtins/file.rkt
+* base/builtins/file-util.rkt
+
+Special Notes
+-------------
+* desugar-import-py returns PyExpr not DesugarResult.
+

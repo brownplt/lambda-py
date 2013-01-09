@@ -10,6 +10,7 @@
          "builtins/num.rkt"
          "builtins/object.rkt"
          "builtins/bool.rkt"
+         "builtins/file.rkt"
          (typed-in racket/string (string-join : ((listof string) string -> string)))
          (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (quotient : (number number -> number)))
@@ -198,6 +199,14 @@ primitives here.
 
     ;bool
     ['bool-init (bool-init args env sto)]
+
+    ; file
+    ['file-open (file-open args env sto)]
+    ['file-read (file-read args env sto)]
+    ['file-readall (file-readall args env sto)]
+    ['file-readline (file-readline args env sto)]
+    ['file-write (file-write args env sto)]
+    ['file-close (file-close args env sto)]
 
     ;isinstance
     ['isinstance 

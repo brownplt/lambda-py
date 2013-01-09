@@ -102,6 +102,66 @@
 (define (def (name : symbol) (expr : CExpr)) : CExpr
   (CAssign (CId name (LocalId)) expr))
 
+
+; Macro to match varargs
+; Example:
+;
+; (match-varargs 'args
+;   [() (CObject 'num (some (MetaNum 0)))]
+;   [('a) (CId 'a (LocalId))]
+;   [('a 'b) (CBuiltinPrim 'num+ (CId 'a (LocalId)) (CId 'b (LocalId)))])
+;
+(define-syntax (match-varargs x)
+  (syntax-case x ()
+    [(match-varargs 'args [vars body])
+     #'(if-varargs 'args vars body)]
+    [(match-varargs 'args [vars1 body1] [vars2 body2])
+     #'(if-varargs 'args vars1 body1
+                 (if-varargs 'args vars2 body2))]
+    [(match-varargs 'args [vars1 body1] [vars2 body2] [vars3 body3])
+     #'(if-varargs 'args vars1 body1
+                 (if-varargs 'args vars2 body2
+                             (if-varargs 'args vars3 body3)))]))
+
+; Helper macro used in implementing match-varargs
+(define-syntax (if-varargs x)
+  (syntax-case x ()
+    [(if-varargs 'args vars body)
+     #'(if-varargs 'args vars body (CError (CStr "argument mismatch")))]
+    [(if-varargs 'args () body else-part)
+     #'(CIf ; Did we get 0 args?
+        (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
+        body
+        else-part)]
+    [(if-varargs 'args (a) body else-part)
+     #'(CIf ; Did we get 1 args?
+        (CBuiltinPrim 'num= (list (py-len 'args) (py-num 1)))
+        (CLet a (py-getitem 'args 0)
+              body)
+        else-part)]
+    [(if-varargs 'args (a b) body else-part)
+     #'(CIf ; Did we get 2 args?
+        (CBuiltinPrim 'num= (list (py-len 'args) (py-num 2)))
+        (CLet a (py-getitem 'args 0)
+              (CLet b (py-getitem 'args 1)
+                    body))
+        else-part)]))
+
+;; syntactic sugars to avoid writing long expressions in the core language
+(define (py-num [n : number])
+  (CObject 'num (some (MetaNum n))))
+
+(define (py-len name)
+  (CApp (CGetField (CId name (LocalId)) '__len__)
+        (list (CId name (LocalId)))
+        (none)))
+
+(define (py-getitem name index)
+  (CApp (CGetField (CId name (LocalId)) '__getitem__)
+        (list (CId name (LocalId))
+              (CObject 'num (some (MetaNum index))))
+        (none)))
+
 ;; the copypasta here is bad but we aren't clever enough with macros
 (define-syntax (check-types x)
   (syntax-case x ()
@@ -210,6 +270,7 @@
               (string-append "{"
                              (string-join (map pretty (set->list elts)) ", "))
               "}")]
+    [else "builtin-value"]
     ))
 
 (define (pretty-exception [exn : CVal] [sto : Store]) : string
