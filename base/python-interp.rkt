@@ -9,18 +9,9 @@
          "builtins/none.rkt"
          "builtins/dict.rkt"
          "util.rkt"
-         (typed-in racket/base (hash-copy : ((hashof 'a 'b) -> (hashof 'a 'b))))
          (typed-in racket/base (hash-count : ((hashof 'a 'b) -> number)))
-         (typed-in racket/base (expt : (number number -> number)))
-         (typed-in racket/base (quotient : (number number -> number)))
          (typed-in racket/string (string-join : ((listof string) string -> string)))
-         (typed-in racket/base (string<? : (string string -> boolean)))
-         (typed-in racket/base (string>? : (string string -> boolean)))
-         (typed-in racket/base (string<=? : (string string -> boolean)))
-         (typed-in racket/base (string>=? : (string string -> boolean)))
-         (typed-in racket/base (for-each : (('a -> void) (listof number) -> 'b)))
          (typed-in racket/base (raise-user-error : (string -> 'a)))
-         (typed-in racket/base (ormap : (('a -> boolean) (listof 'a) -> 'a)))
          (typed-in racket/base (hash->list : ((hashof 'a 'b)  -> (listof 'c))))
          (typed-in racket/base (car : (('a * 'b) -> 'a)))
          (typed-in racket/base (cdr : (('a * 'b) -> 'b)))
@@ -70,6 +61,11 @@
                                (v*s*e-e (first (reverse result-list)))
                                init-e)))))))
 
+;; replace-global-scope?, determines if the global scope level of the env "curr"
+;; is "newer" than that of the env "ext", and replaces the global scope level of "ext"
+;; with that of "curr" if so. "Newer" is defined by the number of elements in the scope
+;; level. This obviously won't work once we add del for variables, but global scope is
+;; going to change drastically anyway. Returns "ext" or a modified version of it.
 (define (replace-global-scope? [ext : Env] [curr : Env]) : Env
   (if (and (cons? curr)
            (cons? ext)
@@ -77,13 +73,15 @@
       (append (drop-right ext 1) (list (last curr)))
       ext))
 
+;; interp-capp, interprets an application of a function. It is passed the function,
+;; the list of argument expressions, an optionof indicating the presence of a stararg,
+;; and the env, and the store. Returns the result of interpreting the application.
 (define (interp-capp [fun : CExpr] [arges : (listof CExpr)] 
                      [stararg : (optionof CExpr)] [env : Env] [sto : Store]) : Result
-  (begin ;(display "APP: ") (display fun) (display "\n") (display arges) (display "\n\n\n")
-         ;(display env) (display "\n\n")
  (type-case Result (interp-env fun env sto)
    [v*s*e (vfun sfun efun) 
     (type-case CVal vfun
+      ;; fun is a closure, bind args and apply it
       [VClosure (cenv argxs vararg body)
                   (local [(define-values (argvs-r sc ec) (interp-cascade arges sfun efun))]
                      (let ([exn? (filter Exception? argvs-r)])
@@ -126,38 +124,43 @@
                                                       (replace-global-scope? env eb))])))))]
       [VObject (b mval d)
                (if (and (some? mval) (MetaClass? (some-v mval)))
-                  ; We're calling a class.
-                  ; Get its constructor
-                  (let ([f (v*s*e-v (get-field '__init__ vfun efun sfun))]
-                        ; Create an empty object. This will be the instance of that class.
-                        [o (new-object (MetaClass-c (some-v mval)) efun sfun)])
+                  ;; This means we're calling a class, like C().
+                  ;; So we want to apply its __init__ method.
+                  (local [(define f (v*s*e-v (get-field '__init__ vfun efun sfun)))
+                          ;; Create an empty object. This will be the new instance of the class.
+                          (define o (new-object (MetaClass-c (some-v mval)) efun sfun))]
                     (type-case CVal f
                       [VClosure (cenv argxs vararg body)
-                                ; interpret the arguments to the constructor
+                                ;; Interpret the arguments to __init__.
                          (local [(define-values (argvs-r sc ec)
-                                   (interp-cascade arges sfun efun))]
-                                (let ([exn? (filter Exception? argvs-r)])
-                                    (if (< 0 (length exn?))
-                                        (first exn?)
-                                      (local [(define argvs (map v*s*e-v argvs-r))
-                                             ; bind the interpreted arguments to the constructor
-                                              (define result 
-                                                (bind-and-execute body argxs vararg
-                                                                (cons o argvs)
-                                                                (cons (CId 'init (LocalId)) 
-                                                                      arges)
-                                                                ec
-                                                                (replace-global-scope? cenv ec)
-                                                                sc))]
-                                        (type-case Result result
-                                          [v*s*e (vb sb eb) 
-                                                 (v*s*e 
-                                                   (let ([obj (fetch (some-v 
-                                                                       (lookup (first argxs)
-                                                                               eb))
-                                                                     sb)])
-                                                     obj)
-                                                   sb (replace-global-scope? env eb))]
+                                   (interp-cascade arges sfun efun))
+                                 (define exn? (filter Exception? argvs-r))]
+                             (if (< 0 (length exn?))
+                               (first exn?)
+                               (local [(define argvs (map v*s*e-v argvs-r))
+                                       ;; Bind the interpreted arguments to __init__
+                                       ;; and perform the application.
+                                       ;; Global scope might have changed since the __init__
+                                       ;; closure was created, so we replace the global scope
+                                       ;; level of __init__'s environment if necessary.
+                                       (define result 
+                                         (bind-and-execute body argxs vararg
+                                                           (cons o argvs)
+                                                           (cons (CId 'init (LocalId)) arges)
+                                                           ec
+                                                           (replace-global-scope? cenv ec)
+                                                           sc))]
+                                 (type-case Result result
+                                   [v*s*e (vb sb eb) 
+                                          ;; This is a bit hacky. We just created an object
+                                          ;; and passed it to __init__ which may have mutated
+                                          ;; it, so we need to get the original object from
+                                          ;; it's first location in the store.
+                                          ;; TODO is this needed anymore? I don't think so.
+                                          (v*s*e 
+                                            (fetch (some-v (lookup (first argxs) eb)) sb)
+                                            sb
+                                            (replace-global-scope? env eb))]
                                          [Return (vb sb eb)
                                                  (v*s*e vb sb 
                                                         (replace-global-scope? env eb))]
@@ -165,32 +168,33 @@
                                                           (replace-global-scope? env eb) sb)]
                                          [Exception (vb sb eb)
                                                  (Exception vb sb 
-                                                        (replace-global-scope? env eb))])))))]
+                                                        (replace-global-scope? env eb))]))))]
                       [else (error 'interp 
                                    "__init__ not found. THIS SHOULDN'T HAPPEN.")]))
-                                     
+                  ;; This means we're calling an object,
+                  ;; so we want to apply its __call__ method.
                   (local [(define __call__ (get-field '__call__ vfun efun sfun))]
                     (type-case Result __call__
                       [v*s*e (vc sc ec)
                              (type-case CVal vc
                                [VClosure (cenv argxs vararg body)
-                                         ; interpret the arguments to the constructor
-                                         (local [(define-values (argvs-r sc ec)
-                                                   (interp-cascade arges sfun efun))]
-                                                (let ([exn? (filter Exception? argvs-r)])
-                                                  (if (< 0 (length exn?))
-                                                      (first exn?)
-                                                      (local [(define argvs
-                                                                (map v*s*e-v argvs-r))
-                                             ; bind the interpreted arguments to the constructor
-                                                        (define result 
-                                                    (bind-and-execute body argxs vararg
-                                                             (cons vfun argvs)
-                                                             (cons (make-builtin-num 0) 
-                                                                   arges)
-                                                             ec
-                                                             (replace-global-scope? cenv ec)
-                                                             sc))]
+                                         ;; Interpret the arguments to __call__.
+                                 (local [(define-values (argvs-r sc ec)
+                                           (interp-cascade arges sfun efun))
+                                         (define exn? (filter Exception? argvs-r))]
+                                   (if (< 0 (length exn?))
+                                     (first exn?)
+                                     (local [(define argvs (map v*s*e-v argvs-r))
+                                             ;; Bind the interpreted arguments to __call__
+                                             ;; and perform the application.
+                                             (define result 
+                                               (bind-and-execute body argxs vararg
+                                                                 (cons vfun argvs)
+                                                                 (cons (make-builtin-num 0) 
+                                                                       arges)
+                                                                 ec
+                                                                 (replace-global-scope? cenv ec)
+                                                                 sc))]
                                        (type-case Result result
                                          [v*s*e (vb sb eb)
                                                 (v*s*e vb sb
@@ -198,23 +202,20 @@
                                          [Return (vb sb eb)
                                                  (v*s*e vb sb (replace-global-scope? env eb))]
                                          [Break (sb eb)
-                                                (break-exception (replace-global-scope? env eb)
-                                                                 sb)]
+                                                (break-exception (replace-global-scope? env eb) sb)]
                                          [Exception (vb sb eb)
                                                     (Exception vb sb
-                                                         (replace-global-scope? env eb))])))))]
-                      [else (error 'interp 
-                                   "Not a closure or constructor.")])]
+                                                               (replace-global-scope? env eb))]))))]
+                               [else (error 'interp "Not a closure or constructor.")])]
                       [Return (vfun sfun efun) (return-exception efun sfun)]
                       [Break (sfun efun) (break-exception efun sfun)]
                       [Exception (vfun sfun efun) (Exception vfun sfun efun)])))]
       [else (error 'interp "Not a closure or constructor")])]
    [Return (vfun sfun efun) (return-exception efun sfun)]
    [Break (sfun efun) (break-exception efun sfun)]
-   [Exception (vfun sfun efun) (Exception vfun sfun efun)])))
+   [Exception (vfun sfun efun) (Exception vfun sfun efun)]))
 
-(define (interp-while [test : CExpr] [body : CExpr] 
-                      [env : Env] [sto : Store])
+(define (interp-while [test : CExpr] [body : CExpr] [env : Env] [sto : Store])
   (local [(define test-r (interp-env test env sto))]
     (if (or (or (Exception? test-r) (Return? test-r)) (Break? test-r))
       test-r
@@ -231,14 +232,10 @@
                    (interp-while test body 
                                  (v*s*e-e body-r) 
                                  (v*s*e-s body-r)))))
-        (v*s*e
-          vnone
-          (v*s*e-s test-r)
-          (v*s*e-e test-r))))))
+        (v*s*e vnone (v*s*e-s test-r) (v*s*e-e test-r))))))
 
-
-
-
+;; bind-and-execute, binds the arguments in the closure's
+;; environment and then applies the closure.
 (define (bind-and-execute [body : CExpr] [argxs : (listof symbol)]
                           [vararg : (optionof symbol)] [argvs : (listof CVal)]
                           [arges : (listof CExpr)] [env : Env]
@@ -475,20 +472,13 @@
     ;; only for ids!
     [CAssign (t v) (type-case Result (interp-env v env sto)
                      [v*s*e (vv sv venv)
-                            (begin 
-                              ;(if (and (CId? t) (symbol=? (CId-x t) 'x))
-                              ;    (begin
-                                    ;(display "assign: ") (display t) (display " ")
-                                    ;(display vv) (display "\n")
-                                    ;(display env) (display "\n\n"))
-                              ;    (display ""))
                             (type-case CExpr t
                               [CId (x type) (assign-to-id t vv venv sv)]
                               [CGetField (o a) (assign-to-field o a vv venv sv)]
                               [else (mk-exception 'SyntaxError
                                                   "can't assign to literals"
                                                   venv
-                                                  sv)]))]
+                                                  sv)])]
                      [Return (vv sv ev) (return-exception ev sv)]
                      [Break (sv ev) (break-exception ev sv)]
                      [Exception (vv sv ev) (Exception vv sv ev)])]
@@ -566,9 +556,7 @@
                    result)
                  result))]
 
-    [CObject (c mval) (v*s*e (VObject c mval (hash empty))
-                             sto
-                             env)]
+    [CObject (c mval) (v*s*e (VObject c mval (hash empty)) sto env)]
 
     [CLet (x bind body)
           (let ([w (new-loc)]
@@ -688,9 +676,6 @@
     
     [CBreak () (Break sto env)]))
 
-
-    ;[else (error 'interp "haven't implemented a case yet")]))
-
 (define (assign-to-id id v e s)
   (local [(define-values (before scope after error)
             (type-case IdType (CId-type id)
@@ -714,27 +699,18 @@
                        (local [(define-values (left right)
                                  (values (take e (some-v level-idx))
                                          (drop e (some-v level-idx))))]
-                        (begin ;(display "left: ") (display left) (display "\n")
-                               ;(display "right: ") (display right) (display "\n")
-                              (values left (first right) (rest right) (none))))))]
+                              (values left (first right) (rest right) (none)))))]
               [LocalId () (values empty (first e) (rest e) (none))]))]
     (if (some? error)
         (some-v error)
         (local [(define mayb-w (hash-ref scope (CId-x id)))
                 (define w (if (some? mayb-w) (some-v mayb-w) (new-loc)))]
-          (begin 
-            ;(if (symbol=? 'x (CId-x id))
-            ;  (begin
-            ;     (display scope) (display "\n")
-            ;     (display w) (display "\n\n"))
-            ;  (display ""))
           (v*s*e vnone
                  (hash-set s w v) 
                  (append3
                    before
-                   (list (hash-set scope 
-                             (CId-x id) w))
-                   after)))))))
+                   (list (hash-set scope (CId-x id) w))
+                   after))))))
 
 ;; handles lookup chain for function calls on objects
 ;; looks in object dict, then class dict, then base class dicts, then default class
@@ -767,7 +743,6 @@
                                                         e s)))]))])))]
     [else (error 'interp "Not an object with functions.")])))
 
-
 (define (assign-to-field o f v e s)
   (type-case Result (interp-env o e s)
     [v*s*e (vo so eo) (type-case CVal vo
@@ -789,86 +764,98 @@
     [Break (so eo) (break-exception eo so)]
     [Exception (vo so eo) (Exception vo so eo)]))
 
-(define (new-object [c-name : symbol] [e : Env] [s : Store])
+(define (new-object [c-name : symbol] [e : Env] [s : Store]) : CVal
   (VObject c-name (none) (hash empty)))
 
+;; bind-args, recursively binds the provided values to the provided argument symbols.
+;; If a stararg symbol is provided, extra arguments are packaged in a tuple and bound
+;; to the stararg symbol. This tuple will be empty if there are no extra arguments.
+;; If no stararg symbol is provided, then an arity mismatch error is produced unless
+;; the number of values corresponds to the number of argument symbols. Env is the 
+;; environment in which we interpreted the arguments to get the values. This is needed
+;; for creating exceptions and for a hacky check to see if we're creating a new object
+;; (This should go away once mutability is actually builtin). Ext is the environment of
+;; closure for which we are binding the values. That is, ext is the environment we're
+;; extending.
 (define (bind-args [args : (listof symbol)] 
                    [sarg : (optionof symbol)]
                    [vals : (listof CVal)] 
                    [arges : (listof CExpr)] 
                    [env : Env] [ext : Env]
                    [sto : Store]) : (Env * Store * (optionof Result))
-  (cond [(and (empty? args) (empty? vals)) 
-              (if (some? sarg)
-                  (bind-args (list (some-v sarg))
-                             (none)
-                             (list (make-builtin-tuple empty))
-                             (list (make-builtin-num 0))
-                             env 
-                             ext
-                             sto)
-                  (values ext sto (none)))]
-        ;need to bind star args!
+  (cond [(and (empty? args) (empty? vals))
+         ;; This means we've bound all of the values to the argument symbols,
+         ;; so we want to bind an empty tuple to the stararg symbol if there is one.
+         (if (some? sarg)
+           (bind-args (list (some-v sarg))
+                      (none)
+                      (list (make-builtin-tuple empty))
+                      (list (make-builtin-num 0))
+                      env 
+                      ext
+                      sto)
+           (values ext sto (none)))]
         [(and (empty? args) (some? sarg)) 
+         ;; This means we have a stararg symbol and extra arguments, so we'll
+         ;; place them in a tuple and bind it to the stararg symbol.
          (let ([star-tuple (make-builtin-tuple vals)])
            (bind-args (list (some-v sarg))
                       (none) 
                       (list star-tuple)
-                      arges env ext sto))]
-
-
+                      (list (make-builtin-num 0))
+                      env ext sto))]
         [(or (empty? args) (empty? vals))
-         (values ext sto (some (mk-exception 'TypeError 
-                                             (string-join
-                                               (list "Arity mismatch: "
-                                                     "expected "
-                                                     (to-string args)
-                                                     ", received "
-                                                     (to-string vals))
-                                               "")
-                                             env
-                                             sto)))]
+         ;; This means we have an arity mismatch.
+         (values ext sto
+                 (some
+                   (mk-exception 'TypeError 
+                                 (string-join
+                                   (list "Arity mismatch: "
+                                         "expected "
+                                         (to-string args)
+                                         ", received "
+                                         (to-string vals))
+                                   "")
+                                 env
+                                 sto)))]
         [(and (cons? args) (cons? vals))
-         (let ([val (first vals)]
-               [where -1]
-               [mutability-check (lambda ()
-                    (type-case CExpr (first arges)
-                         [CId (x t)
-                              (if (symbol=? x 'init)
-                                  (new-loc)
-                                  (some-v (lookup x env)))]
-                         [else (new-loc)]))])
-            (begin
-              (type-case CVal val
-              [VObject (ante-name mayb-mval dict)
-                       ;; these should not get new store locations if they already exist
+         ;; This means we're still binding values to argument symbols.
+         ;; If the object is mutable, we want to use its current store location.
+         ;; If the object is immutable, we can make a new store location.
+         (local [(define val (first vals))
+                 (define mutability-check
+                   (lambda ()
+                     (type-case CExpr (first arges)
+                       [CId (x t)
+                            (if (symbol=? x 'init)
+                                (new-loc)
+                                (some-v (lookup x env)))]
+                       [else (new-loc)])))
+                 (define where 
+                   (type-case CVal val
+                     [VObject (ante-name mayb-mval dict)
                        (if (some? mayb-mval)
                          (let ([mval (some-v mayb-mval)])
                            (type-case MetaVal mval
-                             [MetaClass (c) (set! where (mutability-check))]
-                             [MetaList (l) (set! where (mutability-check))]
+                             [MetaClass (c) (mutability-check)]
+                             [MetaList (l) (mutability-check)]
                              ;;[MetaDict (d) (;; get loc of val in store)]
                              ;; immutable types should get a new store location
-                             [else (set! where (new-loc))]))
-                         (set! where (mutability-check)))]
-              [else (set! where (new-loc))])
-            (let ([e (cons (hash-set (first ext) (first args) where) (rest ext))]
-                  [s (hash-set sto where (first vals))])
-                 (bind-args (rest args) sarg (rest vals) (rest arges) env e s))))]))
-
+                             [else (new-loc)]))
+                         (mutability-check))]
+                     [else (new-loc)]))
+                 (define e (cons (hash-set (first ext) (first args) where) (rest ext)))
+                 (define s (hash-set sto where (first vals)))]
+           (bind-args (rest args) sarg (rest vals) (rest arges) env e s))]))
 
 (define (mk-exception [type : symbol] [arg : string]
                       [env : Env] [sto : Store]) : Result
-  (let ([exception 
-          (interp-env (make-exception
-                        type 
-                        arg)
-                      env sto)])
+  (local [(define exception (interp-env (make-exception type arg) env sto))]
     (if (or (Exception? exception) (Break? exception))
-               exception
-               (Exception (v*s*e-v exception)
-                          (v*s*e-s exception)
-                          (v*s*e-e exception)))))
+        exception
+        (Exception (v*s*e-v exception)
+                   (v*s*e-s exception)
+                   (v*s*e-e exception)))))
 
 (define (return-exception [env : Env] [sto : Store]) : Result
   (mk-exception 'SyntaxError "'return' outside function" env sto))
@@ -876,17 +863,23 @@
 (define (break-exception [env : Env] [sto : Store]) : Result
   (mk-exception 'SyntaxError "'break' outside loop" env sto))
 
-
 (define (interp expr)
   (type-case Result (interp-env expr (list (hash (list))) (hash (list)))
-    [v*s*e (vexpr sexpr env) (if (not (MetaNone? (some-v (VObject-mval vexpr))))
-                         (begin (display (pretty vexpr)) 
-                                (display "\n"))
-                         (display ""))]
-    [Return (vexpr sexpr env) (raise-user-error "SyntaxError: 'return' outside function")]
-    [Break (sexpr env) (raise-user-error "SyntaxError: 'break' outside loop")]
-    [Exception (vexpr sexpr env) (raise-user-error
-                                   (pretty-exception vexpr sexpr))]))
+    [v*s*e (vexpr sexpr env)
+           (if (not (MetaNone? (some-v (VObject-mval vexpr))))
+             (begin (display (pretty vexpr)) 
+                    (display "\n"))
+             (display ""))]
+    [Return (vexpr sexpr env)
+            (local [(define exn (return-exception env sexpr))]
+              (raise-user-error (pretty-exception (Exception-v exn)
+                                                  (Exception-s exn))))]
+    [Break (sexpr env)
+           (local [(define exn (break-exception env sexpr))]
+             (raise-user-error (pretty-exception (Exception-v exn)
+                                                 (Exception-s exn))))]
+    [Exception (vexpr sexpr env)
+               (raise-user-error (pretty-exception vexpr sexpr))]))
 
 (define (truthy? [val : CVal]) : boolean
   (type-case CVal val
