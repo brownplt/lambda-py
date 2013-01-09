@@ -105,6 +105,9 @@
               [PyTuple (values) (LexTuple (map recur values))]
               [PyUndefined [] (LexUndefined)]
               [PySet (elts) (LexSet (map recur elts))]
+              [PyImport (names asnames) (LexImport names asnames)]
+              [PyImportFrom (module names asnames level)
+                            (LexImportFrom module names asnames level)]
               [PyNone [] (LexNone)]
               [PyBreak [] (LexBreak)]))
         (define (recur this-expr)
@@ -219,7 +222,10 @@
               [LexSet (elts) (LexSet (map recur elts))]
               [LexNone [] (LexNone)]
               [LexBreak [] (LexBreak)]
-              [LexBlock [a b] [LexBlock a (recur b)]])))
+              [LexBlock [a b] [LexBlock a (recur b)]]
+              [LexImport [names asnames] (LexImport names asnames)]
+              [LexImportFrom [module names asnames level]
+                             (LexImportFrom module names asnames level)])))
         (define (recur this-expr)
             (call/cc (lambda (k)
                     (call-with-exception-handler
@@ -338,7 +344,9 @@
               [PyUndefined [] empty]
               [PySet (elts) (flatten (map recur elts))]
               [PyNone [] empty]
-              [PyBreak [] empty]))
+              [PyBreak [] empty]
+              [PyImport (names asnames) empty]
+              [PyImportFrom (module names asnames level) empty]))
         (define (recur this-expr)
             (call/cc (lambda (k)
                     (call-with-exception-handler
@@ -452,7 +460,9 @@
               [LexSet (elts) (flatten (map recur elts))]
               [LexNone [] empty]
               [LexBreak [] empty]
-              [LexBlock [a b] (recur b)]))
+              [LexBlock [a b] (recur b)]
+              [LexImport (names asnames) empty]
+              [LexImportFrom (module names asnames level) empty]))
         (define (recur this-expr)
             (call/cc (lambda (k)
                     (call-with-exception-handler

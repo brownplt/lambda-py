@@ -89,5 +89,15 @@
   [LexNone]
   [LexBreak]
 
+  ; import, which desugar to asname = __import__("name")
+  [LexImport (names : (listof string)) (asnames : (listof symbol))]
+  ; from import, which desugar to 
+  ; 1. _temp = __import__(...)
+  ; 2. asname = _temp.name
+  [LexImportFrom (module : string) 
+                 (names : (listof string))
+                 (asnames : (listof symbol))
+                 (level : number)]
+
 )
 
