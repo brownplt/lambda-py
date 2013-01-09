@@ -1,2 +1,3 @@
 m = __import__("a")
-print(m.__dict__)
+x = m.F()
+print(x.__dict__)

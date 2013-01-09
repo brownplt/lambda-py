@@ -42,13 +42,13 @@
    (display (cdr results) (current-error-port)))
 
   ("--get-syntax" "Get s-exp for python"
-   (pretty-write (parse-python/port (current-input-port) (get-pypath))))
+   (pretty-print (parse-python/port (current-input-port) (get-pypath))))
   
   ("--get-surface-syntax" "Get surface syntax python"
-   (pretty-write (get-surface-syntax (current-input-port))))
+   (pretty-print (get-surface-syntax (current-input-port))))
   
   ("--get-core-syntax" "Get desugared python"
-   (pretty-write (get-core-syntax (current-input-port))))
+   (pretty-print (get-core-syntax (current-input-port))))
 
   ("--test" dirname "Run all tests in dirname"
    (display (results-summary (run-tests (mk-proc-eval/silent python-test-runner) dirname))))

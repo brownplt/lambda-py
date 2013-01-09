@@ -217,7 +217,7 @@ that calls the primitive `print`.
 ;    f = open(name+'.py', 'r')
 ;    code = f.read()
 ;    f.close()
-;    m.__dict__ = $exec_to_dict(code)
+;    m = $exec_to_dict(code)
 ;    return m
 ;
 ; NOTE: - Module class is defined as '$module', user cannot get access to $module
@@ -263,7 +263,7 @@ that calls the primitive `print`.
         (list (CId 'f (LocalId)))
         (none)))
       (CAssign
-       (CGetField (CId 'm (LocalId)) '__dict__)
+       (CId 'm (LocalId))
        (CApp
         (CId '$exec_to_dict (GlobalId))
         (list (CId 'code (LocalId)))

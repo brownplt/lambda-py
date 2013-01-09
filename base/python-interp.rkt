@@ -34,6 +34,7 @@
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
          "python-desugar.rkt"
+         "python-syntax.rkt"
          (typed-in "python-lib.rkt" (python-lib : ('a -> 'b)))
          
          )
@@ -640,30 +641,38 @@
                                                          ;; todo: more useful errors
                                                          (mk-exception 'TypeError
                                                                        "Bad types in builtin call" env sto)))]
-                                        ;else exec-to-dict
+                                             ;;; else exec-to-dict
                                              [(not (and (VObject? (first val-list))
                                                         (some? (VObject-mval (first val-list)))
                                                         (MetaStr? (some-v (VObject-mval (first val-list))))))
                                               (mk-exception 'TypeError "exec only accept str" env sto)]
                                              [else
-                                              (begin (let* ((module
-                                                              (desugar
-                                                               (get-structured-python
-                                                                (parse-python/string
-                                                                 (MetaStr-s (some-v (VObject-mval (first val-list))))
-                                                                 (get-pypath)))))
-                                                            (v-module
+                                              (begin (let* ((module-py ;get PyModule
+                                                              (get-structured-python
+                                                               (parse-python/string
+                                                                (MetaStr-s (some-v (VObject-mval (first val-list))))
+                                                                (get-pypath))))
+                                                            (glb/nlocal (get-globals/nonlocals ; get globals and nonlocals IdEnv
+                                                                         (PySeq (PyModule-es module-py))
+                                                                         true empty))
+                                                            (v-module ; get the value, env and store
                                                              (interp-env
-                                                              (python-lib module)
+                                                              (desugar module-py)
                                                               (list (hash empty))
-                                                              (hash empty))))
+                                                              new-s))
+                                                            (import-names (map (lambda (x) (idpair-id x))
+                                                                            glb/nlocal)))
                                                        (begin
-                                                         (pretty-print module)
-                                                         (pretty-print "current env:") (pretty-print env) (display "\nover\n")
-                                                         (pretty-print (v*s*e-e v-module))
-                                                         (pretty-print (v*s*e-s v-module))                                                         
+                                                         (type-case Result v-module
+                                                           (v*s*e (v s e)
+                                                                  (v*s*e (VObject '$module (some (MetaModule s)) (first e))
+                                                                         s env))
+                                                           (else
+                                                            (mk-exception 'ImportError "import error" env sto)))
+                                                         ;(pretty-print "current env:") (pretty-print env) (display "\nover\n")
                                                          ))
-                                                     (error 'interp "not implement exec-to-dict yet"))]
+                                                     ;(error 'interp "not implement exec-to-dict yet")
+                                                     )]
                                            )))))]
     [CRaise (expr) 
             (if (some? expr)
@@ -778,26 +787,38 @@
   (begin ;(display "GET: ") (display n) (display " ") (display c) (display "\n")
          ;(display e) (display "\n\n")
   (type-case CVal c
-    [VObject (antecedent mval d) 
-                    (let ([w (hash-ref (VObject-dict c) n)])
-              (begin ;(display "loc: ") (display w) (display "\n\n")
-                (type-case (optionof Address) w
-                [some (w) (v*s*e (fetch w s) s e)]
-                [none () (local [(define __class__w (hash-ref (VObject-dict c) '__class__))]
-                           (type-case (optionof Address) __class__w
-                             [some (w) (get-field n (fetch (some-v __class__w) s) e s)]
-                             [none () (let ([mayb-base (lookup antecedent e)])
-                                        (if (some? mayb-base)
-                                          (let ([base (fetch (some-v mayb-base) s)])
-                                            (get-field n base e s))
-                                          (mk-exception 'AttributeError
-                                                        (string-append 
-                                                          (string-append
-                                                            "object"
-                                                            " has no attribute '")
-                                                          (string-append
-                                                            (symbol->string n) "'"))
-                                                        e s)))]))])))]
+    [VObject (antecedent mval d)
+             (type-case MetaVal (some-v mval) 
+               [MetaModule (new-store) 
+                 (begin  ;(pretty-print new-store) (display "\nenv: ") (pretty-print (VObject-dict c))
+                   (let ([w (hash-ref (VObject-dict c) n)])
+                     (type-case (optionof Address) w
+                       [some(w) (v*s*e (fetch w new-store) s e)] ; reutrn s, e? or new-store
+                       [none () (mk-exception 'AttributeError
+                                              (string-append "Object has no attribute: " (symbol->string n))
+                                              e s)]))
+                   ;end begin
+                   )]
+               [else
+                (let ([w (hash-ref (VObject-dict c) n)])
+                  (begin ;(display "loc: ") (display w) (display "\n\n")
+                         (type-case (optionof Address) w
+                           [some (w) (v*s*e (fetch w s) s e)]
+                           [none () (local [(define __class__w (hash-ref (VObject-dict c) '__class__))]
+                                      (type-case (optionof Address) __class__w
+                                        [some (w) (get-field n (fetch (some-v __class__w) s) e s)]
+                                        [none () (let ([mayb-base (lookup antecedent e)])
+                                                   (if (some? mayb-base)
+                                                       (let ([base (fetch (some-v mayb-base) s)])
+                                                         (get-field n base e s))
+                                                       (mk-exception 'AttributeError
+                                                                     (string-append 
+                                                                      (string-append
+                                                                       "object"
+                                                                       " has no attribute '")
+                                                                      (string-append
+                                                                       (symbol->string n) "'"))
+                                                                     e s)))]))])))])]
     [else (error 'interp "Not an object with functions.")])))
 
 
