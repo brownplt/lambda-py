@@ -87,8 +87,8 @@
 
 (define (interp-capp [fun : CExpr] [arges : (listof CExpr)] 
                      [stararg : (optionof CExpr)] [env : Env] [sto : Store]) : Result
-  (begin (pretty-print "APP: ") (pretty-print fun) (display " provided args: ") (pretty-print arges) (display "\nenv:\n")
-         (pretty-print env) (display "\nAPP END\n")
+  (begin ;(pretty-print "APP: ") (pretty-print fun) (display " provided args: ") (pretty-print arges) (display "\nenv:\n")
+         ;(pretty-print env) (display "\nAPP END\n")
  (type-case Result (interp-env fun env sto)
    [v*s*e (vfun sfun efun) 
     (type-case CVal vfun
@@ -660,28 +660,35 @@
                                                                    (glb/nlocal (get-globals/nonlocals ; get globals and nonlocals IdEnv
                                                                                 (PySeq (PyModule-es module-py))
                                                                                 true empty))
-                                                                   (v-module ; get the value, env and store, wrap python-lib
+                                                                   (v-module ; get the value, env and store, shouldn't wrap python-lib! but let's do it as it is
                                                                     (interp-env (python-lib (desugar module-py)) (list (hash empty))  new-s))
                                                                    (import-names (map (lambda (x) (idpair-id x))
-                                                                                      glb/nlocal)))
+                                                                                      glb/nlocal))
+                                                                   (import-names-Addr (make-hash empty))
+                                                                   )
                                                               (begin
-                                                                (type-case Result v-module
+                                                                #|(type-case Result v-module
                                                                   (v*s*e (v s e)
                                                                          (begin
-                                                                           (display "module env:\n")
-                                                                           (pretty-print e)
-                                                                           (display "origin env:\n")
-                                                                           (pretty-print new-e)
-                                                                           (display "module store:\n")
-                                                                           (pretty-print s)
-                                                                           (display "origin store:\n")
-                                                                           (pretty-print new-s)
+                                                                           ;(display "module env:\n")
+                                                                           ;(pretty-print e)
+                                                                           ;(display "origin env:\n")
+                                                                           ;(pretty-print new-e)
+                                                                           ;(display "module store:\n")
+                                                                           ;(pretty-print s)
+                                                                           ;(display "origin store:\n")
+                                                                           ;(pretty-print new-s)
                                                                            ))
-                                                                  (else (error 'intep "shouldn't happen")))
+                                                                  (else (error 'intep "shouldn't happen")))|#
                                                                 (type-case Result v-module
                                                                   (v*s*e (v s e)
-                                                                         (v*s*e (VObject '$module (some (MetaModule (last e))) (make-hash empty))
-                                                                                s new-e))
+                                                                         (begin 
+                                                                           (map (lambda (name) ;filter only useful symbols to export, which is already stored in import-names
+                                                                                  (hash-set! import-names-Addr
+                                                                                             name (some-v (hash-ref (last e) name))))
+                                                                                import-names)
+                                                                           (v*s*e (VObject '$module (none) import-names-Addr)
+                                                                                  s new-e)))
                                                                   (else
                                                                    (mk-exception 'ImportError "import error" env sto)))
                                                                 ;end begin
@@ -801,9 +808,12 @@
          ;(display e) (display "\n\n")
   (type-case CVal c
     [VObject (antecedent mval d)
-             (let* ([find-loc (if (MetaModule? (some-v mval))
-                                  (MetaModule-mbr (some-v mval))
-                                  (VObject-dict c))]
+             (let* ([find-loc (VObject-dict c)
+                              #|(if (and (some? mval) (MetaModule? (some-v mval)))
+                              (MetaModule-mbr (some-v mval))
+                              (VObject-dict c)
+                                  )|#
+                              ]
                     [w (hash-ref find-loc n)])
                (begin ;(display "loc: ") (display w) (display "\n\n")
                  (type-case (optionof Address) w

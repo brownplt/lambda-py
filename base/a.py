@@ -1,5 +1,7 @@
 y = 2
 class F:
-  x = 1
+    def __init__(self, n):
+        self.xxx = n
+
 def gety():
     return y
