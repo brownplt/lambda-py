@@ -46,7 +46,6 @@ ParselTongue.
 
 (define-type IdType
     [GlobalId]
-    [NonlocalId]
     [LocalId])
 
 (define-type IdPair
@@ -100,20 +99,6 @@ ParselTongue.
 ;; lookup in just the local environment
 (define (lookup-local [x : symbol] [env : Env]) : (optionof Address)
   (hash-ref (first env) x))
-
-;; lookup for nonlocal variables:
-;;   skip the current scope level
-;;   don't go to the global scope level
-(define (lookup-nonlocal [x : symbol] [env : Env]) : (optionof Address)
-  (local [(define rec-lookup-nonlocal
-            (λ ([x : symbol] [env : Env]) : (optionof Address)
-               (cond
-                 [(empty? (rest env)) (none)]
-                 [else (type-case (optionof Address) (hash-ref (first env) x)
-                         [some (v) (some v)]
-                         [none () (lookup x (rest env))])])))]
-    (rec-lookup-nonlocal x (rest env))))
-
 
 (define (fetch [w : Address] [sto : Store]) : CVal
   (type-case (optionof CVal) (hash-ref sto w)
