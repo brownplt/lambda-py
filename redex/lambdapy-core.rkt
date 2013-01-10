@@ -86,6 +86,7 @@
      (method (x ...) e)
      (method (x ...) x e)
      (while e e e)
+     (loop e) ;; helper syntax for while
      (return e)
      (prim1 op e)
      (prim2 op e e)
@@ -131,6 +132,7 @@
      (return E)
      (try E (e ...) e e)
      ;(try val (e ...) E e)
+     (loop E)
      (app E (e ...))
      (app val E)
      (app-star E (e ...) e)
@@ -157,12 +159,40 @@
      (prim2 op val T)
      (builtin-prim op T)
      (raise T)
+     (loop T)
      (app T (e ...))
      (app val T)
      (app-star T (e ...) e)
      (app-star val T e)
      (app-star val (val ...) T)
      (val ... T e ...) ;; for list, tuple, app, etc.
+     ;; todo - may need more
+     )
+  
+  ;; context for while body
+  (H hole
+     (assign e H)
+     (seq H e)
+     (if H e e)
+     (let (x H) e)
+     (list H)
+     (tuple H)
+     (set H)
+     (dict ((val val) ... (e H) (e e) ...))
+     (dict ((val val) ... (H val) (e e) ...)) ;; Python's dict has this evaluation order
+     (get-field H string)
+     (prim1 op H)
+     (prim2 op H e)
+     (prim2 op val H)
+     (builtin-prim op H)
+     (raise H)
+     (try H (e ...) e e)
+     (app H (e ...))
+     (app val H)
+     (app-star H (e ...) e)
+     (app-star val H e)
+     (app-star val (val ...) H)
+     (val ... H e ...) ;; for list, tuple, app, etc.
      ;; todo - may need more
      )
   

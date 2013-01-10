@@ -81,16 +81,22 @@
    (==> (seq (return-r val) e)
 	(return-r val)
 	"seq-return")
+   #|
    (==> (seq break-r e)
 	break-r
 	"seq-break")
-   #|
    (==> (seq (exception-r val) e)
 	(exception-r val)
 	"seq-exception")|#
    (==> (while e_1 e_2 e_3)
-        (if e_1 (seq e_2 (while e_1 e_2 e_3)) e_3) ;; not handle break yet
+        (loop (if e_1 (seq e_2 (while e_1 e_2 e_3)) e_3)) ;; not handle break yet
         "while")
+   (==> (loop val)
+        vnone
+        "loop")
+   (==> (loop (in-hole H break-r))
+        vnone
+        "loop-break")
    (==> break
         break-r
         "break")
