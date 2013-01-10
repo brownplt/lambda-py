@@ -10,6 +10,7 @@
          "builtins/dict.rkt"
          "builtins/simpledict.rkt"
          "builtins/code.rkt"
+         "builtins/module.rkt"
          "builtins/set.rkt"
          "builtins/num.rkt"
          "builtins/object.rkt"
@@ -220,6 +221,9 @@ primitives here.
     ;code
     ['code-str (code-str args env sto)]
     ['code-names (code-names args env sto)]
+    
+    ; module
+    ['make-module (make-module args env sto)]
 
     ;set
     ['set-set (set-set args env sto)]

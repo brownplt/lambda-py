@@ -8,6 +8,7 @@
          "builtins/dict.rkt"
          "builtins/simpledict.rkt"
          "builtins/code.rkt"
+         "builtins/module.rkt"
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/set.rkt"
@@ -248,6 +249,12 @@ that calls the primitive `print`.
                  (CId 'locals (LocalId))))
          false))
 
+(define make-module-lambda
+  (CFunc (list 'globals) (none)
+         (CReturn
+          (CBuiltinPrim 'make-module (list (CId 'globals (LocalId)))))
+         false))
+
 (define-type LibBinding
   [bind (left : symbol) (right : CExpr)])
 
@@ -274,6 +281,7 @@ that calls the primitive `print`.
         (bind 'simpledict (CId '$simpledict (GlobalId)))
 
         (bind '$code code-class)
+        (bind '$module code-class)
 
         (bind 'bool bool-class)
         (bind 'set set-class)
@@ -296,6 +304,9 @@ that calls the primitive `print`.
         (bind 'globals globals-lambda)
         (bind 'compile compile-lambda)
         (bind 'exec exec-lambda)
+        
+        ; hack to create module object from globals
+        (bind '__module make-module-lambda)
 
         (bind 'Exception exception)
         (bind 'NameError (make-exception-class 'NameError))
@@ -348,6 +359,7 @@ that calls the primitive `print`.
              "pylib/any.py"
              "pylib/all.py"
              "pylib/dicteq.py"
+             "pylib/import.py"
             ; "pylib/assertraises.py"
             )))
              
