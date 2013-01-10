@@ -660,39 +660,27 @@
                                                                    (glb/nlocal (get-globals/nonlocals ; get globals and nonlocals IdEnv
                                                                                 (PySeq (PyModule-es module-py))
                                                                                 true empty))
-                                                                   (v-module ; get the value, env and store, shouldn't wrap python-lib! but let's do it as it is
+                                                                   (v-module
+                                                                     ; get the value, env and store,
+                                                                     ; FIXME: shouldn't wrap python-lib! it will introduce redundent builtin functions in store!
+                                                                     ; here just let it go.
                                                                     (interp-env (python-lib (desugar module-py)) (list (hash empty))  new-s))
                                                                    (import-names (map (lambda (x) (idpair-id x))
                                                                                       glb/nlocal))
-                                                                   (import-names-Addr (make-hash empty))
-                                                                   )
-                                                              (begin
-                                                                #|(type-case Result v-module
-                                                                  (v*s*e (v s e)
-                                                                         (begin
-                                                                           ;(display "module env:\n")
-                                                                           ;(pretty-print e)
-                                                                           ;(display "origin env:\n")
-                                                                           ;(pretty-print new-e)
-                                                                           ;(display "module store:\n")
-                                                                           ;(pretty-print s)
-                                                                           ;(display "origin store:\n")
-                                                                           ;(pretty-print new-s)
-                                                                           ))
-                                                                  (else (error 'intep "shouldn't happen")))|#
-                                                                (type-case Result v-module
-                                                                  (v*s*e (v s e)
-                                                                         (begin 
-                                                                           (map (lambda (name) ;filter only useful symbols to export, which is already stored in import-names
-                                                                                  (hash-set! import-names-Addr
-                                                                                             name (some-v (hash-ref (last e) name))))
-                                                                                import-names)
-                                                                           (v*s*e (VObject '$module (none) import-names-Addr)
-                                                                                  s new-e)))
-                                                                  (else
-                                                                   (mk-exception 'ImportError "import error" env sto)))
-                                                                ;end begin
-                                                                ))))) 
+                                                                   (import-names-Addr (make-hash empty)))
+                                                              (type-case Result v-module
+                                                                (v*s*e (v s e)
+                                                                       (begin 
+                                                                         (map (lambda (name)
+                                                                             ;filter only useful symbols to export,
+                                                                             ;which is already stored in import-names
+                                                                                (hash-set! import-names-Addr
+                                                                                           name (some-v (hash-ref (last e) name))))
+                                                                              import-names)
+                                                                         (v*s*e (VObject '$module (none) import-names-Addr)
+                                                                                s new-e)))
+                                                                (else
+                                                                 (mk-exception 'ImportError "import error" env sto))))))) 
                                               ])))))]
     [CRaise (expr) 
             (if (some? expr)

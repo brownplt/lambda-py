@@ -221,7 +221,9 @@ that calls the primitive `print`.
 ;    return m
 ;
 ; NOTE: - Module class is defined as '$module', user cannot get access to $module
-;       - exec_to_module is in CBuiltinPrim.
+;       - $exec_to_module is handled in CBuiltinPrim.
+;       - $exec_to_module will return a VObject, in which all the information in imported
+;         file are in object-dict.
 
 (define import-lambda
 (CFunc
