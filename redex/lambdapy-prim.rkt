@@ -138,6 +138,24 @@
    vfalse]
   [(δ "bool-init" (obj-val x (meta-tuple (val_1 val ...)) any) εs Σ)
    ,(if (term (truthy? val_1)) (term vtrue) (term vfalse))]
+  ;; list
+  [(δ "list+" (obj-val x_1 (meta-list (val_1 ...)) any_1) (obj-val x_2 (meta-list (val_2 ...)) any_2) εs Σ)
+   (obj-val list (meta-list (val_1 ... val_2 ...)) ())]
+  [(δ "list-len" (obj-val x (meta-list (val ...)) any) εs Σ)
+   (obj-val int (meta-num ,(length (term (val ...)))) ())]
+  [(δ "list-in" (obj-val x_1 (meta-list (val_1 val ...)) any_1) val_2 εs Σ)
+   vtrue
+   (side-condition (equal? (term val_1) (term val_2)))] ;; interp uses equal?, but is it the correct thing?
+  [(δ "list-in" (obj-val x_1 (meta-list (val_1 val ...)) any_1) val_2 εs Σ)
+   (δ "list-in" (obj-val x_1 (meta-list (val ...)) any_1) val_2 εs Σ)]
+  [(δ "list-in" (obj-val x_1 (meta-list ()) any_1) val_2 εs Σ)
+   vfalse]
+  [(δ "list-getitem" (obj-val x_1 (meta-list (val_1 ...)) any_1) (obj-val x_2 (meta-num number_2) any_2) εs Σ)
+   ,(if (and (exact? (term number_2)) (> (length (term (val_1 ...))) (term number_2)))
+        (list-ref (term (val_1 ...)) (term number_2))
+        (term vnone))]
+  [(δ "list-setitem" (obj-val x_1 (meta-list (val_1 ...)) any_1) (obj-val x_2 (meta-num number_2) any_2) val_3 εs Σ)
+   (obj-val list (meta-list ,(list-replace (term number_2) (term val_3) (term (val_1 ...)))) ())]
   )
 
 (define-metafunction λπ
@@ -157,3 +175,9 @@
   (term (obj-val ,(if (exact? n) (term int) (term float))
                  (meta-num ,n)
                  ())))
+
+(define (list-replace i val l)
+  (cond
+    [(empty? l) (error 'util "list-replace out of range")] ;; TODO: should not raise error here
+    [(= 0 i) (cons val (rest l))]
+    [else (cons (first l) (list-replace (- i 1) val (rest l)))]))
