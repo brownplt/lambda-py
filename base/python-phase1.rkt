@@ -84,9 +84,11 @@
                                                 (LexAssign? (first es))
                                                 (LexUndefined? (LexAssign-value (first es))))
                                                 (let ((replace-scope
-                                                       (if (LexLocalId? (first (LexAssign-targets (first es))))
-                                                           (Locally-scoped)
-                                                           (Globally-scoped))))
+                                                       (cond
+                                                        [(LexLocalId? (first (LexAssign-targets (first es)))) (Locally-scoped)]
+                                                        [(LexGlobalId? (first (LexAssign-targets (first es)))) (Globally-scoped)]
+                                                        [(LexInstanceId? (first (LexAssign-targets (first es)))) (Instance-scoped)]
+                                                        [else (error 'remove-unneeded-assigns "assignment is not to ID type"]))))
                                                   (type-case LexExpr (second es)
                                                     [LexClass (scope name bases body)
                                                               (LexClass replace-scope name bases (remove-unneeded-assigns body))]
