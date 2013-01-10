@@ -210,11 +210,11 @@ that calls the primitive `print`.
 
 ; This function returns the first super-class of the instance.
 ; It uses the __mro__, but it doesn't implement cooperative
-; multiple inheritance, yet.
+; multiple inheritance nor it uses its cls argument, yet.
 (define super-lambda
-  (CFunc (list 'self) (none)
+  (CFunc (list 'cls 'obj) (none)
          (CReturn
-          (CBuiltinPrim '$super (list (CId 'self (LocalId)))))
+          (CBuiltinPrim '$super (list (CId 'obj (LocalId)))))
          false))
 
 ;; type should be a (meta)class...
