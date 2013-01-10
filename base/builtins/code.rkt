@@ -8,7 +8,7 @@
 (define code-class : CExpr
   (CClass
    '$code
-   'object
+   (list 'object)
    (seq-ops (list 
               (def '__str__
                    (CFunc (list 'self) (none)

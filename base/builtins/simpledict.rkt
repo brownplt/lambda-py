@@ -17,7 +17,7 @@
 (define simpledict-class : CExpr
   (CClass
    '$simpledict
-   'object
+   (list 'object)
    (seq-ops (list 
              (def '__init__
                        (CFunc (list 'self) (none)
