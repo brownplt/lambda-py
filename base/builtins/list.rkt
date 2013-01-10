@@ -8,7 +8,7 @@
 (define list-class : CExpr
   (CClass
    'list
-   'object
+   (list 'object)
    (seq-ops (list (def '__add__
                     (CFunc (list 'self 'other) (none)
                            (CReturn (CBuiltinPrim 'list+

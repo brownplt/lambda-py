@@ -8,7 +8,7 @@
 (define none-class
   (CClass
     'none
-    'object
+    (list 'object)
     (seq-ops (list 
                (def '__str__
                     (CFunc (list 'self) (none)

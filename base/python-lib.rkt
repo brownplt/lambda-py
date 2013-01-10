@@ -99,14 +99,14 @@ that calls the primitive `print`.
     false))
 
 (define fail-lambda
-  (CFunc (list 'arg) (none)
-    (CError (CId 'arg (LocalId)))
+  (CFunc (list) (none)
+    (CError (CStr "Assert failed"))
     false))
 
 (define exception
   (CClass
     'Exception
-    'object
+    (list 'object)
     (seq-ops (list 
                (def '__init__
                     (CFunc (list 'self) (some 'args)
@@ -132,7 +132,7 @@ that calls the primitive `print`.
 (define (make-exception-class [name : symbol]) : CExpr
   (CClass
     name
-    'Exception
+    (list 'Exception)
     (CNone)))
 
 (define len-lambda
@@ -210,15 +210,20 @@ that calls the primitive `print`.
                           (CId 'type (LocalId)))))
     false))
 
-; Returns the $class of self's $class.
-; self's $class is the class of the given instance.
-; the $class of that is its antecedent.
-; So this function returns the super-class of the instance.
+; This function returns the first super-class of the instance.
+; It uses the __mro__, but it doesn't implement cooperative
+; multiple inheritance, yet.
 (define super-lambda
   (CFunc (list 'self) (none)
          (CReturn
-             (CBuiltinPrim '$super (list
-                 (CBuiltinPrim '$super (list (CId 'self (LocalId)))))))
+          (CBuiltinPrim '$super (list (CId 'self (LocalId)))))
+         false))
+
+;; type should be a (meta)class...
+(define type-lambda
+  (CFunc (list 'self) (none)
+         (CReturn
+          (CBuiltinPrim '$class (list (CId 'self (LocalId)))))
          false))
 
 (define globals-lambda
@@ -286,6 +291,7 @@ that calls the primitive `print`.
         (bind 'callable callable-lambda)
 
         (bind 'super super-lambda)
+        (bind 'type type-lambda)
 
         (bind 'globals globals-lambda)
         (bind 'compile compile-lambda)

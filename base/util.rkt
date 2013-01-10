@@ -14,7 +14,14 @@
  (typed-in racket/set (set->list : (set? -> (listof 'a))))
  (typed-in racket/set (set : ( -> set?)))
  (typed-in racket/set (set-add : (set? 'a -> set?)))
+ 
  )
+(require [typed-in racket (format : (string 'a -> string))])
+(require [typed-in racket (flatten : ((listof (listof 'a) ) -> (listof 'a)))])
+(require [typed-in racket (remove-duplicates : ((listof 'a) -> (listof 'a)))])
+
+
+(print-only-errors #t)
 
 ; a file for utility functions that aren't specific to python stuff
 
@@ -41,6 +48,37 @@
           (hash-set! h "b" 2)
           (hash-set! h "c" 3) 
           h)))
+
+(define (list-subtract [big : (listof 'a) ] [small : (listof 'a)] ) : (listof 'a)
+  (local
+   [(define (list-remove [l : (listof 'a) ] [e : 'a]) : (listof 'a)
+      (local [(define (filter-expression [this-elem : 'a] ) : boolean (not (equal? e this-elem)))]
+      (filter filter-expression l)))]
+   (cond
+    [(empty? big) empty]
+    [(empty? small) big]
+    [else (list-subtract (list-remove big (first small)) (rest small))])))
+
+(test (list-subtract (list 'a 'b 'c 'd 'e) (list 'c 'e)) (list 'a 'b 'd))
+
+(define (contains-char? [str : string] [c : char] ) : boolean
+  (not (empty? (filter (lambda (x) (char=? x c)) (string->list str)))))
+
+(define (chr [str : string] ) : char
+  (let ((strlist (string->list str)))
+    (if (and (not (empty? strlist)) (empty? (rest strlist)))
+        (first strlist)
+        (error 'python-desugar:chr (format "cannot convert ~a into a single character" str)))))
+
+(test/exn (chr "hi") "cannot convert hi into a single character")
+(test/exn (chr "") "cannot convert  into a single character")
+
+(test (contains-char? "hello" (chr "l") ) true)
+(test (contains-char? "jasfdjoiewfa" (chr "-") ) false)
+(test (contains-char? "custom-identifier" (chr "-")) true)
+(test (contains-char? "customidentifier" (chr "-")) false)
+
+
 
 (define (list-replace [i : number] [val : 'a] [l : (listof 'a)]) : (listof 'a)
   (cond
@@ -179,15 +217,20 @@
                (none))))]))
 
 ;; returns true if the given o is an object of the given class or somehow a
-;; subclass of that one 
+;; subclass of that one. Modified to look at __mro__ for multiple inheritance. 
 (define (object-is? [o : CVal] [c : symbol] [env : Env] [s : Store]) : boolean
-  (cond
-    [(symbol=? (VObject-antecedent o) 'no-super) false]
-    [(symbol=? (VObject-antecedent o) c) true]
-    [else (object-is?
-            (fetch (some-v (lookup (VObject-antecedent o) env)) s)
-                     c env s)]))
+  (let ([obj-cls (fetch (some-v (lookup (VObject-antecedent o) env)) s)]
+        [cls (fetch (some-v (lookup c env)) s)])
+    (member cls (get-mro obj-cls s))))
 
+
+;; get-mro: fetch __mro__ field as a list of classes
+;; termporarily prepended with cls to avoid self reference in __mro__
+(define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
+  (type-case (optionof Address) (hash-ref (VObject-dict cls) '__mro__)
+    [some (w) (cons cls (MetaTuple-v (some-v (VObject-mval (fetch w sto)))))]
+    [none () (error 'get-mro (string-append "class without __mro__ field " 
+                                            (pretty cls)))]))
 (define (is? [v1 : CVal]
              [v2 : CVal]) : boolean
   (begin
@@ -307,3 +350,7 @@
                  (set-add st elt))
          (set)
          vals))
+
+;; any: any of a list of boolean (used in the c3 mro algorithm)
+(define (any [bs : (listof boolean)]) : boolean
+  (foldr (lambda (e1 e2) (or e1 e2)) #f bs))
