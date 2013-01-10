@@ -808,13 +808,7 @@
          ;(display e) (display "\n\n")
   (type-case CVal c
     [VObject (antecedent mval d)
-             (let* ([find-loc (VObject-dict c)
-                              #|(if (and (some? mval) (MetaModule? (some-v mval)))
-                              (MetaModule-mbr (some-v mval))
-                              (VObject-dict c)
-                                  )|#
-                              ]
-                    [w (hash-ref find-loc n)])
+             (let* ([w (hash-ref (VObject-dict c) n)])
                (begin ;(display "loc: ") (display w) (display "\n\n")
                  (type-case (optionof Address) w
                    [some (w) (v*s*e (fetch w s) s e)]

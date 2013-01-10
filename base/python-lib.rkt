@@ -272,7 +272,7 @@ that calls the primitive `print`.
    #f))
 
 ;; invoke the internal exec-module primitive
-(define exec-lambda
+(define exec-module-lambda
   (CFunc (list 'code) (none)
          (CReturn
           (CBuiltinPrim 'exec-module (list (CId 'code (LocalId)))))
@@ -324,7 +324,7 @@ that calls the primitive `print`.
         (bind 'isinstance isinstance-lambda)
         (bind 'print print-lambda)
         (bind '__import__ import-lambda)
-        (bind '$exec_to_module exec-lambda)
+        (bind '$exec_to_module exec-module-lambda)
 
         (bind 'callable callable-lambda)
 

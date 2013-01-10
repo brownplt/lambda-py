@@ -1,3 +1,4 @@
 a_module = __import__("a")
-f_object = a_module.F()
-print(f_object.__dict__)
+f_class = a_module.F
+f_object = f_class('ss')
+print(f_object.xxx)

@@ -67,7 +67,6 @@ ParselTongue.
              [MetaList (v : (listof CVal))]
              [MetaTuple (v : (listof CVal))]
              [MetaDict (contents : (hashof CVal CVal))]
-             [MetaModule (mbr : (hashof symbol Address))]
              [MetaClass (c : symbol)]
              [MetaSet (elts : Set)]
              [MetaNone]
