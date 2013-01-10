@@ -1,0 +1,27 @@
+Introduction
+Our idea is to cps the function with a yield expression in its body, we will
+first tranform the original function to a function that create a generator object
+that takes a function as argument, the function will be a wrapper function which 
+call our cps function. The original function body is the we need to cps.
+
+Modifications to base implementation
+
+-  New syntax that you add to the core:
+   CYield (value : CExpr) its a marker that tell us where the yield is.
+
+-  New surface syntax and changes in desugaring
+   PyYield (value : PyExpr)
+   When desugaring PyYield will have a global variable to mark wether we encounter
+   a yield expression, and when desugar function related expressions, will check
+   that variable and see if we need to treat it as a generator function and transform
+   and cps the generator function body
+   The function after tranform will create a generator object which its __next__ function
+   will call our cps function
+
+-  Functions/helpers that you add
+   1. We add a python-cps.rkt to take care all local cps transform process.
+   2. Pylib/generator.py to provide a iterator like class written in Python
+
+-  Status (2013-01-08):
+   We are still working cpsing all the core language. Facing some problem interacting 
+   with scope

@@ -1,16 +1,43 @@
 #lang plai-typed
 
-(require "python-core-syntax.rkt")
+(require "python-core-syntax.rkt"
+         (typed-in racket/base (append : ((listof 'a) (listof 'a) -> (listof'a)))))
 
 (define (cps-genfunc [expr : CExpr]) : CExpr
   (type-case CExpr expr
     [CFunc (args sargs body method?)
-           ;; TODO: cps generator function body
-           ;; temperary cps body for now
-           (cps body)]
-    [else (CStr "none")]
-           ))
+           (CFunc args sargs
+                  (make-seq
+                   (list (make-seq (map (lambda (e) (CAssign (CId e (LocalId)) (CUndefined))) 
+                                        (list '^genobj-temp '^wrapper '^cps-func)))
+                         ;; cps generator function body
+                         (make-seq (make-genfunc-body expr))))
+                  method?)]
+    
+    [else (CId 'TypeError (GlobalId))]))
 
+(define (make-genfunc-body [genfn : CExpr]) : (listof CExpr)
+  (list
+   ;; this is where we cps our genfunc body
+   ;; TODO: change identity -> cps
+   (CAssign (CId '^cps-func (LocalId)) 
+            (CFunc (CFunc-args genfn) (CFunc-varargs genfn) (identity (CFunc-body genfn)) false))
+   (CAssign (CId '^wrapper (LocalId)) 
+            (CFunc (list 'self) (none) 
+                   (CReturn 
+                    (CApp (CId '^cps-func (LocalId)) 
+                          (map (lambda (e) (CId e (LocalId))) (CFunc-args genfn)) (none))) 
+                   false))
+   (CAssign (CId '^genobj-temp (LocalId))
+            (CApp (CId 'Generator (LocalId)) (list (CId '^wrapper (LocalId))) (none)))
+   (CReturn (CId '^genobj-temp (LocalId)))))
+
+(define (make-seq [exprs : (listof CExpr)]) : CExpr
+  (foldl (lambda (e1 so-far) (CSeq so-far e1))
+           (first exprs)
+           (rest exprs)))
+
+;; CPS Transformation
 (define (cps [expr : CExpr]) : CExpr
   (type-case CExpr expr
     [CSeq (e1 e2) 
