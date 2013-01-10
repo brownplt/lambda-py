@@ -3,6 +3,7 @@
 (define-type LocalOrGlobal
   [Locally-scoped]
   [Globally-scoped]
+  [Instance-scoped]
   [Unknown-scope])
 
 (define-type LexExpr
