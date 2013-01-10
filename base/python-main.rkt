@@ -6,6 +6,7 @@
          "parse-python.rkt"
          "get-structured-python.rkt"
          "python-interp.rkt"
+         "python-phase1.rkt"
          "python-desugar.rkt"
          "python-lib.rkt"
          "run-tests.rkt"
@@ -25,6 +26,12 @@
 (define (get-surface-syntax port)
   (get-structured-python
    (parse-python/port port (get-pypath))))
+
+(define (get-lexical-syntax port)
+  (new-scope-phase
+   (get-structured-python
+    (parse-python/port port (get-pypath)))))
+
 
 (define (get-core-syntax port)
   (desugar
@@ -46,6 +53,9 @@
   
   ("--get-surface-syntax" "Get surface syntax python"
    (pretty-print (get-surface-syntax (current-input-port))))
+
+  ("--get-lexical-syntax" "Get surface syntax python"
+   (pretty-write (get-lexical-syntax (current-input-port))))
   
   ("--get-core-syntax" "Get desugared python"
    (pretty-print (get-core-syntax (current-input-port))))

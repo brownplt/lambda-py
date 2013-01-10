@@ -18,7 +18,7 @@
 (define set-class : CExpr
   (CClass
    'set
-   'object
+   (list 'object)
    (seq-ops (list 
               (def '__len__
                     (CFunc (list 'self) (none)

@@ -17,7 +17,7 @@
 (define dict-class : CExpr
   (CClass
    '$dict
-   'object
+   (list 'object)
    (seq-ops (list 
               (def '__len__
                     (CFunc (list 'self) (none)

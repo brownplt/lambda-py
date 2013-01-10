@@ -25,10 +25,10 @@ try:
 except TypeError:
     pass
 else:
-    ___assertFail() # expected MRO order disagreement (F)
+    ___fail() # expected MRO order disagreement (F)
 try:
     class G(E, D): pass
 except TypeError:
     pass
 else:
-    ___assertFail() # expected MRO order disagreement (F)
+    ___fail() # expected MRO order disagreement (F)

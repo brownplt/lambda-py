@@ -32,13 +32,3 @@ bundle (http://www.python.org/ftp/python/3.2.3/Python-3.2.3.tgz).
 
 The use of unitest was replaced by the facilities included in py-prelude.py in
 order to be able to work with the project's test framework.
-
-Useful references:
-    A gentle introduction to Python Method Resolution Order (mro),
-    written by Michele Simionato can be found at
-    http://www.python.org/download/releases/2.3/mro/
-
-    The linearization algorithm is from "A Monotonic Superclass Linearization
-    for Dylan" by Barret et.al. It can be found at
-    http://192.220.96.201/dylan/linearization-oopsla96.html
-

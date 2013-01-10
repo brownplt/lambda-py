@@ -1,2 +1,5 @@
 *~
 *.swp
+*.bak
+base/compiled/
+base/builtins/compiled/
