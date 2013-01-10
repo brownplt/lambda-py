@@ -374,7 +374,7 @@
 ;; interp-env : CExpr * Env * Store -> Result
 (define (interp-env [expr : CExpr] [env : Env] [sto : Store]) : Result
   (type-case CExpr expr
-    [CModule (prelude body)
+    [CModule (names prelude body)
              (local [(define prelude-r (interp-env prelude env sto))]
                 (type-case Result prelude-r
                     [v*s*e (v s e) (interp-env body e s)]

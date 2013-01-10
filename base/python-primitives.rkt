@@ -1,6 +1,7 @@
 #lang plai-typed
 
 (require "python-core-syntax.rkt"
+         "python-modules.rkt"
          "util.rkt"
          "builtins/none.rkt"
          "builtins/str.rkt"
@@ -8,6 +9,7 @@
          "builtins/tuple.rkt"
          "builtins/dict.rkt"
          "builtins/simpledict.rkt"
+         "builtins/code.rkt"
          "builtins/set.rkt"
          "builtins/num.rkt"
          "builtins/object.rkt"
@@ -215,6 +217,10 @@ primitives here.
     ['simpledict-get (simpledict-get args env sto)]
     ['simpledict-getitem (simpledict-getitem args env sto)]
 
+    ;code
+    ['code-str (code-str args env sto)]
+    ['code-names (code-names args env sto)]
+
     ;set
     ['set-set (set-set args env sto)]
     ['set-len (set-len args env sto)]
@@ -289,4 +295,6 @@ primitives here.
     ['globals (some (VObject '$simpledict
                              (some (MetaSimpleDict (last env)))
                              (make-hash empty)))]
+
+    ['compile (compile args env sto)]
 ))

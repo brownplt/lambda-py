@@ -7,6 +7,7 @@
          "builtins/tuple.rkt"
          "builtins/dict.rkt"
          "builtins/simpledict.rkt"
+         "builtins/code.rkt"
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/set.rkt"
@@ -226,6 +227,14 @@ that calls the primitive `print`.
           (CBuiltinPrim 'globals (list)))
          false))
 
+(define compile-lambda
+  (CFunc (list 'source 'filename 'mode) (none)
+         (CReturn
+          (CBuiltinPrim 'compile (list (CId 'source (LocalId))
+                                       (CId 'filename (LocalId))
+                                       (CId 'mode (LocalId)))))
+         false))
+
 (define-type LibBinding
   [bind (left : symbol) (right : CExpr)])
 
@@ -251,6 +260,8 @@ that calls the primitive `print`.
         (bind '$simpledict simpledict-class)
         (bind 'simpledict (CId '$simpledict (GlobalId)))
 
+        (bind '$code code-class)
+
         (bind 'bool bool-class)
         (bind 'set set-class)
         (bind 'file file-class)
@@ -269,6 +280,8 @@ that calls the primitive `print`.
         (bind 'super super-lambda)
 
         (bind 'globals globals-lambda)
+
+        (bind 'compile compile-lambda)
 
         (bind 'Exception exception)
         (bind 'NameError (make-exception-class 'NameError))

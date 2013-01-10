@@ -79,12 +79,16 @@
                     empty)]
    [PyAssign (targets v) (begin
                            ;(display targets) (display "\n")  (display v) (display "\n\n")
-                           (if (and (not global?) (not (PySubscript? (first targets))))
+                           
+                           ; XXX-Anand: This looks suspicious to me. 
+                           ; TODO: verify this
+                           ;(if (and (not global?) (not (PySubscript? (first targets))))
                            (foldl (lambda(t so-far) (append (get-names t global? env)
                                                             so-far))
                                   empty
                                   targets)
-                           empty))]
+                           ;empty)
+                           )]
    [PyExcept (t body) (get-names body global? env)]
    [PyTryExceptElseFinally (t e o f)
                            (append (get-names t global? env)
@@ -219,6 +223,7 @@
           (define body (rec-desugar (PySeq es) global? (DResult-env prelude) false))]
     (DResult
       (CModule
+        names
         (DResult-expr prelude)
         (DResult-expr body))
       (DResult-env body))))

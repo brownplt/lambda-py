@@ -237,6 +237,7 @@
                                     (hash->list contents))
                                ", "))
               "}")]
+    [MetaCode (expr filename names) "<code object>"]
     [MetaNone () "None"]
     [MetaSet (elts)
               (string-append
