@@ -686,7 +686,17 @@
 
     [CExcept (types name body) (interp-env body env sto)]
     
-    [CBreak () (Break sto env)]))
+    [CBreak () (Break sto env)]
+
+    [CExec (code globals locals)
+           (let-result (interp-env code env sto) (code-value env1 sto1)
+                       (let-result (interp-env globals env1 sto1) (globals-value env2 sto2)
+                                   (let-result (interp-env locals env2 sto2) (locals-value env3 sto3)
+                                               (let ([xcode (MetaCode-e (some-v (VObject-mval code-value)))]
+                                                     [xglobals (MetaSimpleDict-contents (some-v (VObject-mval globals-value)))]
+                                                     [xlocals (MetaSimpleDict-contents (some-v (VObject-mval locals-value)))])
+                                                 (interp-env xcode (list xlocals xglobals) sto)))))]
+    ))
 
 
     ;[else (error 'interp "haven't implemented a case yet")]))
@@ -876,6 +886,14 @@
 (define (break-exception [env : Env] [sto : Store]) : Result
   (mk-exception 'SyntaxError "'break' outside loop" env sto))
 
+(define-syntax (let-result x)
+  (syntax-case x ()
+    [(let-result result (value env2 store2) body)
+     #'(type-case Result result
+         [v*s*e (value store2 env2) body]
+         [Return (varg2 sarg2 envarg2) (return-exception envarg2 sarg2)]
+         [Break (sarg2 envarg2) (break-exception envarg2 sarg2)]
+         [Exception (varg2 sarg2 envarg2) (Exception varg2 sarg2 envarg2)])]))
 
 (define (interp expr)
   (type-case Result (interp-env expr (list (hash (list))) (hash (list)))

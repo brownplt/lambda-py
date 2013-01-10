@@ -235,6 +235,14 @@ that calls the primitive `print`.
                                        (CId 'mode (LocalId)))))
          false))
 
+(define exec-lambda
+  (CFunc (list 'code 'globals 'locals) (none)
+         (CReturn
+          (CExec (CId 'code (LocalId))
+                 (CId 'globals (LocalId))
+                 (CId 'locals (LocalId))))
+         false))
+
 (define-type LibBinding
   [bind (left : symbol) (right : CExpr)])
 
@@ -280,8 +288,8 @@ that calls the primitive `print`.
         (bind 'super super-lambda)
 
         (bind 'globals globals-lambda)
-
         (bind 'compile compile-lambda)
+        (bind 'exec exec-lambda)
 
         (bind 'Exception exception)
         (bind 'NameError (make-exception-class 'NameError))

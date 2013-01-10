@@ -42,6 +42,7 @@ ParselTongue.
   [CExcept (types : (listof CExpr)) (name : (optionof symbol)) (body : CExpr)]
   [CUndefined]
   [CBreak]
+  [CExec (code : CExpr) (globals : CExpr) (locals : CExpr)]
   [CModule (names : (listof symbol)) (prelude : CExpr) (body : CExpr)])
 
 (define-type IdType
