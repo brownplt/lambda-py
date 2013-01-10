@@ -31,7 +31,7 @@
                             ; No. Return an empty tuple.
                             (CTuple empty)
                             ; Yes. Call __tuple__ on the first argument.
-                            (CLet 'first-arg
+                            (CLet 'first-arg (LocalId)
                                   (CApp (CGetField (CId 'args (LocalId)) '__getitem__)
                                         (list (CId 'args (LocalId))
                                               (CObject 'num (some (MetaNum 0))))
@@ -98,7 +98,7 @@
                   ;;; tuple comparisons - taken verbatim from list comparisons ;;;
                   (def '__cmp__
                     (CFunc (list 'self 'other) (none)
-                           (CLet 'listcmp (CNone)
+                           (CLet 'listcmp (LocalId) (CNone)
                              (seq-ops (list
                                (def 'listcmp
                                     (CFunc (list 'self 'other 'idx) (none)

@@ -221,7 +221,7 @@ primitives here.
             (define my-antecedent (VObject-antecedent me))
             (define antecedent-class (fetch (some-v (lookup my-antecedent env)) sto))
             (define am-class (and (some? (VObject-mval me))
-                             (MetaClass? (some-v (VObject-mval me)))))]
+                                  (MetaClass? (some-v (VObject-mval me)))))]
        (some
          (if am-class
              me

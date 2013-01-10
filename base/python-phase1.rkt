@@ -88,7 +88,7 @@
                                                         [(LexLocalId? (first (LexAssign-targets (first es)))) (Locally-scoped)]
                                                         [(LexGlobalId? (first (LexAssign-targets (first es)))) (Globally-scoped)]
                                                         [(LexInstanceId? (first (LexAssign-targets (first es)))) (Instance-scoped)]
-                                                        [else (error 'remove-unneeded-assigns "assignment is not to ID type"]))))
+                                                        [else (error 'remove-unneeded-assigns "assignment is not to ID type")])))
                                                   (type-case LexExpr (second es)
                                                     [LexClass (scope name bases body)
                                                               (LexClass replace-scope name bases (remove-unneeded-assigns body))]

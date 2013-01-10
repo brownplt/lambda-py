@@ -83,10 +83,10 @@ ParselTongue.
         (unbox n)))))
 
 (define-type Result
-  [v*s*e (v : CVal) (s : Store) (e : Env)]
-  [Return (v : CVal) (s : Store) (e : Env)]
-  [Exception (v : CVal) (s : Store) (e : Env)]
-  [Break (s : Store) (e : Env)])
+  [v*s (v : CVal) (s : Store)]
+  [Return (v : CVal) (s : Store)]
+  [Exception (v : CVal) (s : Store)]
+  [Break (s : Store)])
 
 (define-type-alias object-dict (hashof symbol Address))
 

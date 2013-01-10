@@ -22,9 +22,8 @@
   (seq-ops (list 
                   (def '__init__
                        (CFunc (list 'self 'other) (none) 
-                              (CAssign
-                                (CId 'self (LocalId))
-                                (CApp (CGetField (CId 'other (LocalId)) '__str__)
+                              (CAssign (CId 'self (LocalId))
+                                       (CApp (CGetField (CId 'other (LocalId)) '__str__)
                                              (list (CId 'other (LocalId)))
                                              (none)))
                               true))

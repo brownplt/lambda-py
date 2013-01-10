@@ -253,6 +253,8 @@
           (let ([result
                   (if (some? as-name)
                     (interp-let (some-v as-name)
+                                ;; This could potentially be in global scope. Does it matter?
+                                (LocalId)
                                 (Exception (Exception-v exn) hsto)
                                 (CExcept-body (some-v match?))
                                 env)
@@ -286,7 +288,8 @@
                              result))])))
         (Exception (Exception-v exn) hsto)))))
 
-(define (interp-let [name : symbol] [value : Result] [body : CExpr] [env : Env]) : Result
+(define (interp-let [name : symbol] [type : IdType] [value : Result]
+                    [body : CExpr] [env : Env]) : Result
   (let ([loc (new-loc)])
     (type-case Result value
       [v*s (vb sb) (interp-env body
@@ -486,7 +489,7 @@
 
     [CObject (c mval) (v*s (VObject c mval (hash empty)) sto)]
 
-    [CLet (x bind body) (interp-let x (interp-env bind env sto) body env)]
+    [CLet (x type bind body) (interp-let x type (interp-env bind env sto) body env)]
 
     [CApp (fun arges sarg)
           (interp-capp fun arges

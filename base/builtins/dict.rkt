@@ -57,15 +57,15 @@
                                               (CId 'default (LocalId)))))
                           true))
               (def '__iter__
-                   (let ([keys-id (CId (new-id) (LocalId))])
+                   (local [(define keys-id (new-id))]
                      (CFunc (list 'self) (none)
-                        (CSeq (CAssign keys-id 
-                                       (CApp (CGetField (CId 'self (LocalId)) 'keys) 
-                                             (list (CId 'self (LocalId)))
-                                             (none)))
-                              (CReturn (CApp (CGetField keys-id '__iter__)
-                                    (list keys-id)
-                                    (none))))
+                        (CLet keys-id (LocalId)
+                              (CApp (CGetField (CId 'self (LocalId)) 'keys) 
+                                    (list (CId 'self (LocalId)))
+                                    (none))
+                              (CReturn (CApp (CGetField (CId keys-id (LocalId)) '__iter__)
+                                             (list (CId keys-id (LocalId)))
+                                             (none))))
                         true)))
               (def '__in__
                 (CFunc (list 'self 'other) (none)

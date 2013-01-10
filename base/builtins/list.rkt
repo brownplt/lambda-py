@@ -27,9 +27,8 @@
                            true))
                   (def '__init__
                        (CFunc (list 'self 'other) (none) 
-                              (CAssign
-                                (CId 'self (LocalId))
-                                (CApp (CGetField (CId 'other (LocalId)) '__list__)
+                              (CAssign (CId 'self (LocalId))
+                                       (CApp (CGetField (CId 'other (LocalId)) '__list__)
                                              (list (CId 'other (LocalId)))
                                              (none)))
                               true))
@@ -86,17 +85,16 @@
                            true))
                   (def '__setitem__
                     (CFunc (list 'self 'idx 'val) (none)
-                           (CAssign
-                             (CId 'self (LocalId))
-                             (CBuiltinPrim 'list-setitem
+                           (CAssign (CId 'self (LocalId))
+                                    (CBuiltinPrim 'list-setitem
                                                   (list
-                                                   (CId 'self (LocalId))
-                                                   (CId 'idx (LocalId))
-                                                   (CId 'val (LocalId)))))
+                                                    (CId 'self (LocalId))
+                                                    (CId 'idx (LocalId))
+                                                    (CId 'val (LocalId)))))
                            true))
                   (def '__cmp__
                     (CFunc (list 'self 'other) (none)
-                           (CLet 'listcmp (CNone)
+                           (CLet 'listcmp (LocalId) (CNone)
                              (seq-ops (list
                                (def 'listcmp
                                     (CFunc (list 'self 'other 'idx) (none)

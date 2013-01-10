@@ -17,6 +17,7 @@
                    (parse-python/port : ('a string -> 'b)))
          (typed-in racket/base (open-input-file : ('a -> 'b)))
          "python-syntax.rkt"
+         "python-lexical-syntax.rkt"
          "python-desugar.rkt"
          (typed-in racket/base (append : ((listof 'a) (listof 'a) (listof 'a) (listof 'a) (listof 'a) -> (listof 'a)))))
 
@@ -83,14 +84,14 @@ that calls the primitive `print`.
 
 (define assert-in-lambda
   (CFunc (list 'check1 'check2) (none)
-    (CIf (desugar (PyBinOp (PyId 'check1 'DUMMY) 'In (PyId 'check2 'DUMMY)))
+    (CIf (desugar (LexBinOp (LexLocalId 'check1 'DUMMY) 'In (LexLocalId 'check2 'DUMMY)))
          (CNone)
          (CError (CStr "Assert failed")))
     false))
 
 (define assert-notin-lambda
   (CFunc (list 'check1 'check2) (none)
-    (CIf (desugar (PyBinOp (PyId 'check1 'DUMMY) 'In (PyId 'check2 'DUMMY)))
+    (CIf (desugar (LexBinOp (LexLocalId 'check1 'DUMMY) 'In (LexLocalId 'check2 'DUMMY)))
          (CError (CStr "Assert failed"))
          (CNone))
     false))

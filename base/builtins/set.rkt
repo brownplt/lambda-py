@@ -45,7 +45,7 @@
                             ; No. Return an empty set
                             (CSet empty)
                             ; Yes. Call __set__ on the first argument.
-                            (CLet 'first-arg
+                            (CLet 'first-arg (LocalId)
                                   (CApp (CGetField (CId 'args (LocalId)) '__getitem__)
                                         (list (CId 'args (LocalId))
                                               (CObject 'num (some (MetaNum 0))))
