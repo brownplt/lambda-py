@@ -247,11 +247,4 @@ primitives here.
                ; (display env) (display "\n\n")
                 (some (make-under-dict (first env) sto)))]
 
-    ['exec-to-dict ;remove this! implement in upper level
-     (let ((arg (first args)))
-       (begin (pretty-print arg) ;debug
-              (display "\n")
-              (pretty-print env)
-              (some (make-under-dict (hash empty) sto))))]
-
 ))

@@ -217,11 +217,11 @@ that calls the primitive `print`.
 ;    f = open(name+'.py', 'r')
 ;    code = f.read()
 ;    f.close()
-;    m = $exec_to_dict(code)
+;    m = $exec_to_module(code)
 ;    return m
 ;
 ; NOTE: - Module class is defined as '$module', user cannot get access to $module
-;       - exec_to_dict should be in CBuiltinPrim.
+;       - exec_to_module is in CBuiltinPrim.
 
 (define import-lambda
 (CFunc
@@ -265,17 +265,17 @@ that calls the primitive `print`.
       (CAssign
        (CId 'm (LocalId))
        (CApp
-        (CId '$exec_to_dict (GlobalId))
+        (CId '$exec_to_module (GlobalId))
         (list (CId 'code (LocalId)))
         (none))))
      (CReturn (CId 'm (LocalId)))))
    #f))
 
-;; invoke the internal exec-to-dict primitive
-(define exec_to_dict-lambda
+;; invoke the internal exec-module primitive
+(define exec-lambda
   (CFunc (list 'code) (none)
          (CReturn
-          (CBuiltinPrim 'exec-to-dict (list (CId 'code (LocalId)))))
+          (CBuiltinPrim 'exec-module (list (CId 'code (LocalId)))))
          false))
 
 ; Returns the $class of self's $class.
@@ -324,7 +324,7 @@ that calls the primitive `print`.
         (bind 'isinstance isinstance-lambda)
         (bind 'print print-lambda)
         (bind '__import__ import-lambda)
-        (bind '$exec_to_dict exec_to_dict-lambda)
+        (bind '$exec_to_module exec-lambda)
 
         (bind 'callable callable-lambda)
 
