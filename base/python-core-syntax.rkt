@@ -23,7 +23,7 @@ ParselTongue.
   [CError (e1 : CExpr)]
   [CIf (test : CExpr) (then : CExpr) (else : CExpr)]
   [CId (x : symbol) (type : IdType)]
-  [CLet (x : symbol) (bind : CExpr) (body : CExpr)]
+  [CLet (x : symbol) (type : IdType) (bind : CExpr) (body : CExpr)]
   [CApp (fun : CExpr) (args : (listof CExpr)) (stararg : (optionof CExpr))]
   [CFunc (args : (listof symbol)) (varargs : (optionof symbol)) (body : CExpr)
          (method : boolean)]
