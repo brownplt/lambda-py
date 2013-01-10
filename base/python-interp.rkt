@@ -72,7 +72,7 @@
                                init-e)))))))
 
 (define (replace-global-scope? [ext : Env] [curr : Env]) : Env
-  (if (and (cons? curr)
+  (if (and (cons? curr) false ; disabled replace-global-scope by adding false here
            (cons? ext)
            (> (hash-count (last curr)) (hash-count (last ext))))
       (append (drop-right ext 1) (list (last curr)))
