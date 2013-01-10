@@ -510,6 +510,8 @@
                        [Exception (vi si envi) (Exception vi si envi)])]
 
     [CId (x t)
+         (begin ;(if (equal? x '^RESUMER) (display (fetch (some-v (lookup x env)) sto)) (display "e"))
+               ;(if (equal? x '^RET) (display (some-v (lookup x env))) (display "s"))
          (let ([result 
          (type-case IdType t
            [LocalId () 
@@ -565,7 +567,7 @@
                    ;(display "id: ") (display x)
                    ;(display ", val: ") (display (v*s*e-v result)) (display "\n")
                    result)
-                 result))]
+                 result)))]
 
     [CObject (c mval) (v*s*e (VObject c mval (hash empty))
                              sto
@@ -931,18 +933,25 @@
       [Exception (varg1 sarg1 envarg1) (Exception varg1 sarg1 envarg1)]))
 
 ;; test 
-
+#|
 (interp (run-cps (CObject 'num (some (MetaNum 5))))) 
 (interp (run-cps (CSeq (CObject 'num (some (MetaNum 3)))
                        (CObject 'num (some (MetaNum 1210))))))
 (interp (run-cps (CBuiltinPrim 'num+ (list (CObject 'num (some (MetaNum 3))) (CObject 'num (some (MetaNum 4)))))))
+
 (interp (run-cps
-         (CLet 'x (CObject 'int (some (MetaNum 1))) (CId 'x (GlobalId)))))
+         (CLet 'x (CObject 'int (some (MetaNum 5))) (CId 'x (GlobalId)))))
+
+;; Change 'int to 'num then the test would pass
+(interp (run-cps
+         (CLet 'x (CObject 'num (some (MetaNum 5))) (CBuiltinPrim 'num+ (list (CId 'x (GlobalId)) (CObject 'num (some (MetaNum 4))))))))
+
+
 (interp (run-cps (CApp (CFunc (list 'x) (none) (CReturn 
                                                 (CBuiltinPrim 'num+ (list (CId 'x (LocalId)) (CObject 'num (some (MetaNum 4)))))) false)
                        (list (CObject 'num (some (MetaNum 5)))) (none))))
-(interp (run-cps (CSeq
 
+(interp (run-cps (CSeq
                   (CAssign
                    (CId 'x (GlobalId))
                    (CObject 'int (some (MetaNum 1000))))
@@ -960,9 +969,10 @@
           (CId 'x (GlobalId)))))
 
 ;; tset let/cc ; 
+|#
 
 ;; early return, should display 3
-(interp (run-cps 
+#|(interp (run-cps 
          (CSeq
           (CAssign 
            (CId 'gen (GlobalId))
@@ -979,6 +989,58 @@
                      (CId 'y (GlobalId))
                      (CObject 'num (some (MetaNum 4))))
                     (CReturn (CId 'y (GlobalId))))) false))
-           (CApp (CId 'gen (GlobalId)) (list (CObject 'num (some (MetaNum 3)))) (none)))))
+           (CApp (CId 'gen (GlobalId)) (list (CObject 'num (some (MetaNum 3)))) (none)))))|#
 
+(interp (run-cps 
+         (CSeq
+          (CAssign 
+           (CId 'gen (GlobalId))
+           (CFunc (list 'z) (none) 
+                  (CSeq 
+                   (CSeq
+                    (CAssign 
+                     (CId 'x (GlobalId))
+                     (CObject 'int (some (MetaNum 3))))
+                    (CYield 
+                     (CId 'x (GlobalId))))
+                   (CSeq
+                    (CAssign
+                     (CId 'y (GlobalId))
+                     (CObject 'int (some (MetaNum 4))))
+                    (CYield 
+                     (CId 'y (GlobalId))))) false))
+          (CSeq 
+           (CApp (CId 'gen (GlobalId)) (list (CObject 'int (some (MetaNum 3)))) (none))
+           (CApp (CId 'gen (GlobalId)) (list (CObject 'int (some (MetaNum 3)))) (none))
+           ))))
+
+#|
+(interp (run-cps 
+         (CSeq
+          (CAssign 
+           (CId 'gen (GlobalId))
+           (CFunc (list 'z) (none) 
+                  (CSeq 
+                   (CSeq
+                    (CAssign 
+                     (CId 'x (LocalId))
+                     (CObject 'int (some (MetaNum 3))))
+                    (CYield 
+                     (CId 'x (LocalId))))
+                   (CSeq
+                    (CAssign
+                     (CId 'y (LocalId))
+                     (CObject 'int (some (MetaNum 4))))
+                    (CYield (CId 'y (LocalId))))) false))
+          (CSeq 
+            (CApp (CId 'gen (GlobalId)) (list (CObject 'int (some (MetaNum 3)))) (none))
+            (CSeq
+             (CApp (CId 'gen (GlobalId)) (list (CObject 'int (some (MetaNum 3)))) (none))
+             (CApp (CId 'gen (GlobalId)) (list (CObject 'int (some (MetaNum 3)))) (none)))
+            ))))
+
+|#
+#|
+(interp (CError (CObject 'str (some (MetaStr "StopIteration222")))))
+|#
 
