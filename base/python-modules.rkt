@@ -36,7 +36,12 @@
                         [mode (MetaStr-s mval3)]
                         [code (compile-string source)]
                         [body (CModule-body code)]
-                        [names (CModule-names code)])
+                        [names (CModule-names code)]
+                        ; Replacing prelude with None before wrapping it in python-lib to avoid 
+                        ; initializing the names to Undefined. 
+                        ; When used with exec, it is expected that the names are already initialized
+                        ; in the globals.
+                        [code2 (python-lib (CModule names (CNone) body))])
                  (some (VObject '$code
-                                (some (MetaCode body filename names))
+                                (some (MetaCode code2 filename names))
                                 (make-hash empty))))))

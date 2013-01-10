@@ -696,9 +696,11 @@
                                                (let ([xcode (MetaCode-e (some-v (VObject-mval code-value)))]
                                                      [xglobals (MetaSimpleDict-contents (some-v (VObject-mval globals-value)))]
                                                      [xlocals (MetaSimpleDict-contents (some-v (VObject-mval locals-value)))])
-                                                 (interp-env xcode (list xlocals xglobals) sto)))))]
+                                                 (let ([env (if (eq? xglobals xlocals) 
+                                                                (list xglobals)
+                                                                (list xglobals xlocals))])
+                                                   (interp-env xcode env sto))))))]
     ))
-
 
     ;[else (error 'interp "haven't implemented a case yet")]))
 

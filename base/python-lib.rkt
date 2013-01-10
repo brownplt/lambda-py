@@ -354,7 +354,7 @@ that calls the primitive `print`.
 
 (define-type-alias Lib (CExpr -> CExpr))
 
-(define (python-lib [expr : CExpr]) : CExpr
+(define (python-lib-func [expr : CExpr]) : CExpr
   (seq-ops (append
              (map (lambda(b) (CAssign (CId (bind-left b) (GlobalId)) (bind-right b)))
                       lib-function-dummies)
@@ -363,3 +363,5 @@ that calls the primitive `print`.
                       lib-functions)
              (get-pylib-programs)
              (list (CModule-body expr)))))
+
+(set-python-lib python-lib-func)

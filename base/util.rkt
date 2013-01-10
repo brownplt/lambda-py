@@ -31,6 +31,14 @@
 (define (set-pypath p)
   (set! python-path p))
 
+; Moved python-lib function here to reduce the interaction between modules.
+; This seems to be saving the amount of time taken to run 'raco make'
+(define python-lib (lambda ([x : CExpr]) : CExpr
+                     x))
+
+(define (set-python-lib [func : (CExpr -> CExpr)])
+  (set! python-lib func))
+
 ; lists->hash - given two parallel list produce a mutable hash mapping 
 ; values from one to values in the other
 (define (lists->hash [l1 : (listof 'a)] [l2 : (listof 'b)]) : (hashof 'a 'b)
