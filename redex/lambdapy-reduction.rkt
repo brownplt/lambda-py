@@ -1,7 +1,7 @@
 #lang racket
 
 (require redex)
-(require redex/tut-subst)
+;(require redex/tut-subst)
 (require "lambdapy-core.rkt"
          "lambdapy-prim.rkt")
 
@@ -89,7 +89,8 @@
 	(exception-r val)
 	"seq-exception")|#
    (==> (while e_1 e_2 e_3)
-        (loop (if e_1 (seq e_2 (while e_1 e_2 e_3)) e_3)) ;; not handle break yet
+        ;(loop (if e_1 (seq e_2 (while e_1 e_2 e_3)) e_3))
+        (if e_1 (loop (seq e_2 (while e_1 e_2 e_3))) e_3)
         "while")
    (==> (loop val)
         vnone
@@ -284,12 +285,13 @@
    ((ref_2 val_2) ... (ref_1 val_1) (ref_3 val_3) ...)
    (side-condition (not (member (term ref_1) (term (ref_2 ...)))))])
 
+#|
 ;; simply use this subst function for now
 (define-metafunction λπ
   subst : (x ..._1) (any ..._1) e -> e
   [(subst (x ..._1) (any ..._1) e)
    ,(subst/proc (redex-match? λπ x) (term (x ...)) (term (any ...)) (term e))])
-
+|#
 (define val? (redex-match? λπ val))
 
 (define-term mt-env (()))
