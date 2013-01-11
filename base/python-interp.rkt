@@ -286,20 +286,15 @@
 
 (define (interp-let [name : symbol] [type : IdType] [value : Result]
                     [body : CExpr] [env : Env]) : Result
-  (let ([loc (new-loc)])
-    (type-case Result value
-      [v*s (vb sb) (interp-env body
-                               (cons (hash-set (first env) name loc) (rest env))
-                               (hash-set sb loc vb))]
-      [Return (vb sb) (interp-env body
-                                  (cons (hash-set (first env) name loc) (rest env))
-                                  (hash-set sb loc vb))]
-      [Break (sb) (interp-env body
-                              (cons (hash-set (first env) name loc) (rest env))
-                              (hash-set sb loc vnone))]
-      [Exception (vb sb) (interp-env body
-                                     (cons (hash-set (first env) name loc) (rest env))
-                                     (hash-set sb loc vb))])))
+  (local [(define loc (new-loc))
+          (define-values (val sto) (type-case Result value
+                                     [v*s (v s) (values v s)]
+                                     [Return (v s) (values v s)]
+                                     [Break (s) (values vnone s)]
+                                     [Exception (v s) (values v s)]))]
+    (interp-env body
+                (cons (hash-set (first env) name loc) (rest env))
+                (hash-set sto loc val))))
 
 ;; interp-env : CExpr * Env * Store -> Result
 (define (interp-env [expr : CExpr] [env : Env] [sto : Store]) : Result
