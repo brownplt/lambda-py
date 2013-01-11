@@ -19,6 +19,7 @@
          "python-syntax.rkt"
          "python-lexical-syntax.rkt"
          "python-desugar.rkt"
+         "python-phase1.rkt"
          (typed-in racket/base (append : ((listof 'a) (listof 'a) (listof 'a) (listof 'a) (listof 'a) -> (listof 'a)))))
 
 #|
@@ -199,7 +200,6 @@ that calls the primitive `print`.
         (none)))
     false))
 
-
 (define isinstance-lambda
   (CFunc (list 'self 'type) (none)
     (CReturn
@@ -221,7 +221,6 @@ that calls the primitive `print`.
 
 (define-type LibBinding
   [bind (left : symbol) (right : CExpr)])
-
 
 (define lib-functions
   (list (bind 'True (CTrue))
@@ -295,10 +294,11 @@ that calls the primitive `print`.
 (define (get-pylib-programs)
   (map (lambda(file) 
          (desugar 
-           (get-structured-python 
-             (parse-python/port 
-               (open-input-file file)
-               (get-pypath)))))
+           (new-scope-phase
+             (get-structured-python 
+               (parse-python/port 
+                 (open-input-file file)
+                 (get-pypath))))))
        (list "pylib/range.py"
              "pylib/seq_iter.py"
              "pylib/filter.py"
@@ -312,11 +312,15 @@ that calls the primitive `print`.
 (define-type-alias Lib (CExpr -> CExpr))
 
 (define (python-lib [expr : CExpr]) : CExpr
-  (seq-ops (append
-             (map (lambda(b) (CAssign (CId (bind-left b) (GlobalId)) (bind-right b)))
-                      lib-function-dummies)
-             (list (CModule-prelude expr))
-             (map (lambda(b) (CAssign (CId (bind-left b) (GlobalId)) (bind-right b)))
-                      lib-functions)
-             (get-pylib-programs)
-             (list (CModule-body expr)))))
+  (local [(define (cascade-lets bindings body)
+            (if (empty? bindings)
+                body
+                (local [(define b (first bindings))]
+                  (CLet (bind-left b) (GlobalId) (bind-right b)
+                      (cascade-lets (rest bindings) body)))))]
+    (cascade-lets lib-function-dummies
+      (cascade-lets lib-functions
+        (seq-ops (append
+                   (get-pylib-programs)
+                   (list (CModule-body expr))
+                   empty empty empty))))))
