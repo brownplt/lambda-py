@@ -3,7 +3,6 @@
 (require "python-syntax.rkt"
          "python-core-syntax.rkt"
          "python-lexical-syntax.rkt"
-         "python-primitives.rkt"
          "python-syntax-operations.rkt")
 (require "util.rkt")
 (require [typed-in racket (format : (string 'a -> string))])
