@@ -31,6 +31,20 @@
 (define (set-pypath p)
   (set! python-path p))
 
+(define import-path "/some/path")
+(define (get-import-path)
+  import-path)
+(define (set-import-path p)
+  (set! import-path p))
+
+; Moved python-lib function here to reduce the interaction between modules.
+; This seems to be saving the amount of time taken to run 'raco make'
+(define python-lib (lambda ([x : CExpr]) : CExpr
+                     x))
+
+(define (set-python-lib [func : (CExpr -> CExpr)])
+  (set! python-lib func))
+
 ; lists->hash - given two parallel list produce a mutable hash mapping 
 ; values from one to values in the other
 (define (lists->hash [l1 : (listof 'a)] [l2 : (listof 'b)]) : (hashof 'a 'b)
@@ -269,6 +283,18 @@
                                     (hash->list contents))
                                ", "))
               "}")]
+    [MetaSimpleDict (contents)
+              (string-append
+              (string-append "{"
+                             (string-join
+                               (map (lambda (pair)
+                                      (string-append (symbol->string (car pair))
+                                        (string-append ": "
+                                                       (to-string (cdr pair)))))
+                                    (hash->list contents))
+                               ", "))
+              "}")]
+    [MetaCode (expr filename names) "<code object>"]
     [MetaNone () "None"]
     [MetaSet (elts)
               (string-append

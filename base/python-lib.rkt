@@ -6,12 +6,19 @@
          "builtins/list.rkt"
          "builtins/tuple.rkt"
          "builtins/dict.rkt"
+         "builtins/simpledict.rkt"
+         "builtins/code.rkt"
+         "builtins/module.rkt"
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/set.rkt"
          "builtins/none.rkt"
          "builtins/file.rkt"
+<<<<<<< HEAD
          "builtins/module.rkt"
+=======
+         "builtins/modules/builtin-sys.rkt"
+>>>>>>> brown/modules
          "util.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
@@ -296,6 +303,34 @@ that calls the primitive `print`.
           (CBuiltinPrim '$class (list (CId 'self (LocalId)))))
          false))
 
+(define globals-lambda
+  (CFunc (list) (none)
+         (CReturn
+          (CBuiltinPrim 'globals (list)))
+         false))
+
+(define compile-lambda
+  (CFunc (list 'source 'filename 'mode) (none)
+         (CReturn
+          (CBuiltinPrim 'compile (list (CId 'source (LocalId))
+                                       (CId 'filename (LocalId))
+                                       (CId 'mode (LocalId)))))
+         false))
+
+(define exec-lambda
+  (CFunc (list 'code 'globals 'locals) (none)
+         (CReturn
+          (CExec (CId 'code (LocalId))
+                 (CId 'globals (LocalId))
+                 (CId 'locals (LocalId))))
+         false))
+
+(define make-module-lambda
+  (CFunc (list 'globals) (none)
+         (CReturn
+          (CBuiltinPrim 'make-module (list (CId 'globals (LocalId)))))
+         false))
+
 (define-type LibBinding
   [bind (left : symbol) (right : CExpr)])
 
@@ -317,6 +352,14 @@ that calls the primitive `print`.
         ; we should do this $ thing for all builtin names for this reason
         (bind '$dict dict-class) 
         (bind 'dict (CId '$dict (GlobalId)))
+
+        (bind '$simpledict simpledict-class)
+        (bind 'simpledict (CId '$simpledict (GlobalId)))
+
+        (bind '$code code-class)
+        (bind '$module code-class)
+        (bind '$sys-class sys-class) 
+
         (bind 'bool bool-class)
         (bind 'set set-class)
         (bind 'file file-class)
@@ -337,6 +380,17 @@ that calls the primitive `print`.
 
         (bind 'super super-lambda)
         (bind 'type type-lambda)
+
+        (bind 'globals globals-lambda)
+        (bind 'compile compile-lambda)
+        (bind 'exec exec-lambda)
+
+        ;;; builtin module
+        ; sys module, defined in sys.rkt
+        (bind '$sys sys-module)
+        
+        ; hack to create module object from globals
+        (bind '__module make-module-lambda)
 
         (bind 'Exception exception)
         (bind 'NameError (make-exception-class 'NameError))
@@ -389,12 +443,14 @@ that calls the primitive `print`.
              "pylib/any.py"
              "pylib/all.py"
              "pylib/dicteq.py"
+             "pylib/import.py"
             ; "pylib/assertraises.py"
             )))
              
 
 (define-type-alias Lib (CExpr -> CExpr))
 
+<<<<<<< HEAD
 (define (python-lib [expr : CExpr]) : CExpr
   (begin ;(pretty-print (get-pylib-programs))
     (seq-ops (append
@@ -405,3 +461,16 @@ that calls the primitive `print`.
                    lib-functions)
               (get-pylib-programs)
               (list (CModule-body expr))))))
+=======
+(define (python-lib-func [expr : CExpr]) : CExpr
+  (seq-ops (append
+             (map (lambda(b) (CAssign (CId (bind-left b) (GlobalId)) (bind-right b)))
+                      lib-function-dummies)
+             (list (CModule-prelude expr))
+             (map (lambda(b) (CAssign (CId (bind-left b) (GlobalId)) (bind-right b)))
+                      lib-functions)
+             (get-pylib-programs)
+             (list (CModule-body expr)))))
+
+(set-python-lib python-lib-func)
+>>>>>>> brown/modules

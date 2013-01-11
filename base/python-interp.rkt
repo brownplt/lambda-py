@@ -80,7 +80,7 @@
                                init-e)))))))
 
 (define (replace-global-scope? [ext : Env] [curr : Env]) : Env
-  (if (and (cons? curr)
+  (if (and (cons? curr) false ; disabled replace-global-scope by adding false here
            (cons? ext)
            (> (hash-count (last curr)) (hash-count (last ext))))
       (append (drop-right ext 1) (list (last curr)))
@@ -383,7 +383,7 @@
 ;; interp-env : CExpr * Env * Store -> Result
 (define (interp-env [expr : CExpr] [env : Env] [sto : Store]) : Result
   (type-case CExpr expr
-    [CModule (prelude body)
+    [CModule (names prelude body)
              (local [(define prelude-r (interp-env prelude env sto))]
                 (type-case Result prelude-r
                     [v*s*e (v s e) (interp-env body e s)]
@@ -737,8 +737,20 @@
 
     [CExcept (types name body) (interp-env body env sto)]
     
-    [CBreak () (Break sto env)]))
+    [CBreak () (Break sto env)]
 
+    [CExec (code globals locals)
+           (let-result (interp-env code env sto) (code-value env1 sto1)
+                       (let-result (interp-env globals env1 sto1) (globals-value env2 sto2)
+                                   (let-result (interp-env locals env2 sto2) (locals-value env3 sto3)
+                                               (let ([xcode (MetaCode-e (some-v (VObject-mval code-value)))]
+                                                     [xglobals (MetaSimpleDict-contents (some-v (VObject-mval globals-value)))]
+                                                     [xlocals (MetaSimpleDict-contents (some-v (VObject-mval locals-value)))])
+                                                 (let ([env (if (eq? xglobals xlocals) 
+                                                                (list xglobals)
+                                                                (list xglobals xlocals))])
+                                                   (interp-env xcode env sto))))))]
+    ))
 
     ;[else (error 'interp "haven't implemented a case yet")]))
 
@@ -927,11 +939,19 @@
 (define (break-exception [env : Env] [sto : Store]) : Result
   (mk-exception 'SyntaxError "'break' outside loop" env sto))
 
+(define-syntax (let-result x)
+  (syntax-case x ()
+    [(let-result result (value env2 store2) body)
+     #'(type-case Result result
+         [v*s*e (value store2 env2) body]
+         [Return (varg2 sarg2 envarg2) (return-exception envarg2 sarg2)]
+         [Break (sarg2 envarg2) (break-exception envarg2 sarg2)]
+         [Exception (varg2 sarg2 envarg2) (Exception varg2 sarg2 envarg2)])]))
 
 (define (interp expr)
   (type-case Result (interp-env expr (list (hash (list))) (hash (list)))
     [v*s*e (vexpr sexpr env) (begin 
-              (display "final value:\n") (pretty-print vexpr) (display "|\nfinal env:\n") (pretty-print env) (display "\nfinal store:\n") (pretty-print sexpr)
+              ;(display "final value:\n") (pretty-print vexpr) (display "|\nfinal env:\n") (pretty-print env) (display "\nfinal store:\n") (pretty-print sexpr)
            (if (not (MetaNone? (some-v (VObject-mval vexpr))))
                          (begin (display (pretty vexpr)) 
                                 (display "\n"))
@@ -965,9 +985,7 @@
                     ['IsNot (if (not (is? varg1 varg2))
                            (v*s*e true-val sarg2 envarg2)
                            (v*s*e false-val sarg2 envarg2))]
-                    [else (error 'interp (string-append "Haven't implemented a case yet: "
-                                                        (symbol->string
-                                                          prim)))])]
+                    [else (python-prim2 prim varg1 varg2 env sto)])]
              [Return (varg2 sarg2 envarg2) (return-exception envarg2 sarg2)]
              [Break (sarg2 envarg2) (break-exception envarg2 sarg2)]
              [Exception (varg2 sarg2 envarg2) (Exception varg2 sarg2 envarg2)])]

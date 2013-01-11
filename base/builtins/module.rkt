@@ -3,14 +3,21 @@
 (require "../python-core-syntax.rkt"
          "../util.rkt")
 
-; needs __name__, __file__, __path__, __loader__ attribute
-(define module-class
+(define module-class : CExpr
   (CClass
-   'module
+   '$module
    (list 'object)
-   (seq-ops (list
-             (def '__init__
-               (CFunc (list 'self 'name) (none)
-                      (CAssign (CGetField (CId 'self (LocalId)) 'name)
-                               (CId 'name (LocalId)))
-                      true))))))
+   (seq-ops (list 
+              (def '__str__
+                   (CFunc (list 'self) (none)
+                          (CReturn (CStr "<module>"))
+                          true))
+              ))))
+
+(define (make-module args env sto) : (optionof CVal)
+  (check-types args env sto '$simpledict
+               (some 
+                (VObject '$module 
+                         (none) 
+                         (MetaSimpleDict-contents mval1)))))
+

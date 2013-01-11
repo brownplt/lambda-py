@@ -68,32 +68,36 @@
 ;; definitions and assignments
 (define (get-names [expr : PyExpr] [global? : boolean] [env : IdEnv]) : (listof symbol)
   (type-case PyExpr expr
-    [PyIf (t b e) (append (get-names b global? env)
-                          (get-names e global? env))]
-    [PySeq (es) (foldl (lambda(e so-far) (append (get-names e global? env) so-far))
-                       empty
-                       es)]
-    ; ignore special variables that we've defined in desugaring for which 
-    ; we have specially constructed the scope manually for purposes of 
-    ; desugaring
-    [PyId (id ctx) (if (not (symbol=? ctx 'DesugarVar)) 
-                       (list id)
-                       empty)]
-    [PyAssign (targets v) (begin
-                            ;(display targets) (display "\n")  (display v) (display "\n\n")
-                            (if (and (not global?) (not (PySubscript? (first targets))))
-                                (foldl (lambda(t so-far) (append (get-names t global? env)
-                                                                 so-far))
-                                       empty
-                                       targets)
-                                empty))]
-    [PyExcept (t body) (get-names body global? env)]
-    [PyTryExceptElseFinally (t e o f)
-                            (append (get-names t global? env)
-                                    (append (foldl (lambda(e so-far) (append
-                                                                      (get-names e
-                                                                                 global?
-                                                                                 env)
+   [PyIf (t b e) (append (get-names b global? env)
+                         (get-names e global? env))]
+   [PySeq (es) (foldl (lambda(e so-far) (append (get-names e global? env) so-far))
+                      empty
+                      es)]
+   ; ignore special variables that we've defined in desugaring for which 
+   ; we have specially constructed the scope manually for purposes of 
+   ; desugaring
+   [PyId (id ctx) (if (not (symbol=? ctx 'DesugarVar)) 
+                    (list id)
+                    empty)]
+   [PyAssign (targets v) (begin
+                           ;(display targets) (display "\n")  (display v) (display "\n\n")
+                           
+                           ; XXX-Anand: This looks suspicious to me. 
+                           ; TODO: verify this
+                           ;(if (and (not global?) (not (PySubscript? (first targets))))
+                           (foldl (lambda(t so-far) (append (get-names t global? env)
+                                                            so-far))
+                                  empty
+                                  targets)
+                           ;empty)
+                           )]
+   [PyExcept (t body) (get-names body global? env)]
+   [PyTryExceptElseFinally (t e o f)
+                           (append (get-names t global? env)
+                              (append (foldl (lambda(e so-far) (append
+                                                                 (get-names e
+                                                                            global?
+                                                                            env)
                                                                       so-far))
                                                    empty 
                                                    e)
@@ -220,10 +224,11 @@
                 (rec-desugar (PyPass) global? g/ns-env false)))
           (define body (rec-desugar (PySeq es) global? (DResult-env prelude) false))]
     (DResult
-     (CModule
-      (DResult-expr prelude)
-      (DResult-expr body))
-     (DResult-env body))))
+      (CModule
+        names
+        (DResult-expr prelude)
+        (DResult-expr body))
+      (DResult-env body))))
 
 (define (map-desugar [exprs : (listof PyExpr)]
                      [global? : boolean]
