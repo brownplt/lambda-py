@@ -17,6 +17,7 @@
          (typed-in racket/base (cdr : (('a * 'b) -> 'b)))
          (typed-in racket/list (last : ((listof 'a) -> 'a)))
          (typed-in racket/base (append : ((listof 'a) (listof 'a) -> (listof'a))))
+         (typed-in racket/list (remove-duplicates : ((listof 'a) -> (listof 'a))))
          )
 
 (define (append3 a b c)
@@ -32,8 +33,7 @@
                   [(cons? exprs)
                      (let ([first-r (interp-env (first exprs) e s)])
                        (type-case Result first-r
-                         [v*s (vfr sfr)
-                              (cons first-r (rec-cascade (rest exprs) e sfr))]
+                         [v*s (vfr sfr) (cons first-r (rec-cascade (rest exprs) e sfr))]
                          [Return (vfr sfr) (list (return-exception sfr))]
                          [Break (sfr) (list first-r)]
                          [Exception (vfr sfr) (list first-r)]))]))
@@ -52,7 +52,7 @@
 ;; interp-capp, interprets an application of a function. It is passed the function,
 ;; the list of argument expressions, an optionof indicating the presence of a stararg,
 ;; and the env, and the store. Returns the result of interpreting the application.
-(define (interp-capp [fun : CExpr] [arges : (listof CExpr)] 
+define (interp-capp [fun : CExpr] [arges : (listof CExpr)] 
                      [stararg : (optionof CExpr)] [env : Env] [sto : Store]) : Result
  (type-case Result (interp-env fun env sto)
    [v*s (vfun sfun) 
@@ -90,7 +90,7 @@
                           [Return (vb sb) (v*s vb sb)]
                           [Break (sb) (break-exception sb)]
                           [Exception (vb sb) (Exception vb sb)]))))]
-      [VObject (b mval d)
+     [VObject (b mval d)
                (if (and (some? mval) (MetaClass? (some-v mval)))
                   ;; This means we're calling a class, like C().
                   ;; So we want to apply its __init__ method.
@@ -126,7 +126,7 @@
                                    [Return (vb sb) (v*s vb sb)]
                                    [Break (sb) (break-exception sb)]
                                    [Exception (vb sb) (Exception vb sb)]))))]
-                      [else (error 'interp 
+                     [else (error 'interp 
                                    "__init__ not found. THIS SHOULDN'T HAPPEN.")]))
                   ;; This means we're calling an object,
                   ;; so we want to apply its __call__ method.
@@ -161,7 +161,7 @@
                       [Return (vfun sfun) (return-exception sfun)]
                       [Break (sfun) (break-exception sfun)]
                       [Exception (vfun sfun) (Exception vfun sfun)])))]
-      [else (error 'interp "Not a closure or constructor")])]
+     [else (error 'interp "Not a closure or constructor")])]
    [Return (vfun sfun) (return-exception sfun)]
    [Break (sfun) (break-exception sfun)]
    [Exception (vfun sfun) (Exception vfun sfun)]))
@@ -293,6 +293,13 @@
                                      [Break (s) (values vnone s)]
                                      [Exception (v s) (values v s)]))]
     (interp-env body
+                ; Needed still?
+                ; From Anand:
+                #|(if (global-scope? env)
+                    ; Creating a new localscope for handling CLet in global scope.
+                    ; Assuming that there won't be any local bindings in the let body.
+                    (cons (hash-set (hash (list)) name loc) env) 
+                    (cons (hash-set (first env) name loc) (rest env)))|#
                 (cons (hash-set (first env) name loc) (rest env))
                 (hash-set sto loc val))))
 
@@ -314,25 +321,33 @@
     [CNone () (v*s vnone sto)]
     [CUndefined () (v*s (VUndefined) sto)]
 
-    [CClass (name base body) 
-            (type-case Result (interp-env body (cons (hash empty) env) sto)
-              [v*s (vbody sbody)
-                   (local [(define class-val (lookup name env))
-                           (define w (if (some? class-val)
-                                         (some-v class-val)
-                                         (new-loc)))]
-                     (v*s (VObject base 
-                                   (some (MetaClass name)) 
-                                   ;; THIS IS VERY CLEARLY WRONG NOW BECAUSE WE CANNOT PULL
-                                   ;; NEWLY CREATED ENVINRONMENT OUT OF THE RESULT.
-                                   ;; THUS, WE NEED TO ALTER DESUGAR TO HAVE THE BODY OF A
-                                   ;; CLASS PRODUCE A MetaSimpleDict WHICH WILL BE PLACED HERE.
-                                   (hash-set (hash empty) '__dict__ w))
-                          (hash-set sbody w (make-under-dict (hash empty) sbody))))]
-              [Return (vval sval) (return-exception sval)]
-              [Break (sval) (break-exception sval)]
-              [Exception (vval sval) (Exception vval sval)])]
-    
+    [CClass (name bases body)
+            ;; the tuple of bases is evaluated assuming global scope for class names,
+            ;; should be changed for a more general lookup with the new scope implementation
+            (type-case Result (interp-env (CTuple (map (lambda (id) (CId id (GlobalId)))
+                                                       bases))
+                                          env sto)
+              [v*s (vbases sbases)
+                   (type-case Result (interp-env body (cons (hash empty) env) sto)
+                     [v*s (vbody sbody)
+                          (mk-type name vbases (hash empty) sbody env)]
+                     ;; THIS NEEDS MAJOR WORK NOW
+                     #|(local [(define class-val (lookup name env))
+                               (define w (if (some? class-val)
+                                             (some-v class-val)
+                                             (new-loc)))]
+                         (v*s (VObject base 
+                                       (some (MetaClass name)) 
+                                       ;; THIS IS VERY CLEARLY WRONG NOW BECAUSE WE CANNOT PULL
+                                       ;; NEWLY CREATED ENVINRONMENT OUT OF THE RESULT.
+                                       ;; THUS, WE NEED TO ALTER DESUGAR TO HAVE THE BODY OF A
+                                       ;; CLASS PRODUCE A MetaSimpleDict WHICH WILL BE PLACED HERE.
+                                       (hash-set (hash empty) '__dict__ w))
+                              (hash-set sbody w (make-under-dict (hash empty) sbody))))]|#
+                   [Return (vval sval) (return-exception sval)]
+                   [Break (sval) (break-exception sval)]
+                   [Exception (vval sval) (Exception vval sval)])])]
+   
     [CGetField (value attr)
 	       (type-case Result (interp-env value env sto)
                     [v*s (vval sval) (get-field attr vval env sval)]
@@ -591,34 +606,42 @@
                                        "' is not defined"))
                                    sto)]))))
 
+(define (global-scope? [env : Env]) : boolean
+  (= (length env) 1))
+
 ;; handles lookup chain for function calls on objects
-;; looks in object dict, then class dict, then base class dicts, then default class
-;; order in which base class dicts are traversed depends on truth value of super
+;; multiple inheritance modification : for class lookup call get-field-from-class
 (define (get-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : Result
   (begin ;(display "GET: ") (display n) (display " ") (display c) (display "\n")
-         ;(display e) (display "\n\n")
-  (type-case CVal c
-    [VObject (antecedent mval d) 
-                    (let ([w (hash-ref (VObject-dict c) n)])
-              (begin ;(display "loc: ") (display w) (display "\n\n")
-                (type-case (optionof Address) w
-                [some (w) (v*s (fetch w s) s)]
-                [none () (local [(define __class__w (hash-ref (VObject-dict c) '__class__))]
-                           (type-case (optionof Address) __class__w
-                             [some (w) (get-field n (fetch (some-v __class__w) s) e s)]
-                             [none () (let ([mayb-base (lookup antecedent e)])
-                                        (if (some? mayb-base)
-                                          (let ([base (fetch (some-v mayb-base) s)])
-                                            (get-field n base e s))
-                                          (mk-exception 'AttributeError
-                                                        (string-append 
-                                                          (string-append
-                                                            "object"
-                                                            " has no attribute '")
-                                                          (string-append
-                                                            (symbol->string n) "'"))
-                                                        s)))]))])))]
-    [else (error 'interp "Not an object with functions.")])))
+    ;(display e) (display "\n\n")
+    (cond 
+      [(and (some? (VObject-mval c)) (MetaClass? (some-v (VObject-mval c))))
+       ;; class lookup
+       (get-field-from-class n c e s)]
+      [else
+        ;; instance lookup
+        (type-case CVal c
+          [VObject (antecedent mval d) 
+                   (let ([w (hash-ref (VObject-dict c) n)])
+                     (begin ;(display "loc: ") (display w) (display "\n\n")
+                       (type-case (optionof Address) w
+                         [some (w) 
+                               (v*s*e (fetch w s) s e)]
+                         [none () 
+                               (local [(define __class__w (hash-ref (VObject-dict c) '__class__))]
+                                 (type-case (optionof Address) __class__w
+                                   [some (w)
+                                         (get-field-from-class n
+                                                               (fetch (some-v __class__w) s)
+                                                               e s)]
+                                   [none () (let ([mayb-base (lookup antecedent e)])
+                                              (if (some? mayb-base)
+                                                  (let ([base (fetch (some-v mayb-base) s)])
+                                                    (get-field-from-class n base e s))
+                                                  (error 'get-field (string-append 
+                                                                      "Object without class: "
+                                                                      (pretty c)))))]))])))]
+          [else (error 'interp "Not an object with fiedls.")])])))
 
 (define (assign-to-field o f v e s)
   (type-case Result (interp-env o e s)
@@ -740,7 +763,7 @@
   (mk-exception 'SyntaxError "'break' outside loop" sto))
 
 (define (interp expr)
-  (type-case Result (interp-env expr (list (hash (list))) (hash (list)))
+  (type-case Result (interp-env expr (list (#|make-|#hash (list))) (hash (list)))
     [v*s (vexpr sexpr)
            (if (not (MetaNone? (some-v (VObject-mval vexpr))))
              (begin (display (pretty vexpr)) 
@@ -768,7 +791,6 @@
                        [arg2 : CExpr]
                        [sto : Store]
                        [env : Env]) : Result
-
     (type-case Result (interp-env arg1 env sto)
       [v*s (varg1 sarg1)
            (type-case Result (interp-env arg2 env sarg1)
@@ -790,3 +812,150 @@
       [Return (varg1 sarg1) (return-exception sarg1)]
       [Break (sarg1) (break-exception sarg1)]
       [Exception (varg1 sarg1) (Exception varg1 sarg1)]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; multiple inheritance ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; mk-type will compute __mro__ for the class,
+;; may return an exception if linearization is not possible
+;; builtins/type.rkt would be a good place for this stuff,
+;; it should handle type(name, bases, dict)
+;; but it needs access to mk-exception...
+(define (mk-type [name : symbol]
+                 [bases : CVal]
+                 [h-dict : (hashof symbol Address)]
+                 [sto : Store]
+                 [env : Env]) : Result
+  (local [(define bases-list (MetaTuple-v (some-v (VObject-mval bases))))
+          (define w (new-loc))
+          (define bases_w (new-loc))
+          (define mro_w (new-loc))]
+    (type-case Result (build-mro name bases-list env sto)
+      [v*s (vmro smro) 
+             (v*s (VObject 'type
+                           (some (MetaClass name)) 
+                           (hash-set 
+                             (hash-set 
+                               (hash-set h-dict '__dict__ w)
+                               '__bases__ bases_w)
+                             '__mro__ mro_w))
+                  (hash-set 
+                    (hash-set 
+                      (hash-set sto w (make-under-dict h-dict sto))
+                      bases_w bases)
+                    mro_w vmro))]
+      [Return (vmro smro) (return-exception smro)]
+      [Break (smro) (break-exception smro)]
+      [Exception (vmro smro) (Exception vmro smro)])))
+
+;; build-mro: merge the __mro__ of the bases using the C3 algorithm
+;; Raises TypeError if there are duplicated bases or linearization is not possible.
+;; The class should be the first element of __mro__, but since this seems hard
+;; to implement with immutable hashes, it will be prepended on retrieval
+(define (build-mro [name : symbol] 
+                   [bases : (listof CVal)] 
+                   [env : Env] 
+                   [sto : Store]) : Result
+  ;; The mro is the c3-merge of the mro of the bases plus the list of bases
+  (let ([maybe-mro (c3-merge (append (map (lambda (base) (get-mro base sto)) 
+                                          bases)
+                                     (list bases)) empty)])
+    (cond
+      [(< (length (remove-duplicates bases)) (length bases))
+       (mk-exception 'TypeError
+                     (string-append 
+                      "duplicate base class in class "
+                      (symbol->string name))
+                     env
+                     sto)]
+      [(none? maybe-mro) 
+       (mk-exception 'TypeError
+                     (string-append 
+                      "cannot create a consisten method resolution order for class "
+                      (symbol->string name))
+                     env
+                     sto)]
+      [(some? maybe-mro)
+       (begin 
+         ;(display "class: ") (display name) (display " mro: ") 
+         ;(display (map pretty (some-v maybe-mro))) (display "\n")
+         (v*s*e (VObject 'tuple (some (MetaTuple (some-v maybe-mro))) (hash empty))
+                sto env))])))
+ 
+;; c3-merge: implements the c3 algorithm to merge mro lists
+;; looks for a candidate (using c3-select)) and removes it from the mro lists
+;; until all the mro lists are empty (success) or no candidate can be found (fail).
+(define (c3-merge [xss : (listof (listof 'a))] 
+                  [acc : (listof 'a)]) : (optionof (listof 'a))
+  (let ([xss-ne (filter cons? xss)])
+    (cond
+      [(empty? xss-ne) (some acc)]
+      [else (type-case (optionof 'b) (c3-select xss-ne 0)
+              [none () (none)]
+              [some (el) (c3-merge
+                          (map (lambda (xs) 
+                                 (filter (lambda (x) (not (eq? x el))) xs)) 
+                               xss-ne)
+                          (append acc (list el)))])])))
+
+;; c3-select: looks sequentially for a head which doesn't appear in the tails
+;; if none is found there is no c3 linearization possible
+(define (c3-select [xss : (listof (listof 'a))] [n : number]) : (optionof 'a)
+  (cond
+    [(>= n (length xss)) (none)]
+    [else (let ([el (first (list-ref xss n))])
+            (if (any (map (lambda (xs) (member el (rest xs))) xss))
+                (c3-select xss (add1 n))
+                (some el)))]))
+
+(define ex1 (list (list 'o)))
+(test (c3-merge ex1 empty) (some (list 'o)))
+(define ex2 (list (list 'a 'o) 
+                  (list 'o)))
+(define ex3 (list (list 'a 'o)
+                  (list 'b 'a 'o)
+                  (list 'a 'b)))
+(test (c3-merge ex3 empty) (none))
+(define ex4 (list (list 'a 'o)
+                  (list 'c 'a 'o)
+                  (list 'b 'a 'o)
+                  (list 'a 'c 'b)))
+(test (c3-merge ex4 empty) (none))
+(test (c3-merge ex2 empty) (some (list 'a 'o)))
+(define ex5 (list (list 'd 'c 'b 'a 'o)
+                  (list 'c 'a 'o)
+                  (list 'b 'a 'o)
+                  (list 'a 'o)
+                  (list 'o)))
+(test (c3-merge ex5 empty) (some (list 'd 'c 'b 'a 'o)))
+
+;; get-field-from-class: looks for a field in the class __mro__ components
+(define (get-field-from-class [n : symbol] 
+                              [c : CVal] 
+                              [e : Env] 
+                              [s : Store]) : Result
+  (cond 
+    [(equal? n '__mro__) 
+     ;; temporary hack to avoid self-reference in __mro__
+     (v*s*e (VObject 'tuple (some (MetaTuple (get-mro c s))) (hash empty)) s e)]
+    [else
+     (type-case (optionof Address) (lookup-mro (get-mro c s) n)
+       [some (w) (v*s*e (fetch w s) s e)]
+       [none () (mk-exception 'AttributeError
+                              (string-append 
+                               (string-append
+                                "object"
+                                " has no attribute '")
+                               (string-append
+                                (symbol->string n) "'"))
+                              e s)])]))
+
+;; lookup-mro: looks for field in mro list
+(define (lookup-mro [mro : (listof CVal)] [n : symbol]) : (optionof Address)
+  (cond
+    [(empty? mro) (none)]
+    [else (type-case CVal (first mro)
+            [VObject (antecedent mval d)
+                     (type-case (optionof Address) (hash-ref d n)
+                       [none () (lookup-mro (rest mro) n)]
+                       [some (value) (some value)])]
+            [else (error 'lookup-mro "an entry in __mro__ list is not an object")])]))

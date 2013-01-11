@@ -18,7 +18,7 @@
 (define str-class : CExpr
   (CClass
    'str 
-   'object
+   (list 'object)
   (seq-ops (list 
                   (def '__init__
                        (CFunc (list 'self 'other) (none) 

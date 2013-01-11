@@ -102,6 +102,66 @@
 (define (def (name : symbol) (expr : CExpr)) : CExpr
   (CAssign (CId name (LocalId)) expr))
 
+
+; Macro to match varargs
+; Example:
+;
+; (match-varargs 'args
+;   [() (CObject 'num (some (MetaNum 0)))]
+;   [('a) (CId 'a (LocalId))]
+;   [('a 'b) (CBuiltinPrim 'num+ (CId 'a (LocalId)) (CId 'b (LocalId)))])
+;
+(define-syntax (match-varargs x)
+  (syntax-case x ()
+    [(match-varargs 'args [vars body])
+     #'(if-varargs 'args vars body)]
+    [(match-varargs 'args [vars1 body1] [vars2 body2])
+     #'(if-varargs 'args vars1 body1
+                 (if-varargs 'args vars2 body2))]
+    [(match-varargs 'args [vars1 body1] [vars2 body2] [vars3 body3])
+     #'(if-varargs 'args vars1 body1
+                 (if-varargs 'args vars2 body2
+                             (if-varargs 'args vars3 body3)))]))
+
+; Helper macro used in implementing match-varargs
+(define-syntax (if-varargs x)
+  (syntax-case x ()
+    [(if-varargs 'args vars body)
+     #'(if-varargs 'args vars body (CError (CStr "argument mismatch")))]
+    [(if-varargs 'args () body else-part)
+     #'(CIf ; Did we get 0 args?
+        (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
+        body
+        else-part)]
+    [(if-varargs 'args (a) body else-part)
+     #'(CIf ; Did we get 1 args?
+        (CBuiltinPrim 'num= (list (py-len 'args) (py-num 1)))
+        (CLet a (py-getitem 'args 0)
+              body)
+        else-part)]
+    [(if-varargs 'args (a b) body else-part)
+     #'(CIf ; Did we get 2 args?
+        (CBuiltinPrim 'num= (list (py-len 'args) (py-num 2)))
+        (CLet a (py-getitem 'args 0)
+              (CLet b (py-getitem 'args 1)
+                    body))
+        else-part)]))
+
+;; syntactic sugars to avoid writing long expressions in the core language
+(define (py-num [n : number])
+  (CObject 'num (some (MetaNum n))))
+
+(define (py-len name)
+  (CApp (CGetField (CId name (LocalId)) '__len__)
+        (list (CId name (LocalId)))
+        (none)))
+
+(define (py-getitem name index)
+  (CApp (CGetField (CId name (LocalId)) '__getitem__)
+        (list (CId name (LocalId))
+              (CObject 'num (some (MetaNum index))))
+        (none)))
+
 ;; the copypasta here is bad but we aren't clever enough with macros
 (define-syntax (check-types x)
   (syntax-case x ()
@@ -157,15 +217,20 @@
                (none))))]))
 
 ;; returns true if the given o is an object of the given class or somehow a
-;; subclass of that one 
+;; subclass of that one. Modified to look at __mro__ for multiple inheritance. 
 (define (object-is? [o : CVal] [c : symbol] [env : Env] [s : Store]) : boolean
-  (cond
-    [(symbol=? (VObject-antecedent o) 'no-super) false]
-    [(symbol=? (VObject-antecedent o) c) true]
-    [else (object-is?
-            (fetch (some-v (lookup (VObject-antecedent o) env)) s)
-                     c env s)]))
+  (let ([obj-cls (fetch (some-v (lookup (VObject-antecedent o) env)) s)]
+        [cls (fetch (some-v (lookup c env)) s)])
+    (member cls (get-mro obj-cls s))))
 
+
+;; get-mro: fetch __mro__ field as a list of classes
+;; termporarily prepended with cls to avoid self reference in __mro__
+(define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
+  (type-case (optionof Address) (hash-ref (VObject-dict cls) '__mro__)
+    [some (w) (cons cls (MetaTuple-v (some-v (VObject-mval (fetch w sto)))))]
+    [none () (error 'get-mro (string-append "class without __mro__ field " 
+                                            (pretty cls)))]))
 (define (is? [v1 : CVal]
              [v2 : CVal]) : boolean
   (begin
@@ -210,6 +275,7 @@
               (string-append "{"
                              (string-join (map pretty (set->list elts)) ", "))
               "}")]
+    [else "builtin-value"]
     ))
 
 (define (pretty-exception [exn : CVal] [sto : Store]) : string
@@ -272,3 +338,7 @@
                  (set-add st elt))
          (set)
          vals))
+
+;; any: any of a list of boolean (used in the c3 mro algorithm)
+(define (any [bs : (listof boolean)]) : boolean
+  (foldr (lambda (e1 e2) (or e1 e2)) #f bs))

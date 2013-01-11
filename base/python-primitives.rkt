@@ -10,6 +10,7 @@
          "builtins/num.rkt"
          "builtins/object.rkt"
          "builtins/bool.rkt"
+         "builtins/file.rkt"
          (typed-in racket/string (string-join : ((listof string) string -> string)))
          (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (quotient : (number number -> number)))
@@ -199,6 +200,14 @@ primitives here.
     ;bool
     ['bool-init (bool-init args env sto)]
 
+    ; file
+    ['file-open (file-open args env sto)]
+    ['file-read (file-read args env sto)]
+    ['file-readall (file-readall args env sto)]
+    ['file-readline (file-readline args env sto)]
+    ['file-write (file-write args env sto)]
+    ['file-close (file-close args env sto)]
+
     ;isinstance
     ['isinstance 
                (if (or (none? (VObject-mval (second args)))
@@ -215,7 +224,7 @@ primitives here.
 
     ; Returns the class of the given object
     ; If it is an object (i.e., an instance), it is its antecedent.
-    ; Otherwise, it is itself.
+    ; Otherwise, it is itself. NB: classmethod implementation depends on this non-standard behavior!
     ['$class
      (local [(define me (first args))
             (define my-antecedent (VObject-antecedent me))
@@ -227,11 +236,12 @@ primitives here.
              me
              antecedent-class)))]
 
-    ['$super
+    ['$super ;; modified to use the __mro__ attibute, but it doesn't support multiple inheritance, yet.
      (letrec ([me (first args)]
               [my-antecedent (VObject-antecedent me)]
-              [antecedent-class (fetch (some-v (lookup my-antecedent env)) sto)])
-       (some antecedent-class))]
+              [antecedent-class (fetch (some-v (lookup my-antecedent env)) sto)]
+              [mro (get-mro antecedent-class sto)])
+       (if (> (length mro) 1) (some (second mro)) (none)))]
 
     ['$locals (begin
                ; (display env) (display "\n\n")

@@ -323,6 +323,37 @@ structure that you define in python-syntax.rkt
                  ('targets targets))
      (PyDelete (map get-structured-python targets))]
 
+    [(hash-table ('nodetype "Import")
+                 ('names names))
+                                        ; when asname is empty, `name`
+                                        ; will be used as `asname`
+     (PyImport (map (lambda (x)
+                      (hash-ref x 'name)) ; name is string type
+                    names)
+               (map (lambda (x)
+                      (let ([as (hash-ref x 'asname)])
+                        (if (equal? as #\nul)
+                            (string->symbol (hash-ref x 'name))
+                            (string->symbol as))))
+                    names))]
+    
+    ; largely the same with PyImport.
+    [(hash-table ('nodetype "ImportFrom")
+                 ('module module)
+                 ('names names)
+                 ('level level))
+     (PyImportFrom module
+                   (map (lambda (x)
+                          (hash-ref x 'name))
+                        names)
+                   (map (lambda (x)
+                          (let ([as (hash-ref x 'asname)])
+                            (if (equal? as #\nul)
+                                (string->symbol (hash-ref x 'name))
+                                (string->symbol as))))
+                        names)
+                   level)]
+
     [(list (hash-table (k v) ...) ..2)
      (PySeq (map get-structured-python pyjson))]
     
@@ -338,4 +369,5 @@ structure that you define in python-syntax.rkt
 
 ;; tests!
 (print-only-errors true)
+
 

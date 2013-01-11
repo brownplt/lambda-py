@@ -9,7 +9,7 @@
 (define tuple-class : CExpr
   (CClass
    'tuple
-   'object
+   (list 'object)
    (seq-ops (list (def '__add__
                     (CFunc (list 'self 'other) (none)
                            (CReturn (CBuiltinPrim 'tuple+

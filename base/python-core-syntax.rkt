@@ -15,7 +15,7 @@ ParselTongue.
   [CTrue]
   [CFalse]
   [CNone]
-  [CClass (name : symbol) (base : symbol) (body : CExpr)]
+  [CClass (name : symbol) (bases : (listof symbol)) (body : CExpr)]
   [CObject (class : symbol) (bval : (optionof MetaVal))]
   [CGetField (value : CExpr) (attr : symbol)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
@@ -53,6 +53,8 @@ ParselTongue.
 
 (define-type-alias IdEnv (listof IdPair))
 
+(define-type-alias port 'port)
+
 (define-type CVal
   [VObject (antecedent : symbol) (mval : (optionof MetaVal)) (dict : object-dict)]
   [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr)]
@@ -66,7 +68,8 @@ ParselTongue.
              [MetaDict (contents : (hashof CVal CVal))]
              [MetaClass (c : symbol)]
              [MetaSet (elts : Set)]
-             [MetaNone])
+             [MetaNone]
+             [MetaPort (p : port)])
 
 ;; env is a listof hashof's so there are deliniations between closures
 (define-type-alias Env (listof (hashof symbol Address)))
