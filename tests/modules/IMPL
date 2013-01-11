@@ -1,35 +1,68 @@
 
 New syntax add to the core
 --------------------------
+* [CExec (code : CExpr) (globals : CExpr) (locals : CExpr)]
+* [CModule (names : (listof symbol)) (prelude : CExpr) (body : CExpr)])
 
-None.
+* [MetaSimpleDict (contents : object-dict)]
 
 New surface syntax handled in desugaring
 -----------------------------------------
 
 * [PyImport (names : (listof string)) (asnames : (listof symbol))]
+* [PyImportFrom (module : string) 
+                (names : (listof string))
+                (asnames : (listof symbol))
+                (level : number)]
+
 
 Already existing functions/helpers that are modified
 ----------------------------------------------------
 
-base/python-primitives.rkt:
-    * builtin-prim: added file-* functions
-
+base/python-primitives.rkt:builtin-prim
+    * file-* functions
+    * compile and globals functions
+    * code-* functions
+    * make-module
+    
+base/python-interp.rkt:interp-env
+    * add case CExec
+    
+base/python-interp.rkt:interp-cprim2
+    * dispatch simpledict operations to python-prim2
+    
 New functions/helpers added
 ---------------------------
 
 base/util.rkt:
     * match-varargs macro
     * py-num, py-len, py-getitem
+    * py-lib, set-python-lib
 
 base/python-desugar.rkt:
     * desugar-import-py
+    
+base/python-lib.rkt
+    * make-module-lambda
+    * exec-lambda
+    * compile-lambda
+    * global-lambda
+
+base/python-primitives.rkt
+    * python-prim2
+    
+base/python-interp.rkt
+    * let-result
 
 New files added
 ---------------
 
 * base/builtins/file.rkt
 * base/builtins/file-util.rkt
+* base/builtins/module.rkt
+* base/builtins/code.rkt
+* base/pylib/import.py
+* base/python-modules.rkt
 
 Special Notes
 -------------
