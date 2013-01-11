@@ -7,7 +7,7 @@
 (define module-class
   (CClass
    'module
-   'object
+   (list 'object)
    (seq-ops (list
              (def '__init__
                (CFunc (list 'self 'name) (none)

@@ -29,7 +29,6 @@
          (typed-in racket/list (drop-right : ((listof 'a) number -> (listof 'a))))
          (typed-in racket/list (drop : ((listof 'a) number -> (listof 'a))))
          (typed-in racket/list (take : ((listof 'a) number -> (listof 'a))))
-<<<<<<< HEAD
          (typed-in racket/pretty (pretty-print : ('a -> 'b)))
          (typed-in "parse-python.rkt" (parse-python/string : (string 'a -> 'b)))
          (typed-in "get-structured-python.rkt"
@@ -38,9 +37,7 @@
          "python-syntax.rkt"
          (typed-in "python-lib.rkt" (python-lib : ('a -> 'b)))
          
-=======
          (typed-in racket/list (remove-duplicates : ((listof 'a) -> (listof 'a))))
->>>>>>> brown/master
          )
 
 (define (append3 a b c)
