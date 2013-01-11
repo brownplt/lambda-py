@@ -14,6 +14,7 @@
          "builtins/set.rkt"
          "builtins/none.rkt"
          "builtins/file.rkt"
+         "builtins/modules/builtin-sys.rkt"
          "util.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
@@ -282,6 +283,7 @@ that calls the primitive `print`.
 
         (bind '$code code-class)
         (bind '$module code-class)
+        (bind '$sys-class sys-class) 
 
         (bind 'bool bool-class)
         (bind 'set set-class)
@@ -304,6 +306,10 @@ that calls the primitive `print`.
         (bind 'globals globals-lambda)
         (bind 'compile compile-lambda)
         (bind 'exec exec-lambda)
+
+        ;;; builtin module
+        ; sys module, defined in sys.rkt
+        (bind '$sys sys-module)
         
         ; hack to create module object from globals
         (bind '__module make-module-lambda)

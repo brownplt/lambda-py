@@ -31,6 +31,12 @@
 (define (set-pypath p)
   (set! python-path p))
 
+(define import-path "/some/path")
+(define (get-import-path)
+  import-path)
+(define (set-import-path p)
+  (set! import-path p))
+
 ; Moved python-lib function here to reduce the interaction between modules.
 ; This seems to be saving the amount of time taken to run 'raco make'
 (define python-lib (lambda ([x : CExpr]) : CExpr
