@@ -20,8 +20,9 @@
   (interp
     (python-lib
       (desugar
-        (get-structured-python
-          (parse-python/port port (get-pypath)))))))
+        (new-scope-phase
+          (get-structured-python
+            (parse-python/port port (get-pypath))))))))
 
 (define (get-surface-syntax port)
   (get-structured-python
@@ -32,11 +33,17 @@
    (get-structured-python
     (parse-python/port port (get-pypath)))))
 
+(define (desugar-w/lex port)
+  (desugar
+    (new-scope-phase
+      (get-structured-python
+        (parse-python/port port (get-pypath))))))
 
 (define (get-core-syntax port)
   (desugar
-   (get-structured-python
-    (parse-python/port port (get-pypath)))))
+    (new-scope-phase
+      (get-structured-python
+        (parse-python/port port (get-pypath))))))
 
 (command-line
   #:once-each
@@ -56,7 +63,7 @@
 
   ("--get-lexical-syntax" "Get surface syntax python"
    (pretty-write (get-lexical-syntax (current-input-port))))
-  
+
   ("--get-core-syntax" "Get desugared python"
    (pretty-write (get-core-syntax (current-input-port))))
 
