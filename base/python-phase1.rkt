@@ -215,7 +215,8 @@
     (lambda (exp)
       (type-case LexExpr exp
         ;[LexGlobalId (x ctx) (list x)]
-        [LexAssign (lhs rhs) (filter (lambda (y) (LexGlobalId? y)) lhs )]
+        [LexAssign (lhs rhs) (map (lambda (y) (LexGlobalId-x y))
+                                    (filter (lambda (y) (LexGlobalId? y)) lhs))]
         [else (error 'desugar:extract-all "we should not get here")])))))
 
 
