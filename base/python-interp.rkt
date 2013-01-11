@@ -990,7 +990,7 @@
                      (CObject 'num (some (MetaNum 4))))
                     (CReturn (CId 'y (GlobalId))))) false))
            (CApp (CId 'gen (GlobalId)) (list (CObject 'num (some (MetaNum 3)))) (none)))))|#
-
+#|
 (interp (run-cps 
          (CSeq
           (CAssign 
@@ -1012,8 +1012,49 @@
           (CSeq 
            (CApp (CId 'gen (GlobalId)) (list (CObject 'int (some (MetaNum 3)))) (none))
            (CApp (CId 'gen (GlobalId)) (list (CObject 'int (some (MetaNum 3)))) (none))
-           ))))
+           )
+         )))
 
+(interp (CSeq
+          (CAssign 
+           (CId 'gen (GlobalId))
+           (cps (CFunc (list 'z) (none) 
+                  (CSeq 
+                    (CSeq
+                     (CAssign 
+                      (CId 'x (GlobalId))
+                      (CObject 'int (some (MetaNum 3))))
+                     (CYield 
+                      (CId 'x (GlobalId))))
+                    (CSeq
+                     (CAssign
+                      (CId 'y (GlobalId))
+                      (CObject 'int (some (MetaNum 4))))
+                     (CYield 
+                      (CId 'y (GlobalId))))) false)))
+           (run-cps (CApp (CId 'gen (GlobalId)) (list (CObject 'int (some (MetaNum 3)))) (none)))
+         ))
+|#
+;(interp (CObject 'int (some (MetaNum 5))))
+(interp (CSeq
+          (CAssign 
+           (CId 'gen (GlobalId))
+           (cps (CFunc (list 'z) (none)
+                  (CSeq 
+                   (CSeq
+                    (CAssign 
+                     (CId 'x (GlobalId))
+                     (CObject 'int (some (MetaNum 3))))
+                    (CYield 
+                     (CId 'x (GlobalId))))
+                   (CSeq
+                    (CAssign
+                     (CId 'y (GlobalId))
+                     (CObject 'int (some (MetaNum 4))))
+                    (CYield 
+                     (CId 'y (GlobalId))))) false)))
+           (run-cps (CApp (CId 'gen (GlobalId)) (list (CObject 'int (some (MetaNum 3)))) (none)))
+         ))
 #|
 (interp (run-cps 
          (CSeq
