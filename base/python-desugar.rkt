@@ -102,8 +102,7 @@
    [(empty? (rest es)) (desugar (first es))]
    [else (CSeq (desugar (first es)) (desugar-seq (rest es)))]))
 
-;<<<<<<<<<<<<<<HEAD
-#| FIX THIS |#
+#|  
 
 ;;; desugar import name as asname to
 ;;; asname = __import__('name')
@@ -158,9 +157,7 @@
                                      (PyNum level)))))])))
 
 
-
-#| FIX THIS |#
-;<<<<<<<<<<<<<<HEAD
+|#
 
 (define (rec-desugar [expr : LexExpr] ) : CExpr 
   (begin ;(display expr) (display "\n\n")
@@ -587,17 +584,20 @@
                                                  (none))))]
                      [else (error 'desugar "We don't know how to delete identifiers yet.")]))]
      
+      [LexImport (names asnames) (rec-desugar (LexPass))]
+                 ;(rec-desugar (desugar-import-py names asnames))]
+
+      [LexImportFrom (module names asnames level) (rec-desugar (LexPass))]
+                     ;(rec-desugar (desugar-importfrom-py module names asnames level))]
+
+
       [else
         (error 'desugar
                (string-append
                  "deprecation warning: deprecated lexical construct reached desugar: "
                  (to-string expr)))]
 
-      [LexImport (names asnames)
-                (rec-desugar (desugar-import-py names asnames))]
-        
-      [LexImportFrom (module names asnames level)
-                    (rec-desugar (desugar-importfrom-py module names asnames level))])))
+      )))
 
 (define (desugar [expr : LexExpr]) : CExpr
   (rec-desugar expr))

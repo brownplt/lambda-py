@@ -52,7 +52,7 @@
 ;; interp-capp, interprets an application of a function. It is passed the function,
 ;; the list of argument expressions, an optionof indicating the presence of a stararg,
 ;; and the env, and the store. Returns the result of interpreting the application.
-define (interp-capp [fun : CExpr] [arges : (listof CExpr)] 
+(define (interp-capp [fun : CExpr] [arges : (listof CExpr)] 
                      [stararg : (optionof CExpr)] [env : Env] [sto : Store]) : Result
  (type-case Result (interp-env fun env sto)
    [v*s (vfun sfun) 
@@ -346,7 +346,10 @@ define (interp-capp [fun : CExpr] [arges : (listof CExpr)]
                               (hash-set sbody w (make-under-dict (hash empty) sbody))))]|#
                    [Return (vval sval) (return-exception sval)]
                    [Break (sval) (break-exception sval)]
-                   [Exception (vval sval) (Exception vval sval)])])]
+                   [Exception (vval sval) (Exception vval sval)])]
+            [Return (vbases sbases) (return-exception sbases)]
+            [Break (sbases) (break-exception sbases)]
+            [Exception (vbases sbases) (Exception vbases sbases)])]
    
     [CGetField (value attr)
 	       (type-case Result (interp-env value env sto)
@@ -626,7 +629,7 @@ define (interp-capp [fun : CExpr] [arges : (listof CExpr)]
                      (begin ;(display "loc: ") (display w) (display "\n\n")
                        (type-case (optionof Address) w
                          [some (w) 
-                               (v*s*e (fetch w s) s e)]
+                               (v*s (fetch w s) s)]
                          [none () 
                                (local [(define __class__w (hash-ref (VObject-dict c) '__class__))]
                                  (type-case (optionof Address) __class__w
@@ -865,21 +868,19 @@ define (interp-capp [fun : CExpr] [arges : (listof CExpr)]
                      (string-append 
                       "duplicate base class in class "
                       (symbol->string name))
-                     env
                      sto)]
       [(none? maybe-mro) 
        (mk-exception 'TypeError
                      (string-append 
                       "cannot create a consisten method resolution order for class "
                       (symbol->string name))
-                     env
                      sto)]
       [(some? maybe-mro)
        (begin 
          ;(display "class: ") (display name) (display " mro: ") 
          ;(display (map pretty (some-v maybe-mro))) (display "\n")
-         (v*s*e (VObject 'tuple (some (MetaTuple (some-v maybe-mro))) (hash empty))
-                sto env))])))
+         (v*s (VObject 'tuple (some (MetaTuple (some-v maybe-mro))) (hash empty))
+                sto))])))
  
 ;; c3-merge: implements the c3 algorithm to merge mro lists
 ;; looks for a candidate (using c3-select)) and removes it from the mro lists
@@ -936,10 +937,10 @@ define (interp-capp [fun : CExpr] [arges : (listof CExpr)]
   (cond 
     [(equal? n '__mro__) 
      ;; temporary hack to avoid self-reference in __mro__
-     (v*s*e (VObject 'tuple (some (MetaTuple (get-mro c s))) (hash empty)) s e)]
+     (v*s (VObject 'tuple (some (MetaTuple (get-mro c s))) (hash empty)) s)]
     [else
      (type-case (optionof Address) (lookup-mro (get-mro c s) n)
-       [some (w) (v*s*e (fetch w s) s e)]
+       [some (w) (v*s (fetch w s) s)]
        [none () (mk-exception 'AttributeError
                               (string-append 
                                (string-append
@@ -947,7 +948,7 @@ define (interp-capp [fun : CExpr] [arges : (listof CExpr)]
                                 " has no attribute '")
                                (string-append
                                 (symbol->string n) "'"))
-                              e s)])]))
+                              s)])]))
 
 ;; lookup-mro: looks for field in mro list
 (define (lookup-mro [mro : (listof CVal)] [n : symbol]) : (optionof Address)

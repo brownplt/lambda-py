@@ -136,14 +136,14 @@
     [(if-varargs 'args (a) body else-part)
      #'(CIf ; Did we get 1 args?
         (CBuiltinPrim 'num= (list (py-len 'args) (py-num 1)))
-        (CLet a (py-getitem 'args 0)
+        (CLet a (LocalId) (py-getitem 'args 0)
               body)
         else-part)]
     [(if-varargs 'args (a b) body else-part)
      #'(CIf ; Did we get 2 args?
         (CBuiltinPrim 'num= (list (py-len 'args) (py-num 2)))
-        (CLet a (py-getitem 'args 0)
-              (CLet b (py-getitem 'args 1)
+        (CLet a (LocalId) (py-getitem 'args 0)
+              (CLet b (LocalId) (py-getitem 'args 1)
                     body))
         else-part)]))
 
