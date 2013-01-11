@@ -13,7 +13,8 @@
              (def '__init__
                   ; self.path = init-path
                   ; self.modules = ["sys" : $sys], in this case, 
-                  ; $sys is bound to sys in environment
+                  ; $sys is the sys-module in environment
+                  ; FIXME: when the init happens, $sys is undifined yet!
                   (CFunc (list 'self) (none)
                          (CSeq
                           (CAssign
