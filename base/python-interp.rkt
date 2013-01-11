@@ -303,7 +303,7 @@
 
 ;; interp-env : CExpr * Env * Store -> Result
 (define (interp-env [expr : CExpr] [env : Env] [sto : Store]) : Result
-  (begin (display expr) (display "\n")
+  (begin ;(display expr) (display "\n")
   (type-case CExpr expr
     [CModule (prelude body)
              (local [(define prelude-r (interp-env prelude env sto))]
@@ -454,7 +454,7 @@
                                                   unboundlocal-error-str
                                                   sto)]
                        [else (v*s (fetch (some-v local-w) sto) sto)])
-                     (local [(define full-w (lookup x env)]
+                     (local [(define full-w (lookup x env))]
                        (if (some? full-w)
                            (type-case CVal (fetch (some-v full-w) sto)
                              [VUndefined () (mk-exception 'NameError freevar-error-str sto)]
@@ -469,7 +469,7 @@
                        (type-case CVal full-val
                          [VUndefined () (mk-exception 'NameError name-error-str sto)]
                          [else (v*s full-val sto)]))
-                     (mk-exception 'NameError name-error-str sto)))])]
+                     (mk-exception 'NameError name-error-str sto)))]))]
 
     [CObject (c mval) (v*s (VObject c mval (hash empty)) sto)]
 
@@ -594,8 +594,7 @@
                                    (string-append "name '"
                                      (string-append (symbol->string (CId-x id))
                                        "' is not defined"))
-                                   sto)]
-          [else (error 'assign-to-id "WHAT'S HAPPENING?")]))))
+                                   sto)]))))
 
 ;; handles lookup chain for function calls on objects
 ;; looks in object dict, then class dict, then base class dicts, then default class
