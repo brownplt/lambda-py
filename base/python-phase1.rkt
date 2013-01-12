@@ -50,21 +50,72 @@
        [else (haiku-error)]
        )))))
 
+(define (post-desugar [expr : LexExpr]) : LexExpr
+  (local
+   [(define (get-names expr)
+      (lexexpr-fold-tree expr
+                         (lambda (y)
+                           (type-case LexExpr y
+                             [LexInstanceId (x ctx) (list x)]
+                             [LexClass (scp name bases body) empty]
+                             [LexBlock (_ __) empty]
+                             [else (haiku-error)]))))
+    (define (replace-instance expr class-expr)
+      (lexexpr-modify-tree
+       expr
+       (lambda (y)
+         (type-case LexExpr y
+           [LexInstanceId (x ctx) (LexDotField class-expr x)]
+           [LexClass (scope name bases body) (LexClass scope name bases body)]
+           [else (haiku-error)]))))
+    (define (deal-with-class expr class-expr)
+      (lexexpr-modify-tree
+       expr
+        (lambda (y)
+          (type-case LexExpr y
+            [LexClass (scope name bases body)
+                      (let ((new-body (replace-instance
+                                       body
+                                       (cond
+                                        [(Globally-scoped? scope) (LexGlobalId name 'Load) ]
+                                        [(Locally-scoped? scope) (LexLocalId name 'Load)]
+                                        [(Instance-scoped? scope) (LexInstanceId name 'Load)]
+                                        [else (error 'desugar "could not determine scoping for parent class")])
+                                       )))
+                        (if (Instance-scoped? scope)
+                            (LexClass (Locally-scoped) name bases (deal-with-class (replace-instance new-body class-expr) (LexDotField class-expr name)))
+                            (LexClass scope name bases (deal-with-class new-body class-expr))))]
+            [else (haiku-error)]))))
+    (define (top-level-deal-with-class expr)
+      (lexexpr-modify-tree
+       expr
+       (lambda (y)
+         (type-case LexExpr y
+           [LexClass (scope name bases body) (if (Instance-scoped? scope)
+                                                 (error 'lexical "instance is not inside class")
+                                                 (deal-with-class y
+                                                                  (if (Globally-scoped? scope)
+                                                                      (LexGlobalId name 'Load)
+                                                                      (LexLocalId name 'Load))))]
+           [else (haiku-error)]))))]
+   expr))
+
 (define (scope-phase [expr : PyExpr] ) : LexExpr
-  (LexModule
-   (list 
-    (optimization-pass
-     (let-phase
-      (let ((replaced-locals (replace-all-locals  (replace-all-instance (pre-desugar expr)) empty))) ;replaces all locals everywhere based on assignment
-        (let ((fully-transformed (make-all-global replaced-locals))) ;replaces all remaining PyId 
-          (remove-blocks
-           (remove-unneeded-pypass
-            (remove-nonlocal
-             (remove-global
-              (replace-lexmodule
-               (remove-unneeded-assigns
-                (process-syntax-errors
-                 (bind-locals fully-transformed))))))))))))))) ;surround every block with PyLet of locals
+  (post-desugar
+   (LexModule
+    (list 
+     (optimization-pass
+      (let-phase
+       (let ((replaced-locals (replace-all-locals  (replace-all-instance (pre-desugar expr)) empty))) ;replaces all locals everywhere based on assignment
+         (let ((fully-transformed (make-all-global replaced-locals))) ;replaces all remaining PyId 
+           (remove-blocks
+            (remove-unneeded-pypass
+             (remove-nonlocal
+              (remove-global
+               (replace-lexmodule
+                (remove-unneeded-assigns
+                 (process-syntax-errors
+                  (bind-locals fully-transformed)))))))))))))))) ;surround every block with PyLet of locals
 
 (define (replace-lexmodule expr)
   (lexexpr-modify-tree expr
