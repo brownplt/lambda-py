@@ -2,6 +2,7 @@
 
 (require "python-syntax.rkt"
          "python-core-syntax.rkt"
+         "python-lib-bindings.rkt"
          "python-lexical-syntax.rkt"
          "python-syntax-operations.rkt")
 (require "util.rkt")
@@ -179,7 +180,11 @@
     (k (bindings-for-nonlocal empty expr))))))
 
 (define (let-phase [expr : LexExpr] ) : LexExpr
-(collapse-pyseq (cascade-undefined-globals (extract-post-transform-globals expr) expr))) ;all globals, not just the current scope
+(collapse-pyseq (cascade-undefined-globals (list-subtract
+                                            (extract-post-transform-globals expr)
+                                            library-names) expr))) ;all globals, not just the current scope
+
+(define library-names (map (lambda (b) (bind-left b)) lib-function-dummies))
 
 (define (collapse-pyseq expr ) 
   (lexexpr-modify-tree expr 
