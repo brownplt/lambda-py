@@ -359,40 +359,27 @@
                                                      (LexPass))
                                               body)))))))
                    (local [(define body-r (rec-desugar body))]
-                     (if (Instance-scoped? scp)
-                         ;(error 'desugar "can't do instance functions yet")
-                         (CAssign (CId name (LocalId))
-                                  (CFunc args (none) body-r false))
-                         (CAssign (CId name (which-scope scp))
-                                  (CFunc args (none) body-r false)))))]
+                          (CFunc args (none) body-r false)))]
       
       ; a LexClassFunc is a method whose first argument should be the class rather than self
       [LexClassFunc (scp name args body)
                     (local [(define body-r (rec-desugar body))]
-                      (if (Instance-scoped? scp)
-                          (error 'desugar "can't do instance classfunctions yet")
-                          (CAssign (CId name (which-scope scp))
-                                   (CFunc args (none)
-                                          ; We do this by, inside the function body,
-                                          ; taking the first argument, which is "self",
-                                          ; using that to look up the object's class, and then
-                                          ; "overwriting" the first argument with that value.
-                                          ; The result is that, in the function body, the first
-                                          ; argument is the class, as expected.
-                                          (CSeq (CAssign (CId (first args) (LocalId))
-                                                         (CBuiltinPrim '$class
-                                                                       (list (CId (first args)
-                                                                                  (LocalId)))))
-                                                body-r)
-                                          false))))]
+                           (CFunc args (none)
+                                        ; We do this by, inside the function body,
+                                        ; taking the first argument, which is "self",
+                                        ; using that to look up the object's class, and then
+                                        ; "overwriting" the first argument with that value.
+                                        ; The result is that, in the function body, the first
+                                        ; argument is the class, as expected.
+                                  (CSeq (CAssign (CId (first args) (LocalId))
+                                                 (CBuiltinPrim '$class
+                                                               (list (CId (first args)
+                                                                          (LocalId)))))
+                                        body-r)
+                                  false))]
       
       [LexFuncVarArg (scp name args sarg body)
-                     (if (Instance-scoped? scp)
-                         ;(error 'desugar "can't do instance varargfunctions yet")
-                         (CAssign (CId name (LocalId))
-                                  (CFunc args (some sarg) (rec-desugar body) false))
-                         (CAssign (CId name (which-scope scp))
-                                  (CFunc args (some sarg) (rec-desugar body) false)))]
+                                  (CFunc args (some sarg) (rec-desugar body) false)]
       
       [LexReturn (value) (CReturn (rec-desugar value))]
       
@@ -485,53 +472,13 @@
                            (CApp f results (some s))))]
       
       [LexClass (scp name bases body)
-                (local [(define (get-names expr)
-                          (lexexpr-fold-tree expr
-                                             (lambda (y)
-                                               (type-case LexExpr y
-                                                 [LexInstanceId (x ctx) (list x)]
-                                                 [LexClass (scp name bases body) empty]
-                                                 [LexBlock (_ __) empty]
-                                                 [else (haiku-error)]))))
-                        (define (replace-instace expr)
-                          (lexexpr-modify-tree
-                            expr
-                            (lambda (y)
-                              (type-case LexExpr y
-                                [LexInstanceId (x ctx)
-                                               (LexDotField
-                                                 (cond
-                                                   [(Globally-scoped? scp) (LexGlobalId name 'Load)]
-                                                   [(Locally-scoped? scp) (LexLocalId name 'Load)]
-                                                   [(Instance-scoped? scp) (LexInstanceId name 'Load)]
-                                                   [else (error 'desugar "could not determine scoping for parent class")])
-                                                 x)]
-                                [else (haiku-error)]))))
-                        (define names (get-names body))
-                        (define body-r (desugar (replace-instace body)))
-                        (define modbody
-                          (if (member '__init__ names)
-                              body-r
-                              (CSeq body-r
-                                    (CAssign 
-                                      (CId '__init__ (LocalId))
-                                      (CFunc (list 'self) (none)
-                                             (CAssign 
-                                               (CGetField
-                                                 (CId 'self (LocalId))
-                                                 '__class__)
-                                               (CBuiltinPrim '$class
-                                                             (list (CId 'self (LocalId)))))
-                                             true)))))]                       
-                  (CAssign (CId name (which-scope scp))
-                           (CClass name
-                                   (if (empty? bases)
-                                       (list 'object)
-                                       bases)
-                                   modbody)))]
-
+                (CClass name
+                        (if (empty? bases)
+                            (list 'object)
+                            bases)
+                        (desugar body))]
       [LexInstanceId (x ctx)
-                     (error 'desugar "should not encounter an instance ID outside of a class!")]
+                     (error 'desugar "should not encounter an instance ID!")]
 
       [LexDotField (value attr) (CGetField (rec-desugar value) attr)]
       
