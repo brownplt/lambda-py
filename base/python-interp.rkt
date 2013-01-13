@@ -35,8 +35,6 @@
                    (get-structured-python : ('a -> 'b)))
          "python-desugar.rkt"
          "python-syntax.rkt"
-         (typed-in "python-lib.rkt" (python-lib : ('a -> 'b)))
-         
          (typed-in racket/list (remove-duplicates : ((listof 'a) -> (listof 'a))))
          )
 

@@ -20,7 +20,7 @@
          (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (quotient : (number number -> number)))
          (typed-in racket/base (remainder : (number number -> number)))
-         (typed-in racket/pretty (pretty-print : ('a -> 'b))))
+         (typed-in racket/pretty (pretty-print : ('a -> 'b)))
          (typed-in racket/list (last : ((listof 'a) -> 'a))))
 
 #|

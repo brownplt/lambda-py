@@ -14,11 +14,8 @@
          "builtins/set.rkt"
          "builtins/none.rkt"
          "builtins/file.rkt"
-<<<<<<< HEAD
-         "builtins/module.rkt"
-=======
-         "builtins/modules/builtin-sys.rkt"
->>>>>>> brown/modules
+         (typed-in "builtins/modules/builtin-modules.rkt"
+                   (get-builtin-modules : ( -> 'a)))
          "util.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
@@ -27,7 +24,9 @@
          (typed-in racket/base (open-input-file : ('a -> 'b)))
          "python-syntax.rkt"
          "python-desugar.rkt"
-         (typed-in racket/base (append : ((listof 'a) (listof 'a) (listof 'a) (listof 'a) (listof 'a) -> (listof 'a))))
+         (typed-in racket/base (append : ((listof 'a) (listof 'a)
+                                          (listof 'a) (listof 'a)
+                                          (listof 'a) (listof 'a) -> (listof 'a))))
          (typed-in racket/pretty (pretty-print : ('a -> 'b))))
 
 #|
@@ -217,76 +216,6 @@ that calls the primitive `print`.
                           (CId 'type (LocalId)))))
     false))
 
-; construct a module object
-; current __import__ can be translated to:
-; def __import__(name):
-;    m = $module(name)
-;    f = open(name+'.py', 'r')
-;    code = f.read()
-;    f.close()
-;    m = $exec_to_module(code)
-;    return m
-;
-; NOTE: - Module class is defined as '$module', user cannot get access to $module
-;       - $exec_to_module is handled in CBuiltinPrim.
-;       - $exec_to_module will return a VObject, in which all the information in imported
-;         file are in object-dict.
-
-(define import-lambda
-(CFunc
-   (list 'name)
-   (none)
-   (CSeq
-    (CSeq
-     (CSeq
-      (CAssign (CId 'code (LocalId)) (CUndefined))
-      (CAssign (CId 'f (LocalId)) (CUndefined)))
-     (CAssign (CId 'm (LocalId)) (CUndefined)))
-    (CSeq
-     (CSeq
-      (CSeq
-       (CSeq
-        (CSeq
-         (CAssign
-          (CId 'm (LocalId))
-          (CApp (CId '$module (GlobalId)) (list (CId 'name (LocalId))) (none)))
-         (CAssign
-          (CId 'f (LocalId))
-          (CApp
-           (CId 'open (GlobalId))
-           (list
-            (CApp
-             (CGetField (CId 'name (LocalId)) '__add__)
-             (list (CId 'name (LocalId)) (CObject 'str (some (MetaStr ".py"))))
-             (none))
-            (CObject 'str (some (MetaStr "r"))))
-           (none))))
-        (CAssign
-         (CId 'code (LocalId))
-         (CApp
-          (CGetField (CId 'f (LocalId)) 'read)
-          (list (CId 'f (LocalId)))
-          (none))))
-       (CApp
-        (CGetField (CId 'f (LocalId)) 'close)
-        (list (CId 'f (LocalId)))
-        (none)))
-      (CAssign
-       (CId 'm (LocalId))
-       (CApp
-        (CId '$exec_to_module (GlobalId))
-        (list (CId 'code (LocalId)))
-        (none))))
-     (CReturn (CId 'm (LocalId)))))
-   #f))
-
-;; invoke the internal exec-module primitive
-(define exec-module-lambda
-  (CFunc (list 'code) (none)
-         (CReturn
-          (CBuiltinPrim 'exec-module (list (CId 'code (LocalId)))))
-         false))
-
 ; This function returns the first super-class of the instance.
 ; It uses the __mro__, but it doesn't implement cooperative
 ; multiple inheritance, yet.
@@ -358,13 +287,11 @@ that calls the primitive `print`.
 
         (bind '$code code-class)
         (bind '$module code-class)
-        (bind '$sys-class sys-class) 
 
         (bind 'bool bool-class)
         (bind 'set set-class)
         (bind 'file file-class)
         (bind 'open file-class)
-        (bind '$module module-class)
         
         (bind 'len len-lambda)
         (bind 'min min-lambda)
@@ -373,9 +300,6 @@ that calls the primitive `print`.
         (bind 'abs abs-lambda)
         (bind 'isinstance isinstance-lambda)
         (bind 'print print-lambda)
-        (bind '__import__ import-lambda)
-        (bind '$exec_to_module exec-module-lambda)
-
         (bind 'callable callable-lambda)
 
         (bind 'super super-lambda)
@@ -383,12 +307,7 @@ that calls the primitive `print`.
 
         (bind 'globals globals-lambda)
         (bind 'compile compile-lambda)
-        (bind 'exec exec-lambda)
 
-        ;;; builtin module
-        ; sys module, defined in sys.rkt
-        (bind '$sys sys-module)
-        
         ; hack to create module object from globals
         (bind '__module make-module-lambda)
 
@@ -427,7 +346,7 @@ that calls the primitive `print`.
             ;(bind '___assertRaises (CNone))
             (bind 'filter (CNone))
             (bind 'dicteq (CNone)))
-      empty empty empty))
+      empty empty empty empty))
 ;; these are builtin functions that we have written in actual python files which
 ;; are pulled in here and desugared for lib purposes
 (define (get-pylib-programs)
@@ -446,31 +365,19 @@ that calls the primitive `print`.
              "pylib/import.py"
             ; "pylib/assertraises.py"
             )))
-             
 
 (define-type-alias Lib (CExpr -> CExpr))
 
-<<<<<<< HEAD
-(define (python-lib [expr : CExpr]) : CExpr
-  (begin ;(pretty-print (get-pylib-programs))
-    (seq-ops (append
-              (map (lambda(b) (CAssign (CId (bind-left b) (GlobalId)) (bind-right b)))
-                   lib-function-dummies)
-              (list (CModule-prelude expr))
-              (map (lambda(b) (CAssign (CId (bind-left b) (GlobalId)) (bind-right b)))
-                   lib-functions)
-              (get-pylib-programs)
-              (list (CModule-body expr))))))
-=======
 (define (python-lib-func [expr : CExpr]) : CExpr
   (seq-ops (append
              (map (lambda(b) (CAssign (CId (bind-left b) (GlobalId)) (bind-right b)))
                       lib-function-dummies)
              (list (CModule-prelude expr))
+             (get-builtin-modules)
              (map (lambda(b) (CAssign (CId (bind-left b) (GlobalId)) (bind-right b)))
                       lib-functions)
              (get-pylib-programs)
              (list (CModule-body expr)))))
 
 (set-python-lib python-lib-func)
->>>>>>> brown/modules
+
