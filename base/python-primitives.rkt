@@ -240,7 +240,7 @@ primitives here.
      (letrec ([me (first args)]
               [my-antecedent (VObject-antecedent me)]
               [antecedent-class (fetch (some-v (lookup my-antecedent env)) sto)]
-              [mro (get-mro antecedent-class sto)])
+              [mro (get-mro antecedent-class (none) sto)])
        (if (> (length mro) 1) (some (second mro)) (none)))]
 
     ['$locals (begin

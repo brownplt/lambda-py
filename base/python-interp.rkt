@@ -960,7 +960,7 @@
                    [env : Env] 
                    [sto : Store]) : Result
   ;; The mro is the c3-merge of the mro of the bases plus the list of bases
-  (let ([maybe-mro (c3-merge (append (map (lambda (base) (get-mro base sto)) 
+  (let ([maybe-mro (c3-merge (append (map (lambda (base) (get-mro base (none) sto)) 
                                           bases)
                                      (list bases)) empty)])
     (cond
@@ -1033,16 +1033,17 @@
 (test (c3-merge ex5 empty) (some (list 'd 'c 'b 'a 'o)))
 
 ;; get-field-from-class: looks for a field in the class __mro__ components
+;; skip up to thisclass in __mro__, if defined.
 (define (get-field-from-class [n : symbol] 
-                              [c : CVal] 
+                              [c : CVal]
                               [e : Env] 
                               [s : Store]) : Result
   (cond 
     [(equal? n '__mro__) 
      ;; temporary hack to avoid self-reference in __mro__
-     (v*s*e (VObject 'tuple (some (MetaTuple (get-mro c s))) (hash empty)) s e)]
+     (v*s*e (VObject 'tuple (some (MetaTuple (get-mro c (none) s))) (hash empty)) s e)]
     [else
-     (type-case (optionof Address) (lookup-mro (get-mro c s) n)
+     (type-case (optionof Address) (lookup-mro (get-mro c (none) s) n)
        [some (w) (v*s*e (fetch w s) s e)]
        [none () (mk-exception 'AttributeError
                               (string-append 

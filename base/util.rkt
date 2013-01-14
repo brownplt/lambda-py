@@ -19,6 +19,7 @@
 (require [typed-in racket (format : (string 'a -> string))])
 (require [typed-in racket (flatten : ((listof (listof 'a) ) -> (listof 'a)))])
 (require [typed-in racket (remove-duplicates : ((listof 'a) -> (listof 'a)))])
+(require [typed-in racket (memq : ('a (listof 'a) -> (listof 'a)))])
 
 
 (print-only-errors #t)
@@ -221,14 +222,19 @@
 (define (object-is? [o : CVal] [c : symbol] [env : Env] [s : Store]) : boolean
   (let ([obj-cls (fetch (some-v (lookup (VObject-antecedent o) env)) s)]
         [cls (fetch (some-v (lookup c env)) s)])
-    (member cls (get-mro obj-cls s))))
+    (member cls (get-mro obj-cls (none) s))))
 
 
-;; get-mro: fetch __mro__ field as a list of classes
+;; get-mro: fetch __mro__ field as a list of classes, filtered up to thisclass if given
 ;; termporarily prepended with cls to avoid self reference in __mro__
-(define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
+(define (get-mro [cls : CVal] 
+                 [thisclass : (optionof CVal)]
+                 [sto : Store]) : (listof CVal)
   (type-case (optionof Address) (hash-ref (VObject-dict cls) '__mro__)
-    [some (w) (cons cls (MetaTuple-v (some-v (VObject-mval (fetch w sto)))))]
+    [some (w) (let ([mro (cons cls (MetaTuple-v (some-v (VObject-mval (fetch w sto)))))])
+                (if (none? thisclass)
+                    mro
+                    (rest (memq (some-v thisclass) mro))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
                                             (pretty cls)))]))
 (define (is? [v1 : CVal]
