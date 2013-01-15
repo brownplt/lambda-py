@@ -246,8 +246,8 @@ primitives here.
     ['$locals (begin
                 ;(display env) (display "\n\n")
                 ;(display stk) (display "\n\n")
-                (if (> (length stk) 1) ;; it must be used inside a function
-                    (some (make-under-dict (first (Frame-env (second stk))) sto))
+                (if (> (length stk) 0) ;; it must be used inside a function
+                    (some (make-under-dict (first (Frame-env (first stk))) sto))
                     (none)))]
 
     ['$self ;; returns the active self, if any, from the stack

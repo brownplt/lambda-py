@@ -106,12 +106,12 @@
                                                  (v*s*e-e sarg-r)
                                                  cenv
                                                  (v*s*e-s sarg-r)
-                                                 stk)) 
+                                                 stk env)) 
                                              (bind-and-execute body opt-class argxs vararg
                                                                argvs arges ec
                                                                cenv
                                                                sc
-                                                               stk)))]
+                                                               stk env)))]
                               (type-case Result result
                                 [v*s*e (vb sb eb) (v*s*e vnone sb env)]
                                 [Return (vb sb eb) (v*s*e vb sb env)]
@@ -143,7 +143,7 @@
                                                                 ec
                                                                 cenv
                                                                 sc
-                                                                stk))]
+                                                                stk env))]
                                         (type-case Result result
                                           [v*s*e (vb sb eb) 
                                                  (v*s*e 
@@ -183,7 +183,7 @@
                                                              ec
                                                              cenv
                                                              sc
-                                                             stk))]
+                                                             stk env))]
                                        (type-case Result result
                                          [v*s*e (vb sb eb)
                                                 (v*s*e vb sb
@@ -232,13 +232,12 @@
 
 
 
-
 (define (bind-and-execute [body : CExpr]
                           [opt-class : (optionof symbol)]
                           [argxs : (listof symbol)]
                           [vararg : (optionof symbol)] [argvs : (listof CVal)]
                           [arges : (listof CExpr)] [env : Env]
-                          [ext : Env] [sto : Store] [stk : Stack]) : Result
+                          [ext : Env] [sto : Store] [stk : Stack] [dyn : Env]) : Result
   (local [(define-values (e s mayb-ex) 
             (bind-args argxs vararg argvs arges env ext sto stk))]
     (if (some? mayb-ex)
@@ -255,7 +254,8 @@
                       (none)))]
         (interp-env body e s 
                     ;; push new activation record on the stack
-                    (cons (Frame e class self) stk))))))
+                    ;; used the dynamic environment for compatibility with base code.
+                    (cons (Frame dyn class self) stk))))))
 
 (define (interp-excepts [excepts : (listof CExpr)]
                         [sto : Store]
