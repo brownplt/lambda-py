@@ -33,7 +33,7 @@ primitives here.
 
 (define (callable [arg : CVal]) : CVal 
   (type-case CVal arg
-    [VClosure (e a v b) true-val]
+    [VClosure (e a v b o) true-val]
     [VObject (a m d) (if (some? m)
                        (if (MetaClass? (some-v m))
                          true-val

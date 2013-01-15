@@ -26,7 +26,7 @@ ParselTongue.
   [CLet (x : symbol) (bind : CExpr) (body : CExpr)]
   [CApp (fun : CExpr) (args : (listof CExpr)) (stararg : (optionof CExpr))]
   [CFunc (args : (listof symbol)) (varargs : (optionof symbol)) (body : CExpr)
-         (method : boolean)]
+         (opt-class : (optionof symbol))] ; class name for methods
   [CWhile (test : CExpr) (body : CExpr) (orelse : CExpr)]
   [CReturn (value : CExpr)]
   [CPrim1 (prim : symbol) (arg : CExpr)]
@@ -58,7 +58,8 @@ ParselTongue.
 
 (define-type CVal
   [VObject (antecedent : symbol) (mval : (optionof MetaVal)) (dict : object-dict)]
-  [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr)]
+  [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr)
+            (opt-class : (optionof symbol))] ; class name for methods
   [VUndefined])
 
 (define-type MetaVal

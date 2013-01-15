@@ -78,7 +78,7 @@
  (type-case Result (interp-env fun env sto)
    [v*s*e (vfun sfun efun) 
     (type-case CVal vfun
-      [VClosure (cenv argxs vararg body)
+      [VClosure (cenv argxs vararg body opt-class)
                   (local [(define-values (argvs-r sc ec) (interp-cascade arges sfun efun))]
                      (let ([exn? (filter Exception? argvs-r)])
                         (if (< 0 (length exn?))
@@ -122,7 +122,7 @@
                         ; Create an empty object. This will be the instance of that class.
                         [o (new-object (MetaClass-c (some-v mval)) efun sfun)])
                     (type-case CVal f
-                      [VClosure (cenv argxs vararg body)
+                      [VClosure (cenv argxs vararg body opt-class)
                                 ; interpret the arguments to the constructor
                          (local [(define-values (argvs-r sc ec)
                                    (interp-cascade arges sfun efun))]
@@ -160,7 +160,7 @@
                     (type-case Result __call__
                       [v*s*e (vc sc ec)
                              (type-case CVal vc
-                               [VClosure (cenv argxs vararg body)
+                               [VClosure (cenv argxs vararg body opt-class)
                                          ; interpret the arguments to the constructor
                                          (local [(define-values (argvs-r sc ec)
                                                    (interp-cascade arges sfun efun))]
@@ -572,11 +572,11 @@
                                          ;(display (v*s*e-v result)) (display "\n\n")
                                          result))]
 
-    [CFunc (args sargs body method?) (begin ;(display "func ") (display env) (display "\n\n")
-           (v*s*e (VClosure (cons (hash empty) (if method?
+    [CFunc (args sargs body opt-class) (begin ;(display "func ") (display env) (display "\n\n")
+           (v*s*e (VClosure (cons (hash empty) (if (some? opt-class)
                                                    (rest env)
                                                    env))
-                            args sargs body)
+                            args sargs body opt-class)
                   sto env))]
 
     [CReturn (value) (type-case Result (interp-env value env sto)
@@ -884,7 +884,7 @@
 
 (define (truthy? [val : CVal]) : boolean
   (type-case CVal val
-    [VClosure (e a s b) true]
+    [VClosure (e a s b o) true]
     [VObject (a mval d) (truthy-object? (VObject a mval d))]
     [VUndefined () false]))
 

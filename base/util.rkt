@@ -248,7 +248,7 @@
     [VObject (a mval d) (if (some? mval)
                             (pretty-metaval (some-v mval))
                             "Can't print non-builtin object.")]
-    [VClosure (env args sarg body) "<function>"]
+    [VClosure (env args sarg body opt-class) "<function>"]
     [VUndefined () "Undefined"]))
 
 (define (pretty-metaval (mval : MetaVal)) : string

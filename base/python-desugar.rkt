@@ -471,7 +471,7 @@
                          (DResult-env expr-r)))]
       
       ; PyPass is an empty lambda
-      [PyPass () (DResult (CApp (CFunc empty (none) (CNone) false) empty (none)) env)] 
+      [PyPass () (DResult (CApp (CFunc empty (none) (CNone) (none)) empty (none)) env)] 
       
       [PyIf (test body orelse)
             (local [(define test-r (rec-desugar test global? env (none)))
@@ -568,7 +568,7 @@
                                                                  "argument of type '___'" 
                                                                  "is not iterable")))))
                                                   (none))))
-                                      false)
+                                      (none))
                                (list right-c left-c)
                                (none))
                          (DResult-env right-r))]
@@ -609,7 +609,7 @@
                 (CFunc args (none)
                        (CReturn                   
                         (DResult-expr rbody))
-                       false)
+                       (none))
                 (DResult-env rbody)))]
       
       [PyFunc (name args defargs body)
@@ -645,7 +645,7 @@
                   (local [(define body-r (desugar-local-body body args env))]
                     (DResult
                      (CAssign (CId name (LocalId))
-                              (CFunc args (none) (DResult-expr body-r) (some? opt-class)))
+                              (CFunc args (none) (DResult-expr body-r) opt-class))
                      env)))]
       
       ; a PyClassFunc is a method whose first argument should be the class rather than self
@@ -667,7 +667,7 @@
                                                                            args)
                                                                           (LocalId)))))
                                             (DResult-expr body-r))
-                                      (some? opt-class)))
+                                      opt-class))
                       env))]
       
       [PyFuncVarArg (name args sarg body)
@@ -675,7 +675,7 @@
                               (desugar-local-body body (append args (list sarg)) env))]
                       (DResult
                        (CAssign (CId name (LocalId))
-                                (CFunc args (some sarg) (DResult-expr body-r) (some? opt-class)))
+                                (CFunc args (some sarg) (DResult-expr body-r) opt-class))
                        env))]
       
       [PyReturn (value)
@@ -763,7 +763,7 @@
                                   (list (make-builtin-str "Assert failure!"))
                                   (none))
                             (DResult-expr pass))
-                           false)
+                           (none))
                     empty
                     (none))
                    (DResult-env pass)))]
@@ -823,7 +823,7 @@
                                              '__class__)
                                             (CBuiltinPrim '$class
                                                           (list (CId 'self (LocalId)))))
-                                          true)))))
+                                           (some name))))))
                      (define modenv 
                        (if (member '__init__ names)
                            (DResult-env body-r)
