@@ -124,3 +124,7 @@ ParselTongue.
     [some (v) v]
     [none () (error 'interp (string-append "No value at address " (Address->string w)))]))
 
+(define-type ActivationRecord
+  [Frame (env : Env) (class : (optionof CVal)) (self : (optionof CVal))])
+
+(define-type-alias Stack (listof ActivationRecord))

@@ -767,10 +767,6 @@
                     empty
                     (none))
                    (DResult-env pass)))]
-               [(and (PyId? fun) (symbol=? (PyId-x fun) 'locals))
-                (DResult
-                 (CBuiltinPrim '$locals empty)
-                 env)]
                [else
                 (local [(define f (rec-desugar fun global? env (none)))
                         (define f-expr (DResult-expr f))
@@ -781,16 +777,6 @@
                      [(CGetField? f-expr)
                       (local [(define o (CGetField-value f-expr))]
                         (CApp f-expr (cons o results) (none)))]
-                     ; special case: "super" application gets extra 'self' argument
-                     ; multiple inheritance: add class argument to super
-                     ; NB: this scheme only works for direct application of super(),
-                     ; without arguments, and it also depends on self name.
-                     [(and (CId? f-expr) (symbol=? 'super (CId-x f-expr)))
-                      (CApp f-expr (cons 
-                                    (if (some? opt-class) 
-                                             (CId (some-v opt-class) (GlobalId)) 
-                                             (CId 'None (GlobalId)))
-                                    (cons (CId 'self (LocalId)) results)) (none))]
                      [else (CApp f-expr results (none))])
                    last-env))])]
       

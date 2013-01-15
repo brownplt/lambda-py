@@ -208,13 +208,21 @@ that calls the primitive `print`.
                           (CId 'type (LocalId)))))
     (none)))
 
+(define locals-lambda
+  (CFunc (list) (none)
+         (CReturn
+          (CBuiltinPrim '$locals empty))
+         (none)))
+  
 ; This function returns the first super-class of the instance.
 ; It uses the __mro__, but it doesn't implement cooperative
-; multiple inheritance nor it uses its cls argument, yet.
+; multiple inheritance yet. super() will be a class using
+; $thisclass and $super will not be used anymore.
 (define super-lambda
-  (CFunc (list 'cls 'obj) (none)
+  (CFunc (list) (none)
          (CReturn
-          (CBuiltinPrim '$super (list (CId 'obj (LocalId)))))
+          (CBuiltinPrim '$super 
+                        (list (CBuiltinPrim '$self (list)))))
          (none)))
 
 ;; type should be a (meta)class...
@@ -260,6 +268,7 @@ that calls the primitive `print`.
 
         (bind 'callable callable-lambda)
 
+        (bind 'locals locals-lambda)
         (bind 'super super-lambda)
         (bind 'type type-lambda)
 
