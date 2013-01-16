@@ -1,1 +1,1 @@
-assert(False)
+___assertRaises(assert(False), AssertionError)
