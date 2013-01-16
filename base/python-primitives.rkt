@@ -33,7 +33,7 @@ primitives here.
 
 (define (callable [arg : CVal]) : CVal 
   (type-case CVal arg
-    [VClosure (e a v b) true-val]
+    [VClosure (e a v b o) true-val]
     [VObject (a m d) (if (some? m)
                        (if (MetaClass? (some-v m))
                          true-val
@@ -48,7 +48,7 @@ primitives here.
     [(callable) (callable arg)]))
 
 (define (builtin-prim [op : symbol] [args : (listof CVal)] 
-                      [env : Env] [sto : Store]) : (optionof CVal)
+                      [env : Env] [sto : Store] [stk : Stack]) : (optionof CVal)
   (case op
     ['num+ (check-types args env sto 'num 'num 
                         (some (make-builtin-numv (+ (MetaNum-n mval1) 
@@ -59,7 +59,7 @@ primitives here.
     ['num*
         (if (and (some? (VObject-mval (second args)))
               (MetaStr? (some-v (VObject-mval (second args)))))
-          (builtin-prim 'str* (reverse args) env sto)
+          (builtin-prim 'str* (reverse args) env sto stk)
           (check-types args env sto 'num 'num 
                         (some (VObject 'num (some (MetaNum 
                                                     (* (MetaNum-n mval1) 
@@ -240,11 +240,29 @@ primitives here.
      (letrec ([me (first args)]
               [my-antecedent (VObject-antecedent me)]
               [antecedent-class (fetch (some-v (lookup my-antecedent env)) sto)]
-              [mro (get-mro antecedent-class sto)])
+              [mro (get-mro antecedent-class (none) sto)])
        (if (> (length mro) 1) (some (second mro)) (none)))]
 
     ['$locals (begin
-               ; (display env) (display "\n\n")
-                (some (make-under-dict (first env) sto)))]
+                ;(display env) (display "\n\n")
+                ;(display stk) (display "\n\n")
+                (if (> (length stk) 0) ;; it must be used inside a function
+                    (some (make-under-dict (first (Frame-env (first stk))) sto))
+                    (none)))]
 
+    ['$self ;; returns the active self, if any, from the stack
+     (local [(define (fetch-self [st : Stack]) : (optionof CVal)
+               (cond
+                 [(empty? st) (none)]
+                 [(some? (Frame-self (first st))) (Frame-self (first st))]
+                 [else (fetch-self (rest st))]))]
+       (fetch-self stk))]
+
+    ['$thisclass ;; returns the embodying class, if any, from the stack
+     (local [(define (fetch-class [st : Stack]) : (optionof CVal)
+               (cond
+                 [(empty? st) (none)]
+                 [(some? (Frame-class (first st))) (Frame-class (first st))]
+                 [else (fetch-class (rest st))]))]
+       (fetch-class stk))]
 ))
