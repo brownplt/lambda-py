@@ -360,9 +360,7 @@
                                               body)))))))
                    (local [(define body-r (rec-desugar body))]
                      (if (Instance-scoped? scp)
-                         ;(error 'desugar "can't do instance functions yet")
-                         (CAssign (CId name (LocalId))
-                                  (CFunc args (none) body-r false))
+                         (error 'desugar "can't do instance functions yet")
                          (CAssign (CId name (which-scope scp))
                                   (CFunc args (none) body-r false)))))]
       
@@ -388,9 +386,7 @@
       
       [LexFuncVarArg (scp name args sarg body)
                      (if (Instance-scoped? scp)
-                         ;(error 'desugar "can't do instance varargfunctions yet")
-                         (CAssign (CId name (LocalId))
-                                  (CFunc args (some sarg) (rec-desugar body) false))
+                         (error 'desugar "can't do instance varargfunctions yet")
                          (CAssign (CId name (which-scope scp))
                                   (CFunc args (some sarg) (rec-desugar body) false)))]
       

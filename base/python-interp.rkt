@@ -36,18 +36,22 @@
                          [v*s (vfr sfr) (cons first-r (rec-cascade (rest exprs) e sfr))]
                          [Return (vfr sfr) (list (return-exception sfr))]
                          [Break (sfr) (list first-r)]
+                         [Continue (sfr) (list first-r)] 
                          [Exception (vfr sfr) (list first-r)]))]))
           (define result-list (rec-cascade exprs env init-s))
           (define ex-results (filter Exception? result-list))
-          (define break-results (filter Break? result-list))]
+          (define break-results (filter Break? result-list))
+          (define continue-results (filter Continue? result-list))]
       (if (< 0 (length ex-results))
           (values ex-results (Exception-s (first ex-results)))
           (if (< 0 (length break-results))
               (values break-results (Break-s (first break-results)))
-              (values result-list
-                      (if (cons? result-list)
-                          (v*s-s (first (reverse result-list)))
-                          init-s))))))
+              (if (< 0 (length continue-results))
+                  (values continue-results (Continue-s (first continue-results)))
+                  (values result-list
+                          (if (cons? result-list)
+                              (v*s-s (first (reverse result-list)))
+                              init-s)))))))
 
 ;; interp-capp, interprets an application of a function. It is passed the function,
 ;; the list of argument expressions, an optionof indicating the presence of a stararg,
@@ -89,6 +93,7 @@
                           [v*s (vb sb) (v*s vnone sb)]
                           [Return (vb sb) (v*s vb sb)]
                           [Break (sb) (break-exception sb)]
+                          [Continue (sb) (continue-exception sb)] 
                           [Exception (vb sb) (Exception vb sb)]))))]
      [VObject (b mval d)
                (if (and (some? mval) (MetaClass? (some-v mval)))
@@ -125,6 +130,7 @@
                                         (v*s (fetch (some-v (lookup (first argxs) env)) sb) sb)]
                                    [Return (vb sb) (v*s vb sb)]
                                    [Break (sb) (break-exception sb)]
+                                   [Continue (sb) (continue-exception sb)] 
                                    [Exception (vb sb) (Exception vb sb)]))))]
                      [else (error 'interp 
                                    "__init__ not found. THIS SHOULDN'T HAPPEN.")]))
@@ -156,18 +162,22 @@
                                          [v*s (vb sb) (v*s vb sb)]
                                          [Return (vb sb) (v*s vb sb)]
                                          [Break (sb) (break-exception sb)]
+                                         [Continue (sb) (continue-exception sb)] 
                                          [Exception (vb sb) (Exception vb sb)]))))]
                              [else (error 'interp "Not a closure or constructor.")])]
                       [Return (vfun sfun) (return-exception sfun)]
                       [Break (sfun) (break-exception sfun)]
+                      [Continue (sfun) (continue-exception sfun)] 
                       [Exception (vfun sfun) (Exception vfun sfun)])))]
      [else (error 'interp "Not a closure or constructor")])]
    [Return (vfun sfun) (return-exception sfun)]
    [Break (sfun) (break-exception sfun)]
+   [Continue (sfun) (continue-exception sfun)] 
    [Exception (vfun sfun) (Exception vfun sfun)]))
 
 (define (interp-while [test : CExpr] [body : CExpr] [env : Env] [sto : Store])
   (local [(define test-r (interp-env test env sto))]
+    ;; add continue here
     (if (or (or (Exception? test-r) (Return? test-r)) (Break? test-r))
         test-r
         (if (truthy? (v*s-v test-r))
@@ -259,6 +269,7 @@
               [v*s (vbody sbody) (v*s vnone sbody)]
               [Return (vbody sbody) (return-exception sbody)]
               [Break (sbody) (Break sbody)]
+              [Continue (sbody) (Continue sbody)] 
               [Exception (vbody sbody)
                          (local [(define exn-args (hash-ref (VObject-dict vbody) 'args))
                                  (define exn-args-val (if (some? exn-args)
@@ -291,6 +302,7 @@
                                      [v*s (v s) (values v s)]
                                      [Return (v s) (values v s)]
                                      [Break (s) (values vnone s)]
+                                     [Continue (s) (values vnone s)] 
                                      [Exception (v s) (values v s)]))]
     (interp-env body
                 ; Needed still?
@@ -313,6 +325,7 @@
                   [v*s (v s) (interp-env body env s)]
                   [Return (v s) (return-exception s)]
                   [Break (s) (break-exception s)]
+                  [Continue (s) (continue-exception s)] 
                   [Exception (v s) (Exception v s)]))]
     
     [CStr (s) (v*s (VObject 'str (some (MetaStr s)) (hash empty)) sto)]
@@ -346,9 +359,11 @@
                               (hash-set sbody w (make-under-dict (hash empty) sbody))))]|#
                    [Return (vval sval) (return-exception sval)]
                    [Break (sval) (break-exception sval)]
+                   [Continue (sval) (continue-exception sval)] 
                    [Exception (vval sval) (Exception vval sval)])]
             [Return (vbases sbases) (return-exception sbases)]
             [Break (sbases) (break-exception sbases)]
+            [Continue (sbases) (continue-exception sbases)] 
             [Exception (vbases sbases) (Exception vbases sbases)])]
    
     [CGetField (value attr)
@@ -356,12 +371,14 @@
                     [v*s (vval sval) (get-field attr vval env sval)]
                     [Return (vval sval) (return-exception sval)]
                     [Break (sval) (break-exception sval)]
+                    [Continue (sval) (continue-exception sval)] 
                     [Exception (vval sval) (Exception vval sval)])]
 			
     [CSeq (e1 e2) (type-case Result (interp-env e1 env sto)
                     [v*s (v1 s1) (interp-env e2 env s1)]
                     [Return (v1 s1) (Return v1 s1)]
                     [Break (s1) (Break s1)]
+                    [Continue (s1) (Continue s1)] 
                     [Exception (v1 s1) (Exception v1 s1)])]
     
     ;; note that for now we're assuming that dict keys and values aren't going
@@ -428,6 +445,7 @@
                                                 sv)])]
                      [Return (vv sv) (return-exception sv)]
                      [Break (sv) (break-exception sv)]
+                     [Continue (sv) (continue-exception sv)] 
                      [Exception (vv sv) (Exception vv sv)])]
     
     ;; is this used anymore?
@@ -435,6 +453,7 @@
                   [v*s (ve se) (raise-user-error (pretty ve))]
                   [Return (ve se) (return-exception se)]
                   [Break (se) (break-exception se)]
+                  [Continue (se) (continue-exception se)] 
                   [Exception (ve se) (Exception ve se)])]
 
     [CIf (i t e) (type-case Result (interp-env i env sto)
@@ -443,6 +462,7 @@
                                     (interp-env e env si))]
                    [Return (vi si) (return-exception si)]
                    [Break (si) (break-exception si)]
+                   [Continue (si) (continue-exception si)] 
                    [Exception (vi si) (Exception vi si)])]
 
     [CId (x t)
@@ -507,6 +527,7 @@
                [v*s (vv sv) (Return vv sv)]
                [Return (vv sv) (return-exception sv)]
                [Break (sv) (break-exception sv)]
+               [Continue (sv) (continue-exception sv)] 
                [Exception (vv sv) (Exception vv sv)])]
 
     [CPrim1 (prim arg)
@@ -519,6 +540,7 @@
                      [else (v*s (python-prim1 prim varg) sarg)])]
               [Return (varg sarg) (return-exception sarg)]
               [Break (sarg) (break-exception sarg)]
+              [Continue (sarg) (continue-exception sarg)] 
               [Exception (varg sarg) (Exception varg sarg)])]
 
     [CWhile (body test orelse) (interp-while body test env sto)]
@@ -551,6 +573,7 @@
                                              sexpr)])]
                   [Return (vexpr sexpr) (return-exception sexpr)]
                   [Break (sexpr) (break-exception sexpr)]
+                  [Continue (sexpr) (continue-exception sexpr)] 
                   [Exception (vexpr sexpr) (Exception vexpr sexpr)])
                 (mk-exception 'RuntimeError
                               "No active exception to reraise"
@@ -566,14 +589,17 @@
                                        (v*s vnone sfin)]
                                 [Return (vfin sfin) (return-exception sfin)]
                                 [Break (sfin) (Break sfin)]
+                                [Continue (sfin) (Continue sfin)] 
                                 [Exception (vfin sfin)
                                            (Exception vfin sfin)])]
                       [Return (velse selse) (return-exception selse)]
                       [Break (selse) (Break selse)]
+                      [Continue (selse) (Continue selse)]
                       [Exception (velse selse)
                                  (Exception velse selse)])]
             [Return (vtry stry) (Return vtry stry)]
             [Break (stry) (Break stry)]
+            [Continue (stry) (Continue stry)]
             ;; handle excepts here
             [Exception (vtry stry)
                (local [(define result 
@@ -581,17 +607,17 @@
                              (Exception vtry stry)
                              (interp-excepts excepts stry env
                                              (Exception vtry stry))))]
-                 (if (Exception? result)
+                 ;; TODO: make sure this is still right!
+                 (if (not (v*s? result))
                      (begin
                        (interp-env finally env (Exception-s result))
                        result)
-                     (if (Break? result)
-                         result
-                         (interp-env finally env (v*s-s result)))))])]
+                     (interp-env finally env (v*s-s result))))])]
 
     [CExcept (types name body) (interp-env body env sto)]
     
-    [CBreak () (Break sto)])))
+    [CBreak () (Break sto)]
+    )))
 
 (define (assign-to-id [id : CExpr] [v : CVal] [env : Env] [sto : Store]) : Result
   (local [(define mayb-loc (lookup (CId-x id) env))]
@@ -667,6 +693,7 @@
            [else (error 'interp "Can't assign to nonobject.")])]
     [Return (vo so) (return-exception so)]
     [Break (so) (break-exception so)]
+    [Continue (so) (continue-exception so)] 
     [Exception (vo so) (Exception vo so)]))
 
 (define (new-object [c-name : symbol] [e : Env] [s : Store]) : CVal
@@ -765,6 +792,9 @@
 (define (break-exception [sto : Store]) : Result
   (mk-exception 'SyntaxError "'break' outside loop" sto))
 
+(define (continue-exception [sto : Store]) : Result
+  (mk-exception 'SyntaxError "'continue' outside loop" sto))
+
 (define (interp expr)
   (type-case Result (interp-env expr (list (#|make-|#hash (list))) (hash (list)))
     [v*s (vexpr sexpr)
@@ -780,6 +810,10 @@
            (local [(define exn (break-exception sexpr))]
              (raise-user-error (pretty-exception (Exception-v exn)
                                                  (Exception-s exn))))]
+    [Continue (sexpr)
+           (local [(define exn (continue-exception sexpr))]
+             (raise-user-error (pretty-exception (Exception-v exn)
+                                                 (Exception-s exn))))] 
     [Exception (vexpr sexpr)
                (raise-user-error (pretty-exception vexpr sexpr))]))
 
@@ -811,9 +845,11 @@
                                                           prim)))])]
              [Return (varg2 sarg2) (return-exception sarg2)]
              [Break (sarg2) (break-exception sarg2)]
+             [Continue (sarg2) (continue-exception sarg2)] 
              [Exception (varg2 sarg2) (Exception varg2 sarg2)])]
       [Return (varg1 sarg1) (return-exception sarg1)]
       [Break (sarg1) (break-exception sarg1)]
+      [Continue (sarg1) (continue-exception sarg1)] 
       [Exception (varg1 sarg1) (Exception varg1 sarg1)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; multiple inheritance ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -848,6 +884,7 @@
                     mro_w vmro))]
       [Return (vmro smro) (return-exception smro)]
       [Break (smro) (break-exception smro)]
+      [Continue (smro) (continue-exception smro)] 
       [Exception (vmro smro) (Exception vmro smro)])))
 
 ;; build-mro: merge the __mro__ of the bases using the C3 algorithm
