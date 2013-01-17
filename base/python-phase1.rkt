@@ -2,6 +2,7 @@
 
 (require "python-syntax.rkt"
          "python-core-syntax.rkt"
+         "python-lib-bindings.rkt"
          "python-lexical-syntax.rkt"
          "python-syntax-operations.rkt")
 (require "util.rkt")
@@ -41,30 +42,75 @@
        [PyClass (name bases body) (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexUndefined))
                                                 (LexClass (Unknown-scope) name bases (LexBlock empty (pre-desugar body)))))]
        [PyLam (args body) (LexLam args (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
-       [PyFunc (name args defaults body) (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexUndefined))
-                                                 (LexFunc (Unknown-scope) name args (map pre-desugar defaults) (LexBlock args (cascade-nonlocal args (pre-desugar body))))))]
-       [PyClassFunc (name args body) (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexUndefined))
-                                             (LexClassFunc (Unknown-scope) name args (LexBlock args (cascade-nonlocal args (pre-desugar body))))))]
-       [PyFuncVarArg (name args sarg body) (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexUndefined))
-                                                   (LexFuncVarArg (Unknown-scope) name args sarg (LexBlock args (cascade-nonlocal args (pre-desugar body))))))]
+       [PyFunc (name args defaults body) (LexSeq (list (LexAssign (list (PyLexId name 'Store)) 
+                                                 (LexFunc (Unknown-scope) name args (map pre-desugar defaults) (LexBlock args (cascade-nonlocal args (pre-desugar body)))))))]
+       [PyClassFunc (name args body) (LexSeq (list (LexAssign (list (PyLexId name 'Store)) 
+                                             (LexClassFunc (Unknown-scope) name args (LexBlock args (cascade-nonlocal args (pre-desugar body)))))))]
+       [PyFuncVarArg (name args sarg body) (LexSeq (list (LexAssign (list (PyLexId name 'Store)) 
+                                                   (LexFuncVarArg (Unknown-scope) name args sarg
+                                                                  (LexBlock args (cascade-nonlocal args (pre-desugar body)))))))]
        [else (haiku-error)]
        )))))
+
+(define (post-desugar [expr : LexExpr]) : LexExpr
+  (local
+   [(define (replace-instance expr class-expr)
+      (lexexpr-modify-tree
+       expr
+       (lambda (y)
+         (type-case LexExpr y
+           [LexInstanceId (x ctx) (LexDotField class-expr x)]
+           [LexClass (scope name bases body) (LexClass scope name bases body)]
+           [else (haiku-error)]))))
+    (define (deal-with-class expr class-expr)
+      (lexexpr-modify-tree
+       expr
+        (lambda (y)
+          (type-case LexExpr y
+            [LexClass (scope name bases body)
+                      (let ((class-expr (if (Instance-scoped? scope)
+                                            (LexDotField class-expr name)
+                                            class-expr)))
+                        (let ((new-body (replace-instance
+                                         body
+                                         class-expr
+                                         )))
+                          (LexSeq (list (LexAssign
+                                         (list class-expr)
+                                         (LexClass scope name bases (LexPass)))
+                                        (deal-with-class new-body class-expr)))))]
+            [else (haiku-error)]))))
+    (define (top-level-deal-with-class expr)
+      (lexexpr-modify-tree
+       expr
+       (lambda (y)
+         (type-case LexExpr y
+           [LexClass (scope name bases body) (begin
+                                               (if (Instance-scoped? scope)
+                                                 (error 'lexical "instance is not inside class")
+                                                 (deal-with-class y
+                                                                  (if (Globally-scoped? scope)
+                                                                      (LexGlobalId name 'Load)
+                                                                      (LexLocalId name 'Load)))))]
+           [else (haiku-error)]))))]
+   (top-level-deal-with-class expr)))
 
 (define (scope-phase [expr : PyExpr] ) : LexExpr
   (LexModule
    (list 
     (optimization-pass
      (let-phase
-      (let ((replaced-locals (replace-all-locals  (replace-all-instance (pre-desugar expr)) empty))) ;replaces all locals everywhere based on assignment
-        (let ((fully-transformed (make-all-global replaced-locals))) ;replaces all remaining PyId 
-          (remove-blocks
-           (remove-unneeded-pypass
-            (remove-nonlocal
-             (remove-global
-              (replace-lexmodule
-               (remove-unneeded-assigns
-                (process-syntax-errors
-                 (bind-locals fully-transformed))))))))))))))) ;surround every block with PyLet of locals
+      (post-desugar
+       (let ((replaced-locals (replace-all-locals  (replace-all-instance (pre-desugar expr)) empty))) ;replaces all locals everywhere based on assignment
+         (let ((fully-transformed (make-all-global replaced-locals))) ;replaces all remaining PyId 
+           (remove-blocks
+            (remove-unneeded-pypass
+             (remove-nonlocal
+              (remove-global
+               (replace-lexmodule
+                (remove-unneeded-assigns
+                 (process-syntax-errors
+                  (bind-locals fully-transformed)))))))))))))))) ;surround every block with PyLet of locals
 
 (define (replace-lexmodule expr)
   (lexexpr-modify-tree expr
@@ -134,12 +180,19 @@
     (k (bindings-for-nonlocal empty expr))))))
 
 (define (let-phase [expr : LexExpr] ) : LexExpr
-(collapse-pyseq (cascade-undefined-globals (extract-post-transform-globals expr) expr))) ;all globals, not just the current scope
+(collapse-pyseq (cascade-undefined-globals (list-subtract
+                                            (extract-post-transform-globals expr)
+                                            library-names) expr))) ;all globals, not just the current scope
+
+(define library-names (map (lambda (b) (bind-left b)) lib-function-dummies))
 
 (define (collapse-pyseq expr ) 
   (lexexpr-modify-tree expr 
                        (lambda (x) (type-case LexExpr x
-                                     [LexSeq(lis) (LexSeq (flatten (map (lambda (y) (if (LexSeq? y) (LexSeq-es y) (list y)))lis)))]
+                                     [LexSeq(lis) (LexSeq (flatten (map (lambda (y)
+                                                                          (let ((e (collapse-pyseq y)))
+                                                                            (if (LexSeq? e) (LexSeq-es e) (list e))))
+                                                                        lis)))]
                                      [else (haiku-error)]))))                                    
 (define (remove-global expr)
   (lexexpr-modify-tree

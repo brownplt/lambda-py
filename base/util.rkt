@@ -49,6 +49,12 @@
           (hash-set! h "c" 3) 
           h)))
 
+(define (make-exception-class [name : symbol]) : CExpr
+  (CClass
+    name
+    (list 'Exception)
+    (CNone)))
+
 (define (list-subtract [big : (listof 'a) ] [small : (listof 'a)] ) : (listof 'a)
   (local
    [(define (list-remove [l : (listof 'a) ] [e : 'a]) : (listof 'a)
