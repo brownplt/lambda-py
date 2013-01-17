@@ -420,6 +420,8 @@
                       [else (error 'desugar "unrecognized context in LexSubscript")])]
       
       [LexBreak () (CBreak)]
+
+      [LexContinue () (CContinue)]
       
       ;; very hacky solution for assertRaises: it needs laziness built into it, so instead
       ;; of defining it as a function, we'll special case it as a macro.

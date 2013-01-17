@@ -71,6 +71,7 @@
   [PySet (elts : (listof PyExpr))]
   [PyNone]
   [PyBreak]
+  [PyContinue]
 
   ; import, which desugar to asname = __import__("name")
   [PyImport (names : (listof string)) (asnames : (listof symbol))]

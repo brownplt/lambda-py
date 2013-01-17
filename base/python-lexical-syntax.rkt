@@ -94,6 +94,7 @@
   [LexSet (elts : (listof LexExpr))]
   [LexNone]
   [LexBreak]
+  [LexContinue]
 
   ; import, which desugar to asname = __import__("name")
   [LexImport (names : (listof string)) (asnames : (listof symbol))]

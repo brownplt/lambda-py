@@ -283,6 +283,9 @@ structure that you define in python-syntax.rkt
        (PyTryExceptElseFinally try excepts orelse (PyPass)))]
 
     [(hash-table ('nodetype "Break")) (PyBreak)]
+
+    [(hash-table ('nodetype "Continue")) (PyContinue)]
+
     [(hash-table ('nodetype "ExceptHandler")
                  ('type type)
                  ('name name)

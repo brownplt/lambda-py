@@ -109,7 +109,8 @@
               [PyImportFrom (module names asnames level)
                             (LexImportFrom module names asnames level)]
               [PyNone [] (LexNone)]
-              [PyBreak [] (LexBreak)]))
+              [PyBreak [] (LexBreak)]
+              [PyContinue [] (LexContinue)]))
         (define (recur this-expr)
             (call/cc (lambda (k)
                     (call-with-exception-handler
@@ -345,6 +346,7 @@
               [PySet (elts) (flatten (map recur elts))]
               [PyNone [] empty]
               [PyBreak [] empty]
+              [PyContinue [] empty]
               [PyImport (names asnames) empty]
               [PyImportFrom (module names asnames level) empty]))
         (define (recur this-expr)
