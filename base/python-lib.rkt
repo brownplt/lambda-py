@@ -11,6 +11,7 @@
          "builtins/set.rkt"
          "builtins/none.rkt"
          "builtins/file.rkt"
+         "builtins/method.rkt"
          "util.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
@@ -214,17 +215,6 @@ that calls the primitive `print`.
           (CBuiltinPrim '$locals empty))
          (none)))
   
-; This function returns the first super-class of the instance.
-; It uses the __mro__, but it doesn't implement cooperative
-; multiple inheritance yet. super() will be a class using
-; $thisclass and $super will not be used anymore.
-(define super-lambda
-  (CFunc (list) (none)
-         (CReturn
-          (CBuiltinPrim '$super 
-                        (list (CBuiltinPrim '$self (list)))))
-         (none)))
-
 ;; type should be a (meta)class...
 (define type-lambda
   (CFunc (list 'self) (none)
@@ -257,6 +247,10 @@ that calls the primitive `print`.
         (bind 'set set-class)
         (bind 'file file-class)
         (bind 'open file-class)
+        (bind 'method method-class)
+        (bind 'classmethod classmethod-class)
+        (bind 'staticmethod staticmethod-class)
+        (bind 'super super-class)
 
         (bind 'len len-lambda)
         (bind 'min min-lambda)
@@ -269,7 +263,6 @@ that calls the primitive `print`.
         (bind 'callable callable-lambda)
 
         (bind 'locals locals-lambda)
-        (bind 'super super-lambda)
         (bind 'type type-lambda)
 
         (bind 'Exception exception)
