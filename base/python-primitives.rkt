@@ -64,22 +64,22 @@ primitives here.
                         (some (VObject 'num (some (MetaNum 
                                                     (* (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
-                                       (make-hash empty)))))]
+                                       (hash empty)))))]
     ['num/ (check-types args env sto 'num 'num 
                         (some (VObject 'num (some (MetaNum 
                                                     (/ (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
-                                        (make-hash empty))))]
+                                        (hash empty))))]
     ['num// (check-types args env sto 'num 'num 
                         (some (VObject 'num (some (MetaNum 
                                                     (quotient (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
-                                        (make-hash empty))))]
+                                        (hash empty))))]
     ['num% (check-types args env sto 'num 'num 
                         (some (VObject 'num (some (MetaNum 
                                                     (quotient (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
-                                        (make-hash empty))))]
+                                        (hash empty))))]
     ['num= (check-types args env sto 'num 'num 
                         (if (= (MetaNum-n mval1) (MetaNum-n mval2))
                           (some true-val)
@@ -108,21 +108,21 @@ primitives here.
                         (if (< (MetaNum-n mval1) (MetaNum-n mval2))
                             (some (VObject 'num
                                            (some (MetaNum -1))
-                                           (make-hash empty)))
+                                           (hash empty)))
                             (if (> (MetaNum-n mval1) (MetaNum-n mval2))
                                 (some (VObject 'num
                                                (some (MetaNum 1))
-                                               (make-hash empty)))
+                                               (hash empty)))
                                 (some (VObject 'num
                                                (some (MetaNum 0))
-                                               (make-hash empty))))))]
+                                               (hash empty))))))]
     
     ['num-str (let ([arg (first args)])
             (some (VObject 'str 
                            (some (MetaStr 
                              (number->string (MetaNum-n (some-v (VObject-mval
                                                                   arg))))))
-                           (make-hash empty))))]
+                           (hash empty))))]
     ;string
     ['str+ (str+ args env sto)]
     ['str= (streq args env sto)]

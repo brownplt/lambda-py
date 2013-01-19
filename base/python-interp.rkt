@@ -39,19 +39,20 @@
                          [Continue (sfr) (list first-r)] 
                          [Exception (vfr sfr) (list first-r)]))]))
           (define result-list (rec-cascade exprs env init-s))
-          (define ex-results (filter Exception? result-list))
-          (define break-results (filter Break? result-list))
-          (define continue-results (filter Continue? result-list))]
-      (if (< 0 (length ex-results))
-          (values ex-results (Exception-s (first ex-results)))
-          (if (< 0 (length break-results))
-              (values break-results (Break-s (first break-results)))
-              (if (< 0 (length continue-results))
-                  (values continue-results (Continue-s (first continue-results)))
-                  (values result-list
-                          (if (cons? result-list)
-                              (v*s-s (first (reverse result-list)))
-                              init-s)))))))
+          (define non-results
+            (filter (lambda (r)
+                      (or (Exception? r) (Break? r)  (Continue? r)))
+                    result-list))]
+      (if (< 0 (length non-results))
+          (values non-results 
+                  (cond
+                    [(Exception? (first non-results)) (Exception-s (first non-results))]
+                    [(Break? (first non-results)) (Break-s (first non-results))]
+                    [(Continue? (first non-results)) (Continue-s (first non-results))]))
+          (values result-list
+                  (if (cons? result-list)
+                      (v*s-s (first (reverse result-list)))
+                      init-s)))))
 
 ;; interp-capp, interprets an application of a function. It is passed the function,
 ;; the list of argument expressions, an optionof indicating the presence of a stararg,
@@ -175,19 +176,23 @@
    [Continue (sfun) (continue-exception sfun)] 
    [Exception (vfun sfun) (Exception vfun sfun)]))
 
-(define (interp-while [test : CExpr] [body : CExpr] [env : Env] [sto : Store])
+(define (interp-while [test : CExpr] [body : CExpr]
+                      [orelse : CExpr] [env : Env]
+                      [sto : Store]) : Result
   (local [(define test-r (interp-env test env sto))]
-    ;; add continue here
-    (if (or (or (Exception? test-r) (Return? test-r)) (Break? test-r))
+    ;; if the test results in an exception, pass it along
+    (if (Exception? test-r)
         test-r
         (if (truthy? (v*s-v test-r))
             (local [(define body-r (interp-env body env (v*s-s test-r)))]
-              (if (or (Exception? body-r) (Return? body-r))
-                  body-r
-                  (if (Break? body-r)
-                      (v*s vnone (Break-s body-r))
-                      (interp-while test body env (v*s-s body-r)))))
-            (v*s vnone (v*s-s test-r))))))
+              (cond
+                ;; if the body results in an exception or return, pass it along
+                [(or (Exception? body-r) (Return? body-r)) body-r]
+                ;; if it results in a break, return None
+                [(Break? body-r) (v*s vnone (Break-s body-r))]
+                ;; if it resulted in a value or continue, attempt to run the loop again
+                [else (interp-while test body orelse env (v*s-s body-r))]))
+            (interp-env orelse env (v*s-s test-r))))))
 
 ;; bind-and-execute, binds the arguments in the closure's
 ;; environment and then applies the closure.
@@ -337,13 +342,18 @@
     [CClass (name bases body)
             ;; the tuple of bases is evaluated assuming global scope for class names,
             ;; should be changed for a more general lookup with the new scope implementation
+            (begin (display "BEGIN CLASS\n") (display bases)
             (type-case Result (interp-env (CTuple (map (lambda (id) (CId id (GlobalId)))
                                                        bases))
                                           env sto)
               [v*s (vbases sbases)
                    (type-case Result (interp-env body (cons (hash empty) env) sto)
                      [v*s (vbody sbody)
-                          (mk-type name vbases (hash empty) sbody env)]
+                          (begin (display name) (display "\n")
+                                 (display env) (display "\n")
+                                 (display sbody) (display "\n")
+                                 (let ([res (mk-type name vbases (hash empty) sbody env)])
+                                   res))]
                      ;; THIS NEEDS MAJOR WORK NOW
                      #|(local [(define class-val (lookup name env))
                                (define w (if (some? class-val)
@@ -364,7 +374,7 @@
             [Return (vbases sbases) (return-exception sbases)]
             [Break (sbases) (break-exception sbases)]
             [Continue (sbases) (continue-exception sbases)] 
-            [Exception (vbases sbases) (Exception vbases sbases)])]
+            [Exception (vbases sbases) (Exception vbases sbases)]))]
    
     [CGetField (value attr)
 	       (type-case Result (interp-env value env sto)
@@ -395,7 +405,7 @@
                (interp-pairs (hash->list contents))
                (v*s (VObject '$dict
                               (some (MetaDict interped-hash))
-                              (make-hash empty))
+                              (hash empty))
                     sto)))]
 
     [CSet (elts)
@@ -407,7 +417,7 @@
                       (let ([val-list (map v*s-v result-list)])
                            (v*s (VObject 'set
                                          (some (MetaSet (make-set val-list)))
-                                         (make-hash empty))
+                                         (hash empty))
                                 new-s)))))]
     
     [CList (values)
@@ -419,7 +429,7 @@
                        (let ([val-list (map v*s-v result-list)])
                          (v*s (VObject 'list
                                        (some (MetaList val-list))
-                                       (make-hash empty))
+                                       (hash empty))
                               new-s)))))]
 
     [CTuple (values)
@@ -431,7 +441,7 @@
                       (let ([val-list (map v*s-v result-list)])
                        (v*s (VObject 'tuple
                                      (some (MetaTuple val-list))
-                                     (make-hash empty))
+                                     (hash empty))
                             new-s)))))]
 
     ;; only for ids!
@@ -507,7 +517,8 @@
     [CObject (c mval) (v*s (VObject c mval (hash empty)) sto)]
 
     [CLet (x type bind body)
-          (interp-let x type (interp-env bind env sto) body env)]
+          (begin (display "LET: ") (display x) (display type) (display "\n")
+          (interp-let x type (interp-env bind env sto) body env))]
 
     [CApp (fun arges sarg)
           (interp-capp fun arges
@@ -543,7 +554,7 @@
               [Continue (sarg) (continue-exception sarg)] 
               [Exception (varg sarg) (Exception varg sarg)])]
 
-    [CWhile (body test orelse) (interp-while body test env sto)]
+    [CWhile (body test orelse) (interp-while body test orelse env sto)]
     
     ;; implement this
     [CPrim2 (prim arg1 arg2) (interp-cprim2 prim arg1 arg2 sto env)]
@@ -617,6 +628,7 @@
     [CExcept (types name body) (interp-env body env sto)]
     
     [CBreak () (Break sto)]
+    [CContinue () (Continue sto)]
     )))
 
 (define (assign-to-id [id : CExpr] [v : CVal] [env : Env] [sto : Store]) : Result
@@ -673,6 +685,7 @@
           [else (error 'interp "Not an object with fiedls.")])])))
 
 (define (assign-to-field o f v e s)
+  (begin (display o) (display "---") (display f) (display "\n")
   (type-case Result (interp-env o e s)
     [v*s (vo so)
          (type-case CVal vo
@@ -683,7 +696,7 @@
                  [none () (local [(define w (new-loc))
                                   (define nw (hash-ref (first e) (CId-x o)))
                                   (define snew
-                                    (begin (display nw) (display "\n")
+                                    (begin (display vo) (display "\n")
                                     (hash-set so (some-v nw) 
                                               (VObject ante-name
                                                        mval
@@ -694,7 +707,7 @@
     [Return (vo so) (return-exception so)]
     [Break (so) (break-exception so)]
     [Continue (so) (continue-exception so)] 
-    [Exception (vo so) (Exception vo so)]))
+    [Exception (vo so) (Exception vo so)])))
 
 (define (new-object [c-name : symbol] [e : Env] [s : Store]) : CVal
   (VObject c-name (none) (hash empty)))
@@ -896,6 +909,7 @@
                    [env : Env] 
                    [sto : Store]) : Result
   ;; The mro is the c3-merge of the mro of the bases plus the list of bases
+  (begin (display "BASES for ") (display name) (display ": ") (display bases) (display "\n")
   (let ([maybe-mro (c3-merge (append (map (lambda (base) (get-mro base sto)) 
                                           bases)
                                      (list bases)) empty)])
@@ -917,7 +931,7 @@
          ;(display "class: ") (display name) (display " mro: ") 
          ;(display (map pretty (some-v maybe-mro))) (display "\n")
          (v*s (VObject 'tuple (some (MetaTuple (some-v maybe-mro))) (hash empty))
-                sto))])))
+                sto))]))))
  
 ;; c3-merge: implements the c3 algorithm to merge mro lists
 ;; looks for a candidate (using c3-select)) and removes it from the mro lists

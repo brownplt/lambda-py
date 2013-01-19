@@ -67,8 +67,8 @@ that calls the primitive `print`.
                   (CLet (bind-left b) (GlobalId) (bind-right b)
                       (cascade-lets (rest bindings) body)))))]
     (cascade-lets lib-function-dummies
-      (cascade-lets lib-functions
-        (seq-ops (append
-                   (get-pylib-programs)
-                   (list (CModule-body expr))
-                   empty empty empty))))))
+                  (seq-ops (append
+                             (map (lambda (b) (bind-right b)) lib-functions)
+                             (get-pylib-programs)
+                             (list (CModule-body expr))
+                             empty empty)))))

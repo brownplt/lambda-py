@@ -7,40 +7,42 @@
          "object.rkt")
 
 (define bool-class 
-  (CClass 
-    'bool
-    (list 'int)
-    (seq-ops (list
-               (def '__init__
-                    (CFunc (list 'self) (some 'args)
-                           (CReturn (CBuiltinPrim 'bool-init
-                                                  (list
-                                                   (CId 'args (LocalId)))))
-                           true))
+  (seq-ops (list
+             (CAssign (CId 'bool (GlobalId))
+                      (CClass 
+                        'bool
+                        (list 'int)
+                        (CNone)))
+             (def 'bool '__init__
+                  (CFunc (list 'self) (some 'args)
+                         (CReturn (CBuiltinPrim 'bool-init
+                                                (list
+                                                  (CId 'args (LocalId)))))
+                         true))
 
-               (def '__str__
-                    (CFunc (list 'self) (none)
-                           (CIf (CApp (CGetField (CId 'self (LocalId)) '__eq__)
-                                      (list (CId 'self (LocalId)) (make-builtin-num 1))
-                                      (none))
-                                (CReturn (make-builtin-str "True"))
-                                (CReturn (make-builtin-str "False")))
-                           true))
-               (def '__int__
-                    (CFunc (list 'self) (none)
-                           (CReturn (CApp (CGetField (CId 'self (LocalId)) '__add__) 
-                                          (list (CId 'self (LocalId)) 
-                                                (make-builtin-num 0))
-                                          (none)))
-                           true))
+             (def 'bool '__str__
+                  (CFunc (list 'self) (none)
+                         (CIf (CApp (CGetField (CId 'self (LocalId)) '__eq__)
+                                    (list (CId 'self (LocalId)) (make-builtin-num 1))
+                                    (none))
+                              (CReturn (make-builtin-str "True"))
+                              (CReturn (make-builtin-str "False")))
+                         true))
+             (def 'bool '__int__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CApp (CGetField (CId 'self (LocalId)) '__add__) 
+                                        (list (CId 'self (LocalId)) 
+                                              (make-builtin-num 0))
+                                        (none)))
+                         true))
 
-               (def '__float__
-                    (CFunc (list 'self) (none)
-                           (CReturn (CApp (CGetField (CId 'self (LocalId)) '__add__) 
-                                          (list (CId 'self (LocalId)) 
-                                                (make-builtin-num 0.0))
-                                          (none)))
-                           true))))))
+             (def 'bool '__float__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CApp (CGetField (CId 'self (LocalId)) '__add__) 
+                                        (list (CId 'self (LocalId)) 
+                                              (make-builtin-num 0.0))
+                                        (none)))
+                         true)))))
 
 (define (make-builtin-bool [b : boolean]) : CExpr
   (CObject 

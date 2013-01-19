@@ -15,116 +15,116 @@
 )
 
 (define dict-class : CExpr
-  (CClass
-   '$dict
-   (list 'object)
-   (seq-ops (list 
-              (def '__len__
+  (seq-ops (list 
+             (CAssign (CId '$dict (GlobalId))
+                      (CClass
+                        '$dict
+                        (list 'object)
+                        (CNone)))
+             (def '$dict '__len__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'dict-len
+                                                (list
+                                                  (CId 'self (LocalId)))))
+                         true))
+             (def '$dict '__str__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'dict-str
+                                                (list (CId 'self (LocalId)))))
+                         true))
+
+             (def '$dict '__list__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'dict->list
+                                                (list (CId 'self (LocalId)))))
+                         true))
+
+             (def '$dict 'clear
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'dict-clear
+                                                (list (CId 'self (LocalId)))))
+                         true))
+
+             (def '$dict 'update
+                  (CFunc (list 'self) (some 'other)
+                         (CReturn (CBuiltinPrim 'dict-update
+                                                (list (CId 'self (LocalId))
+                                                      (CId 'other (LocalId)))))
+                         true))
+             (def '$dict 'get
+                  (CFunc (list 'self 'key) (some 'default)
+                         (CReturn (CBuiltinPrim 'dict-get 
+                                                (list (CId 'self (LocalId)) 
+                                                      (CId 'key (LocalId)) 
+                                                      (CId 'default (LocalId)))))
+                         true))
+             (def '$dict '__iter__
+                  (local [(define keys-id (new-id))]
                     (CFunc (list 'self) (none)
-                           (CReturn (CBuiltinPrim 'dict-len
-                                                  (list
-                                                   (CId 'self (LocalId)))))
-                           true))
-              (def '__str__
-                   (CFunc (list 'self) (none)
-                          (CReturn (CBuiltinPrim 'dict-str
-                                                     (list (CId 'self (LocalId)))))
-                          true))
+                           (CLet keys-id (LocalId)
+                                 (CApp (CGetField (CId 'self (LocalId)) 'keys) 
+                                       (list (CId 'self (LocalId)))
+                                       (none))
+                                 (CReturn (CApp (CGetField (CId keys-id (LocalId)) '__iter__)
+                                                (list (CId keys-id (LocalId)))
+                                                (none))))
+                           true)))
+             (def '$dict '__in__
+                  (CFunc (list 'self 'other) (none)
+                         (CReturn (CBuiltinPrim 'dict-in
+                                                (list
+                                                  (CId 'self (LocalId))
+                                                  (CId 'other (LocalId)))))
+                         true))
 
-              (def '__list__
-                   (CFunc (list 'self) (none)
-                          (CReturn (CBuiltinPrim 'dict->list
-                                                 (list (CId 'self (LocalId)))))
-                          true))
+             (def '$dict '__eq__
+                  (CFunc (list 'self 'other) (none)
+                         (CReturn (CApp (CId 'dicteq (GlobalId))
+                                        (list
+                                          (CId 'self (LocalId))
+                                          (CId 'other (LocalId)))
+                                        (none)))
+                         true))
 
-              (def 'clear
-                   (CFunc (list 'self) (none)
-                          (CReturn (CBuiltinPrim 'dict-clear
-                                                     (list (CId 'self (LocalId)))))
-                          true))
+             (def '$dict 'keys
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'dict-keys
+                                                (list (CId 'self (LocalId)))))
+                         true))
 
-              (def 'update
-                   (CFunc (list 'self) (some 'other)
-                          (CReturn (CBuiltinPrim 'dict-update
-                                                     (list (CId 'self (LocalId))
-                                                           (CId 'other (LocalId)))))
-                          true))
-              (def 'get
-                   (CFunc (list 'self 'key) (some 'default)
-                          (CReturn (CBuiltinPrim 'dict-get 
-                                        (list (CId 'self (LocalId)) 
-                                              (CId 'key (LocalId)) 
-                                              (CId 'default (LocalId)))))
-                          true))
-              (def '__iter__
-                   (local [(define keys-id (new-id))]
-                     (CFunc (list 'self) (none)
-                        (CLet keys-id (LocalId)
-                              (CApp (CGetField (CId 'self (LocalId)) 'keys) 
-                                    (list (CId 'self (LocalId)))
-                                    (none))
-                              (CReturn (CApp (CGetField (CId keys-id (LocalId)) '__iter__)
-                                             (list (CId keys-id (LocalId)))
-                                             (none))))
-                        true)))
-              (def '__in__
-                (CFunc (list 'self 'other) (none)
-                       (CReturn (CBuiltinPrim 'dict-in
-                                              (list
-                                               (CId 'self (LocalId))
-                                               (CId 'other (LocalId)))))
-                       true))
+             (def '$dict 'values
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'dict-values
+                                                (list (CId 'self (LocalId)))))
+                         true))
 
-              (def '__eq__
-                (CFunc (list 'self 'other) (none)
-                       (CReturn (CApp (CId 'dicteq (GlobalId))
-                                      (list
-                                        (CId 'self (LocalId))
-                                        (CId 'other (LocalId)))
-                                      (none)))
-                       true))
+             (def '$dict 'items
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'dict-items
+                                                (list (CId 'self (LocalId)))))
+                         true))
 
-              (def 'keys
-                   (CFunc (list 'self) (none)
-                          (CReturn (CBuiltinPrim 'dict-keys
-                                                     (list (CId 'self (LocalId)))))
-                          true))
+             (def '$dict '__getitem__
+                  (CFunc (list 'self 'other) (none)
+                         (CReturn (CBuiltinPrim 'dict-getitem
+                                                (list (CId 'self (LocalId))
+                                                      (CId 'other (LocalId)))))
+                         true))
 
-              (def 'values
-                   (CFunc (list 'self) (none)
-                          (CReturn (CBuiltinPrim 'dict-values
-                                                     (list (CId 'self (LocalId)))))
-                          true))
-              
-              (def 'items
-                   (CFunc (list 'self) (none)
-                          (CReturn (CBuiltinPrim 'dict-items
-                                                     (list (CId 'self (LocalId)))))
-                          true))
+             (def '$dict '__setitem__
+                  (CFunc (list 'self 'target 'value) (none)
+                         (CReturn (CBuiltinPrim 'dict-setitem
+                                                (list (CId 'self (LocalId))
+                                                      (CId 'target (LocalId))
+                                                      (CId 'value (LocalId)))))
+                         true))
 
-              (def '__getitem__
-                   (CFunc (list 'self 'other) (none)
-                          (CReturn (CBuiltinPrim 'dict-getitem
-                                                     (list (CId 'self (LocalId))
-                                                           (CId 'other (LocalId)))))
-                          true))
-
-              (def '__setitem__
-                   (CFunc (list 'self 'target 'value) (none)
-                          (CReturn (CBuiltinPrim 'dict-setitem
-                                                     (list (CId 'self (LocalId))
-                                                           (CId 'target (LocalId))
-                                                           (CId 'value (LocalId)))))
-                          true))
-
-              (def '__delitem__
-                   (CFunc (list 'self 'slice) (none)
-                          (CReturn (CBuiltinPrim 'dict-delitem
-                                                     (list (CId 'self (LocalId))
-                                                           (CId 'slice (LocalId)))))
-                          true))
-
-))))
+             (def '$dict '__delitem__
+                  (CFunc (list 'self 'slice) (none)
+                         (CReturn (CBuiltinPrim 'dict-delitem
+                                                (list (CId 'self (LocalId))
+                                                      (CId 'slice (LocalId)))))
+                         true)))))
 
 
 (define (make-under-dict [h : (hashof symbol Address)] [sto : Store]) : CVal
@@ -150,7 +150,7 @@
                (some (VObject 'str 
                         (some (MetaStr
                                 (pretty-metaval mval1)))
-                        (make-hash empty)))))
+                        (hash empty)))))
 
 (define (dict-clear (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto '$dict
@@ -201,7 +201,7 @@
                     (some
                       (VObject 'set
                                (some (MetaSet (make-set (hash-keys contents))))
-                               (make-hash empty))))))
+                               (hash empty))))))
 
 (define (dict-values (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto '$dict
@@ -209,7 +209,7 @@
                     (some
                       (VObject 'set
                                (some (MetaSet (make-set (hash-values contents))))
-                               (make-hash empty))))))
+                               (hash empty))))))
 
 (define (dict-items (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto '$dict
@@ -217,12 +217,12 @@
                         [items (map (lambda (pair) ; create a tuple for each (key, value)
                                             (VObject 'tuple
                                                      (some (MetaTuple (list (car pair) (cdr pair))))
-                                                     (make-hash empty)))
+                                                     (hash empty)))
                                     (hash->list contents))])
                     (some
                       (VObject 'set
                                (some (MetaSet (make-set items)))
-                               (make-hash empty))))))
+                               (hash empty))))))
 
 
 (define (dict-getitem [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
@@ -257,4 +257,4 @@
                     (some
                       (VObject 'list
                                (some (MetaList (hash-keys contents)))
-                               (make-hash empty))))))
+                               (hash empty))))))

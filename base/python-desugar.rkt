@@ -479,6 +479,7 @@
                             (list 'object)
                             bases)
                         (desugar body))]
+
       [LexInstanceId (x ctx)
                      (error 'desugar "should not encounter an instance ID!")]
 

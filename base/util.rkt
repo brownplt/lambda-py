@@ -25,7 +25,7 @@
 
 ; a file for utility functions that aren't specific to python stuff
 
-(define python-path "/course/cs173/python/Python-3.2.3/python")
+(define python-path "/usr/local/bin/python3.2")
 (define (get-pypath)
   python-path)
 (define (set-pypath p)
@@ -53,7 +53,7 @@
   (CClass
     name
     (list 'Exception)
-    (CNone)))
+    (CApp (CFunc empty (none) (CNone) false) empty (none))))
 
 (define (list-subtract [big : (listof 'a) ] [small : (listof 'a)] ) : (listof 'a)
   (local
@@ -105,8 +105,8 @@
     [else (CSeq (first ops) 
                 (seq-ops (rest ops)))]))
 
-(define (def (name : symbol) (expr : CExpr)) : CExpr
-  (CAssign (CId name (LocalId)) expr))
+(define (def (class : symbol) (name : symbol) (expr : CExpr)) : CExpr
+  (CAssign (CGetField (CId class (GlobalId)) name) expr))
 
 
 ; Macro to match varargs
@@ -286,13 +286,16 @@
 
 (define (pretty-exception [exn : CVal] [sto : Store]) : string
   (local [(define name (symbol->string (VObject-antecedent exn)))
-          (define args 
+          (define args
+            (begin (display (VObject-dict exn)) (display "\n")
+                   (display (VObject-mval (fetch (some-v (hash-ref (VObject-dict exn) 'args)) sto)))
+                   (display "\n")
             (string-join 
               (map pretty
                    (MetaTuple-v
                      (some-v (VObject-mval
                                (fetch (some-v (hash-ref (VObject-dict exn) 'args)) sto)))))
-              " "))]
+              " ")))]
     (if (not (string=? args ""))
         (string-append name 
                        (string-append ": "
@@ -317,13 +320,13 @@
   (VObject
     'bool
     (some (MetaNum 1))
-    (make-hash empty)))
+    (hash empty)))
 
 (define false-val
   (VObject
     'bool
     (some (MetaNum 0))
-    (make-hash empty)))
+    (hash empty)))
 
 (define (get-optionof-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : (optionof CVal)
   (begin ;(display n) (display " -- ") (display c) (display "\n") (display e) (display "\n\n")

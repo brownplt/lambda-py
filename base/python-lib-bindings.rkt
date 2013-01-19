@@ -96,31 +96,33 @@
     false))
 
 (define exception
-  (CClass
-    'Exception
-    (list 'object)
-    (seq-ops (list 
-               (def '__init__
-                    (CFunc (list 'self) (some 'args)
-                           (CSeq 
-                             (CAssign 
-                               (CGetField
-                                 (CId 'self (LocalId))
-                                 'args)
-                               (CId 'args (LocalId)))
-                             (CAssign
-                               (CGetField
-                                 (CId 'self (LocalId))
-                                 '__class__)
-                               (CId 'Exception (LocalId))))
-                           true))
-               (def '__str__
-                    (CFunc (list 'self) (none)
-                           (CReturn
-                               (CBuiltinPrim 'exception-str
-                                 (list (CId 'self (LocalId)))))
-                           true))))))
-
+  (seq-ops
+    (list 
+      (CAssign (CId 'Exception (GlobalId))
+               (CClass
+                 'Exception
+                 (list 'object)
+                 (CNone)))
+      (def 'Exception '__init__
+           (CFunc (list 'self) (some 'args)
+                  (CSeq 
+                    (CAssign 
+                      (CGetField
+                        (CId 'self (LocalId))
+                        'args)
+                      (CId 'args (LocalId)))
+                    (CAssign
+                      (CGetField
+                        (CId 'self (LocalId))
+                        '__class__)
+                      (CId 'Exception (LocalId))))
+                  true))
+      (def 'Exception '__str__
+           (CFunc (list 'self) (none)
+                  (CReturn
+                    (CBuiltinPrim 'exception-str
+                                  (list (CId 'self (LocalId)))))
+                  true)))))
 
 (define len-lambda
   (CFunc (list 'self) (none)

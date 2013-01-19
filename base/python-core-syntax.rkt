@@ -89,7 +89,8 @@ ParselTongue.
   [v*s (v : CVal) (s : Store)]
   [Return (v : CVal) (s : Store)]
   [Exception (v : CVal) (s : Store)]
-  [Break (s : Store)])
+  [Break (s : Store)]
+  [Continue (s : Store)])
 
 (define-type-alias object-dict (hashof symbol Address))
 

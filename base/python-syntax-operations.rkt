@@ -223,6 +223,7 @@
               [LexSet (elts) (LexSet (map recur elts))]
               [LexNone [] (LexNone)]
               [LexBreak [] (LexBreak)]
+              [LexContinue [] (LexContinue)]
               [LexBlock [a b] [LexBlock a (recur b)]]
               [LexImport [names asnames] (LexImport names asnames)]
               [LexImportFrom [module names asnames level]
@@ -462,6 +463,7 @@
               [LexSet (elts) (flatten (map recur elts))]
               [LexNone [] empty]
               [LexBreak [] empty]
+              [LexContinue [] empty]
               [LexBlock [a b] (recur b)]
               [LexImport (names asnames) empty]
               [LexImportFrom (module names asnames level) empty]))

@@ -15,54 +15,56 @@
          (typed-in racket/base (eof-object? : ('a -> boolean))))
 
 (define file-class : CExpr
-  (CClass
-   'file
-   (list 'object)
-   (seq-ops (list
-             (def '__init__
-                    (CFunc (list 'self 'path 'mode) (none)
-                           (CAssign
-                            (CId 'self (LocalId))
-                            (CBuiltinPrim 'file-open
-                                          (list
+  (seq-ops (list
+             (CAssign (CId 'file (GlobalId))
+                      (CClass
+                        'file
+                        (list 'object)
+                        (CNone)))
+             (def 'file '__init__
+                  (CFunc (list 'self 'path 'mode) (none)
+                         (CAssign
+                           (CId 'self (LocalId))
+                           (CBuiltinPrim 'file-open
+                                         (list
                                            (CId 'path (LocalId))
                                            (CId 'mode (LocalId)))))
-                           true))
+                         true))
 
-              (def 'read
-                    (CFunc (list 'self) (some 'args)
-                           (match-varargs 'args
-                            [() (CReturn (CBuiltinPrim 'file-readall
-                                                       (list
-                                                        (CId 'self (LocalId)))))]
-                            [('size) (CReturn (CBuiltinPrim 'file-read
-                                                            (list
-                                                             (CId 'self (LocalId))
-                                                             (CId 'size (LocalId)))))])
-                           true))
+             (def 'file 'read
+                  (CFunc (list 'self) (some 'args)
+                         (match-varargs 'args
+                                        [() (CReturn (CBuiltinPrim 'file-readall
+                                                                   (list
+                                                                     (CId 'self (LocalId)))))]
+                                        [('size) (CReturn (CBuiltinPrim 'file-read
+                                                                        (list
+                                                                          (CId 'self (LocalId))
+                                                                          (CId 'size (LocalId)))))])
+                         true))
 
-              (def 'readline
-                (CFunc (list 'self) (none)
-                       (CReturn (CBuiltinPrim 'file-readline
-                                              (list
-                                               (CId 'self (LocalId)))))
-                       true))
+             (def 'file 'readline
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'file-readline
+                                                (list
+                                                  (CId 'self (LocalId)))))
+                         true))
 
-              (def 'write
-                (CFunc (list 'self 'data) (none)
-                       (CReturn (CBuiltinPrim 'file-write
-                                              (list
-                                               (CId 'self (LocalId))
-                                               (CId 'data (LocalId)))))
-                       true))
+             (def 'file 'write
+                  (CFunc (list 'self 'data) (none)
+                         (CReturn (CBuiltinPrim 'file-write
+                                                (list
+                                                  (CId 'self (LocalId))
+                                                  (CId 'data (LocalId)))))
+                         true))
 
-              (def 'close
-                    (CFunc (list 'self) (none)
-                           (CReturn (CBuiltinPrim 'file-close
-                                                  (list
-                                                   (CId 'self (LocalId)))))
-                           true))
-              ))))
+             (def 'file 'close
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'file-close
+                                                (list
+                                                  (CId 'self (LocalId)))))
+                         true))
+             )))
 
 (define (file-open (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'str 'str
@@ -70,7 +72,7 @@
                       [mode (MetaStr-s mval2)])
                  (some (VObject 'file
                                 (some (MetaPort (open-file filename mode)))
-                                (make-hash empty))))))
+                                (hash empty))))))
 
 (define (file-read-internal [file : port] [size : number]) : string
   (let ([s (read-string size file)])
