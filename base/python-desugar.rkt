@@ -650,25 +650,12 @@
       
       ; a PyClassFunc is a method whose first argument should be the class rather than self
       [PyClassFunc (name args body)
-                   (local [(define body-r (desugar-local-body body args env))]
-                     (DResult
-                      (CAssign (CId name (LocalId))
-                               (CFunc args (none)
-                                      ; We do this by, inside the function body,
-                                      ; taking the first argument, which is "self",
-                                      ; using that to look up the object's class, and then
-                                      ; "overwriting" the first argument with that value.
-                                      ; The result is that, in the function body, the first
-                                      ; argument is the class, as expected.
-                                      (CSeq (CAssign (CId (first args) (LocalId))
-                                                     (CBuiltinPrim '$class
-                                                                   (list (CId
-                                                                          (first
-                                                                           args)
-                                                                          (LocalId)))))
-                                            (DResult-expr body-r))
-                                      opt-class))
-                      env))]
+                   ;; apply classmethod decorator, this should be generalized to any decorator,
+                   ;; there is no need for this special case!
+                   (rec-desugar (PyAssign (list (PyId name 'Load))
+                                          (PyApp (PyId 'classmethod 'Load)
+                                                 (list (PyFunc name args (list) body))))
+                                global? env opt-class)]
       
       [PyFuncVarArg (name args sarg body)
                     (local [(define body-r 
@@ -773,11 +760,7 @@
                         (define-values (results last-env)
                           (map-desugar args global? (DResult-env f) (none)))]
                   (DResult
-                   (cond
-                     [(CGetField? f-expr)
-                      (local [(define o (CGetField-value f-expr))]
-                        (CApp f-expr (cons o results) (none)))]
-                     [else (CApp f-expr results (none))])
+                   (CApp f-expr results (none))
                    last-env))])]
       
       [PyAppStarArg (fun args sarg)
@@ -786,10 +769,7 @@
                               (map-desugar args global? (DResult-env f) (none)))
                             (define s (rec-desugar sarg global? mid-env (none)))]
                       (DResult
-                       (if (CGetField? (DResult-expr f))
-                           (local [(define o (CGetField-value (DResult-expr f)))]
-                             (CApp (DResult-expr f) (cons o results) (some (DResult-expr s))))
-                           (CApp (DResult-expr f) results (some (DResult-expr s))))
+                       (CApp (DResult-expr f) results (some (DResult-expr s)))
                        (DResult-env s)))]
       
       [PyClass (name bases body)
