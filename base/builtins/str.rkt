@@ -25,7 +25,7 @@
                               (CAssign
                                 (CId 'self (LocalId))
                                 (CApp (CGetField (CId 'other (LocalId)) '__str__)
-                                             (list (CId 'other (LocalId)))
+                                             (list)
                                              (none)))
                               (some 'str)))
                   (def '__add__

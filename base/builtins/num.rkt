@@ -29,7 +29,7 @@
                     (CFunc (list 'self 'other) (none)
                         (CAssign (CId 'self (LocalId))
                             (CApp (CGetField (CId 'other (LocalId)) '__int__)
-                                  (list (CId 'other (LocalId)))
+                                  (list)
                                   (none)))
                         (some 'int)))))))
 
@@ -42,7 +42,7 @@
                     (CFunc (list 'self 'other) (none)
                         (CAssign (CId 'self (LocalId))
                             (CApp (CGetField (CId 'other (LocalId)) '__float__)
-                                  (list (CId 'other (LocalId)))
+                                  (list)
                                   (none)))
                         (some 'float)))))))
 
@@ -76,7 +76,7 @@
                (def '__div__ 
                     (CFunc (list 'self 'other)  (none)
                            (CIf (CApp (CGetField (CId 'other (LocalId)) '__eq__) 
-                                       (list (CId 'other (LocalId)) (make-builtin-num 0))
+                                       (list (make-builtin-num 0))
                                        (none))
                                 (CRaise (some (make-exception 'ZeroDivisionError
                                                               "Divided by 0")))
@@ -88,7 +88,7 @@
                (def '__floordiv__ 
                     (CFunc (list 'self 'other)  (none)
                            (CIf (CApp (CGetField (CId 'other (LocalId)) '__eq__) 
-                                       (list (CId 'other (LocalId)) (make-builtin-num 0))
+                                       (list (make-builtin-num 0))
                                        (none))
                                 (CRaise (some (make-exception 'ZeroDivisionError
                                                               "Divided by 0")))
@@ -100,7 +100,7 @@
                (def '__mod__ 
                     (CFunc (list 'self 'other)  (none)
                            (CIf (CApp (CGetField (CId 'other (LocalId)) '__eq__) 
-                                       (list (CId 'other (LocalId)) (make-builtin-num 0))
+                                       (list (make-builtin-num 0))
                                        (none))
                                 (CRaise (some (make-exception 'ZeroDivisionError
                                                               "Divided by 0")))

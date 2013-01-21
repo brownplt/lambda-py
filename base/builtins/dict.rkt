@@ -61,10 +61,10 @@
                      (CFunc (list 'self) (none)
                         (CSeq (CAssign keys-id 
                                        (CApp (CGetField (CId 'self (LocalId)) 'keys) 
-                                             (list (CId 'self (LocalId)))
+                                             (list)
                                              (none)))
                               (CReturn (CApp (CGetField keys-id '__iter__)
-                                    (list keys-id)
+                                    (list)
                                     (none))))
                         (some '$dict))))
               (def '__in__

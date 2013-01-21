@@ -11,6 +11,7 @@
          "builtins/set.rkt"
          "builtins/none.rkt"
          "builtins/file.rkt"
+         "builtins/type.rkt"
          "builtins/method.rkt"
          "util.rkt"
          (typed-in "get-structured-python.rkt"
@@ -38,7 +39,7 @@ that calls the primitive `print`.
     (CSeq 
       (CPrim1 'print (CApp 
                        (CGetField (CId 'to-print (LocalId)) '__str__) 
-                       (list (CId 'to-print (LocalId)))
+                       (list)
                        (none)))
       (CNone))
     (none)))
@@ -63,7 +64,7 @@ that calls the primitive `print`.
 (define assert-equal-lambda
   (CFunc (list 'check1 'check2)  (none)
     (CIf (CApp (CGetField (CId 'check1 (LocalId)) '__eq__)
-               (list (CId 'check1 (LocalId)) (CId 'check2 (LocalId)))
+               (list (CId 'check2 (LocalId)))
                (none))
          (CNone)
          (CError (CStr "Assert failed")))
@@ -141,7 +142,7 @@ that calls the primitive `print`.
         (CGetField
           (CId 'self (LocalId))
           '__len__)
-        (list (CId 'self (LocalId)))
+        (list)
         (none)))
     (none)))
 
@@ -152,7 +153,7 @@ that calls the primitive `print`.
         (CGetField
           (CId 'self (LocalId))
           '__min__)
-        (list (CId 'self (LocalId)))
+        (list)
         (none)))
     (none)))
 
@@ -163,7 +164,7 @@ that calls the primitive `print`.
         (CGetField
           (CId 'self (LocalId))
           '__max__)
-        (list (CId 'self (LocalId)))
+        (list)
         (none)))
     (none)))
 
@@ -174,7 +175,7 @@ that calls the primitive `print`.
         (CGetField
           (CId 'self (LocalId))
           '__abs__)
-        (list (CId 'self (LocalId)))
+        (list)
         (none)))
     (none)))
 
@@ -185,7 +186,7 @@ that calls the primitive `print`.
         (CGetField
           (CId 'self (LocalId))
           '__iter__)
-        (list (CId 'self (LocalId)))
+        (list)
         (none)))
     (none)))
 
@@ -196,7 +197,7 @@ that calls the primitive `print`.
         (CGetField
           (CId 'self (LocalId))
           '__next__)
-        (list (CId 'self (LocalId)))
+        (list)
         (none)))
     (none)))
 
@@ -215,13 +216,6 @@ that calls the primitive `print`.
           (CBuiltinPrim '$locals empty))
          (none)))
   
-;; type should be a (meta)class...
-(define type-lambda
-  (CFunc (list 'self) (none)
-         (CReturn
-          (CBuiltinPrim '$class (list (CId 'self (LocalId)))))
-         (none)))
-
 (define-type LibBinding
   [bind (left : symbol) (right : CExpr)])
 
@@ -247,6 +241,7 @@ that calls the primitive `print`.
         (bind 'set set-class)
         (bind 'file file-class)
         (bind 'open file-class)
+        (bind 'type type-class)
         (bind 'method method-class)
         (bind 'classmethod classmethod-class)
         (bind 'staticmethod staticmethod-class)
@@ -263,7 +258,6 @@ that calls the primitive `print`.
         (bind 'callable callable-lambda)
 
         (bind 'locals locals-lambda)
-        (bind 'type type-lambda)
 
         (bind 'Exception exception)
         (bind 'NameError (make-exception-class 'NameError))

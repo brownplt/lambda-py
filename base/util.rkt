@@ -154,13 +154,12 @@
 
 (define (py-len name)
   (CApp (CGetField (CId name (LocalId)) '__len__)
-        (list (CId name (LocalId)))
+        (list)
         (none)))
 
 (define (py-getitem name index)
   (CApp (CGetField (CId name (LocalId)) '__getitem__)
-        (list (CId name (LocalId))
-              (CObject 'num (some (MetaNum index))))
+        (list (CObject 'num (some (MetaNum index))))
         (none)))
 
 ;; the copypasta here is bad but we aren't clever enough with macros

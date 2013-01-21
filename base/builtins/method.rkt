@@ -22,6 +22,19 @@
                                 (CId 'obj (LocalId))))
                       (some 'method))]))))
 
+;; mk-method: creates a method object with func and self attributes,
+;; it is special-cased to avoid circulariy in object creation.
+(define (mk-method [func : CVal] [self : CVal] [sto : Store]) : (CVal * Store)
+  (let ([w_func (new-loc)]
+        [w_self (new-loc)])
+    (values
+     (VObject 'method
+              (none)
+              (hash 
+               (list [values '__func__ w_func]
+                     [values '__self__ w_self])))
+     (hash-set (hash-set sto w_func func) w_self self))))
+
 ;; classmethod type
 ;; In classmethod objects __func__ is defined as instance attribute
 ;; classmethod objects are converted to method objects 
@@ -60,7 +73,7 @@
    'super
    (list 'object)
    (seq-ops (list
-             ;; for the 1/2 argument version the __new__ needs (easy) changes
+             ;; for the 1/2 argument version __init__ needs some changes
              [def '__init__
                (CFunc (list 'self) (none)
                       (CSeq
@@ -68,4 +81,6 @@
                                 (CBuiltinPrim '$thisclass (list)))
                        (CAssign (CGetField (CId 'self (LocalId)) '__self__)
                                 (CBuiltinPrim '$self (list))))
-                      (some 'super))]))))
+                      ;; self and thisclass must be from the calling environment,
+                      ;; so mark this method as a function.
+                      (none))]))))

@@ -8,6 +8,7 @@
          "builtins/num.rkt"
          "builtins/none.rkt"
          "builtins/dict.rkt"
+         "builtins/method.rkt"
          "util.rkt"
          (typed-in racket/base (hash-copy : ((hashof 'a 'b) -> (hashof 'a 'b))))
          (typed-in racket/base (hash-count : ((hashof 'a 'b) -> number)))
@@ -164,7 +165,17 @@
                   (local [(define __call__ (get-field '__call__ vfun efun sfun stk))]
                     (type-case Result __call__
                       [v*s*e (vc sc ec)
-                             (type-case CVal vc
+                             (local 
+                               ;; for method objects use __func__ attribute and __self__
+                               [(define func
+                                  (if (and (VObject? vc) (equal? (VObject-antecedent vc) 'method))
+                                      (v*s*e-v (get-field '__func__ vc efun sfun stk))
+                                      vc))
+                                (define self
+                                  (if (and (VObject? vc) (equal? (VObject-antecedent vc) 'method))
+                                      (some (v*s*e-v (get-field '__self__ vc efun sfun stk)))
+                                      (none)))]
+                             (type-case CVal func
                                [VClosure (cenv argxs vararg body opt-class)
                                          ; interpret the arguments to the constructor
                                          (local [(define-values (argvs-r sc ec)
@@ -177,9 +188,12 @@
                                              ; bind the interpreted arguments to the constructor
                                                         (define result 
                                                     (bind-and-execute body opt-class argxs vararg
-                                                             (cons vfun argvs)
-                                                             (cons (make-builtin-num 0) 
-                                                                   arges)
+                                                             (if (some? self) 
+                                                                 (cons (some-v self) argvs)
+                                                                 argvs)
+                                                             (if (some? self)
+                                                                 (cons (make-builtin-num 0) arges)
+                                                                 arges)
                                                              ec
                                                              cenv
                                                              sc
@@ -197,8 +211,8 @@
                                          [Exception (vb sb eb)
                                                     (Exception vb sb
                                                          env)])))))]
-                      [else (error 'interp 
-                                   "Not a closure or constructor.")])]
+                               [else (error 'interp 
+                                            "Not a closure or constructor.")]))]
                       [Return (vfun sfun efun) (return-exception efun sfun stk)]
                       [Break (sfun efun) (break-exception efun sfun stk)]
                       [Exception (vfun sfun efun) (Exception vfun sfun efun)])))]
@@ -762,9 +776,12 @@
   (begin ;(display "GET: ") (display n) (display " ") (display c) (display "\n")
          ;(display e) (display "\n\n")
     (cond 
+      [(is-special-method? n)
+       ;; special methods are looked for in the class
+       (get-field-from-obj n c (none) e s stk)]
       [(and (some? (VObject-mval c)) (MetaClass? (some-v (VObject-mval c))))
        ;; class lookup
-       (get-field-from-class n c e s stk)]
+       (get-field-from-cls n c (none) e s stk)]
       [else
        ;; instance lookup
        (type-case CVal c
@@ -775,16 +792,17 @@
                         [some (w) 
                               (v*s*e (fetch w s) s e)]
                         [none () 
-                              (local [(define __class__w (hash-ref (VObject-dict c) '__class__))]
-                                (type-case (optionof Address) __class__w
-                                  [some (w) (get-field-from-class n (fetch (some-v __class__w) s) e s stk)]
-                                  [none () (let ([mayb-base (lookup antecedent e)])
-                                             (if (some? mayb-base)
-                                                 (let ([base (fetch (some-v mayb-base) s)])
-                                                   (get-field-from-class n base e s stk))
-                                                 (error 'get-field (string-append 
-                                                                    "Object without class: "
-                                                                    (pretty c)))))]))])))]
+                              (get-field-from-obj n c (none) e s stk)])))]
+;                              (local [(define __class__w (hash-ref (VObject-dict c) '__class__))]
+;                                (type-case (optionof Address) __class__w
+;                                  [some (w) (get-field-from-obj n (fetch (some-v __class__w) s) (none) e s stk)]
+;                                  [none () (let ([mayb-base (lookup antecedent e)])
+;                                             (if (some? mayb-base)
+;                                                 (let ([base (fetch (some-v mayb-base) s)])
+;                                                   (get-field-from-obj n base (none) e s stk))
+;                                                 (error 'get-field (string-append 
+;                                                                    "Object without class: "
+;                                                                    (pretty c)))))]))])))]
          [else (error 'interp "Not an object with functions.")])])))
 
 
@@ -1065,28 +1083,109 @@
                   (list 'o)))
 (test (c3-merge ex5 empty) (some (list 'd 'c 'b 'a 'o)))
 
-;; get-field-from-class: looks for a field in the class __mro__ components
+;; get-field-from-obj: looks for a field of an object using the class __mro__
 ;; skip up to thisclass in __mro__, if defined.
-(define (get-field-from-class [n : symbol] 
-                              [c : CVal]
-                              [e : Env] 
-                              [s : Store]
-                              [stk : Stack]) : Result
-  (cond 
-    [(equal? n '__mro__) 
-     ;; temporary hack to avoid self-reference in __mro__
-     (v*s*e (VObject 'tuple (some (MetaTuple (get-mro c (none) s))) (hash empty)) s e)]
+(define (get-field-from-obj [fld : symbol] 
+                            [obj : CVal]
+                            [thisclass : (optionof CVal)]
+                            [env : Env] 
+                            [sto : Store]
+                            [stk : Stack]) : Result
+  (begin 
+    ;(display "GET-OBJ: ") (display fld) (display " ") (display obj) (display "\n")
+  (cond
+    ;; for method objects, __call__ attribute is the object itself
+    [(and (equal? (VObject-antecedent obj) 'method) (equal? fld '__call__))
+     (v*s*e obj sto env)]
+    ;; special lookup handling for initialized super object
+    [(and (equal? (VObject-antecedent obj) 'super) (some? (hash-ref (VObject-dict obj) '__self__)))
+     (local ([define self (fetch (some-v (hash-ref (VObject-dict obj) '__self__)) sto)]
+             [define thisclass (fetch (some-v (hash-ref (VObject-dict obj) '__thisclass__)) sto)])
+       (cond
+         [(and (VObject? self) (equal? (VObject-antecedent self) 'type))
+          ;; obj.self is a class
+          (get-field-from-cls fld self (some thisclass) env sto stk)]
+         [else
+          ;; obj.self is an instance
+          (get-field-from-obj fld self (some thisclass) env sto stk)]))]
+    ;; normal instance lookup
     [else
-     (type-case (optionof Address) (lookup-mro (get-mro c (none) s) n)
-       [some (w) (v*s*e (fetch w s) s e)]
+     (local ([define obj-cls (fetch (some-v (lookup (VObject-antecedent obj) env)) sto)])
+       (type-case (optionof Address) (lookup-mro (get-mro obj-cls thisclass sto) fld)
+         [some (w) (let ([value (fetch w sto)])
+                     (cond
+                       ;; For functions, create method object bound to the object itself
+                       [(VClosure? value) 
+                        (local [(define-values (meth sto-m) 
+                                  (mk-method value obj sto))]
+                          (v*s*e meth sto-m env))]
+                       ;; for classmethod objects create method object bound to the object's class
+                       [(and (VObject? value) 
+                             (equal? (VObject-antecedent value) 'classmethod))
+                        (local [(define func 
+                                  (v*s*e-v (get-field '__func__ value env sto stk)))
+                                (define-values (meth sto-m) 
+                                  (mk-method func obj-cls sto))]
+                          (v*s*e meth sto-m env))]
+                       ;; for staticmethod obj. return func attribute
+                       [(and (VObject? value) 
+                             (equal? (VObject-antecedent value) 'staticmethod))
+                        (local [(define func 
+                                  (v*s*e-v (get-field '__func__ value env sto stk)))]
+                          (v*s*e func sto env))]
+                       ;; otherwise return the value of the attribute
+                       [else 
+                        (v*s*e value sto env)]))]
+         [none () (mk-exception 'AttributeError
+                                (string-append 
+                                 (string-append "object " 
+                                                (symbol->string (VObject-antecedent obj)))
+                                 (string-append " has no attribute "
+                                                (symbol->string fld)))
+                                env sto stk)]))])))
+
+;; get-field-from-cls: looks for a field of a class using class __mro__
+;; skip up to thisclass in __mro__, if defined.
+(define (get-field-from-cls [fld : symbol] 
+                            [cls : CVal]
+                            [thisclass : (optionof CVal)]
+                            [env : Env] 
+                            [sto : Store]
+                            [stk : Stack]) : Result
+  (cond 
+    [(equal? fld '__mro__) 
+     ;; temporary hack to avoid self-reference in __mro__
+     (v*s*e (VObject 'tuple (some (MetaTuple (get-mro cls thisclass sto)))
+                     (hash empty))
+            sto env)]
+    [else
+     (type-case (optionof Address) (lookup-mro (get-mro cls thisclass sto) fld)
+       [some (w) (let ([value (fetch w sto)])
+                   (cond
+                     ;; for classmethod obj. create method obj. bound to the class
+                     [(and (VObject? value) 
+                           (equal? (VObject-antecedent value) 'classmethod))
+                      (local [(define func 
+                                (v*s*e-v (get-field '__func__ value env sto stk)))
+                              (define-values (meth sto-m) 
+                                (mk-method func cls sto))]
+                        (v*s*e meth sto-m env))]
+                     ;; for staticmethod obj. return func attribute
+                     [(and (VObject? value) 
+                           (equal? (VObject-antecedent value) 'staticmethod))
+                      (local [(define func 
+                                (v*s*e-v (get-field '__func__ value env sto stk)))]
+                        (v*s*e func sto env))]
+                     ;; otherwise return the value of the attribute
+                     [else 
+                      (v*s*e value sto env)]))]
        [none () (mk-exception 'AttributeError
                               (string-append 
-                               (string-append
-                                "object"
-                                " has no attribute '")
-                               (string-append
-                                (symbol->string n) "'"))
-                              e s stk)])]))
+                               (string-append "class " 
+                                              (symbol->string (VObject-antecedent cls)))
+                               (string-append " has no attribute "
+                                              (symbol->string fld)))
+                              env sto stk)])]))
 
 ;; lookup-mro: looks for field in mro list
 (define (lookup-mro [mro : (listof CVal)] [n : symbol]) : (optionof Address)
@@ -1098,3 +1197,7 @@
                        [none () (lookup-mro (rest mro) n)]
                        [some (value) (some value)])]
             [else (error 'lookup-mro "an entry in __mro__ list is not an object")])]))
+
+;; special methods
+(define (is-special-method? [n : symbol])
+  (member n (list '__eq__ '__cmp__ '__str__ '__getitem__ '__gt__ '__lt__ '__lte__ '__gte__)))
