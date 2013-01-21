@@ -216,9 +216,9 @@
 
 
 (define lib-functions
-  (list (bind 'True (CTrue))
-        (bind 'False (CFalse))
-        (bind 'None (CNone))
+  (list (bind 'True (CAssign (CId 'True (GlobalId)) (CTrue)))
+        (bind 'False (CAssign (CId 'False (GlobalId)) (CFalse)))
+        (bind 'None (CAssign (CId 'None (GlobalId)) (CNone)))
 
         (bind 'object object-class)
         (bind 'none none-class)
@@ -237,18 +237,18 @@
         (bind 'file file-class)
         (bind 'open file-class)
 
-        (bind 'len len-lambda)
-        (bind 'min min-lambda)
-        (bind 'max max-lambda)
-        (bind 'next next-lambda)
-        (bind 'abs abs-lambda)
-        (bind 'isinstance isinstance-lambda)
-        (bind 'print print-lambda)
+        (bind 'len (CAssign (CId 'len (GlobalId)) len-lambda))
+        (bind 'min (CAssign (CId 'min (GlobalId)) min-lambda))
+        (bind 'max (CAssign (CId 'max (GlobalId)) max-lambda))
+        (bind 'next (CAssign (CId 'next (GlobalId)) next-lambda))
+        (bind 'abs (CAssign (CId 'abs (GlobalId)) abs-lambda))
+        (bind 'isinstance (CAssign (CId 'isinstance (GlobalId)) isinstance-lambda))
+        (bind 'print (CAssign (CId 'print (GlobalId)) print-lambda))
 
-        (bind 'callable callable-lambda)
+        (bind 'callable (CAssign (CId 'callable (GlobalId)) callable-lambda))
 
-        (bind 'super super-lambda)
-        (bind 'type type-lambda)
+        (bind 'super (CAssign (CId 'super (GlobalId)) super-lambda))
+        (bind 'type (CAssign (CId 'type (GlobalId)) type-lambda))
 
         (bind 'Exception exception)
         (bind 'NameError (make-exception-class 'NameError))
@@ -263,14 +263,14 @@
         (bind 'IndexError (make-exception-class 'IndexError))
         (bind 'ZeroDivisionError (make-exception-class 'ZeroDivisionError))
         (bind 'StopIteration (make-exception-class 'StopIteration))
-        (bind '___assertEqual assert-equal-lambda)
-        (bind '___assertTrue assert-true-lambda)
-        (bind '___assertFalse assert-false-lambda)
-        (bind '___assertIs assert-is-lambda)
-        (bind '___assertIsNot assert-isnot-lambda)
-        (bind '___assertIn assert-in-lambda)
-        (bind '___assertNotIn assert-notin-lambda)
-        (bind '___fail fail-lambda)))
+        (bind '___assertEqual (CAssign (CId '___assertEqual (GlobalId)) assert-equal-lambda))
+        (bind '___assertTrue (CAssign (CId '___assertTrue (GlobalId)) assert-true-lambda))
+        (bind '___assertFalse (CAssign (CId '___assertFalse (GlobalId)) assert-false-lambda))
+        (bind '___assertIs (CAssign (CId '___assertIs (GlobalId)) assert-is-lambda))
+        (bind '___assertIsNot (CAssign (CId '___assertIsNot (GlobalId)) assert-isnot-lambda))
+        (bind '___assertIn (CAssign (CId '___assertIn (GlobalId)) assert-in-lambda))
+        (bind '___assertNotIn (CAssign (CId '___assertNotIn (GlobalId)) assert-notin-lambda))
+        (bind '___fail (CAssign (CId '___fail (GlobalId)) fail-lambda))))
 
 (define lib-function-dummies
   (append

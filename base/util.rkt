@@ -25,7 +25,6 @@
 
 ; a file for utility functions that aren't specific to python stuff
 
-(define python-path "/usr/local/bin/python3.2")
 (define (get-pypath)
   python-path)
 (define (set-pypath p)
@@ -249,7 +248,8 @@
                             (pretty-metaval (some-v mval))
                             "Can't print non-builtin object.")]
     [VClosure (env args sarg body) "<function>"]
-    [VUndefined () "Undefined"]))
+    [VUndefined () "Undefined"]
+    [VPointer (a) (string-append "Pointer to address " (number->string a))]))
 
 (define (pretty-metaval (mval : MetaVal)) : string
   (type-case MetaVal mval

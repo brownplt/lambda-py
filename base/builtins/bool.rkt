@@ -61,4 +61,5 @@
                   [VObject (a mval d) (if (truthy-object? (VObject a mval d)) 
                                         (some true-val) 
                                         (some false-val))]
-                  [VUndefined () (some false-val)]))))
+                  [VUndefined () (some false-val)]
+                  [else (error 'bool-init "Should not initialize boolean from pointer")]))))

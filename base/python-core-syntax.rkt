@@ -59,7 +59,8 @@ ParselTongue.
 (define-type CVal
   [VObject (antecedent : symbol) (mval : (optionof MetaVal)) (dict : object-dict)]
   [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr)]
-  [VUndefined])
+  [VUndefined]
+  [VPointer (a : Address)])
 
 (define-type MetaVal
              [MetaNum (n : number)]
@@ -86,8 +87,8 @@ ParselTongue.
         (unbox n)))))
 
 (define-type Result
-  [v*s (v : CVal) (s : Store)]
-  [Return (v : CVal) (s : Store)]
+  [v*s (v : CVal) (s : Store) (a : (optionof Address))]
+  [Return (v : CVal) (s : Store) (a : (optionof Address))]
   [Exception (v : CVal) (s : Store)]
   [Break (s : Store)]
   [Continue (s : Store)])
@@ -106,7 +107,12 @@ ParselTongue.
   (hash-ref (first env) x))
 
 (define (fetch [w : Address] [sto : Store]) : CVal
-  (type-case (optionof CVal) (hash-ref sto w)
-    [some (v) v]
-    [none () (error 'interp (string-append "No value at address " (Address->string w)))]))
+  (local [(define val 
+            (type-case (optionof CVal) (hash-ref sto w)
+              [some (v) v]
+              [none () (error 'interp
+                              (string-append "No value at address " (Address->string w)))]))]
+    (if (VPointer? val)
+        (fetch (VPointer-a val) sto)
+        val)))
 
