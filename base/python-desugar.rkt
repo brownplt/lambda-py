@@ -432,17 +432,18 @@
                 (local [(define f (rec-desugar (second args)))
                         (define as (map rec-desugar (rest (rest args))))
                         (define exns (rec-desugar (first args)))
-                        (define pass (rec-desugar (LexPass)))]
+                        (define pass (rec-desugar (LexPass)))
+                        (define fail (CApp (CId 'print (GlobalId))
+                                           (list (make-builtin-str "Assert failure!"))
+                                           (none)))]
                   (CApp
                     (CFunc empty (none)
                            (CTryExceptElseFinally
                              (CApp f as (none))
                              (list
                                (CExcept (list exns) (none) pass)
-                               (CExcept empty (none) pass))
-                             (CApp (CId 'print (GlobalId))
-                                   (list (make-builtin-str "Assert failure!"))
-                                   (none))
+                               (CExcept empty (none) fail))
+                             fail
                              pass)
                            false)
                     empty

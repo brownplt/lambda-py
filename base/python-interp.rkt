@@ -241,6 +241,7 @@
                                                     (v*s-v (first except-types-results))))))
                                    except-types-results))
                              (define except-types
+                                 (begin ;(display (map v*s-v actual-except-types)) (display "\n")
                                  (map (lambda (t)
                                          (type-case CVal (v*s-v t)
                                            [VObject (ante mval dict) 
@@ -249,8 +250,8 @@
                                                       (some (MetaClass-c (some-v mval)))
                                                       (none))]
                                            [else (none)]))
-                                       actual-except-types))
-                                (define exn-again? (filter none? except-types))]
+                                       actual-except-types)))
+                             (define exn-again? (filter none? except-types))]
                                 (if (< 0 (length exn-again?))
                                   (values (none) tsto
                                           (some (mk-exception

@@ -25,6 +25,7 @@
 
 ; a file for utility functions that aren't specific to python stuff
 
+(define python-path "/usr/local/bin/python3.2")
 (define (get-pypath)
   python-path)
 (define (set-pypath p)
@@ -52,7 +53,11 @@
   (CClass
     name
     (list 'Exception)
-    (CApp (CFunc empty (none) (CNone) false) empty (none))))
+    (CNone)))
+
+(define (assign [name : symbol] [expr : CExpr]) : CExpr
+  (CAssign (CId name (GlobalId))
+           expr))
 
 (define (list-subtract [big : (listof 'a) ] [small : (listof 'a)] ) : (listof 'a)
   (local
@@ -287,9 +292,9 @@
 (define (pretty-exception [exn : CVal] [sto : Store]) : string
   (local [(define name (symbol->string (VObject-antecedent exn)))
           (define args
-            (begin (display (VObject-dict exn)) (display "\n")
-                   (display (VObject-mval (fetch (some-v (hash-ref (VObject-dict exn) 'args)) sto)))
-                   (display "\n")
+            (begin ;(display (VObject-dict exn)) (display "\n")
+                   ;(display (VObject-mval (fetch (some-v (hash-ref (VObject-dict exn) 'args)) sto)))
+                   ;(display "\n")
             (string-join 
               (map pretty
                    (MetaTuple-v
