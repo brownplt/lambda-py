@@ -91,7 +91,7 @@
   (check-types args env sto '$simpledict
                (some (VObject 'str 
                         (some (MetaStr
-                                (pretty-metaval mval1)))
+                                (pretty-metaval mval1 sto)))
                         (make-hash empty)))))
 
 (define (simpledict-in [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)

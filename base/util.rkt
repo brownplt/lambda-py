@@ -244,42 +244,48 @@
   (type-case (optionof Address) (hash-ref (VObject-dict cls) '__mro__)
     [some (w) (cons cls (MetaTuple-v (some-v (VObject-mval (fetch w sto)))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
-                                            (pretty cls)))]))
+                                            (pretty cls sto)))]))
 (define (is? [v1 : CVal]
              [v2 : CVal]) : boolean
   (begin
     ;(display v1) (display " ") (display v2) (display " ") (display (eq? v1 v2)) (display "\n")
     (eq? v1 v2)))
 
-(define (pretty arg)
+(define (pretty arg store)
   (type-case CVal arg
     [VObject (a mval d) (if (some? mval)
-                            (pretty-metaval (some-v mval))
+                            (pretty-metaval (some-v mval) store)
                             "Can't print non-builtin object.")]
     [VClosure (env args sarg body) "<function>"]
     [VUndefined () "Undefined"]))
 
-(define (pretty-metaval (mval : MetaVal)) : string
+(define (pretty-metaval (mval : MetaVal) (store : Store)) : string
   (type-case MetaVal mval
     [MetaNum (n) (number->string n)]
     [MetaStr (s) s]
     [MetaClass (c) (symbol->string c)]
     [MetaList (v) (string-append
                    (string-append "["
-                                  (string-join (map pretty v) ", "))
+                                  (string-join (map (lambda (x)
+                                                      (pretty x store))
+                                                    v)
+                                               ", "))
                    "]")]
     [MetaTuple (v) (string-append
                    (string-append "("
-                                  (string-join (map pretty v) ", "))
+                                  (string-join (map (lambda (x)
+                                                      (pretty x store))
+                                                    v)
+                                               ", "))
                    ")")]
     [MetaDict (contents)
               (string-append
               (string-append "{"
                              (string-join
                                (map (lambda (pair)
-                                      (string-append (pretty (car pair))
+                                      (string-append (pretty (car pair) store)
                                         (string-append ": "
-                                                       (pretty (cdr pair)))))
+                                                       (pretty (fetch (cdr pair) store) store))))
                                     (hash->list contents))
                                ", "))
               "}")]
@@ -299,7 +305,10 @@
     [MetaSet (elts)
               (string-append
               (string-append "{"
-                             (string-join (map pretty (set->list elts)) ", "))
+                             (string-join (map (lambda (x)
+                                                 (pretty x store))
+                                               (set->list elts))
+                                          ", "))
               "}")]
     [else "builtin-value"]
     ))
@@ -308,7 +317,8 @@
   (local [(define name (symbol->string (VObject-antecedent exn)))
           (define args 
             (string-join 
-              (map pretty
+              (map (lambda (x)
+                     (pretty x sto))
                    (MetaTuple-v
                      (some-v (VObject-mval
                                (fetch (some-v (hash-ref (VObject-dict exn) 'args)) sto)))))

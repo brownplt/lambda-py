@@ -33,8 +33,6 @@
          (typed-in "parse-python.rkt" (parse-python/string : (string 'a -> 'b)))
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
-         "python-desugar.rkt"
-         "python-syntax.rkt"
          (typed-in racket/list (remove-duplicates : ((listof 'a) -> (listof 'a))))
          )
 
@@ -424,22 +422,35 @@
                     [Break (s1 new-env) (Break s1 new-env)]
                     [Exception (v1 s1 new-env) (Exception v1 s1 new-env)])]
     
-    ;; note that for now we're assuming that dict keys and values aren't going
-    ;; to mess with the environment and store, but this might be wrong
     [CDict (contents)
            (letrec ([interped-hash (make-hash empty)]
-                    [interp-pairs (lambda (lst)
-                                  (map (lambda (pair)
-                                       (hash-set! interped-hash
-                                                   (v*s*e-v (interp-env (car pair) env sto))
-                                                   (v*s*e-v (interp-env (cdr pair) env sto))))
-                                      lst))])
+                    [new-sto sto]
+                    [interp-pairs
+                     (lambda (lst)
+                       (map (lambda (pair)
+                              (let* ((loc (new-loc))
+                                     (res-v (interp-env (cdr pair)
+                                                       env
+                                                       new-sto))
+                                     (s (v*s*e-s res-v))
+                                     (res-k (interp-env (car pair)
+                                                       env
+                                                       s)))
+                                (begin
+                                  (set! new-sto 
+                                        (hash-set (v*s*e-s res-k)
+                                                  loc
+                                                  (v*s*e-v res-v)))
+                                  (hash-set! interped-hash
+                                             (v*s*e-v res-k)
+                                             loc))))
+                            lst))])
              (begin
                (interp-pairs (hash->list contents))
                (v*s*e (VObject '$dict
                                 (some (MetaDict interped-hash))
                                 (make-hash empty))
-                      sto env)))]
+                      new-sto env)))]
 
     [CSet (elts)
           (local [(define-values (result-list new-s new-e)
@@ -502,7 +513,7 @@
     
     [CError (e) (type-case Result (interp-env e env sto)
                   [v*s*e (ve se ee)
-                         (raise-user-error (pretty ve))]
+                         (raise-user-error (pretty ve sto))]
                   [Return (ve se ee) (return-exception ee se)]
                   [Break (se ee) (break-exception ee se)]
                   [Exception (ve se ee) (Exception ve se ee)])]
@@ -614,7 +625,7 @@
                      ['Not (if (truthy? varg)
                              (v*s*e false-val sarg envarg)
                              (v*s*e true-val sarg envarg))]
-                     [else (v*s*e (python-prim1 prim varg) sarg envarg)])]
+                     [else (v*s*e (python-prim1 prim varg sarg) sarg envarg)])]
               [Return (varg sarg earg) (return-exception earg sarg)]
               [Break (sarg earg) (break-exception earg sarg)]
               [Exception (varg sarg earg) (Exception varg sarg earg)])]
@@ -623,64 +634,22 @@
     
     ;; implement this
     [CPrim2 (prim arg1 arg2) (interp-cprim2 prim arg1 arg2 sto env)]
-    
+
     [CBuiltinPrim (op args) (local [(define-values (result-list new-s new-e)
                                       (interp-cascade args sto env))]
                                (let ([exn? (filter Exception? result-list)])
                                  (if (< 0 (length exn?))
                                      (first exn?)
                                      (let ([val-list (map v*s*e-v result-list)])
-                                       (cond [(not (eq? op 'exec-module))
-                                              (local [(define mayb-val 
-                                                        (builtin-prim op val-list new-e new-s))] 
-                                                     (if (some? mayb-val)
-                                                         (v*s*e (some-v mayb-val)
-                                                                new-s
-                                                                new-e)
-                                                         ;; todo: more useful errors
-                                                         (mk-exception 'TypeError
-                                                                       "Bad types in builtin call" env sto)))]
-                                             ;;; else exec-module
-                                             [else 
-                                              (local [(define code-str (first val-list))
-                                                      (define mayb-val (VObject-mval code-str))]
-                                                     ;;;first, check the type
-                                                     (cond ((not (and (VObject? code-str)
-                                                                      (some? mayb-val)
-                                                                      (MetaStr? (some-v mayb-val))))
-                                                            (mk-exception 'TypeError "exec only accept str" env sto))
-                                                           ;;; then, desugar and interp to construct $module object
-                                                           (else
-                                                            (let* ((module-py ;get PyModule
-                                                                    (get-structured-python
-                                                                     (parse-python/string
-                                                                      (MetaStr-s (some-v mayb-val))
-                                                                      (get-pypath))))
-                                                                   (glb/nlocal (get-globals/nonlocals ; get globals and nonlocals IdEnv
-                                                                                (PySeq (PyModule-es module-py))
-                                                                                true empty))
-                                                                   (v-module
-                                                                     ; get the value, env and store,
-                                                                     ; FIXME: shouldn't wrap python-lib! it will introduce redundent builtin functions in store!
-                                                                     ; here just let it go.
-                                                                    (interp-env (python-lib (desugar module-py)) (list (hash empty))  new-s))
-                                                                   (import-names (map (lambda (x) (idpair-id x))
-                                                                                      glb/nlocal))
-                                                                   (import-names-Addr (make-hash empty)))
-                                                              (type-case Result v-module
-                                                                (v*s*e (v s e)
-                                                                       (begin 
-                                                                         (map (lambda (name)
-                                                                             ;filter only useful symbols to export,
-                                                                             ;which is already stored in import-names
-                                                                                (hash-set! import-names-Addr
-                                                                                           name (some-v (hash-ref (last e) name))))
-                                                                              import-names)
-                                                                         (v*s*e (VObject '$module (none) import-names-Addr)
-                                                                                s new-e)))
-                                                                (else
-                                                                 (mk-exception 'ImportError "import error" env sto))))))) 
-                                              ])))))]
+                                       (local [(define mayb-val 
+                                                 (builtin-prim op val-list new-e new-s))]
+                                              (if (some? mayb-val)
+                                                  (v*s*e (some-v mayb-val)
+                                                            new-s
+                                                            new-e)                                                  
+                                                  (mk-exception 'TypeError "Bad types in builtin call" env
+                                                                sto)))))))]
+    
     [CRaise (expr) 
             (if (some? expr)
                 (type-case Result (interp-env (some-v expr) env sto)
@@ -825,7 +794,7 @@
                                                    (get-field-from-class n base e s))
                                                  (error 'get-field (string-append 
                                                                     "Object without class: "
-                                                                    (pretty c)))))]))])))]
+                                                                    (pretty c s)))))]))])))]
          [else (error 'interp "Not an object with functions.")])])))
 
 
@@ -951,7 +920,7 @@
     [v*s*e (vexpr sexpr env) (begin 
               ;(display "final value:\n") (pretty-print vexpr) (display "|\nfinal env:\n") (pretty-print env) (display "\nfinal store:\n") (pretty-print sexpr)
            (if (not (MetaNone? (some-v (VObject-mval vexpr))))
-                         (begin (display (pretty vexpr)) 
+                         (begin (display (pretty vexpr sexpr)) 
                                 (display "\n"))
                          (display "")))]
     [Return (vexpr sexpr env) (raise-user-error "SyntaxError: 'return' outside function")]

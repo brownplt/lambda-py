@@ -242,6 +242,6 @@
   (check-types args env sto 'tuple
                (some (VObject 'str
                         (some (MetaStr
-                                (pretty-metaval mval1)))
+                                (pretty-metaval mval1 sto)))
                         (make-hash empty)))))
 

@@ -35,8 +35,8 @@ primitives here.
 
 ;(require (typed-in racket/base [display : (string -> void)]))
 
-(define (print arg)
-  (display (string-append (pretty arg) "\n")))
+(define (print arg sto)
+  (display (string-append (pretty arg sto) "\n")))
 
 (define (callable [arg : CVal]) : CVal 
   (type-case CVal arg
@@ -49,39 +49,46 @@ primitives here.
     [else false-val]))
 
 
-(define (python-prim1 op arg)
+(define (python-prim1 op arg sto)
   (case op
-    [(print) (begin (print arg) arg)]
+    [(print) (begin (print arg sto) arg)]
     [(callable) (callable arg)]))
 
 (define (python-prim2 op arg1 arg2 env store) : Result
   (case op
-    [(simpledict-find) (letrec ([contents (MetaSimpleDict-contents (some-v (VObject-mval arg1)))]
-                                [key (string->symbol (MetaStr-s (some-v (VObject-mval arg2))))]
-                                [mayb-loc (hash-ref contents key)]
-                                ; returning -1 on not-found as it is hard to raise exception from here.
-                                [loc (if (some? mayb-loc) (some-v mayb-loc) -1)])
-                         (v*s*e (VObject 'num (some (MetaNum loc)) (make-hash empty))
-                                   store
-                                   env))]
-    [(simpledict-bind) (let ([contents (MetaSimpleDict-contents (some-v (VObject-mval arg1)))]
-                  [key (string->symbol (MetaStr-s (some-v (VObject-mval arg2))))]
-                  [loc (new-loc)])
-              (v*s*e (VObject '$simpledict
-                              (some (MetaSimpleDict (hash-set contents key loc)))
-                              (make-hash empty))
-                     (hash-set store loc (VUndefined))
-                     env))]
+    [(find-addr)
+     (letrec ([contents (MetaDict-contents (some-v (VObject-mval arg1)))]
+              [mayb-loc (hash-ref contents arg2)]
+              ; whether find or not, find-addr returns a location
+              [loc (if (some? mayb-loc)
+                       (some-v mayb-loc)
+                       (new-loc))])
+       (begin
+         (hash-set! contents arg2 loc) ; in case of we need new
+                                       ; location in contents
+         (v*s*e (VObject 'num (some (MetaNum loc)) (make-hash empty))
+                store
+                env)))]
     [(set-store) (let ([loc (MetaNum-n (some-v (VObject-mval arg1)))])
-                   (v*s*e vnone
-                          (if (= loc -1)
-                              store
-                              (hash-set store loc arg2))
+                   (v*s*e vnone (hash-set store loc arg2)
                           env))]
-    [else (error 'interp (string-append "Haven't implemented a case yet: "
-                                        (symbol->string op)))]
-))
-
+    [(dict-delitem)
+     (let* ([contents (MetaDict-contents (some-v (VObject-mval
+                                                  arg1)))]
+            [mayb-loc (hash-ref contents arg2)])
+       (begin
+         ; if the item is in the dict
+         (if (some? mayb-loc)
+             (begin
+               (hash-remove! contents arg2)
+               (v*s*e vnone (hash-remove store (some-v mayb-loc)) env))
+             ; else the item isn't in the dict
+             ; keep silent for now
+             (v*s*e vnone store env))))]
+    [else
+     (error 'interp (string-append "Haven't implemented a case yet 1: "
+                                   (symbol->string op)))
+     ]))
 
 (define (builtin-prim [op : symbol] [args : (listof CVal)] 
                       [env : Env] [sto : Store]) : (optionof CVal)
@@ -207,8 +214,8 @@ primitives here.
     ['dict-values (dict-values args env sto)]
     ['dict-items (dict-items args env sto)]
     ['dict-getitem (dict-getitem args env sto)]
-    ['dict-setitem (dict-setitem args env sto)]
-    ['dict-delitem (dict-delitem args env sto)]
+    ;['dict-setitem (dict-setitem args env sto)]
+    ;['dict-delitem (dict-delitem args env sto)]
     ['dict->list (dict->list args env sto)]
 
     ;simpledict
@@ -261,17 +268,17 @@ primitives here.
 
     ;isinstance
     ['isinstance 
-               (if (or (none? (VObject-mval (second args)))
-                       (not (MetaClass? (some-v (VObject-mval (second args))))))
-               (none)
-               (if (object-is? (first args) 
-                               (MetaClass-c 
-                                 (some-v 
-                                   (VObject-mval (second args))))
-                               env
-                               sto)
-                 (some true-val)
-                 (some false-val)))]
+     (if (or (none? (VObject-mval (second args)))
+             (not (MetaClass? (some-v (VObject-mval (second args))))))
+         (none)
+         (if (object-is? (first args) 
+                         (MetaClass-c 
+                          (some-v 
+                           (VObject-mval (second args))))
+                         env
+                         sto)
+             (some true-val)
+             (some false-val)))]
 
     ; Returns the class of the given object
     ; If it is an object (i.e., an instance), it is its antecedent.
@@ -303,4 +310,5 @@ primitives here.
                              (make-hash empty)))]
 
     ['compile (compile args env sto)]
+    [else (none)]
 ))

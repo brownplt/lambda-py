@@ -29,7 +29,7 @@
   (check-types args env sto '$code
                (some (VObject 'str 
                         (some (MetaStr
-                                (pretty-metaval mval1)))
+                                (pretty-metaval mval1 sto)))
                         (make-hash empty)))))
 
 (define (code-names (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)

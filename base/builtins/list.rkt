@@ -235,7 +235,7 @@
   (check-types args env sto 'list
                (some (VObject 'str 
                         (some (MetaStr
-                                (pretty-metaval mval1)))
+                                (pretty-metaval mval1 sto)))
                         (make-hash empty)))))
 
 (define (list-set (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
