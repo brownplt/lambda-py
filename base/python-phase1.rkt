@@ -153,8 +153,8 @@
 
 
 (define (process-syntax-errors [expr : LexExpr]) : LexExpr
-  (call/cc
-   (lambda (k)
+  ;(call/cc
+   ;(lambda (k)
      (local
       [(define (bindings-for-nonlocal [bindings : (listof symbol)] [expr : LexExpr]) : LexExpr
          (let ((these-locals empty))
@@ -165,19 +165,20 @@
                    [PyLexNonLocal (locals) (if
                                             (empty? (list-subtract locals bindings))
                                             (PyLexNonLocal locals)
-                                            (k (LexModule
+                                            ;(k 
+                                            (LexModule
                                                 (list (LexRaise
                                                        (LexApp
                                                         (LexGlobalId 'SyntaxError 'Load)
                                                         (list (LexStr (string-append "no binding for nonlocal '"
-                                                                                     (string-append (symbol->string (first locals)) "' found"))))))))))]
+                                                                                     (string-append (symbol->string (first locals)) "' found")))))))))]
                    [LexBlock (nls e) (LexBlock nls (bindings-for-nonlocal
                                                     (remove-duplicates (flatten (list bindings these-locals nls)))
                                                     e))]
                    [LexLocalId (x ctx) (begin (set! these-locals (cons x these-locals)) e)]
                    [else (haiku-error)]
                    )))))]
-    (k (bindings-for-nonlocal empty expr))))))
+    (bindings-for-nonlocal empty expr)))
 
 (define (let-phase [expr : LexExpr] ) : LexExpr
 (collapse-pyseq (cascade-undefined-globals (list-subtract
