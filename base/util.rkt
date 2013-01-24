@@ -237,10 +237,11 @@
 ;; get-mro: fetch __mro__ field as a list of classes
 ;; termporarily prepended with cls to avoid self reference in __mro__
 (define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
+  (begin ;(display cls) (display "\n")
   (type-case (optionof Address) (hash-ref (VObject-dict cls) '__mro__)
     [some (w) (cons cls (MetaTuple-v (some-v (VObject-mval (fetch w sto)))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
-                                            (pretty cls)))]))
+                                            (pretty cls)))])))
 (define (is? [v1 : CVal]
              [v2 : CVal]) : boolean
   (begin
@@ -251,7 +252,9 @@
   (type-case CVal arg
     [VObject (a mval d) (if (some? mval)
                             (pretty-metaval (some-v mval))
-                            "Can't print non-builtin object.")]
+                            (string-append "<"
+                              (string-append (symbol->string a)
+                                             " object>")))]
     [VClosure (env args sarg body) "<function>"]
     [VUndefined () "Undefined"]
     [VPointer (a) (string-append "Pointer to address " (number->string a))]))
@@ -260,7 +263,9 @@
   (type-case MetaVal mval
     [MetaNum (n) (number->string n)]
     [MetaStr (s) s]
-    [MetaClass (c) (symbol->string c)]
+    [MetaClass (c) (string-append "<class "
+                     (string-append (symbol->string c)
+                                    ">"))]
     [MetaList (v) (string-append
                    (string-append "["
                                   (string-join (map pretty v) ", "))
