@@ -288,25 +288,25 @@
                                (none))]
                    ['NotEq (rec-desugar (LexUnaryOp 'Not (LexBinOp left 'Eq right)))]
                    ['In (CApp (CFunc (list 'self 'test) (none)
-                                     (CSeq
-                                       (CAssign (CId '__infunc__ (LocalId))
-                                                (CGetField (CId 'self (LocalId))
-                                                           '__in__))
-                                       (CIf (CId '__infunc__ (LocalId))
-                                            (CReturn
-                                              (CApp
-                                                (CId '__infunc__ (LocalId))
-                                                (list (CId 'self (LocalId))
-                                                      (CId 'test (LocalId)))
-                                                (none)))
-                                            (CApp (CId 'TypeError (LocalId))
-                                                  (list (CObject
-                                                          'str
-                                                          (some (MetaStr 
-                                                                  (string-append
-                                                                    "argument of type '___'" 
-                                                                    "is not iterable")))))
-                                                  (none))))
+                                     (CLet '__infunc__ (LocalId)
+                                           (CGetField (CId 'self (LocalId))
+                                                      '__in__)
+                                           (CIf (CId '__infunc__ (LocalId))
+                                                (CReturn
+                                                  (CApp
+                                                    (CId '__infunc__ (LocalId))
+                                                    (list (CId 'self (LocalId))
+                                                          (CId 'test (LocalId)))
+                                                    (none)))
+                                                (CRaise (some
+                                                  (CApp (CId 'TypeError (LocalId))
+                                                        (list (CObject
+                                                                'str
+                                                                (some (MetaStr 
+                                                                        (string-append
+                                                                          "argument of type '___'" 
+                                                                          "is not iterable")))))
+                                                        (none))))))
                                      false)
                               (list right-c left-c)
                               (none))]
@@ -435,6 +435,9 @@
                         (define pass (rec-desugar (LexPass)))
                         (define fail (CApp (CId 'print (GlobalId))
                                            (list (make-builtin-str "Assert failure!"))
+                                           (none)))
+                        (define fail2 (CApp (CId 'print (GlobalId))
+                                           (list (make-builtin-str "Assert failed!"))
                                            (none)))]
                   (CApp
                     (CFunc empty (none)
@@ -443,7 +446,7 @@
                              (list
                                (CExcept (list exns) (none) pass)
                                (CExcept empty (none) fail))
-                             fail
+                             fail2
                              pass)
                            false)
                     empty
