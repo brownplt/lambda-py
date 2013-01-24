@@ -14,6 +14,23 @@ in the program are introduced through let statements and that all assignments ar
 mutative. The conversion from lexical to core syntax is almost identical to the old conversion
 from surface to lexical syntax.
 
+In addition, the lexical stage converts instance variables from being defined in class bodies to
+being field assignments. That is (with some details omitted),
+
+  class A:
+    def a(self):
+      pass
+
+becomes
+
+  A = CClass "A"
+  A.a = CFunc (self) pass
+
+in lexical syntax. This change and the necessity for variables to be introduced via let statements
+led to a ton of refactoring of library functions and builtin objects, including how these are
+introduced into the program. None of these changes should affect anyone's code, but be aware of
+if you need to alter/add funtionality to library functions or builtins.
+
 
 Changes to core syntax:
 - Added CContinue variant to CExpr
