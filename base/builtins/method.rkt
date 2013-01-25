@@ -24,16 +24,21 @@
 
 ;; mk-method: creates a method object with func and self attributes,
 ;; it is special-cased to avoid circulariy in object creation.
-(define (mk-method [func : CVal] [self : CVal] [sto : Store]) : (CVal * Store)
-  (let ([w_func (new-loc)]
-        [w_self (new-loc)])
+;; The optional address parameter is used to support self aliasing
+(define (mk-method [func : CVal] [self : CVal] [opt_w_self : (optionof Address)]
+                   [sto : Store]) : (CVal * Store)
+  (local ([define w_func (new-loc)]
+          [define w_self (if (some? opt_w_self) (some-v opt_w_self) (new-loc))]
+          [define self_sto (if (none? opt_w_self) 
+                              (hash-set sto w_self self)
+                              sto)])
     (values
      (VObject 'method
               (none)
               (hash 
                (list [values '__func__ w_func]
                      [values '__self__ w_self])))
-     (hash-set (hash-set sto w_func func) w_self self))))
+     (hash-set self_sto w_func func))))
 
 ;; classmethod type
 ;; In classmethod objects __func__ is defined as instance attribute
