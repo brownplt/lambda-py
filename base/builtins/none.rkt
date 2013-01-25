@@ -6,14 +6,17 @@
 
 
 (define none-class
-  (CClass
-    'none
-    (list 'object)
-    (seq-ops (list 
-               (def '__str__
-                    (CFunc (list 'self) (none)
-                           (CReturn (make-builtin-str "None"))
-                           true))))))
+  (seq-ops (list 
+             (CAssign (CId 'none (GlobalId))
+                      (CClass
+                        'none
+                        (list 'object)
+                        (CNone)))
+             (def 'none '__str__
+                  (CFunc (list 'self) (none)
+                         (CReturn (make-builtin-str "None"))
+                         true)))))
+
 (define cnone
   (CObject 
     'none
@@ -23,5 +26,5 @@
   (VObject
     'none
     (some (MetaNone))
-    (make-hash empty)))
+    (hash empty)))
 

@@ -10,14 +10,14 @@
    '$code
    (list 'object)
    (seq-ops (list 
-              (def '__str__
+              (def '$code '__str__
                    (CFunc (list 'self) (none)
                           (CReturn (CBuiltinPrim 'code-str
                                                      (list (CId 'self (LocalId)))))
                           true))
               
               ; this should really be a property with name co_names
-              (def 'get_names
+              (def '$code 'get_names
                    (CFunc (list 'self) (none)
                           (CReturn (CBuiltinPrim 'code-names
                                                      (list (CId 'self (LocalId)))))

@@ -2,8 +2,8 @@
 
 (require "python-syntax.rkt"
          "python-core-syntax.rkt"
+         "python-lib-bindings.rkt"
          "python-lexical-syntax.rkt"
-         "python-primitives.rkt"
          "python-syntax-operations.rkt")
 (require "util.rkt")
 (require [typed-in racket (format : (string 'a -> string))])
@@ -39,28 +39,78 @@
    expr
    (lambda (y)
      (type-case PyExpr y
-       [PyClass (name bases body) (LexClass name bases (LexBlock empty (pre-desugar body)))]
+       [PyClass (name bases body) (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexUndefined))
+                                                (LexClass (Unknown-scope) name bases (LexBlock empty (pre-desugar body)))))]
        [PyLam (args body) (LexLam args (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
-       [PyFunc (name args defaults body) (LexFunc name args (map pre-desugar defaults) (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
-       [PyClassFunc (name args body) (LexClassFunc name args (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
-       [PyFuncVarArg (name args sarg body) (LexFuncVarArg name args sarg (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
+       [PyFunc (name args defaults body) (LexSeq (list (LexAssign (list (PyLexId name 'Store)) 
+                                                 (LexFunc (Unknown-scope) name args (map pre-desugar defaults) (LexBlock args (cascade-nonlocal args (pre-desugar body)))))))]
+       [PyClassFunc (name args body) (LexSeq (list (LexAssign (list (PyLexId name 'Store)) 
+                                             (LexClassFunc (Unknown-scope) name args (LexBlock args (cascade-nonlocal args (pre-desugar body)))))))]
+       [PyFuncVarArg (name args sarg body) (LexSeq (list (LexAssign (list (PyLexId name 'Store)) 
+                                                   (LexFuncVarArg (Unknown-scope) name args sarg
+                                                                  (LexBlock args (cascade-nonlocal args (pre-desugar body)))))))]
        [else (haiku-error)]
        )))))
+
+(define (post-desugar [expr : LexExpr]) : LexExpr
+  (local
+   [(define (replace-instance expr class-expr)
+      (lexexpr-modify-tree
+       expr
+       (lambda (y)
+         (type-case LexExpr y
+           [LexInstanceId (x ctx) (LexDotField class-expr x)]
+           [LexClass (scope name bases body) (LexClass scope name bases body)]
+           [else (haiku-error)]))))
+    (define (deal-with-class expr class-expr)
+      (lexexpr-modify-tree
+       expr
+        (lambda (y)
+          (type-case LexExpr y
+            [LexClass (scope name bases body)
+                      (let ((class-expr (if (Instance-scoped? scope)
+                                            (LexDotField class-expr name)
+                                            class-expr)))
+                        (let ((new-body (replace-instance
+                                         body
+                                         class-expr
+                                         )))
+                          (LexSeq (list (LexAssign
+                                         (list class-expr)
+                                         (LexClass scope name bases (LexPass)))
+                                        (deal-with-class new-body class-expr)))))]
+            [else (haiku-error)]))))
+    (define (top-level-deal-with-class expr)
+      (lexexpr-modify-tree
+       expr
+       (lambda (y)
+         (type-case LexExpr y
+           [LexClass (scope name bases body) (begin
+                                               (if (Instance-scoped? scope)
+                                                 (error 'lexical "instance is not inside class")
+                                                 (deal-with-class y
+                                                                  (if (Globally-scoped? scope)
+                                                                      (LexGlobalId name 'Load)
+                                                                      (LexLocalId name 'Load)))))]
+           [else (haiku-error)]))))]
+   (top-level-deal-with-class expr)))
 
 (define (scope-phase [expr : PyExpr] ) : LexExpr
   (LexModule
    (list 
     (optimization-pass
      (let-phase
-      (let ((replaced-locals (replace-all-locals  (replace-all-instance (pre-desugar expr)) empty))) ;replaces all locals everywhere based on assignment
-        (let ((fully-transformed (make-all-global replaced-locals))) ;replaces all remaining PyId 
-          (remove-blocks
-           (remove-unneeded-pypass
-            (remove-nonlocal
-             (remove-global
-              (replace-lexmodule
-               (process-syntax-errors
-                (bind-locals fully-transformed)))))))))))))) ;surround every block with PyLet of locals
+      (post-desugar
+       (let ((replaced-locals (replace-all-locals  (replace-all-instance (pre-desugar expr)) empty))) ;replaces all locals everywhere based on assignment
+         (let ((fully-transformed (make-all-global replaced-locals))) ;replaces all remaining PyId 
+           (remove-blocks
+            (remove-unneeded-pypass
+             (remove-nonlocal
+              (remove-global
+               (replace-lexmodule
+                (remove-unneeded-assigns
+                 (process-syntax-errors
+                  (bind-locals fully-transformed)))))))))))))))) ;surround every block with PyLet of locals
 
 (define (replace-lexmodule expr)
   (lexexpr-modify-tree expr
@@ -69,11 +119,42 @@
                            [LexModule (es ) (LexSeq (map replace-lexmodule es))]
                            [else (haiku-error)]))))
 
-(define (optimization-pass expr) expr)
+
+(define (remove-unneeded-assigns expr)
+      (lexexpr-modify-tree expr
+                           (lambda (y)
+                             (type-case LexExpr y
+                               [LexSeq (es)
+                                       (if (and ( = (length es) 2)
+                                                (LexAssign? (first es))
+                                                (LexUndefined? (LexAssign-value (first es))))
+                                                (let ((replace-scope
+                                                       (cond
+                                                        [(LexLocalId? (first (LexAssign-targets (first es)))) (Locally-scoped)]
+                                                        [(LexGlobalId? (first (LexAssign-targets (first es)))) (Globally-scoped)]
+                                                        [(LexInstanceId? (first (LexAssign-targets (first es)))) (Instance-scoped)]
+                                                        [else (error 'remove-unneeded-assigns "assignment is not to ID type")])))
+                                                  (type-case LexExpr (second es)
+                                                    [LexClass (scope name bases body)
+                                                              (LexClass replace-scope name bases (remove-unneeded-assigns body))]
+                                                    [LexFunc (scope name args defaults body)
+                                                             (LexFunc replace-scope name args (map remove-unneeded-assigns defaults)
+                                                                      (remove-unneeded-assigns body))]
+                                                    [LexClassFunc (scope name args body) (LexClassFunc replace-scope name args (remove-unneeded-assigns body))]
+                                                    [LexFuncVarArg (scope name args sarg body) (LexFuncVarArg replace-scope name args sarg (remove-unneeded-assigns body))]
+                                                    [else (error 'remove-unneeded-assigns "undefined pattern present without declaration")]
+                                                    )
+                                                )
+                                                (LexSeq (map remove-unneeded-assigns es)))]
+                               
+                               [else (haiku-error)]))))
+(define (optimization-pass expr)
+  expr)
+
 
 (define (process-syntax-errors [expr : LexExpr]) : LexExpr
-  (call/cc
-   (lambda (k)
+  ;(call/cc
+   ;(lambda (k)
      (local
       [(define (bindings-for-nonlocal [bindings : (listof symbol)] [expr : LexExpr]) : LexExpr
          (let ((these-locals empty))
@@ -84,27 +165,35 @@
                    [PyLexNonLocal (locals) (if
                                             (empty? (list-subtract locals bindings))
                                             (PyLexNonLocal locals)
-                                            (k (LexModule
+                                            ;(k 
+                                            (LexModule
                                                 (list (LexRaise
                                                        (LexApp
                                                         (LexGlobalId 'SyntaxError 'Load)
                                                         (list (LexStr (string-append "no binding for nonlocal '"
-                                                                                     (string-append (symbol->string (first locals)) "' found"))))))))))]
+                                                                                     (string-append (symbol->string (first locals)) "' found")))))))))]
                    [LexBlock (nls e) (LexBlock nls (bindings-for-nonlocal
                                                     (remove-duplicates (flatten (list bindings these-locals nls)))
                                                     e))]
                    [LexLocalId (x ctx) (begin (set! these-locals (cons x these-locals)) e)]
                    [else (haiku-error)]
                    )))))]
-    (k (bindings-for-nonlocal empty expr))))))
+    (bindings-for-nonlocal empty expr)))
 
 (define (let-phase [expr : LexExpr] ) : LexExpr
-(collapse-pyseq (cascade-undefined-globals (extract-post-transform-globals expr) expr))) ;all globals, not just the current scope
+(collapse-pyseq (cascade-undefined-globals (list-subtract
+                                            (extract-post-transform-globals expr)
+                                            library-names) expr))) ;all globals, not just the current scope
+
+(define library-names (map (lambda (b) (bind-left b)) lib-function-dummies))
 
 (define (collapse-pyseq expr ) 
   (lexexpr-modify-tree expr 
                        (lambda (x) (type-case LexExpr x
-                                     [LexSeq(lis) (LexSeq (flatten (map (lambda (y) (if (LexSeq? y) (LexSeq-es y) (list y)))lis)))]
+                                     [LexSeq(lis) (LexSeq (flatten (map (lambda (y)
+                                                                          (let ((e (collapse-pyseq y)))
+                                                                            (if (LexSeq? e) (LexSeq-es e) (list e))))
+                                                                        lis)))]
                                      [else (haiku-error)]))))                                    
 (define (remove-global expr)
   (lexexpr-modify-tree
@@ -179,7 +268,8 @@
     (lambda (exp)
       (type-case LexExpr exp
         ;[LexGlobalId (x ctx) (list x)]
-        [LexAssign (lhs rhs) (filter (lambda (y) (LexGlobalId? y)) lhs )]
+        [LexAssign (lhs rhs) (map (lambda (y) (LexGlobalId-x y))
+                                    (filter (lambda (y) (LexGlobalId? y)) lhs))]
         [else (error 'desugar:extract-all "we should not get here")])))))
 
 
@@ -241,8 +331,9 @@
        expr
        (lambda (x)
          (type-case LexExpr x
-           [LexClass (name bases body)
+           [LexClass (scope name bases body)
                            (LexClass
+                            scope
                             name
                             bases
                             (type-case LexExpr body
@@ -271,7 +362,7 @@
                                                       targets) value)]
                [LexAugAssign (op target value) (LexAugAssign op (assign-func target) value)]
                [LexBlock (nls e) (LexBlock nls (toplevel e))]
-               [LexClass (name super body) (toplevel x)]
+               [LexClass (scope name super body) (toplevel x)]
                [else (haiku-error)]))))))
     (define (find-all-instance expr)
       (let [[post-remove

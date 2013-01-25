@@ -16,116 +16,117 @@
          (typed-in racket/base (andmap : ( ('a -> boolean) (listof 'a) -> boolean))))
 
 (define str-class : CExpr
-  (CClass
-   'str 
-   (list 'object)
   (seq-ops (list 
-                  (def '__init__
-                       (CFunc (list 'self 'other) (none) 
-                              (CAssign
-                                (CId 'self (LocalId))
-                                (CApp (CGetField (CId 'other (LocalId)) '__str__)
-                                             (list (CId 'other (LocalId)))
-                                             (none)))
-                              true))
-                  (def '__add__
-                    (CFunc (list 'self 'other) (none)
-                           (CReturn (CBuiltinPrim 'str+
-                                                  (list
-                                                   (CId 'self (LocalId))
-                                                   (CId 'other (LocalId)))))
-                           true))
-                  (def '__mult__
-                    (CFunc (list 'self 'other) (none)
-                           (CReturn (CBuiltinPrim 'str*
-                                         (list
-                                          (CId 'self (LocalId))
-                                          (CId 'other (LocalId)))))
-                           true))
-                  (def '__iter__
-                       (CFunc (list 'self) (none)
-                           (CReturn (CApp (CGetField (CId 'SeqIter (LocalId)) '__init__)
-                                          (list (CObject 'SeqIter (none)) 
-                                                (CId 'self (LocalId)))
-                                          (none)))
-                           true))
-                  (def '__str__
-                       (CFunc (list 'self) (none)
-                              (CReturn (CId 'self (LocalId)))
-                              true))
-                  (def '__eq__
-                    (CFunc (list 'self 'other) (none)
-                           (CReturn (CBuiltinPrim 'str=
-                                         (list
-                                          (CId 'self (LocalId))
-                                          (CId 'other (LocalId)))))
-                           true))
-                  (def '__cmp__
-                     (CFunc (list 'self 'other) (none)
-                            (CReturn (CBuiltinPrim 'strcmp
-                                         (list
-                                           (CId 'self (LocalId))
-                                           (CId 'other (LocalId)))))
-                            true))
-                  (def '__in__
-                     (CFunc (list 'self 'test) (none)
-                            (CReturn (CBuiltinPrim 'strin
-                                         (list
-                                           (CId 'self (LocalId))
-                                           (CId 'test (LocalId)))))
-                            true))
-                  (def '__min__
-                     (CFunc (list 'self) (none)
-                            (CReturn (CBuiltinPrim 'strmin
-                                         (list
-                                           (CId 'self (LocalId)))))
-                            true))
-                  (def '__max__
-                     (CFunc (list 'self) (none)
-                            (CReturn (CBuiltinPrim 'strmax
-                                         (list
-                                           (CId 'self (LocalId)))))
-                            true))
-                  (def '__len__
-                     (CFunc (list 'self) (none)
-                            (CReturn (CBuiltinPrim 'strlen
-                                         (list
-                                           (CId 'self (LocalId)))))
-                            true))
+             (CAssign (CId 'str  (GlobalId))
+                      (CClass
+                        'str 
+                        (list 'object)
+                        (CNone)))
+             (def 'str '__init__
+                  (CFunc (list 'self 'other) (none) 
+                         (CAssign (CId 'self (LocalId))
+                                  (CApp (CGetField (CId 'other (LocalId)) '__str__)
+                                        (list (CId 'other (LocalId)))
+                                        (none)))
+                         true))
+             (def 'str '__add__
+                  (CFunc (list 'self 'other) (none)
+                         (CReturn (CBuiltinPrim 'str+
+                                                (list
+                                                  (CId 'self (LocalId))
+                                                  (CId 'other (LocalId)))))
+                         true))
+             (def 'str '__mult__
+                  (CFunc (list 'self 'other) (none)
+                         (CReturn (CBuiltinPrim 'str*
+                                                (list
+                                                  (CId 'self (LocalId))
+                                                  (CId 'other (LocalId)))))
+                         true))
+             (def 'str '__iter__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CApp (CGetField (CId 'SeqIter (LocalId)) '__init__)
+                                        (list (CObject 'SeqIter (none)) 
+                                              (CId 'self (LocalId)))
+                                        (none)))
+                         true))
+             (def 'str '__str__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CId 'self (LocalId)))
+                         true))
+             (def 'str '__eq__
+                  (CFunc (list 'self 'other) (none)
+                         (CReturn (CBuiltinPrim 'str=
+                                                (list
+                                                  (CId 'self (LocalId))
+                                                  (CId 'other (LocalId)))))
+                         true))
+             (def 'str '__cmp__
+                  (CFunc (list 'self 'other) (none)
+                         (CReturn (CBuiltinPrim 'strcmp
+                                                (list
+                                                  (CId 'self (LocalId))
+                                                  (CId 'other (LocalId)))))
+                         true))
+             (def 'str '__in__
+                  (CFunc (list 'self 'test) (none)
+                         (CReturn (CBuiltinPrim 'strin
+                                                (list
+                                                  (CId 'self (LocalId))
+                                                  (CId 'test (LocalId)))))
+                         true))
+             (def 'str '__min__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'strmin
+                                                (list
+                                                  (CId 'self (LocalId)))))
+                         true))
+             (def 'str '__max__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'strmax
+                                                (list
+                                                  (CId 'self (LocalId)))))
+                         true))
+             (def 'str '__len__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'strlen
+                                                (list
+                                                  (CId 'self (LocalId)))))
+                         true))
 
-                  (def '__list__
-                     (CFunc (list 'self) (none)
-                            (CReturn (CBuiltinPrim 'strlist
-                                         (list
-                                           (CId 'self (LocalId)))))
-                            true))
-                  (def '__tuple__
-                     (CFunc (list 'self) (none)
-                            (CReturn (CBuiltinPrim 'str-tuple
-                                         (list
-                                           (CId 'self (LocalId)))))
-                            true))
-                  (def '__getitem__
-                     (CFunc (list 'self 'idx) (none)
-                            (CReturn (CBuiltinPrim 'str-getitem
-                                         (list
-                                           (CId 'self (LocalId))
-                                           (CId 'idx (LocalId)))))
-                            true))
-                 (def '__slice__
-                    (CFunc (list 'self 'lower 'upper 'step) (none)
-                        (CReturn (CBuiltinPrim 'strslice
-                                    (list 
-                                      (CId 'self (LocalId))
-                                      (CId 'lower (LocalId))
-                                      (CId 'upper (LocalId))
-                                      (CId 'step (LocalId)))))
-                        true)))))) 
+             (def 'str '__list__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'strlist
+                                                (list
+                                                  (CId 'self (LocalId)))))
+                         true))
+             (def 'str '__tuple__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'str-tuple
+                                                (list
+                                                  (CId 'self (LocalId)))))
+                         true))
+             (def 'str '__getitem__
+                  (CFunc (list 'self 'idx) (none)
+                         (CReturn (CBuiltinPrim 'str-getitem
+                                                (list
+                                                  (CId 'self (LocalId))
+                                                  (CId 'idx (LocalId)))))
+                         true))
+             (def 'str '__slice__
+                  (CFunc (list 'self 'lower 'upper 'step) (none)
+                         (CReturn (CBuiltinPrim 'strslice
+                                                (list 
+                                                  (CId 'self (LocalId))
+                                                  (CId 'lower (LocalId))
+                                                  (CId 'upper (LocalId))
+                                                  (CId 'step (LocalId)))))
+                         true)))))
 
 (define (make-builtin-str [s : string]) : CExpr
   (CObject
-   'str
-   (some (MetaStr s))))
+    'str
+    (some (MetaStr s))))
 
 (define (make-str-value [s : string]) : CVal
   (VObject
@@ -135,9 +136,9 @@
 
 (define (string->charlist [str : string]) : (listof CVal)
   (map (lambda (s)
-               (VObject 'str
-                        (some (MetaStr (make-string 1 s)))
-                        (make-hash empty)))
+         (VObject 'str
+                  (some (MetaStr (make-string 1 s)))
+                  (hash empty)))
        (string->list str)))
 
 (define (strlist [args : (listof CVal)] [env : Env] [sto : Store])
@@ -145,20 +146,20 @@
   (check-types args env sto 'str
                (some (VObject 'list
                               (some (MetaList (string->charlist (MetaStr-s mval1))))
-                              (make-hash empty)))))
+                              (hash empty)))))
 
 (define (str-tuple [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'str
                (some (VObject 'tuple
                               (some (MetaTuple (string->charlist (MetaStr-s mval1))))
-                              (make-hash empty)))))
+                              (hash empty)))))
 
 (define (str+ (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'str 'str
                (some (VObject 'str 
                               (some (MetaStr
-                                     (string-append (MetaStr-s mval1)
-                                                    (MetaStr-s mval2))))
+                                      (string-append (MetaStr-s mval1)
+                                                     (MetaStr-s mval2))))
                               (hash empty)))))
 
 (define (str (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
@@ -170,18 +171,18 @@
 (define (str* (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   ;(let ([str*l 
   (check-types args env sto 'str 'num
-                      (some (VObject 'str
-                                     (some (MetaStr 
+               (some (VObject 'str
+                              (some (MetaStr 
                                       (str*-rec (MetaStr-s mval1)
                                                 (MetaNum-n mval2))))
-                                     (hash empty)))))
-    #|(if (none? str*l)
+                              (hash empty)))))
+#|(if (none? str*l)
       (check-types args env sto 'num 'str
-             (some (VObject 'str
-                            (some (MetaStr 
-                             (str*-rec (MetaStr-s mval2)
-                                       (MetaNum-n mval1))))
-                            (hash empty))))
+                   (some (VObject 'str
+                                  (some (MetaStr 
+                                          (str*-rec (MetaStr-s mval2)
+                                                    (MetaNum-n mval1))))
+                                  (hash empty))))
       str*l)))|#
 
 (define (str*-rec [str : string] [num : number]) : string
@@ -191,31 +192,31 @@
 
 (define (strcmp [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'str 'str
-     (some (VObject 'num
-                    (some (MetaNum
-                      (let ([str1 (MetaStr-s mval1)]
-                            [str2 (MetaStr-s mval2)])
-                        (cond
-                          [(string<? str1 str2) -1]
-                          [(string>? str1 str2) 1]
-                          [(string=? str1 str2) 0]))))
-                    (hash empty)))))
+               (some (VObject 'num
+                              (some (MetaNum
+                                      (let ([str1 (MetaStr-s mval1)]
+                                            [str2 (MetaStr-s mval2)])
+                                        (cond
+                                          [(string<? str1 str2) -1]
+                                          [(string>? str1 str2) 1]
+                                          [(string=? str1 str2) 0]))))
+                              (hash empty)))))
 (define (streq [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'str 'str 
                (let ([str1 (MetaStr-s mval1)] 
                      [str2 (MetaStr-s mval2)]) 
                  (if (string=? str1 str2) 
-                   (some true-val) 
-                   (some false-val)))))
+                     (some true-val) 
+                     (some false-val)))))
 
 (define (strin [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'str 'str
-     (let ([self (MetaStr-s mval1)]
-           [test (MetaStr-s mval2)])
-       (some (if (or (< (string-length (string-replace self test ""))
-                     (string-length self))
-                     (string=? test ""))
-                 true-val
+               (let ([self (MetaStr-s mval1)]
+                     [test (MetaStr-s mval2)])
+                 (some (if (or (< (string-length (string-replace self test ""))
+                                  (string-length self))
+                               (string=? test ""))
+                           true-val
                  false-val)))))
 
 (define (strlen [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
@@ -310,5 +311,5 @@
                       (MetaStr (list->string (map 
                                              (lambda(i) (list-ref char-list i))
                                              indices))))
-                    (make-hash empty))))
+                    (hash empty))))
     (none)))

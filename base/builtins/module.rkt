@@ -8,7 +8,7 @@
    '$module
    (list 'object)
    (seq-ops (list 
-              (def '__str__
+              (def '$module '__str__
                    (CFunc (list 'self) (none)
                           (CReturn (CStr "<module>"))
                           true))

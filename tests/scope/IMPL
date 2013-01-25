@@ -1,0 +1,67 @@
+IMPL
+
+----
+General overview of changes:
+
+An extra step has been added between surface syntax and core syntax which we call lexical syntax.
+The purpose of the conversion from surface to lexical syntax is to modify the user program into
+one which is completely lexically scoped in the usual sense of this term. This means that all
+variables at each scope level are hoisted to the top of the level using let statements. This
+includes all global variables as well. Nonlocal variables do not exist after this step. Any
+variables declared as nonlocal simply are not used in a new let statement so that they are not
+shadowed. After being transformed into lexical syntax, one can be assured that all variables
+in the program are introduced through let statements and that all assignments are strictly
+mutative. The conversion from lexical to core syntax is almost identical to the old conversion
+from surface to lexical syntax.
+
+In addition, the lexical stage converts instance variables from being defined in class bodies to
+being field assignments. That is (with some details omitted),
+
+  class A:
+    def a(self):
+      pass
+
+becomes
+
+  A = CClass "A"
+  A.a = CFunc (self) pass
+
+in lexical syntax. This change and the necessity for variables to be introduced via let statements
+led to a ton of refactoring of library functions and builtin objects, including how these are
+introduced into the program. None of these changes should affect anyone's code, but be aware of
+if you need to alter/add funtionality to library functions or builtins.
+
+
+Changes to core syntax:
+- Added CContinue variant to CExpr
+- Added Continue variant to Result
+- Added VPointer variant to CVal (for aliasing)
+- Removed env from all Result variants
+- Added (optionof Address) to v*s and Return Results (for aliasing)
+  - When a value is created to be passed up the chain of execution, an Address location
+    can optionally be added to indicate that the value exists at a location in the store.
+    This information can be used during assignment to determine if an alias (VPointer)
+    should be created or if a copy should be made.
+- Added an IdType field to CLet
+
+
+Changes to lex syntax:
+- Added all of it
+  - Basic correspondence with surface syntax except globals/nonlocals are removed and all
+    identifiers are introduced using Lex(Global|Local)Let with LexAssign always being mutative.
+- Added LexContinue
+
+
+Changes to surface syntax:
+- Added PyContinue
+
+
+Function/helper changes:
+- Changed mk-exception in python-interp to create a VObject from scratch instead of
+  interping an application of the class to create it. Therefore, calls to the function no
+  longer require an environment.
+- All assignments to variables are mutative
+
+
+Bugs fixed:
+- __class__ and __dict__ should now exist and be readable for all classes.

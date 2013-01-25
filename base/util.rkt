@@ -25,7 +25,7 @@
 
 ; a file for utility functions that aren't specific to python stuff
 
-(define python-path "/course/cs173/python/Python-3.2.3/python")
+(define python-path "/usr/local/bin/python3.2")
 (define (get-pypath)
   python-path)
 (define (set-pypath p)
@@ -62,6 +62,16 @@
           (hash-set! h "b" 2)
           (hash-set! h "c" 3) 
           h)))
+
+(define (make-exception-class [name : symbol]) : CExpr
+  (CClass
+    name
+    (list 'Exception)
+    (CNone)))
+
+(define (assign [name : symbol] [expr : CExpr]) : CExpr
+  (CAssign (CId name (GlobalId))
+           expr))
 
 (define (list-subtract [big : (listof 'a) ] [small : (listof 'a)] ) : (listof 'a)
   (local
@@ -113,8 +123,8 @@
     [else (CSeq (first ops) 
                 (seq-ops (rest ops)))]))
 
-(define (def (name : symbol) (expr : CExpr)) : CExpr
-  (CAssign (CId name (LocalId)) expr))
+(define (def (class : symbol) (name : symbol) (expr : CExpr)) : CExpr
+  (CAssign (CGetField (CId class (GlobalId)) name) expr))
 
 
 ; Macro to match varargs
@@ -150,14 +160,14 @@
     [(if-varargs 'args (a) body else-part)
      #'(CIf ; Did we get 1 args?
         (CBuiltinPrim 'num= (list (py-len 'args) (py-num 1)))
-        (CLet a (py-getitem 'args 0)
+        (CLet a (LocalId) (py-getitem 'args 0)
               body)
         else-part)]
     [(if-varargs 'args (a b) body else-part)
      #'(CIf ; Did we get 2 args?
         (CBuiltinPrim 'num= (list (py-len 'args) (py-num 2)))
-        (CLet a (py-getitem 'args 0)
-              (CLet b (py-getitem 'args 1)
+        (CLet a (LocalId) (py-getitem 'args 0)
+              (CLet b (LocalId) (py-getitem 'args 1)
                     body))
         else-part)]))
 
@@ -241,10 +251,12 @@
 ;; get-mro: fetch __mro__ field as a list of classes
 ;; termporarily prepended with cls to avoid self reference in __mro__
 (define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
+  (begin ;(display cls) (display "\n")
   (type-case (optionof Address) (hash-ref (VObject-dict cls) '__mro__)
     [some (w) (cons cls (MetaTuple-v (some-v (VObject-mval (fetch w sto)))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
-                                            (pretty cls sto)))]))
+                                            (pretty cls sto)))])))
+
 (define (is? [v1 : CVal]
              [v2 : CVal]) : boolean
   (begin
@@ -255,15 +267,20 @@
   (type-case CVal arg
     [VObject (a mval d) (if (some? mval)
                             (pretty-metaval (some-v mval) store)
-                            "Can't print non-builtin object.")]
+                            (string-append "<"
+                              (string-append (symbol->string a)
+                                             " object>")))]
     [VClosure (env args sarg body) "<function>"]
-    [VUndefined () "Undefined"]))
+    [VUndefined () "Undefined"]
+    [VPointer (a) (string-append "Pointer to address " (number->string a))]))
 
 (define (pretty-metaval (mval : MetaVal) (store : Store)) : string
   (type-case MetaVal mval
     [MetaNum (n) (number->string n)]
     [MetaStr (s) s]
-    [MetaClass (c) (symbol->string c)]
+    [MetaClass (c) (string-append "<class "
+                     (string-append (symbol->string c)
+                                    ">"))]
     [MetaList (v) (string-append
                    (string-append "["
                                   (string-join (map (lambda (x)
@@ -315,14 +332,17 @@
 
 (define (pretty-exception [exn : CVal] [sto : Store]) : string
   (local [(define name (symbol->string (VObject-antecedent exn)))
-          (define args 
+          (define args
+            (begin ;(display (VObject-dict exn)) (display "\n")
+                   ;(display (VObject-mval (fetch (some-v (hash-ref (VObject-dict exn) 'args)) sto)))
+                   ;(display "\n")
             (string-join 
               (map (lambda (x)
                      (pretty x sto))
                    (MetaTuple-v
                      (some-v (VObject-mval
                                (fetch (some-v (hash-ref (VObject-dict exn) 'args)) sto)))))
-              " "))]
+              " ")))]
     (if (not (string=? args ""))
         (string-append name 
                        (string-append ": "
@@ -347,13 +367,13 @@
   (VObject
     'bool
     (some (MetaNum 1))
-    (make-hash empty)))
+    (hash empty)))
 
 (define false-val
   (VObject
     'bool
     (some (MetaNum 0))
-    (make-hash empty)))
+    (hash empty)))
 
 (define (get-optionof-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : (optionof CVal)
   (begin ;(display n) (display " -- ") (display c) (display "\n") (display e) (display "\n\n")

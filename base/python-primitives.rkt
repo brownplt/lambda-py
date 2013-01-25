@@ -66,12 +66,12 @@ primitives here.
        (begin
          (hash-set! contents arg2 loc) ; in case of we need new
                                        ; location in contents
-         (v*s*e (VObject 'num (some (MetaNum loc)) (make-hash empty))
+         (v*s (VObject 'num (some (MetaNum loc)) (make-hash empty))
                 store
-                env)))]
+                (none))))]
     [(set-store) (let ([loc (MetaNum-n (some-v (VObject-mval arg1)))])
-                   (v*s*e vnone (hash-set store loc arg2)
-                          env))]
+                   (v*s vnone (hash-set store loc arg2) (none)))]
+    
     [(dict-delitem)
      (let* ([contents (MetaDict-contents (some-v (VObject-mval
                                                   arg1)))]
@@ -81,10 +81,10 @@ primitives here.
          (if (some? mayb-loc)
              (begin
                (hash-remove! contents arg2)
-               (v*s*e vnone (hash-remove store (some-v mayb-loc)) env))
+               (v*s vnone (hash-remove store (some-v mayb-loc)) (none)))
              ; else the item isn't in the dict
              ; keep silent for now
-             (v*s*e vnone store env))))]
+             (v*s vnone store (none)))))]
     [else
      (error 'interp (string-append "Haven't implemented a case yet 1: "
                                    (symbol->string op)))
@@ -107,22 +107,22 @@ primitives here.
                         (some (VObject 'num (some (MetaNum 
                                                     (* (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
-                                       (make-hash empty)))))]
+                                       (hash empty)))))]
     ['num/ (check-types args env sto 'num 'num 
                         (some (VObject 'num (some (MetaNum 
                                                     (/ (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
-                                        (make-hash empty))))]
+                                        (hash empty))))]
     ['num// (check-types args env sto 'num 'num 
                         (some (VObject 'num (some (MetaNum 
                                                     (quotient (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
-                                        (make-hash empty))))]
+                                        (hash empty))))]
     ['num% (check-types args env sto 'num 'num 
                         (some (VObject 'num (some (MetaNum 
                                                     (quotient (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
-                                        (make-hash empty))))]
+                                        (hash empty))))]
     ['num= (check-types args env sto 'num 'num 
                         (if (= (MetaNum-n mval1) (MetaNum-n mval2))
                           (some true-val)
@@ -151,21 +151,21 @@ primitives here.
                         (if (< (MetaNum-n mval1) (MetaNum-n mval2))
                             (some (VObject 'num
                                            (some (MetaNum -1))
-                                           (make-hash empty)))
+                                           (hash empty)))
                             (if (> (MetaNum-n mval1) (MetaNum-n mval2))
                                 (some (VObject 'num
                                                (some (MetaNum 1))
-                                               (make-hash empty)))
+                                               (hash empty)))
                                 (some (VObject 'num
                                                (some (MetaNum 0))
-                                               (make-hash empty))))))]
+                                               (hash empty))))))]
     
     ['num-str (let ([arg (first args)])
             (some (VObject 'str 
                            (some (MetaStr 
                              (number->string (MetaNum-n (some-v (VObject-mval
                                                                   arg))))))
-                           (make-hash empty))))]
+                           (hash empty))))]
     ;string
     ['str+ (str+ args env sto)]
     ['str= (streq args env sto)]
@@ -288,7 +288,7 @@ primitives here.
             (define my-antecedent (VObject-antecedent me))
             (define antecedent-class (fetch (some-v (lookup my-antecedent env)) sto))
             (define am-class (and (some? (VObject-mval me))
-                             (MetaClass? (some-v (VObject-mval me)))))]
+                                  (MetaClass? (some-v (VObject-mval me)))))]
        (some
          (if am-class
              me

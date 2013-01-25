@@ -7,176 +7,171 @@
          "list.rkt")
 
 (define tuple-class : CExpr
-  (CClass
-   'tuple
-   (list 'object)
-   (seq-ops (list (def '__add__
-                    (CFunc (list 'self 'other) (none)
-                           (CReturn (CBuiltinPrim 'tuple+
-                                                  (list
-                                                   (CId 'self (LocalId))
-                                                   (CId 'other (LocalId)))))
-                           true))
+  (seq-ops (list
+             (CAssign (CId 'tuple (GlobalId))
+                      (CClass
+                        'tuple
+                        (list 'object)
+                        (CNone)))
+             (def 'tuple '__add__
+                  (CFunc (list 'self 'other) (none)
+                         (CReturn (CBuiltinPrim 'tuple+
+                                                (list
+                                                  (CId 'self (LocalId))
+                                                  (CId 'other (LocalId)))))
+                         true))
 
-                   (def '__init__
-                        (CFunc (list 'self) (some 'args)
-                          (CReturn
-                          (CIf ; Did we get any args?
-                            (CBuiltinPrim 'num=
-                                          (list
-                                            (CApp (CGetField (CId 'args (LocalId)) '__len__)
-                                                  (list (CId 'args (LocalId)))
-                                                  (none))
-                                            (CObject 'num (some (MetaNum 0)))))
-                            ; No. Return an empty tuple.
-                            (CTuple empty)
-                            ; Yes. Call __tuple__ on the first argument.
-                            (CLet 'first-arg
-                                  (CApp (CGetField (CId 'args (LocalId)) '__getitem__)
-                                        (list (CId 'args (LocalId))
-                                              (CObject 'num (some (MetaNum 0))))
-                                        (none))
-                                  (CApp (CGetField (CId 'first-arg (LocalId)) '__tuple__)
-                                        (list (CId 'first-arg (LocalId)))
-                                        (none)))))
-                          true))
+             (def 'tuple '__init__
+                  (CFunc (list 'self) (some 'args)
+                         (CReturn
+                           (CIf ; Did we get any args?
+                             (CBuiltinPrim 'num=
+                                           (list
+                                             (CApp (CGetField (CId 'args (LocalId)) '__len__)
+                                                   (list (CId 'args (LocalId)))
+                                                   (none))
+                                             (CObject 'num (some (MetaNum 0)))))
+                             ; No. Return an empty tuple.
+                             (CTuple empty)
+                             ; Yes. Call __tuple__ on the first argument.
+                             (CLet 'first-arg (LocalId)
+                                   (CApp (CGetField (CId 'args (LocalId)) '__getitem__)
+                                         (list (CId 'args (LocalId))
+                                               (CObject 'num (some (MetaNum 0))))
+                                         (none))
+                                   (CApp (CGetField (CId 'first-arg (LocalId)) '__tuple__)
+                                         (list (CId 'first-arg (LocalId)))
+                                         (none)))))
+                         true))
 
-                  (def '__mult__
-                    (CFunc (list 'self 'other) (none)
-                           (CReturn (CBuiltinPrim 'tuple*
-                                                  (list
-                                                   (CId 'self (LocalId))
-                                                   (CId 'other (LocalId)))))
-                           true))
-                  (def '__len__
-                    (CFunc (list 'self) (none)
-                           (CReturn (CBuiltinPrim 'tuple-len
-                                                  (list
-                                                   (CId 'self (LocalId)))))
-                           true))
-                  (def '__in__
-                    (CFunc (list 'self 'test) (none)
-                           (CReturn (CBuiltinPrim 'tuple-in
-                                                  (list
-                                                   (CId 'self (LocalId))
-                                                   (CId 'test (LocalId)))))
-                           true))
-                  (def '__iter__
-                       (CFunc (list 'self) (none)
-                           (CReturn (CApp (CGetField (CId 'SeqIter (LocalId)) '__init__)
-                                          (list (CObject 'SeqIter (none)) 
-                                                (CId 'self (LocalId)))
-                                          (none)))
-                           true))
-                  (def '__list__
-                     (CFunc (list 'self) (none)
-                            (CReturn (CBuiltinPrim 'tuple-list
-                                         (list
-                                           (CId 'self (LocalId)))))
-                            true))
+             (def 'tuple '__mult__
+                  (CFunc (list 'self 'other) (none)
+                         (CReturn (CBuiltinPrim 'tuple*
+                                                (list
+                                                  (CId 'self (LocalId))
+                                                  (CId 'other (LocalId)))))
+                         true))
+             (def 'tuple '__len__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'tuple-len
+                                                (list
+                                                  (CId 'self (LocalId)))))
+                         true))
+             (def 'tuple '__in__
+                  (CFunc (list 'self 'test) (none)
+                         (CReturn (CBuiltinPrim 'tuple-in
+                                                (list
+                                                  (CId 'self (LocalId))
+                                                  (CId 'test (LocalId)))))
+                         true))
+             (def 'tuple '__iter__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CApp (CGetField (CId 'SeqIter (LocalId)) '__init__)
+                                        (list (CObject 'SeqIter (none)) 
+                                              (CId 'self (LocalId)))
+                                        (none)))
+                         true))
+             (def 'tuple '__list__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'tuple-list
+                                                (list
+                                                  (CId 'self (LocalId)))))
+                         true))
 
-                  (def '__tuple__
-                     (CFunc (list 'self) (none)
-                            (CReturn (CBuiltinPrim 'tuple-tuple
-                                         (list
-                                           (CId 'self (LocalId)))))
-                            true))
+             (def 'tuple '__tuple__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'tuple-tuple
+                                                (list
+                                                  (CId 'self (LocalId)))))
+                         true))
 
-                  (def '__str__
-                       (CFunc (list 'self) (none)
-                              (CReturn (CBuiltinPrim 'tuple-str
-                                                     (list (CId 'self (LocalId)))))
-                              true))
-                  (def '__getitem__
-                    (CFunc (list 'self 'idx) (none)
-                           (CReturn (CBuiltinPrim 'tuple-getitem
-                                                  (list
-                                                   (CId 'self (LocalId))
-                                                   (CId 'idx (LocalId)))))
-                           true))
+             (def 'tuple '__str__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'tuple-str
+                                                (list (CId 'self (LocalId)))))
+                         true))
+             (def 'tuple '__getitem__
+                  (CFunc (list 'self 'idx) (none)
+                         (CReturn (CBuiltinPrim 'tuple-getitem
+                                                (list
+                                                  (CId 'self (LocalId))
+                                                  (CId 'idx (LocalId)))))
+                         true))
 
-                  ;;; tuple comparisons - taken verbatim from list comparisons ;;;
-                  (def '__cmp__
-                    (CFunc (list 'self 'other) (none)
-                           (CLet 'listcmp (CNone)
-                             (seq-ops (list
-                               (def 'listcmp
-                                    (CFunc (list 'self 'other 'idx) (none)
-                                           (seq-ops (list
-                                             (def 'li1
-                                                  (CApp (CGetField (CId 'self (LocalId))
-                                                                   '__getitem__)
-                                                        (list (CId 'self (LocalId))
-                                                              (CId 'idx (LocalId)))
-                                                        (none)))
-                                             (def 'li2
-                                                  (CApp (CGetField (CId 'other (LocalId))
-                                                                   '__getitem__)
-                                                        (list (CId 'other (LocalId))
-                                                              (CId 'idx (LocalId)))
-                                                        (none)))
-                                             (CIf (CPrim2 'Is (CId 'li1 (LocalId)) (CNone))
-                                                  (CIf (CPrim2 'Is (CId 'li2 (LocalId)) (CNone))
-                                                       (CReturn (make-builtin-num 0))
-                                                       (CReturn (make-builtin-num -1)))
-                                                  (CIf (CPrim2 'Is (CId 'li2 (LocalId)) (CNone))
-                                                       (CReturn (make-builtin-num 1))
-                                           (seq-ops (list
-                                             (def 'cmpval
-                                                  (CApp (CGetField (CId 'li1 (LocalId))
-                                                                   '__cmp__)
-                                                        (list (CId 'li1 (LocalId))
-                                                              (CId 'li2 (LocalId)))
-                                                        (none)))
-                                             (CIf (CApp (CGetField (CId 'cmpval (LocalId))
-                                                                   '__eq__)
-                                                        (list (CId 'cmpval (LocalId))
-                                                              (make-builtin-num 0))
-                                                        (none))
-                                                  (seq-ops (list 
-                                                    (def 'nidx
-                                                         (CApp (CGetField (CId 'idx (LocalId))
-                                                                          '__add__)
-                                                               (list (CId 'idx (LocalId))
-                                                                     (make-builtin-num 1))
-                                                               (none)))
-                                                    (CReturn 
-                                                      (CApp (CId 'listcmp (LocalId))
-                                                          (list (CId 'self (LocalId))
-                                                                (CId 'other (LocalId))
-                                                                (CId 'nidx (LocalId)))
-                                                          (none)))))
-                                                  (CReturn (CId 'cmpval (LocalId))))))))))
-                                           false))
-                               (CReturn 
-                                 (CApp (CId 'listcmp (LocalId))
+             ;;; tuple comparisons - taken verbatim from list comparisons ;;;
+             (def 'tuple '__cmp__
+                  (CFunc (list 'self 'other) (none)
+                    (CLet 'listcmp (LocalId)
+                      (CFunc (list 'self 'other 'idx) (none)
+                        (CLet 'li1 (LocalId)
+                              (CApp (CGetField (CId 'self (LocalId))
+                                               '__getitem__)
+                                    (list (CId 'self (LocalId))
+                                          (CId 'idx (LocalId)))
+                                    (none))
+                              (CLet 'li2 (LocalId)
+                                    (CApp (CGetField (CId 'other (LocalId))
+                                                     '__getitem__)
+                                          (list (CId 'other (LocalId))
+                                                (CId 'idx (LocalId)))
+                                          (none))
+                                    (CIf (CPrim2 'Is (CId 'li1 (LocalId)) (CNone))
+                                         (CIf (CPrim2 'Is (CId 'li2 (LocalId)) (CNone))
+                                              (CReturn (make-builtin-num 0))
+                                              (CReturn (make-builtin-num -1)))
+                                         (CIf (CPrim2 'Is (CId 'li2 (LocalId)) (CNone))
+                                              (CReturn (make-builtin-num 1))
+                                              (CLet 'cmpval (LocalId)
+                                                    (CApp (CGetField (CId 'li1 (LocalId))
+                                                                     '__cmp__)
+                                                          (list (CId 'li1 (LocalId))
+                                                                (CId 'li2 (LocalId)))
+                                                          (none))
+                                                    (CIf (CApp (CGetField (CId 'cmpval (LocalId))
+                                                                          '__eq__)
+                                                               (list (CId 'cmpval (LocalId))
+                                                                     (make-builtin-num 0))
+                                                               (none))
+                                                         (CLet 'nidx (LocalId)
+                                                               (CApp (CGetField (CId 'idx (LocalId))
+                                                                                '__add__)
+                                                                     (list (CId 'idx (LocalId))
+                                                                           (make-builtin-num 1))
+                                                                     (none))
+                                                               (CReturn 
+                                                                 (CApp (CId 'listcmp (LocalId))
+                                                                       (list (CId 'self (LocalId))
+                                                                             (CId 'other (LocalId))
+                                                                             (CId 'nidx (LocalId)))
+                                                                       (none))))
+                                                         (CReturn (CId 'cmpval (LocalId)))))))))
+                        false)
+                      (CReturn 
+                        (CApp (CId 'listcmp (LocalId))
+                              (list (CId 'self (LocalId))
+                                    (CId 'other (LocalId))
+                                    (make-builtin-num 0))
+                              (none))))
+                    true))
+
+             (def 'tuple '__eq__
+                  (CFunc (list 'self 'other) (none)
+                         (CLet '_cmpresult (LocalId)
+                               (CApp (CGetField (CId 'self (LocalId)) '__cmp__)
                                      (list (CId 'self (LocalId))
-                                           (CId 'other (LocalId))
-                                           (make-builtin-num 0))
-                                     (none))))))
-                           true))
-                  (def '__eq__
-                    (CFunc (list 'self 'other) (none)
-                           (seq-ops (list
-                                      (def '_cmpresult
-                                           (CApp (CGetField (CId 'self (LocalId)) '__cmp__)
-                                                 (list (CId 'self (LocalId))
-                                                       (CId 'other (LocalId)))
-                                                 (none)))
-                                      (CReturn (CApp (CGetField (CId '_cmpresult (LocalId))
-                                                                '__eq__)
-                                                     (list (CId '_cmpresult (LocalId))
-                                                           (make-builtin-num 0))
-                                                     (none)))))
-                           true))
-
-                  ;;; end tuple comparisons ;;;
-))))
+                                           (CId 'other (LocalId)))
+                                     (none))
+                               (CReturn (CApp (CGetField (CId '_cmpresult (LocalId))
+                                                         '__eq__)
+                                              (list (CId '_cmpresult (LocalId))
+                                                    (make-builtin-num 0))
+                                              (none))))
+                         true)))))
 
 (define (make-builtin-tuple [l : (listof CVal)]) : CVal
   (VObject 'tuple
            (some (MetaTuple l))
-           (make-hash empty)))
+           (hash empty)))
 
 ;; convert a tuple to a list
 (define (tuple-list (args : (listof CVal)) 
@@ -243,5 +238,4 @@
                (some (VObject 'str
                         (some (MetaStr
                                 (pretty-metaval mval1 sto)))
-                        (make-hash empty)))))
-
+                        (hash empty)))))
