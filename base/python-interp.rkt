@@ -806,7 +806,13 @@
   (begin ;(display "GET: ") (display n) (display " ") (display c) 
          ;(display " ") (display w_c) (display "\n")
          ;(display e) (display "\n\n")
-    (cond 
+    (cond
+      [(not (VObject? c))
+       (mk-exception 'AttributeError
+                     (string-append 
+                      (string-append (pretty c) " object has no attribute ")
+                      (symbol->string n))
+                     e s stk)]
       [(is-special-method? n)
        ;; special methods are looked for in the class
        (get-field-from-obj n c w_c (none) e s stk)]

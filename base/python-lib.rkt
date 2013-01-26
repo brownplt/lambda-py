@@ -46,9 +46,16 @@ that calls the primitive `print`.
 
 (define callable-lambda
   (CFunc (list 'to-check) (none)
-      (CReturn
-        (CPrim1 'callable (CId 'to-check (LocalId))))
-      (none)))
+         (CSeq
+          (CTryExceptElseFinally
+           ;; try to get __call__ attribute and return True
+           (CSeq
+            (CGetField (CId 'to-check (LocalId)) '__call__)
+            (CReturn (CTrue)))
+          (list (CExcept (list) (none) (CNone))) (CNone) (CNone))
+           ;; use the primary operator
+          (CReturn (CPrim1 'callable (CId 'to-check (LocalId)))))
+         (none)))
 
 
 (define assert-true-lambda

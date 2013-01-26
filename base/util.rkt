@@ -324,20 +324,6 @@
     (some (MetaNum 0))
     (make-hash empty)))
 
-(define (get-optionof-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : (optionof CVal)
-  (begin ;(display n) (display " -- ") (display c) (display "\n") (display e) (display "\n\n")
-  (type-case CVal c
-    [VObject (antecedent mval d) 
-                    (let ([w (hash-ref (VObject-dict c) n)])
-              (type-case (optionof Address) w
-                [some (w) (some (fetch w s))]
-                [none () (let ([mayb-base (lookup antecedent e)])
-                           (if (some? mayb-base)
-                             (let ([base (fetch (some-v mayb-base) s)])
-                                 (get-optionof-field n base e s))
-                                           (none)))]))]
-    [else (error 'interp "Not an object with functions.")])))
-
 (define (make-set [vals : (listof CVal)]) : Set
   (foldl (lambda (elt st)
                  (set-add st elt))
