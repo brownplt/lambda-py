@@ -8,7 +8,6 @@
          "builtins/list.rkt"
          "builtins/tuple.rkt"
          "builtins/dict.rkt"
-         "builtins/simpledict.rkt"
          "builtins/code.rkt"
          "builtins/module.rkt"
          "builtins/set.rkt"
@@ -62,7 +61,9 @@ primitives here.
               ; whether find or not, find-addr returns a location
               [loc (if (some? mayb-loc)
                        (some-v mayb-loc)
-                       (new-loc))])
+                       (begin ;(display "find-addr: not found the ")
+                              ;(display arg2)
+                              (new-loc)))])
        (begin
          (hash-set! contents arg2 loc) ; in case of we need new
                                        ; location in contents
@@ -219,12 +220,12 @@ primitives here.
     ['dict->list (dict->list args env sto)]
 
     ;simpledict
-    ['simpledict-init (simpledict-init args env sto)]
-    ['simpledict-len (simpledict-len args env sto)]
-    ['simpledict-str (simpledict-str args env sto)]
-    ['simpledict-in (simpledict-in args env sto)]
-    ['simpledict-get (simpledict-get args env sto)]
-    ['simpledict-getitem (simpledict-getitem args env sto)]
+    ;; ['simpledict-init (simpledict-init args env sto)]
+    ;; ['simpledict-len (simpledict-len args env sto)]
+    ;; ['simpledict-str (simpledict-str args env sto)]
+    ;; ['simpledict-in (simpledict-in args env sto)]
+    ;; ['simpledict-get (simpledict-get args env sto)]
+    ;; ['simpledict-getitem (simpledict-getitem args env sto)]
 
     ;code
     ['code-str (code-str args env sto)]
@@ -305,10 +306,10 @@ primitives here.
                ; (display env) (display "\n\n")
                 (some (make-under-dict (first env) sto)))]
 
-    ['globals (some (VObject '$simpledict
-                             (some (MetaSimpleDict (last env)))
-                             (make-hash empty)))]
+    ['globals (begin ;(pretty-print env)
+                     (some (sym-addr-hash->dictobj (last env))))]
 
-    ['compile (compile args env sto)]
+    ['Compile (compile args env sto)]
+    
     [else (none)]
 ))

@@ -6,7 +6,6 @@
          "builtins/list.rkt"
          "builtins/tuple.rkt"
          "builtins/dict.rkt"
-         "builtins/simpledict.rkt"
          "builtins/code.rkt"
          "builtins/module.rkt"
          "builtins/object.rkt"

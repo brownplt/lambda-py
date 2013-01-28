@@ -17,7 +17,6 @@
          (typed-in racket/base (cdr : (('a * 'b) -> 'b)))
          (typed-in racket/list (last : ((listof 'a) -> 'a)))
          (typed-in racket/base (append : ((listof 'a) (listof 'a) -> (listof'a))))
-         (typed-in racket/pretty (pretty-print : ('a -> 'b)))
          (typed-in racket/list (remove-duplicates : ((listof 'a) -> (listof 'a))))
          )
 
@@ -234,7 +233,7 @@
                                         (MetaTuple?
                                           (some-v (VObject-mval
                                                     (v*s-v (first except-types-results))))))
-                                   (map (λ (v) (v*s v
+                                   (map (lambda (v) (v*s v
                                                     (v*s-s (first except-types-results))
                                                     (none)))
                                         (MetaTuple-v
@@ -391,6 +390,8 @@
                     [Continue (s1) (Continue s1)] 
                     [Exception (v1 s1) (Exception v1 s1)])]
     
+    ;; note that for now we're assuming that dict keys and values aren't going
+    ;; to mess with the environment and store, but this might be wrong
     [CDict (contents)
            (letrec ([interped-hash (make-hash empty)]
                     [new-sto sto]
@@ -399,12 +400,12 @@
                        (map (lambda (pair)
                               (let* ((loc (new-loc))
                                      (res-v (interp-env (cdr pair)
-                                                       env
-                                                       new-sto))
+                                                        env
+                                                        new-sto))
                                      (s (v*s-s res-v))
                                      (res-k (interp-env (car pair)
-                                                       env
-                                                       s)))
+                                                        env
+                                                        s)))
                                 (begin
                                   (set! new-sto 
                                         (hash-set (v*s-s res-k)
@@ -419,8 +420,8 @@
                (v*s (VObject '$dict
                              (some (MetaDict interped-hash))
                              (hash empty))
-                      new-sto
-                      (none))))]
+                    new-sto
+                    (none))))]    
 
     [CSet (elts)
           (local [(define-values (result-list new-s)
@@ -579,6 +580,7 @@
     
     ;; implement this
     [CPrim2 (prim arg1 arg2) (interp-cprim2 prim arg1 arg2 sto env)]
+    
     [CBuiltinPrim (op args)
                   (local [(define-values (result-list new-s)
                             (interp-cascade args sto env))
@@ -593,7 +595,6 @@
                               ;; todo: more useful errors
                               (mk-exception 'TypeError "Bad types in builtin call" 
                                             sto)))))]
-    
     [CRaise (expr) 
             (if (some? expr)
                 (type-case Result (interp-env (some-v expr) env sto)
@@ -646,34 +647,25 @@
                      (interp-env finally env (v*s-s result))))])]
 
     [CExcept (types name body) (interp-env body env sto)]
-
+    
     [CBreak () (Break sto)]
     [CContinue () (Continue sto)]
-    
-    [CExec (code globals locals)
-           (let-result (interp-env code env sto) (code-value sto1 a1)
-                       (let-result (interp-env globals env sto1) (globals-value sto2 a2)
-                                   (let-result (interp-env locals env sto2) (locals-value sto3 a3)
-                                               (let ([xcode (MetaCode-e (some-v (VObject-mval code-value)))]
-                                                     [xglobals (MetaSimpleDict-contents (some-v (VObject-mval globals-value)))]
-                                                     [xlocals (MetaSimpleDict-contents (some-v (VObject-mval locals-value)))])
-                                                 (let ([env (if (eq? xglobals xlocals) 
-                                                                (list xglobals)
-                                                                (list xglobals xlocals))])
-                                                   (interp-env xcode env sto))))))]
+    [CExec (code glbdict localdict)
+           (let* [(code-CVal (v*s-v (interp-env code env sto))) ; get code object
+                  (glb-res (interp-env glbdict env sto)) ; evaluate dict
+                  (local-res (interp-env localdict env sto))
+                  (glb-CVal (v*s-v glb-res)) ; TODO: raise TypeError
+                  (local-CVal (v*s-v local-res))
+                  (glb-env (dictobj->sym-addr-hash glb-CVal)) ; convert
+                  (local-env  (dictobj->sym-addr-hash local-CVal))
+                  (new-env (if (equal? glb-env local-env)  ; get new env
+                               (list glb-env)
+                               (list glb-env local-env)))
+                                        ;get core syntax of the code
+                  (xcode (MetaCode-e (some-v (VObject-mval code-CVal))))]
+                                        ;interp the code
+             (interp-env xcode new-env sto))]    
     )))
-
-(define-syntax (let-result x)
-  (syntax-case x ()
-    [(let-result result (v s a) body)
-     #'(type-case Result result
-         [v*s (v s a) body]
-         [Return (v s a) (return-exception s)]
-         [Break (s) (break-exception s)]
-         [Continue (s) (continue-exception s)]
-         [Exception (v s) (Exception v s)])]))
-
-
 
 (define (assign-to-id [id : CExpr] [val : Result] [env : Env] [sto : Store]) : Result
   (local [(define mayb-loc (lookup (CId-x id) env))
@@ -906,8 +898,8 @@
                            (v*s true-val sarg2 (none))
                            (v*s false-val sarg2 (none)))]
                     ['IsNot (if (not (is? varg1 varg2))
-                                (v*s true-val sarg2 (none))
-                                (v*s false-val sarg2 (none)))]
+                           (v*s true-val sarg2 (none))
+                           (v*s false-val sarg2 (none)))]
                     [else (python-prim2 prim varg1 varg2 env sto)])]
              [Return (varg2 sarg2 aarg2) (return-exception sarg2)]
              [Break (sarg2) (break-exception sarg2)]

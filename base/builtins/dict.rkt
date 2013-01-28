@@ -117,7 +117,7 @@
                                  (CSeq
                                   (CLet loc-id (LocalId)
                                         (CPrim2 'find-addr (CId 'self (LocalId)) (CId 'target (LocalId)))
-                                        (CPrim2 'set-store (CId 'loc (LocalId)) (CId 'value (LocalId))))
+                                        (CPrim2 'set-store (CId loc-id (LocalId)) (CId 'value (LocalId))))
                                   (CReturn (CNone)))
                                  true)))
 

@@ -2,6 +2,7 @@
 
 (require "python-core-syntax.rkt"
          "python-desugar.rkt"
+         "python-phase1.rkt"
          "util.rkt"
          "builtins/str.rkt"
          (typed-in "get-structured-python.rkt"
@@ -22,11 +23,18 @@
    (open-input-string str)))
 
 (define (compile-port port)
-  (desugar 
-   (get-structured-python 
-    (parse-python/port 
-     port
-     (get-pypath)))))
+  (desugar
+   (new-scope-phase
+    (get-structured-python 
+     (parse-python/port 
+      port
+      (get-pypath))))))
+
+(define (get-globals-names (es : CExpr)) : (listof symbol)
+  (type-case CExpr es
+    (CLet (x type bind body)
+          (cons x (get-globals-names body)))
+    (else (list))))
 
 ; the built-in compile function
 (define (compile args env sto)
@@ -36,11 +44,12 @@
                         [mode (MetaStr-s mval3)]
                         [code (compile-string source)]
                         [body (CModule-body code)]
+                        [names (get-globals-names body)]
                         ; Replacing prelude with None before wrapping it in python-lib to avoid 
                         ; initializing the names to Undefined. 
                         ; When used with exec, it is expected that the names are already initialized
                         ; in the globals.
                         [code2 (python-lib (CModule (CNone) body))])
                  (some (VObject '$code
-                                (some (MetaCode code2 filename empty))
+                                (some (MetaCode code2 filename names))
                                 (hash empty))))))

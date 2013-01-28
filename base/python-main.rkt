@@ -45,6 +45,13 @@
       (get-structured-python
         (parse-python/port port (get-pypath))))))
 
+(define (compile-lib port)
+  (python-lib
+   (desugar
+    (new-scope-phase
+     (get-structured-python
+      (parse-python/port port (get-pypath)))))))
+
 (command-line
   #:once-each
   ("--interp" "Interpret stdin as python"
@@ -66,6 +73,9 @@
 
   ("--get-core-syntax" "Get desugared python"
    (pretty-print (get-core-syntax (current-input-port))))
+
+  ("--compile-lib" "get desugared python with builtin libs"
+   (pretty-print (compile-lib (current-input-port))))
 
   ("--test" dirname "Run all tests in dirname"
    (display (results-summary (run-tests (mk-proc-eval/silent python-test-runner) dirname))))

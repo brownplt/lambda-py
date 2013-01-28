@@ -15,9 +15,9 @@
               ))))
 
 (define (make-module args env sto) : (optionof CVal)
-  (check-types args env sto '$simpledict
+  (check-types args env sto '$dict
                (some 
                 (VObject '$module 
-                         (none) 
-                         (MetaSimpleDict-contents mval1)))))
+                         (none)
+                         (metadict->sym-addr-hash mval1)))))
 
