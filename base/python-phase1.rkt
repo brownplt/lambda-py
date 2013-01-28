@@ -210,7 +210,9 @@
 
 (define (let-phase [expr : LexExpr] ) : LexExpr
 (collapse-pyseq (cascade-undefined-globals (list-subtract
-                                            (extract-post-transform-globals expr)
+                                            (begin
+                                              ;(display (extract-post-transform-globals expr))
+                                              (extract-post-transform-globals expr))
                                             library-names) expr))) ;all globals, not just the current scope
 
 (define library-names (map (lambda (b) (bind-left b)) lib-function-dummies))
@@ -296,8 +298,8 @@
     expr
     (lambda (exp)
       (type-case LexExpr exp
-        ;[LexGlobalId (x ctx) (list x)]
-        [LexAssign (lhs rhs) (map (lambda (y) (LexGlobalId-x y))
+        [LexGlobalId (x ctx) (list x)]
+        #;[LexAssign (lhs rhs) (map (lambda (y) (LexGlobalId-x y))
                                     (filter (lambda (y) (LexGlobalId? y)) lhs))]
         [else (error 'desugar:extract-all "we should not get here")])))))
 
