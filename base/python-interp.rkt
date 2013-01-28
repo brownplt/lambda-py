@@ -181,7 +181,7 @@
                                [(and (VObject? vc) (equal? (VObject-antecedent vc) 'method))
                                 (local 
                                   [(define func
-                                     (v*s*e-v (get-field '__func__ vc (none) efun sfun stk)))
+                                     (fetch (some-v (hash-ref (VObject-dict vc) '__func__)) sc))
                                    (define w_self 
                                      (hash-ref (VObject-dict vc) '__self__))
                                    (define id_self (new-id))
@@ -197,7 +197,7 @@
                                                                          (lambda (k v) (values k v)))))
                                                      id_self (some-v w_self)) 
                                            (rest efun)))]
-                                  (interp-vclosure func m_arges stararg m_env sfun stk env))]
+                                  (interp-vclosure func m_arges stararg m_env sc stk env))]
                                [else
                                 ;; for unbound methods, use function application
                                 (interp-vclosure vc arges stararg efun sfun stk env)])]
@@ -1147,15 +1147,15 @@
                        ;; For functions, create method object bound to the object itself
                        [(VClosure? value) 
                         (local [(define-values (meth sto-m) 
-                                  (mk-method value obj w_obj sto))]
+                                  (mk-method w obj w_obj sto))]
                           (v*s*e meth sto-m env))]
                        ;; for classmethod objects create method object bound to the object's class
                        [(and (VObject? value) 
                              (equal? (VObject-antecedent value) 'classmethod))
-                        (local [(define func 
-                                  (v*s*e-v (get-field '__func__ value (none) env sto stk)))
+                        (local [(define w_func 
+                                  (some-v (hash-ref (VObject-dict value) '__func__)))
                                 (define-values (meth sto-m) 
-                                  (mk-method func obj-cls (none) sto))]
+                                  (mk-method w_func obj-cls (none) sto))]
                           (v*s*e meth sto-m env))]
                        ;; for staticmethod obj. return func attribute
                        [(and (VObject? value) 
@@ -1197,10 +1197,10 @@
                      ;; for classmethod obj. create method obj. bound to the class
                      [(and (VObject? value) 
                            (equal? (VObject-antecedent value) 'classmethod))
-                      (local [(define func 
-                                (v*s*e-v (get-field '__func__ value (none) env sto stk)))
+                      (local [(define w_func
+                                (some-v (hash-ref (VObject-dict value) '__func__)))
                               (define-values (meth sto-m) 
-                                (mk-method func cls w_cls sto))]
+                                (mk-method w_func cls w_cls sto))]
                         (v*s*e meth sto-m env))]
                      ;; for staticmethod obj. return func attribute
                      [(and (VObject? value) 
