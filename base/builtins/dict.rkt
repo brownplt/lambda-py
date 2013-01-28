@@ -185,15 +185,23 @@
 (define (dict-update (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto '$dict
      (let ([starargs (MetaTuple-v (some-v (VObject-mval (second args))))])
-        (if (= 1 (length starargs))
-            (let ([target (MetaDict-contents mval1)]
-                  [extras (MetaDict-contents (some-v (VObject-mval (first starargs))))])
-                 (begin
-                   (map (lambda (pair)
-                          (hash-set! target (car pair) (cdr pair)))
-                        (hash->list extras))
-                   (some vnone)))
-            (some vnone)))))
+       (cond
+         ;; only work when the argument is a dict, it should handle pair iterators.
+         [(and (= 1 (length starargs)) 
+               (VObject? (first starargs)) 
+               (some? (VObject-mval (first starargs)))
+               (MetaDict? (some-v (VObject-mval (first starargs)))))
+          (let ([target (MetaDict-contents mval1)]
+                [extras (MetaDict-contents (some-v (VObject-mval (first starargs))))])
+            (begin
+              (map (lambda (pair)
+                     (hash-set! target (car pair) (cdr pair)))
+                   (hash->list extras))
+              (some vnone)))]
+         [(= 0 (length starargs))
+          (some vnone)]
+         [else
+          (none)]))))
 
 (define (dict-keys (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto '$dict
