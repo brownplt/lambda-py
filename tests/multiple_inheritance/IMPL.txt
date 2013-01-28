@@ -45,8 +45,8 @@ Modifications to base implementation
     In python-interp.rkt:
         interp-env: CClass case to retrieve the base classes and call the new
         function mk-type for class creation.
-        get-field: to handle the new lookup order, the recursive calls were replaced
-        by calls to the new function get-field-from-class.
+        get-field: to handle the new lookup order, uses get-field-from-obj and
+        get field-from-cls.
     In util.rkt:
         object-is: modified to look at __mro__ for inheritance relation.
 
@@ -58,43 +58,62 @@ Modifications to base implementation
         possible.
         c3-merge: implements the c3 algorithm to merge mro lists.
         c3-select: helper function to find the next candidate in c3 algorithm.
+        get-field-from-obj: looks for a field of an object using the class __mro__
+        skip up to thisclass in __mro__, if defined.
+        get-field-from-cls: looks for a field of a class using class __mro__
+        skip up to thisclass in __mro__, if defined.
+        lookup-mro: looks for field in mro list
+        is-special-method?: test for special methods
     In util.rkt:
         get-mro: retrieves the __mro__ attribute prepending the class, to avoid
         the need of self-reference.
+        get-class: retrieves the class of an object.
         any: any of a list of boolean (used in the c3 mro algorithm)
-        
+
 - New builtin classes
     super:
         super is a class with two attributes: __thisclass__ and __self__,
         these parameters can be given explicitly or provided by desugaring when
-        used inside a class.
+        used inside a class (only the second option is implemented).
         When an attribute is retrieved from a super object the search is
         modified to use the __self__ class __mro__, but only past __thisclass__.
-
+    method:
+        bound method, __func__ is the function to be called and __self__ the
+        bound object. mk_method function is used to generate instances of this class,
+        it its called from get-field-from-obj and get-field-from-cls.
+    classmethod:
+        In classmethod objects __func__ is defined as instance attribute
+        classmethod objects are converted to method objects 
+        with class as __self__ on attribute retrieval        
+    staticmethod:
+        In staticmethod objects __func__ is defined as instance attribute
+        staticmethod objects are converted to functions on attribute retrieval
     type:
         for the test set the one and three argument versions of type
         constructor are used, the first can be implemented using the $class
         primitive operation, but the second cannot use CClass, it is a more
         kind of operation.
 
--  Bugs to be fixed
+-  Bugs fixed
+    - bound/unbound methods: #12, #13, #23 and # 26
     - ___fail() changed to no parameter to match py-prelude.py
-    bound methods / class method behavior: a method class needs to be defined,
-    I will also look up at the descriptor protocol to see if it can be used.
-
--  Special notes (if any) for running your tests
-    test_mro_disagreement was modified to avoid the use of type(name, bases, dict),
-    which is not yet implemented, using equivalent class statements.
-    I plan 3 phases which can be tested incrementally:
-    1) multiple inheritance support plus type class without changing super()
-    2) modify super() to be multiple inheritance aware
-    3) fix methods binding behavior / introduce descriptors
 
 - Status (2013-01-08):
     Basic multiple inheritance is passing all python-reference tests and 5 of 7
     multiple inheritance tests, the 2 left are related to super and method
     objects which are not implemented yet.
-    
+
+- Status (2013-01-28):
+    Multiple inheritance branch passes all python-reference tests with the new
+    implementation of bound/unbound methods, classmethod/staticmethod and
+    cooperative multiple inheritance with super().
+
+-  Special notes (if any) for running your tests
+    Object instatiation is not complete, in particular __new__ is not supported
+    Inheritance from builtin classes is not supported.
+    type(obj) and type(obj, cls, dict) are not supported
+    This are all related and so test_multiple_inheritance.py doesn't work
+
 References:
     A gentle introduction to Python Method Resolution Order (mro),
     written by Michele Simionato can be found at
