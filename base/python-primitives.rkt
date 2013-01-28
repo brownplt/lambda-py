@@ -223,18 +223,8 @@ primitives here.
                  (some false-val)))]
 
     ; Returns the class of the given object
-    ; If it is an object (i.e., an instance), it is its antecedent.
-    ; Otherwise, it is itself. NB: classmethod implementation depends on this non-standard behavior!
     ['$class
-     (local [(define me (first args))
-            (define my-antecedent (VObject-antecedent me))
-            (define antecedent-class (fetch (some-v (lookup my-antecedent env)) sto))
-            (define am-class (and (some? (VObject-mval me))
-                             (MetaClass? (some-v (VObject-mval me)))))]
-       (some
-         (if am-class
-             me
-             antecedent-class)))]
+     (some (get-class (first args) env sto))]
 
     ['$locals (begin
                 ;(display env) (display "\n\n")

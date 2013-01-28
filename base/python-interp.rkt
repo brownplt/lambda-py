@@ -830,16 +830,6 @@
                               (v*s*e (fetch w s) s e)]
                         [none () 
                               (get-field-from-obj n c w_c (none) e s stk)])))]
-;                              (local [(define __class__w (hash-ref (VObject-dict c) '__class__))]
-;                                (type-case (optionof Address) __class__w
-;                                  [some (w) (get-field-from-obj n (fetch (some-v __class__w) s) (none) e s stk)]
-;                                  [none () (let ([mayb-base (lookup antecedent e)])
-;                                             (if (some? mayb-base)
-;                                                 (let ([base (fetch (some-v mayb-base) s)])
-;                                                   (get-field-from-obj n base (none) e s stk))
-;                                                 (error 'get-field (string-append 
-;                                                                    "Object without class: "
-;                                                                    (pretty c)))))]))])))]
          [else (error 'interp "Not an object with functions.")])])))
 
 
@@ -1150,8 +1140,7 @@
           (get-field-from-obj fld self w_self (some thisclass) env sto stk)]))]
     ;; normal instance lookup
     [else
-     (local ([define w_obj-cls (lookup (VObject-antecedent obj) env)]
-             [define obj-cls (fetch (some-v w_obj-cls) sto)])
+     (local ([define obj-cls (get-class obj env sto)])
        (type-case (optionof Address) (lookup-mro (get-mro obj-cls thisclass sto) fld)
          [some (w) (let ([value (fetch w sto)])
                      (cond
@@ -1166,7 +1155,7 @@
                         (local [(define func 
                                   (v*s*e-v (get-field '__func__ value (none) env sto stk)))
                                 (define-values (meth sto-m) 
-                                  (mk-method func obj-cls w_obj-cls sto))]
+                                  (mk-method func obj-cls (none) sto))]
                           (v*s*e meth sto-m env))]
                        ;; for staticmethod obj. return func attribute
                        [(and (VObject? value) 

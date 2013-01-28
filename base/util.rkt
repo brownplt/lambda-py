@@ -225,7 +225,7 @@
 
 
 ;; get-mro: fetch __mro__ field as a list of classes, filtered up to thisclass if given
-;; termporarily prepended with cls to avoid self reference in __mro__
+;; and prepended with cls to avoid self reference in __mro__
 (define (get-mro [cls : CVal] 
                  [thisclass : (optionof CVal)]
                  [sto : Store]) : (listof CVal)
@@ -236,6 +236,18 @@
                     (rest (memq (some-v thisclass) mro))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
                                             (pretty cls)))]))
+
+;; get-class: retrieve the object's class
+(define (get-class [obj : CVal] [env : Env] [sto : Store]) : CVal
+  (local ([define __class__w (hash-ref (VObject-dict obj) '__class__)]
+          [define w_obj-cls (if (some? __class__w)
+                                __class__w 
+                                (lookup (VObject-antecedent obj) env))])
+    (type-case (optionof Address) w_obj-cls
+      [some (w) (fetch w sto)]
+      [none () (error 'get-class (string-append "object without class " 
+                                            (pretty obj)))])))
+
 (define (is? [v1 : CVal]
              [v2 : CVal]) : boolean
   (begin
