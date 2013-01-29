@@ -25,7 +25,7 @@
                             (CBuiltinPrim 'num=
                                           (list
                                             (CApp (CGetField (CId 'args (LocalId)) '__len__)
-                                                  (list (CId 'args (LocalId)))
+                                                  (list)
                                                   (none))
                                             (CObject 'num (some (MetaNum 0)))))
                             ; No. Return an empty tuple.
@@ -33,11 +33,10 @@
                             ; Yes. Call __tuple__ on the first argument.
                             (CLet 'first-arg
                                   (CApp (CGetField (CId 'args (LocalId)) '__getitem__)
-                                        (list (CId 'args (LocalId))
-                                              (CObject 'num (some (MetaNum 0))))
+                                        (list (CObject 'num (some (MetaNum 0))))
                                         (none))
                                   (CApp (CGetField (CId 'first-arg (LocalId)) '__tuple__)
-                                        (list (CId 'first-arg (LocalId)))
+                                        (list)
                                         (none)))))
                           (some 'tuple)))
 
@@ -63,9 +62,8 @@
                            (some 'tuple)))
                   (def '__iter__
                        (CFunc (list 'self) (none)
-                           (CReturn (CApp (CGetField (CId 'SeqIter (LocalId)) '__init__)
-                                          (list (CObject 'SeqIter (none)) 
-                                                (CId 'self (LocalId)))
+                           (CReturn (CApp (CId 'SeqIter (LocalId))
+                                          (list (CId 'self (LocalId)))
                                           (none)))
                            (some 'tuple)))
                   (def '__list__
@@ -106,14 +104,12 @@
                                              (def 'li1
                                                   (CApp (CGetField (CId 'self (LocalId))
                                                                    '__getitem__)
-                                                        (list (CId 'self (LocalId))
-                                                              (CId 'idx (LocalId)))
+                                                        (list (CId 'idx (LocalId)))
                                                         (none)))
                                              (def 'li2
                                                   (CApp (CGetField (CId 'other (LocalId))
                                                                    '__getitem__)
-                                                        (list (CId 'other (LocalId))
-                                                              (CId 'idx (LocalId)))
+                                                        (list (CId 'idx (LocalId)))
                                                         (none)))
                                              (CIf (CPrim2 'Is (CId 'li1 (LocalId)) (CNone))
                                                   (CIf (CPrim2 'Is (CId 'li2 (LocalId)) (CNone))
@@ -125,20 +121,17 @@
                                              (def 'cmpval
                                                   (CApp (CGetField (CId 'li1 (LocalId))
                                                                    '__cmp__)
-                                                        (list (CId 'li1 (LocalId))
-                                                              (CId 'li2 (LocalId)))
+                                                        (list (CId 'li2 (LocalId)))
                                                         (none)))
                                              (CIf (CApp (CGetField (CId 'cmpval (LocalId))
                                                                    '__eq__)
-                                                        (list (CId 'cmpval (LocalId))
-                                                              (make-builtin-num 0))
+                                                        (list (make-builtin-num 0))
                                                         (none))
                                                   (seq-ops (list 
                                                     (def 'nidx
                                                          (CApp (CGetField (CId 'idx (LocalId))
                                                                           '__add__)
-                                                               (list (CId 'idx (LocalId))
-                                                                     (make-builtin-num 1))
+                                                               (list (make-builtin-num 1))
                                                                (none)))
                                                     (CReturn 
                                                       (CApp (CId 'listcmp (LocalId))
@@ -160,13 +153,11 @@
                            (seq-ops (list
                                       (def '_cmpresult
                                            (CApp (CGetField (CId 'self (LocalId)) '__cmp__)
-                                                 (list (CId 'self (LocalId))
-                                                       (CId 'other (LocalId)))
+                                                 (list (CId 'other (LocalId)))
                                                  (none)))
                                       (CReturn (CApp (CGetField (CId '_cmpresult (LocalId))
                                                                 '__eq__)
-                                                     (list (CId '_cmpresult (LocalId))
-                                                           (make-builtin-num 0))
+                                                     (list (make-builtin-num 0))
                                                      (none)))))
                            (some 'tuple)))
 

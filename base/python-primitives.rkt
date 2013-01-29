@@ -130,6 +130,7 @@ primitives here.
     ['strcmp (strcmp args env sto)]
     ['strlen (strlen args env sto)]
     ['strbool (strbool args env sto)]
+    ['strint (strint args env sto)]
     ['strmin (strmin args env sto)]
     ['strmax (strmax args env sto)]
     ['strin (strin args env sto)]
@@ -174,6 +175,7 @@ primitives here.
     ['dict-setitem (dict-setitem args env sto)]
     ['dict-delitem (dict-delitem args env sto)]
     ['dict->list (dict->list args env sto)]
+    ['dict-init (dict-init args env sto)]
 
     ;set
     ['set-set (set-set args env sto)]
@@ -223,25 +225,8 @@ primitives here.
                  (some false-val)))]
 
     ; Returns the class of the given object
-    ; If it is an object (i.e., an instance), it is its antecedent.
-    ; Otherwise, it is itself. NB: classmethod implementation depends on this non-standard behavior!
     ['$class
-     (local [(define me (first args))
-            (define my-antecedent (VObject-antecedent me))
-            (define antecedent-class (fetch (some-v (lookup my-antecedent env)) sto))
-            (define am-class (and (some? (VObject-mval me))
-                             (MetaClass? (some-v (VObject-mval me)))))]
-       (some
-         (if am-class
-             me
-             antecedent-class)))]
-
-    ['$super ;; modified to use the __mro__ attibute, but it doesn't support multiple inheritance, yet.
-     (letrec ([me (first args)]
-              [my-antecedent (VObject-antecedent me)]
-              [antecedent-class (fetch (some-v (lookup my-antecedent env)) sto)]
-              [mro (get-mro antecedent-class (none) sto)])
-       (if (> (length mro) 1) (some (second mro)) (none)))]
+     (some (get-class (first args) env sto))]
 
     ['$locals (begin
                 ;(display env) (display "\n\n")
