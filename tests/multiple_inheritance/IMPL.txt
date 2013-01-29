@@ -103,16 +103,18 @@ Modifications to base implementation
     multiple inheritance tests, the 2 left are related to super and method
     objects which are not implemented yet.
 
-- Status (2013-01-28):
-    Multiple inheritance branch passes all python-reference tests with the new
-    implementation of bound/unbound methods, classmethod/staticmethod and
-    cooperative multiple inheritance with super().
+- Status (2013-01-29):
+    Multiple inheritance branch passes all python-reference tests, including
+    multiple_inheritance tests which were moved to multiple-inheritance under
+    python-reference, the new implementation of bound/unbound methods, 
+    classmethod/staticmethod and cooperative multiple inheritance with super()
+    also pass tests for bugs #12, #13, #23 and # 26.
 
 -  Special notes (if any) for running your tests
     Object instatiation is not complete, in particular __new__ is not supported
-    Inheritance from builtin classes is not supported.
-    type(obj) and type(obj, cls, dict) are not supported
-    This are all related and so test_multiple_inheritance.py doesn't work
+    Inheritance from builtin classes is supported, but there is no check for 
+    layout conflicts.
+    type(obj) is suported but type(obj, cls, dict) is not.
 
 References:
     A gentle introduction to Python Method Resolution Order (mro),

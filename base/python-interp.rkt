@@ -914,7 +914,7 @@
                            (type-case MetaVal mval
                              [MetaClass (c) (set! where (mutability-check))]
                              [MetaList (l) (set! where (mutability-check))]
-                             ;;[MetaDict (d) (;; get loc of val in store)]
+                             [MetaDict (d) (set! where (mutability-check))]
                              ;; immutable types should get a new store location
                              [else (set! where (new-loc))]))
                          (set! where (mutability-check)))]
