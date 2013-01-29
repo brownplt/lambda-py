@@ -25,12 +25,16 @@
     (list 'num)
 
     (seq-ops (list
+               ;; only 0-1 argument version are supported
                (def '__init__
-                    (CFunc (list 'self 'other) (none)
-                        (CAssign (CId 'self (LocalId))
-                            (CApp (CGetField (CId 'other (LocalId)) '__int__)
-                                  (list)
-                                  (none)))
+                    (CFunc (list 'self) (some 'args)
+                        (CIf (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
+                             (CAssign (CId 'self (LocalId))
+                                      (py-num 0))
+                             (CAssign (CId 'self (LocalId))
+                                      (CApp (CGetField (py-getitem 'args 0) '__int__)
+                                            (list)
+                                            (none))))
                         (some 'int)))))))
 
 (define float-class

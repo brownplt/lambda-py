@@ -130,6 +130,7 @@ primitives here.
     ['strcmp (strcmp args env sto)]
     ['strlen (strlen args env sto)]
     ['strbool (strbool args env sto)]
+    ['strint (strint args env sto)]
     ['strmin (strmin args env sto)]
     ['strmax (strmax args env sto)]
     ['strin (strin args env sto)]
