@@ -39,7 +39,7 @@
                             (CBuiltinPrim 'num=
                                           (list
                                             (CApp (CGetField (CId 'args (LocalId)) '__len__)
-                                                  (list (CId 'args (LocalId)))
+                                                  (list)
                                                   (none))
                                             (CObject 'num (some (MetaNum 0)))))
                             ; No. Return an empty set
@@ -47,11 +47,10 @@
                             ; Yes. Call __set__ on the first argument.
                             (CLet 'first-arg
                                   (CApp (CGetField (CId 'args (LocalId)) '__getitem__)
-                                        (list (CId 'args (LocalId))
-                                              (CObject 'num (some (MetaNum 0))))
+                                        (list (CObject 'num (some (MetaNum 0))))
                                         (none))
                                   (CApp (CGetField (CId 'first-arg (LocalId)) '__set__)
-                                        (list (CId 'first-arg (LocalId)))
+                                        (list)
                                         (none)))))
                           (some 'set))
                           )
@@ -80,8 +79,7 @@
                                             (CApp (CGetField (CId 'self
                                                                   (LocalId))
                                                              '__list__)
-                                                  (list (CId 'self
-                                                             (LocalId)))
+                                                  (list)
                                                   (none))) 
                                       (none)))
                        (some 'set)))

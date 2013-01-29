@@ -18,7 +18,15 @@
   (CClass
    '$dict
    (list 'object)
-   (seq-ops (list 
+   (seq-ops (list
+             ;; only the no-arguments version is supported
+             (def '__init__
+               (CFunc (list 'self) (none)
+                      (CAssign (CId 'self (LocalId))
+                               (CBuiltinPrim 'dict-init
+                                             (list
+                                              (CId 'self (LocalId)))))
+                      (none)))
               (def '__len__
                     (CFunc (list 'self) (none)
                            (CReturn (CBuiltinPrim 'dict-len
@@ -61,10 +69,10 @@
                      (CFunc (list 'self) (none)
                         (CSeq (CAssign keys-id 
                                        (CApp (CGetField (CId 'self (LocalId)) 'keys) 
-                                             (list (CId 'self (LocalId)))
+                                             (list)
                                              (none)))
                               (CReturn (CApp (CGetField keys-id '__iter__)
-                                    (list keys-id)
+                                    (list)
                                     (none))))
                         (some '$dict))))
               (def '__in__
@@ -185,15 +193,23 @@
 (define (dict-update (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto '$dict
      (let ([starargs (MetaTuple-v (some-v (VObject-mval (second args))))])
-        (if (= 1 (length starargs))
-            (let ([target (MetaDict-contents mval1)]
-                  [extras (MetaDict-contents (some-v (VObject-mval (first starargs))))])
-                 (begin
-                   (map (lambda (pair)
-                          (hash-set! target (car pair) (cdr pair)))
-                        (hash->list extras))
-                   (some vnone)))
-            (some vnone)))))
+       (cond
+         ;; only work when the argument is a dict, it should handle pair iterators.
+         [(and (= 1 (length starargs)) 
+               (VObject? (first starargs)) 
+               (some? (VObject-mval (first starargs)))
+               (MetaDict? (some-v (VObject-mval (first starargs)))))
+          (let ([target (MetaDict-contents mval1)]
+                [extras (MetaDict-contents (some-v (VObject-mval (first starargs))))])
+            (begin
+              (map (lambda (pair)
+                     (hash-set! target (car pair) (cdr pair)))
+                   (hash->list extras))
+              (some vnone)))]
+         [(= 0 (length starargs))
+          (some vnone)]
+         [else
+          (none)]))))
 
 (define (dict-keys (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto '$dict
@@ -258,3 +274,10 @@
                       (VObject 'list
                                (some (MetaList (hash-keys contents)))
                                (make-hash empty))))))
+
+(define (dict-init [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
+  (let ([obj (first args)])
+    (some
+     (VObject (VObject-antecedent obj)
+              (some (MetaDict (make-hash empty)))
+              (VObject-dict obj)))))
