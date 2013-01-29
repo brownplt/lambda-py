@@ -18,7 +18,15 @@
   (CClass
    '$dict
    (list 'object)
-   (seq-ops (list 
+   (seq-ops (list
+             ;; only the no-arguments version is supported
+             (def '__init__
+               (CFunc (list 'self) (none)
+                      (CAssign (CId 'self (LocalId))
+                               (CBuiltinPrim 'dict-init
+                                             (list
+                                              (CId 'self (LocalId)))))
+                      (none)))
               (def '__len__
                     (CFunc (list 'self) (none)
                            (CReturn (CBuiltinPrim 'dict-len
@@ -266,3 +274,10 @@
                       (VObject 'list
                                (some (MetaList (hash-keys contents)))
                                (make-hash empty))))))
+
+(define (dict-init [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
+  (let ([obj (first args)])
+    (some
+     (VObject (VObject-antecedent obj)
+              (some (MetaDict (make-hash empty)))
+              (VObject-dict obj)))))

@@ -9,10 +9,9 @@
     'type
     (list 'object)
     (seq-ops (list
-              ;; This would be the 1 argument version of the constructor
-              ;; when __new__ be available
-              (def '__new__
-                (CFunc (list 'obj) (none)
-                       (CReturn
-                        (CBuiltinPrim '$class (list (CId 'obj (LocalId)))))
+              ;; Only the 1 argument version is supported
+              (def '__init__
+                (CFunc (list 'self 'obj) (none)
+                       (CAssign (CId 'self (LocalId))
+                                (CBuiltinPrim '$class (list (CId 'obj (LocalId)))))
                        (none)))))))
