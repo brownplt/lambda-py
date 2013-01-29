@@ -203,7 +203,11 @@
                                 (interp-vclosure vc arges stararg efun sfun stk env)])]
                       [Return (vfun sfun efun) (return-exception efun sfun stk)]
                       [Break (sfun efun) (break-exception efun sfun stk)]
-                      [Exception (vfun sfun efun) (Exception vfun sfun efun)])))]
+                      [Exception (vfun sfun efun) (mk-exception 'TypeError
+                                                                (string-append 
+                                                                 (symbol->string b)
+                                                                 " object is not callable")
+                                                                env sto stk)])))]
       [else (error 'interp "Not a closure or constructor")])]
    [Return (vfun sfun efun) (return-exception efun sfun stk)]
    [Break (sfun efun) (break-exception efun sfun stk)]
