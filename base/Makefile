@@ -1,3 +1,3 @@
 
 all:
-	git ls-files | grep '\.rkt$$' | xargs raco make -j 5
+	raco make -v python-main.rkt
