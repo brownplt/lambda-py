@@ -1,18 +1,20 @@
-def filter(f, l):
-
-    new_l = []
-    if f is None:
-        for x in l:
-            if x:
-                new_l.append(x)
-    else:
-        for x in l:
-            try:
-                if f(x):
-                    new_l.append(x)
-            except TypeError:
-                raise TypeError("Arity")
-
-    return new_l
-
-
+class filter:
+    def __init__(self, function, iterable):
+        if function:
+            self.function = function
+        else:
+            self.function = lambda x: x
+        self.iterator = iter(iterable)
+    def __iter__(self):
+        return self
+    def __next__(self):
+        element = self.iterator.__next__()
+        if self.function(element):
+            return element
+        else:
+            return self.__next__()
+    def __list__(self):
+        result = []
+        for element in self:
+            result.append(element)
+        return result

@@ -298,7 +298,7 @@ that calls the primitive `print`.
             (bind 'all (CNone))
             (bind 'any (CNone))
             (bind 'range (CNone))
-            ;(bind '___assertRaises (CNone))
+            (bind '___assertRaises (CNone))
             (bind 'filter (CNone))
             (bind 'dicteq (CNone)))
       empty empty empty))
@@ -317,7 +317,7 @@ that calls the primitive `print`.
              "pylib/any.py"
              "pylib/all.py"
              "pylib/dicteq.py"
-            ; "pylib/assertraises.py"
+             "pylib/assertraises.py"
             )))
              
 

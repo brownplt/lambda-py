@@ -715,10 +715,19 @@
                               (DResult 
                                (CLet left-id 
                                      (DResult-expr left-r)
-                                     (CApp (CGetField (CId left-id (if global? (GlobalId) (LocalId)))
+                                     (CSeq
+                                      (CTryExceptElseFinally
+                                       (CGetField (CId left-id (if global? (GlobalId) (LocalId)))
                                                       '__getitem__)
-                                           (list (DResult-expr slice-r))
-                                           (none)))
+                                       (list (CExcept (list) (none) 
+                                                      (CRaise (some (make-exception 
+                                                                     'TypeError
+                                                                     "object is not subscriptable")))))
+                                       (CNone) (CNone))
+                                      (CApp (CGetField (CId left-id (if global? (GlobalId) (LocalId)))
+                                                       '__getitem__)
+                                            (list (DResult-expr slice-r))
+                                            (none))))
                                (DResult-env slice-r)))))]
                      [(symbol=? ctx 'Store)
                       (error 'desugar "bad syntax: PySubscript has context 'Store' outside a PyAssign")]
@@ -726,40 +735,14 @@
       
       [PyBreak () (DResult (CBreak) env)]
       
-      ;; very hacky solution for assertRaises: it needs laziness built into it, so instead
-      ;; of defining it as a function, we'll special case it as a macro.
       [PyApp (fun args)
-             (cond
-               [(and (PyId? fun) (symbol=? (PyId-x fun) '___assertRaises))
-                (local [(define f (rec-desugar (second args) global? env (none)))
-                        (define-values (as as-env)
-                          (map-desugar (rest (rest args)) global? (DResult-env f) (none)))
-                        (define exns (rec-desugar (first args) global? as-env (none)))
-                        (define pass (rec-desugar (PyPass) global? (DResult-env exns) (none)))]
-                  (DResult
-                   (CApp
-                    (CFunc empty (none)
-                           (CTryExceptElseFinally
-                            (CApp (DResult-expr f) as (none))
-                            (list
-                             (CExcept (list (DResult-expr exns)) (none) (DResult-expr pass))
-                             (CExcept empty (none) (DResult-expr pass)))
-                            (CApp (CId 'print (GlobalId))
-                                  (list (make-builtin-str "Assert failure!"))
-                                  (none))
-                            (DResult-expr pass))
-                           (none))
-                    empty
-                    (none))
-                   (DResult-env pass)))]
-               [else
-                (local [(define f (rec-desugar fun global? env (none)))
-                        (define f-expr (DResult-expr f))
-                        (define-values (results last-env)
-                          (map-desugar args global? (DResult-env f) (none)))]
-                  (DResult
-                   (CApp f-expr results (none))
-                   last-env))])]
+             (local [(define f (rec-desugar fun global? env (none)))
+                     (define f-expr (DResult-expr f))
+                     (define-values (results last-env)
+                       (map-desugar args global? (DResult-env f) (none)))]
+               (DResult
+                (CApp f-expr results (none))
+                last-env))]
       
       [PyAppStarArg (fun args sarg)
                     (local [(define f (rec-desugar fun global? env (none)))
