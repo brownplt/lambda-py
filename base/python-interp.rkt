@@ -600,13 +600,6 @@
                      [Break (sv ev) (break-exception ev sv stk)]
                      [Exception (vv sv ev) (Exception vv sv ev)])]
     
-    [CError (e) (type-case Result (interp-env e env sto stk)
-                  [v*s*e (ve se ee)
-                         (raise-user-error (pretty ve))]
-                  [Return (ve se ee) (return-exception ee se stk)]
-                  [Break (se ee) (break-exception ee se stk)]
-                  [Exception (ve se ee) (Exception ve se ee)])]
-
     [CIf (i t e) (type-case Result (interp-env i env sto stk)
                        [v*s*e (vi si envi) (if (truthy? vi)
                                              (interp-env t envi si stk)

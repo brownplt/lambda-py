@@ -128,7 +128,7 @@
 (define-syntax (if-varargs x)
   (syntax-case x ()
     [(if-varargs 'args vars body)
-     #'(if-varargs 'args vars body (CError (CStr "argument mismatch")))]
+     #'(if-varargs 'args vars body (make-exception 'TypeError "argument mismatch"))]
     [(if-varargs 'args () body else-part)
      #'(CIf ; Did we get 0 args?
         (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))

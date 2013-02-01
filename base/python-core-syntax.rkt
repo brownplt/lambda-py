@@ -20,7 +20,6 @@ ParselTongue.
   [CGetField (value : CExpr) (attr : symbol)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
   [CAssign (target : CExpr) (value : CExpr)]
-  [CError (e1 : CExpr)]
   [CIf (test : CExpr) (then : CExpr) (else : CExpr)]
   [CId (x : symbol) (type : IdType)]
   [CLet (x : symbol) (bind : CExpr) (body : CExpr)]
