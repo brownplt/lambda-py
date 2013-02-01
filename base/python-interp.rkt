@@ -342,7 +342,7 @@
                     (interp-env (some-v match?) henv hsto stk))])
             (type-case Result result
               [v*s*e (vbody sbody ebody) (v*s*e vnone sbody ebody)]
-              [Return (vbody sbody ebody) (return-exception ebody sbody stk)]
+              [Return (vbody sbody ebody) (Return vbody sbody ebody)]
               [Break (sbody ebody) (Break sbody ebody)]
               [Exception (vbody sbody ebody)
                          (local [(define exn-args (hash-ref (VObject-dict vbody) 'args))
@@ -725,14 +725,22 @@
                              (Exception vtry stry etry)
                              (interp-excepts excepts stry etry
                                              (Exception vtry stry etry) stk)))]
-                 (if (Exception? result)
-                     (begin
-                       (interp-env finally (Exception-e result) (Exception-s result) stk)
-                       result)
-                     (if (Break? result)
-                        result
-                         (interp-env finally (v*s*e-e result) (v*s*e-s
-                                                                result) stk))))])]
+                 (type-case Result result
+                   [v*s*e (vexc sexc eexc) 
+                          (interp-env finally eexc sexc stk)]
+                   ;; finally block is excecuted, but side effects are ignored...
+                   [Exception (vexc sexc eexc)
+                              (begin
+                                (interp-env finally eexc sexc stk)
+                                result)]
+                   [Return (vexc sexc eexc)
+                           (begin
+                             (interp-env finally eexc sexc stk)
+                             result)]
+                   [Break (sexc eexc)
+                          (begin
+                            (interp-env finally eexc sexc stk)
+                            result)]))])]
 
     [CExcept (types name body) (interp-env body env sto stk)]
     

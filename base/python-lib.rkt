@@ -267,7 +267,6 @@ that calls the primitive `print`.
              "pylib/all.py"
              "pylib/dicteq.py"
              "py-prelude.py"
-             "pylib/assertraises.py"
             )))
              
 
