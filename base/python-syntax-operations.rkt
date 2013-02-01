@@ -52,8 +52,9 @@
               [PyFor (target iter body)
                      (LexFor (recur target) (recur iter) (recur body))]
               
-                                        ; pass
+                                        ; pass & assert
               [PyPass () (LexPass)]
+              [PyAssert (test msg) (LexAssert (recur test) (map recur msg))]
               
                                         ; classes and objects 
               [PyClass (name bases body)
@@ -167,8 +168,9 @@
               [LexFor (target iter body)
                      (LexFor (recur target) (recur iter) (recur body))]
               
-                                        ; pass
+                                        ; pass & assert
               [LexPass () (LexPass)]
+              [LexAssert (test msg) (LexAssert (recur test) (map recur msg))]              
               
                                         ; classes and objects 
               [LexClass (name bases body)
@@ -288,8 +290,10 @@
               [PyFor (target iter body)
                      (flatten (list (recur target) (recur iter) (recur body)))]
               
-                                        ; pass
+                                        ; pass & assert
               [PyPass () empty]
+              [PyAssert (test msg)
+                        (flatten (list (list (recur test)) (map recur msg)))]
               
                                         ; classes and objects 
               [PyClass (name bases body)
@@ -403,8 +407,10 @@
               [LexFor (target iter body)
                      (flatten (list (recur target) (recur iter) (recur body)))]
               
-                                        ; pass
+                                        ; pass & assert
               [LexPass () empty]
+              [LexAssert (test msg)
+                    (flatten (list (list (recur test)) (map recur msg)))]
               
                                         ; classes and objects 
               [LexClass (name bases body)

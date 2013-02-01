@@ -57,59 +57,6 @@ that calls the primitive `print`.
           (CReturn (CPrim1 'callable (CId 'to-check (LocalId)))))
          (none)))
 
-
-(define assert-true-lambda
-  (CFunc (list 'check-true) (none)
-    (CIf (CId 'check-true (LocalId)) (CNone) (CError (CStr "Assert failed")))
-    (none)))
-
-(define assert-false-lambda
-  (CFunc (list 'check-false) (none)
-    (CIf (CId 'check-false (LocalId)) (CError (CStr "Assert failed")) (CTrue))
-    (none)))
-
-(define assert-equal-lambda
-  (CFunc (list 'check1 'check2)  (none)
-    (CIf (CApp (CGetField (CId 'check1 (LocalId)) '__eq__)
-               (list (CId 'check2 (LocalId)))
-               (none))
-         (CNone)
-         (CError (CStr "Assert failed")))
-    (none)))
-
-(define assert-is-lambda
-  (CFunc (list 'check1 'check2) (none)
-    (CIf (CPrim2 'Is (CId 'check1 (LocalId)) (CId 'check2 (LocalId)))
-         (CNone)
-         (CError (CStr "Assert failed")))
-    (none)))
-
-(define assert-isnot-lambda
-  (CFunc (list 'check1 'check2) (none)
-    (CIf (CPrim2 'Is (CId 'check1 (LocalId)) (CId 'check2 (LocalId)))
-         (CError (CStr "Assert failed"))
-         (CNone))
-    (none)))
-
-(define assert-in-lambda
-  (CFunc (list 'check1 'check2) (none)
-    (CIf (desugar (PyBinOp (PyId 'check1 'DUMMY) 'In (PyId 'check2 'DUMMY)))
-         (CNone)
-         (CError (CStr "Assert failed")))
-    (none)))
-
-(define assert-notin-lambda
-  (CFunc (list 'check1 'check2) (none)
-    (CIf (desugar (PyBinOp (PyId 'check1 'DUMMY) 'In (PyId 'check2 'DUMMY)))
-         (CError (CStr "Assert failed"))
-         (CNone))
-    (none)))
-
-(define fail-lambda
-  (CFunc (list) (none)
-    (CError (CStr "Assert failed"))
-    (none)))
-
 (define exception
   (CClass
     'Exception
@@ -279,14 +226,7 @@ that calls the primitive `print`.
         (bind 'IndexError (make-exception-class 'IndexError))
         (bind 'ZeroDivisionError (make-exception-class 'ZeroDivisionError))
         (bind 'StopIteration (make-exception-class 'StopIteration))
-        (bind '___assertEqual assert-equal-lambda)
-        (bind '___assertTrue assert-true-lambda)
-        (bind '___assertFalse assert-false-lambda)
-        (bind '___assertIs assert-is-lambda)
-        (bind '___assertIsNot assert-isnot-lambda)
-        (bind '___assertIn assert-in-lambda)
-        (bind '___assertNotIn assert-notin-lambda)
-        (bind '___fail fail-lambda)))
+        (bind 'AssertionError (make-exception-class 'AssertionError))))
 
 (define lib-function-dummies
   (append
@@ -298,9 +238,18 @@ that calls the primitive `print`.
             (bind 'all (CNone))
             (bind 'any (CNone))
             (bind 'range (CNone))
-            (bind '___assertRaises (CNone))
             (bind 'filter (CNone))
-            (bind 'dicteq (CNone)))
+            (bind 'dicteq (CNone))
+            ;; functions defined in py-prelude.py
+            (bind '___assertEqual (CNone))
+            (bind '___assertTrue (CNone))
+            (bind '___assertFalse (CNone))
+            (bind '___assertIs (CNone))
+            (bind '___assertIsNot (CNone))
+            (bind '___assertIn (CNone))
+            (bind '___assertNotIn (CNone))
+            (bind '___fail (CNone))
+            (bind '___assertRaises (CNone)))
       empty empty empty))
 ;; these are builtin functions that we have written in actual python files which
 ;; are pulled in here and desugared for lib purposes
@@ -317,6 +266,7 @@ that calls the primitive `print`.
              "pylib/any.py"
              "pylib/all.py"
              "pylib/dicteq.py"
+             "py-prelude.py"
              "pylib/assertraises.py"
             )))
              

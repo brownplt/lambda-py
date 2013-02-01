@@ -114,6 +114,12 @@ structure that you define in python-syntax.rkt
        (PyRaise (PyPass))
        (PyRaise (get-structured-python exc)))]
 
+    [(hash-table ('nodetype "Assert")
+                 ('test test)
+                 ('msg msg))
+     (PyAssert (get-structured-python test)
+               (if (char? msg) (list) (list (get-structured-python msg))))]
+
     [(hash-table ('nodetype "arg")
                  ('arg arg))
      (string->symbol arg)]

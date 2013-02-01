@@ -27,8 +27,9 @@
   [PyWhile (test : PyExpr) (body : PyExpr) (orelse : PyExpr)]
   [PyFor (target : PyExpr) (iter : PyExpr) (body : PyExpr)]
   
-  ; pass
+  ; pass & assert
   [PyPass]
+  [PyAssert (test : PyExpr) (msg : (listof PyExpr))]
 
   ; classes and objects 
   [PyClass (name : symbol) (bases : (listof symbol)) (body : PyExpr)]

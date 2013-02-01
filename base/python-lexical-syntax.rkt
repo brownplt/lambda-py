@@ -24,8 +24,9 @@
   [LexWhile (test : LexExpr) (body : LexExpr) (orelse : LexExpr)]
   [LexFor (target : LexExpr) (iter : LexExpr) (body : LexExpr)]
   
-  ; pass
+  ; pass & assert
   [LexPass]
+  [LexAssert (test : LexExpr) (msg : (listof LexExpr))]
 
   ; classes and objects 
   [LexClass (name : symbol) (bases : (listof symbol)) (body : LexExpr)]

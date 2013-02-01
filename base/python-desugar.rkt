@@ -467,7 +467,15 @@
                               (none)
                               (some (DResult-expr expr-r))))
                          (DResult-env expr-r)))]
-      
+
+      ;; assert check is always enabled, it doesn't test __debug__ builtin variable.
+      [PyAssert (test msg)
+                (rec-desugar
+                 (PyIf test
+                       (PyPass)
+                       (PyRaise (PyApp (PyId 'AssertionError 'Load) msg)))
+                 global? env (none))]
+
       ; PyPass is an empty lambda
       [PyPass () (DResult (CApp (CFunc empty (none) (CNone) (none)) empty (none)) env)] 
       
