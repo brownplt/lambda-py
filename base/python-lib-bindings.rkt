@@ -214,6 +214,11 @@
           (CBuiltinPrim '$class (list (CId 'self (LocalId)))))
          false))
 
+(define globals-lambda
+  (CFunc (list) (none)
+         (CReturn
+          (CBuiltinPrim 'globals (list)))
+         false))
 
 (define lib-functions
   (list (bind 'True (assign 'True (CTrue)))
@@ -236,6 +241,9 @@
         (bind 'set set-class)
         (bind 'file file-class)
         (bind 'open file-class)
+
+        ;; module related
+        (bind 'globals (assign 'globals globals-lambda))
 
         (bind 'len (assign 'len len-lambda))
         (bind 'min (assign 'min min-lambda))

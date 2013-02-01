@@ -542,11 +542,20 @@
 
     [CApp (fun arges sarg)
           (begin ;(display fun) (display arges)
-          (interp-capp fun arges
-                       (if (none? sarg)
-                           (some (CTuple empty))
-                           sarg)
-                       env sto))]
+            ;; FIXME(Junsong): specially tackle globals() builtin functions for now
+            ;; which will introduce the bug that users can't define their own
+            ;; global function named 'globals'
+            (cond ((and (CId? fun)
+                        (eq? (CId-x fun) 'globals)
+                        (equal? (CId-type fun) (GlobalId)))
+                   (v*s (sym-addr-hash->dictobj (last env))
+                        sto (none)))
+                  (else
+                   (interp-capp fun arges
+                                (if (none? sarg)
+                                    (some (CTuple empty))
+                                    sarg)
+                                env sto))))]
 
     [CFunc (args sargs body method?) 
            (v*s (VClosure
