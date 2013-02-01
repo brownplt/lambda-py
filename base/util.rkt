@@ -31,20 +31,6 @@
 (define (set-pypath p)
   (set! python-path p))
 
-(define import-path "/some/path")
-(define (get-import-path)
-  import-path)
-(define (set-import-path p)
-  (set! import-path p))
-
-; Moved python-lib function here to reduce the interaction between modules.
-; This seems to be saving the amount of time taken to run 'raco make'
-(define python-lib (lambda ([x : CExpr]) : CExpr
-                     x))
-
-(define (set-python-lib [func : (CExpr -> CExpr)])
-  (set! python-lib func))
-
 ; lists->hash - given two parallel list produce a mutable hash mapping 
 ; values from one to values in the other
 (define (lists->hash [l1 : (listof 'a)] [l2 : (listof 'b)]) : (hashof 'a 'b)
@@ -256,17 +242,16 @@
     [some (w) (cons cls (MetaTuple-v (some-v (VObject-mval (fetch w sto)))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
                                             (pretty cls sto)))])))
-
 (define (is? [v1 : CVal]
              [v2 : CVal]) : boolean
   (begin
     ;(display v1) (display " ") (display v2) (display " ") (display (eq? v1 v2)) (display "\n")
     (eq? v1 v2)))
 
-(define (pretty arg store)
+(define (pretty arg sto)
   (type-case CVal arg
     [VObject (a mval d) (if (some? mval)
-                            (pretty-metaval (some-v mval) store)
+                            (pretty-metaval (some-v mval) sto)
                             (string-append "<"
                               (string-append (symbol->string a)
                                              " object>")))]
@@ -306,18 +291,6 @@
                                     (hash->list contents))
                                ", "))
               "}")]
-    ;; [MetaSimpleDict (contents)
-    ;;           (string-append
-    ;;           (string-append "{"
-    ;;                          (string-join
-    ;;                            (map (lambda (pair)
-    ;;                                   (string-append (symbol->string (car pair))
-    ;;                                     (string-append ": "
-    ;;                                                    (to-string (cdr pair)))))
-    ;;                                 (hash->list contents))
-    ;;                            ", "))
-    ;;           "}")]
-    [MetaCode (expr filename names) "<code object>"]
     [MetaNone () "None"]
     [MetaSet (elts)
               (string-append
@@ -398,32 +371,3 @@
 ;; any: any of a list of boolean (used in the c3 mro algorithm)
 (define (any [bs : (listof boolean)]) : boolean
   (foldr (lambda (e1 e2) (or e1 e2)) #f bs))
-
-;; assumes that d is passed as MetaDict
-;; this function will convert dict VObject to the (hashof symbol address)
-(define (dictobj->sym-addr-hash [d : CVal]) : (hashof symbol Address)
-  (let ((contents (MetaDict-contents (some-v (VObject-mval d))))
-        (new-env (hash empty)))
-    (begin
-      (map (lambda (pair)
-             (let* ((strObj (car pair))
-                    (addr (cdr pair))
-                    (symstr (MetaStr-s (some-v (VObject-mval strObj))))
-                    (sym (string->symbol symstr)))
-               (set! new-env (hash-set new-env sym addr))))
-           (hash->list contents))
-      new-env)))
-
-(define (metadict->sym-addr-hash [d : MetaVal]) : (hashof symbol Address)
-  (dictobj->sym-addr-hash (VObject '$dict (some d) (hash empty))))
-
-(define (sym-addr-hash->dictobj [e : (hashof symbol Address)]) : CVal
-  (let ((new-contents (make-hash empty)))
-    (begin
-     (map (lambda (pair)
-            (let* ((symstr (symbol->string (car pair)))
-                   (addr (cdr pair))
-                   (strObj (VObject 'str (some (MetaStr symstr)) (hash empty))))
-              (hash-set! new-contents strObj addr)))
-          (hash->list e))
-     (VObject '$dict (some (MetaDict new-contents)) (hash empty)))))

@@ -6,15 +6,11 @@
          "builtins/list.rkt"
          "builtins/tuple.rkt"
          "builtins/dict.rkt"
-         "builtins/code.rkt"
-         "builtins/module.rkt"
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/set.rkt"
          "builtins/none.rkt"
          "builtins/file.rkt"
-         (typed-in "builtins/modules/builtin-modules.rkt"
-                   (get-builtin-modules : ( -> 'a)))
          "util.rkt"
          "python-lib-bindings.rkt"
          (typed-in "get-structured-python.rkt"
@@ -25,7 +21,6 @@
          "python-syntax.rkt"
          "python-lexical-syntax.rkt"
          "python-desugar.rkt"
-         (typed-in racket/pretty (pretty-print : ('a -> 'b)))
          "python-phase1.rkt"
          (typed-in racket/base (append : ((listof 'a) (listof 'a) (listof 'a) (listof 'a) (listof 'a) -> (listof 'a)))))
 
@@ -38,6 +33,9 @@ bindings.  For example, this sample library binds `print` to a function
 that calls the primitive `print`.
 
 |#
+
+
+
 
 ;; these are builtin functions that we have written in actual python files which
 ;; are pulled in here and desugared for lib purposes
@@ -55,13 +53,13 @@ that calls the primitive `print`.
              "pylib/any.py"
              "pylib/all.py"
              "pylib/dicteq.py"
-             "pylib/import.py"
             ; "pylib/assertraises.py"
             )))
+             
 
 (define-type-alias Lib (CExpr -> CExpr))
 
-(define (python-lib-func [expr : CExpr]) : CExpr
+(define (python-lib [expr : CExpr]) : CExpr
   (local [(define (cascade-lets bindings body)
             (if (empty? bindings)
                 body
@@ -74,5 +72,3 @@ that calls the primitive `print`.
                              (get-pylib-programs)
                              (list (CModule-body expr))
                              empty empty)))))
-
-(set-python-lib python-lib-func)

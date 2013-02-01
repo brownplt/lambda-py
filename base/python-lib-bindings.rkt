@@ -214,33 +214,6 @@
           (CBuiltinPrim '$class (list (CId 'self (LocalId)))))
          false))
 
-(define exec-lambda
-  (CFunc (list 'code 'glbdict 'localdict) (none)
-         (CReturn
-          (CExec (CId 'code (LocalId))
-                 (CId 'glbdict (LocalId))
-                 (CId 'localdict (LocalId))))
-         false))
-
-(define compile-lambda
-  (CFunc (list 'source 'filename 'mode) (none)
-         (CReturn
-          (CBuiltinPrim 'compile (list (CId 'source (LocalId))
-                                       (CId 'filename (LocalId))
-                                       (CId 'mode (LocalId)))))
-         false))
-
-(define make-module-lambda
-  (CFunc (list 'globals) (none)
-         (CReturn
-          (CBuiltinPrim 'make-module (list (CId 'globals (LocalId)))))
-         false))
-
-(define globals-lambda
-  (CFunc (list) (none)
-         (CReturn
-          (CBuiltinPrim 'globals (list)))
-         false))
 
 (define lib-functions
   (list (bind 'True (assign 'True (CTrue)))
@@ -263,14 +236,6 @@
         (bind 'set set-class)
         (bind 'file file-class)
         (bind 'open file-class)
-
-        ;; modules related bindings
-        (bind 'exec (assign 'exec exec-lambda))
-        (bind 'compile (assign 'compile compile-lambda))
-        ; use this to create module object for now
-        (bind '__module (assign '__module make-module-lambda)) 
-        (bind 'globals (assign 'globals globals-lambda))
-
 
         (bind 'len (assign 'len len-lambda))
         (bind 'min (assign 'min min-lambda))

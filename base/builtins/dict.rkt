@@ -110,21 +110,28 @@
                                                 (list (CId 'self (LocalId))
                                                       (CId 'other (LocalId)))))
                          true))
-             
-              (def '$dict '__setitem__
-                   (local ((define loc-id (new-id)))
-                          (CFunc (list 'self 'target 'value) (none)
-                                 (CSeq
-                                  (CLet loc-id (LocalId)
-                                        (CPrim2 'find-addr (CId 'self (LocalId)) (CId 'target (LocalId)))
-                                        (CPrim2 'set-store (CId loc-id (LocalId)) (CId 'value (LocalId))))
-                                  (CReturn (CNone)))
-                                 true)))
 
-              (def '$dict '__delitem__
-                   (CFunc (list 'self 'slice) (none)
-                          (CReturn (CPrim2 'dict-delitem  (CId 'self (LocalId)) (CId 'slice (LocalId))))
-                          true)))))
+             (def '$dict '__setitem__
+                  (local ((define loc-id (new-id)))
+                         (CFunc (list 'self 'target 'value) (none)
+                                (CSeq
+                                 (CLet loc-id (LocalId)
+                                       (CPrim2 'find-addr
+                                               (CId 'self (LocalId))
+                                               (CId 'target
+                                                    (LocalId)))
+                                       (CPrim2 'set-store
+                                               (CId loc-id (LocalId))
+                                               (CId 'value (LocalId))))
+                                 (CReturn (CNone)))
+                                true)))
+
+             (def '$dict '__delitem__
+                  (CFunc (list 'self 'slice) (none)
+                         (CReturn (CPrim2 'dict-delitem
+                                          (CId 'self (LocalId))
+                                          (CId 'slice (LocalId))))
+                         true)))))
 
 
 (define (make-under-dict [h : (hashof symbol Address)] [sto : Store]) : CVal
@@ -209,8 +216,7 @@
                       ;fetch values from store based on the address
                       [vals (map (lambda (addr)
                                    (fetch addr sto))
-                                 (hash-values contents))]
-                      )
+                                 (hash-values contents))])
                     (some
                       (VObject 'set
                                (some (MetaSet (make-set vals)))
@@ -240,7 +246,6 @@
                    (some (fetch (some-v mayb-val) sto))
                    (some vnone)))))
 
-;; The two should be moved to python-prim2 to return Result
 ;; (define (dict-setitem [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
 ;;   (check-types args env sto '$dict
 ;;                (letrec ([contents (MetaDict-contents mval1)]

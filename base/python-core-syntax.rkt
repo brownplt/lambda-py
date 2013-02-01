@@ -42,7 +42,6 @@ ParselTongue.
   [CExcept (types : (listof CExpr)) (name : (optionof symbol)) (body : CExpr)]
   [CUndefined]
   [CBreak]
-  [CExec (code : CExpr) (globals : CExpr) (locals : CExpr)]
   [CContinue]
   [CModule (prelude : CExpr) (body : CExpr)])
 
@@ -70,7 +69,6 @@ ParselTongue.
              [MetaTuple (v : (listof CVal))]
              [MetaDict (contents : (hashof CVal Address))]
              [MetaClass (c : symbol)]
-             [MetaCode (e : CExpr) (filename : string) (names : (listof symbol))]
              [MetaSet (elts : Set)]
              [MetaNone]
              [MetaPort (p : port)])

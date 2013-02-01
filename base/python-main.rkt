@@ -45,13 +45,6 @@
       (get-structured-python
         (parse-python/port port (get-pypath))))))
 
-(define (compile-lib port)
-  (python-lib
-   (desugar
-    (new-scope-phase
-     (get-structured-python
-      (parse-python/port port (get-pypath)))))))
-
 (command-line
   #:once-each
   ("--interp" "Interpret stdin as python"
@@ -63,19 +56,16 @@
    (display (cdr results) (current-error-port)))
 
   ("--get-syntax" "Get s-exp for python"
-   (pretty-print (parse-python/port (current-input-port) (get-pypath))))
+   (pretty-write (parse-python/port (current-input-port) (get-pypath))))
   
   ("--get-surface-syntax" "Get surface syntax python"
-   (pretty-print (get-surface-syntax (current-input-port))))
+   (pretty-write (get-surface-syntax (current-input-port))))
 
   ("--get-lexical-syntax" "Get surface syntax python"
    (pretty-write (get-lexical-syntax (current-input-port))))
 
   ("--get-core-syntax" "Get desugared python"
-   (pretty-print (get-core-syntax (current-input-port))))
-
-  ("--compile-lib" "get desugared python with builtin libs"
-   (pretty-print (compile-lib (current-input-port))))
+   (pretty-write (get-core-syntax (current-input-port))))
 
   ("--test" dirname "Run all tests in dirname"
    (display (results-summary (run-tests (mk-proc-eval/silent python-test-runner) dirname))))

@@ -233,7 +233,7 @@
                                         (MetaTuple?
                                           (some-v (VObject-mval
                                                     (v*s-v (first except-types-results))))))
-                                   (map (lambda (v) (v*s v
+                                   (map (λ (v) (v*s v
                                                     (v*s-s (first except-types-results))
                                                     (none)))
                                         (MetaTuple-v
@@ -480,7 +480,7 @@
     
     ;; is this used anymore?
     [CError (e) (type-case Result (interp-env e env sto)
-                  [v*s (ve se ae) (raise-user-error (pretty ve sto))]
+                  [v*s (ve se ae) (raise-user-error (pretty ve se))]
                   [Return (ve se ae) (return-exception se)]
                   [Break (se) (break-exception se)]
                   [Continue (se) (continue-exception se)] 
@@ -650,21 +650,6 @@
     
     [CBreak () (Break sto)]
     [CContinue () (Continue sto)]
-    [CExec (code glbdict localdict)
-           (let* [(code-CVal (v*s-v (interp-env code env sto))) ; get code object
-                  (glb-res (interp-env glbdict env sto)) ; evaluate dict
-                  (local-res (interp-env localdict env sto))
-                  (glb-CVal (v*s-v glb-res)) ; TODO: raise TypeError
-                  (local-CVal (v*s-v local-res))
-                  (glb-env (dictobj->sym-addr-hash glb-CVal)) ; convert
-                  (local-env  (dictobj->sym-addr-hash local-CVal))
-                  (new-env (if (equal? glb-env local-env)  ; get new env
-                               (list glb-env)
-                               (list glb-env local-env)))
-                                        ;get core syntax of the code
-                  (xcode (MetaCode-e (some-v (VObject-mval code-CVal))))]
-                                        ;interp the code
-             (interp-env xcode new-env sto))]    
     )))
 
 (define (assign-to-id [id : CExpr] [val : Result] [env : Env] [sto : Store]) : Result

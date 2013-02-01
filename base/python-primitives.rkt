@@ -1,15 +1,12 @@
 #lang plai-typed
 
 (require "python-core-syntax.rkt"
-         "python-modules.rkt"
          "util.rkt"
          "builtins/none.rkt"
          "builtins/str.rkt"
          "builtins/list.rkt"
          "builtins/tuple.rkt"
          "builtins/dict.rkt"
-         "builtins/code.rkt"
-         "builtins/module.rkt"
          "builtins/set.rkt"
          "builtins/num.rkt"
          "builtins/object.rkt"
@@ -18,9 +15,7 @@
          (typed-in racket/string (string-join : ((listof string) string -> string)))
          (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (quotient : (number number -> number)))
-         (typed-in racket/base (remainder : (number number -> number)))
-         (typed-in racket/pretty (pretty-print : ('a -> 'b)))
-         (typed-in racket/list (last : ((listof 'a) -> 'a))))
+         (typed-in racket/base (remainder : (number number -> number))))
 
 #|
 
@@ -61,8 +56,8 @@ primitives here.
               ; whether find or not, find-addr returns a location
               [loc (if (some? mayb-loc)
                        (some-v mayb-loc)
-                       (begin ;(display "find-addr: not found the ")
-                              ;(display arg2)
+                       (begin (display "find-addr: not found the ")
+                              (display arg2)
                               (new-loc)))])
        (begin
          (hash-set! contents arg2 loc) ; in case of we need new
@@ -70,6 +65,7 @@ primitives here.
          (v*s (VObject 'num (some (MetaNum loc)) (make-hash empty))
                 store
                 (none))))]
+    
     [(set-store) (let ([loc (MetaNum-n (some-v (VObject-mval arg1)))])
                    (v*s vnone (hash-set store loc arg2) (none)))]
     
@@ -87,7 +83,7 @@ primitives here.
              ; keep silent for now
              (v*s vnone store (none)))))]
     [else
-     (error 'interp (string-append "Haven't implemented a case yet 1: "
+     (error 'interp (string-append "Haven't implemented a case yet: "
                                    (symbol->string op)))
      ]))
 
@@ -219,21 +215,6 @@ primitives here.
     ;['dict-delitem (dict-delitem args env sto)]
     ['dict->list (dict->list args env sto)]
 
-    ;simpledict
-    ;; ['simpledict-init (simpledict-init args env sto)]
-    ;; ['simpledict-len (simpledict-len args env sto)]
-    ;; ['simpledict-str (simpledict-str args env sto)]
-    ;; ['simpledict-in (simpledict-in args env sto)]
-    ;; ['simpledict-get (simpledict-get args env sto)]
-    ;; ['simpledict-getitem (simpledict-getitem args env sto)]
-
-    ;code
-    ['code-str (code-str args env sto)]
-    ['code-names (code-names args env sto)]
-    
-    ; module
-    ['make-module (make-module args env sto)]
-
     ;set
     ['set-set (set-set args env sto)]
     ['set-len (set-len args env sto)]
@@ -269,17 +250,17 @@ primitives here.
 
     ;isinstance
     ['isinstance 
-     (if (or (none? (VObject-mval (second args)))
-             (not (MetaClass? (some-v (VObject-mval (second args))))))
-         (none)
-         (if (object-is? (first args) 
-                         (MetaClass-c 
-                          (some-v 
-                           (VObject-mval (second args))))
-                         env
-                         sto)
-             (some true-val)
-             (some false-val)))]
+               (if (or (none? (VObject-mval (second args)))
+                       (not (MetaClass? (some-v (VObject-mval (second args))))))
+               (none)
+               (if (object-is? (first args) 
+                               (MetaClass-c 
+                                 (some-v 
+                                   (VObject-mval (second args))))
+                               env
+                               sto)
+                 (some true-val)
+                 (some false-val)))]
 
     ; Returns the class of the given object
     ; If it is an object (i.e., an instance), it is its antecedent.
@@ -306,10 +287,4 @@ primitives here.
                ; (display env) (display "\n\n")
                 (some (make-under-dict (first env) sto)))]
 
-    ['globals (begin ;(pretty-print env)
-                     (some (sym-addr-hash->dictobj (last env))))]
-
-    ['Compile (compile args env sto)]
-    
-    [else (none)]
 ))
