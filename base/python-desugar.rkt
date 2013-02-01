@@ -516,11 +516,13 @@
      
       ;; target is interpreted twice. FIX ME
       [LexAugAssign (op target value)
-                    (local [(define target-r (rec-desugar target))
-                            (define aug-r (rec-desugar (LexBinOp target op value)))]
-                      (CAssign target-r aug-r))]
+                    (local [(define target-r  target)
+                            (define aug-r  (LexBinOp (context-load target) op value)) ]
+                           (begin
+                      (desugar (LexAssign (list target-r) (context-load aug-r)))))]
       ; XXX: target is interpreted twice, independently.
       ; Is there any case where this might cause problems?
+      ; TODO: this whole thing needs re-writing.  I'm just converting it to do a standard assignment. 
       
       [LexDelete (targets)
                  (let ([target (first targets)]) ; TODO: handle deletion of more than one target
@@ -552,6 +554,11 @@
                  (to-string expr)))]
 
       )))
+
+(define (context-load e)
+  (type-case LexExpr e
+    [LexSubscript (left context slice) (LexSubscript left 'Load slice)]
+    [else e]))
 
 (define (desugar [expr : LexExpr]) : CExpr
   (rec-desugar expr))
