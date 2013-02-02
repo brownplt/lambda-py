@@ -39,8 +39,8 @@
    (list
     (LexAssign (list (PyLexId '__init__ 'Store))
                      (LexLam (list 'self)
-                             (LexAssign (list (LexDotField (PyLexId 'self 'Load) '__class__ ))
-                                        (LexBuiltinPrim '$class (list (PyLexId 'self 'Load))))))
+                             (LexAssign (list (LexDotField (LexLocalId 'self 'Load) '__class__ ))
+                                        (LexBuiltinPrim '$class (list (LexLocalId 'self 'Load))))))
     body)))
 
 (define (pre-desugar [expr : PyExpr]) : LexExpr
