@@ -6,4 +6,4 @@ class C:
         return x
 
 c = C()
-___assertRaises(SyntaxError, c.f)
+

@@ -12,6 +12,6 @@ def errorInInner():
   del y
   inner()
 
-___assertraises(UnboundLocalError, errorInOuter)
-___assertraises(NameError, errorrInInner)
+___assertRaises(UnboundLocalError, errorInOuter)
+___assertRaises(NameError, errorInInner)
 
