@@ -46,19 +46,19 @@
               (LexLam args (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
        [PyFunc (name args defaults body)
                (LexSeq (list (LexAssign (list (PyLexId name 'Store)) 
-                                        (LexFunc (Unknown-scope) name args
+                                        (LexFunc name args
                                                  (map pre-desugar defaults)
                                                  (LexBlock args (cascade-nonlocal args (pre-desugar body)))))))]
        [PyClassFunc (name args body)
                     (LexSeq (list
                              (LexAssign (list (PyLexId name 'Store)) 
-                                        (LexClassFunc (Unknown-scope) name args
+                                        (LexClassFunc name args
                                                       (LexBlock args
                                                                 (cascade-nonlocal args (pre-desugar body)))))))]
        [PyFuncVarArg (name args sarg body)
                      (LexSeq (list
                               (LexAssign (list (PyLexId name 'Store)) 
-                                         (LexFuncVarArg (Unknown-scope) name args sarg
+                                         (LexFuncVarArg name args sarg
                                                         (LexBlock args
                                                                   (cascade-nonlocal args (pre-desugar body)))))))]
        [else (haiku-error)]
@@ -155,15 +155,15 @@
                                         [LexClass (scope name bases body)
                                                   (LexClass replace-scope name bases
                                                             (remove-unneeded-assigns body))]
-                                        [LexFunc (scope name args defaults body)
-                                                 (LexFunc replace-scope name args
+                                        [LexFunc (name args defaults body)
+                                                 (LexFunc name args
                                                           (map remove-unneeded-assigns defaults)
                                                           (remove-unneeded-assigns body))]
-                                        [LexClassFunc (scope name args body)
-                                                      (LexClassFunc replace-scope name args
+                                        [LexClassFunc (name args body)
+                                                      (LexClassFunc name args
                                                                     (remove-unneeded-assigns body))]
-                                        [LexFuncVarArg (scope name args sarg body)
-                                                       (LexFuncVarArg replace-scope name args sarg
+                                        [LexFuncVarArg (name args sarg body)
+                                                       (LexFuncVarArg name args sarg
                                                                       (remove-unneeded-assigns body))]
                                         [else (error 'remove-unneeded-assigns
                                                      "undefined pattern present without declaration")]

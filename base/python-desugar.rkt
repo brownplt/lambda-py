@@ -330,7 +330,7 @@
       
       [LexLam (args body) (CFunc args (none) (CReturn (rec-desugar body)) false)]
 
-      [LexFunc (scp name args defargs body)
+      [LexFunc (name args defargs body)
                (if (> (length defargs) 0)
                    (local [(define last-arg (first (reverse args)))]
                      (rec-desugar
@@ -339,7 +339,7 @@
                          (list
                            (LexAssign (list (LexLocalId last-arg 'DesugarVar))
                                       (first (reverse defargs)))
-                           (LexFuncVarArg scp name empty
+                           (LexFuncVarArg name empty
                                           'stararg 
                                           (LexSeq
                                             (list
@@ -362,7 +362,7 @@
                      (CFunc args (none) body-r false)))]
       
       ; a LexClassFunc is a method whose first argument should be the class rather than self
-      [LexClassFunc (scp name args body)
+      [LexClassFunc (name args body)
                     (local [(define body-r (rec-desugar body))]
                            (CFunc args (none)
                                         ; We do this by, inside the function body,
@@ -378,7 +378,7 @@
                                         body-r)
                                   false))]
       
-      [LexFuncVarArg (scp name args sarg body)
+      [LexFuncVarArg (name args sarg body)
                      (CFunc args (some sarg) (rec-desugar body) false)]
       
       [LexReturn (value) (CReturn (rec-desugar value))]

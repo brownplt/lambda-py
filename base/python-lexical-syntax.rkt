@@ -48,9 +48,9 @@
 
   ; functions
   [LexLam (args : (listof symbol)) (body : LexExpr)]
-  [LexFunc (scope : LocalOrGlobal) (name : symbol) (args : (listof symbol)) (defaults : (listof LexExpr)) (body : LexExpr)]
-  [LexClassFunc (scope : LocalOrGlobal) (name : symbol) (args : (listof symbol)) (body : LexExpr)]
-  [LexFuncVarArg (scope : LocalOrGlobal) (name : symbol) (args : (listof symbol)) 
+  [LexFunc (name : symbol) (args : (listof symbol)) (defaults : (listof LexExpr)) (body : LexExpr)]
+  [LexClassFunc (name : symbol) (args : (listof symbol)) (body : LexExpr)]
+  [LexFuncVarArg (name : symbol) (args : (listof symbol)) 
                 (sarg : symbol) (body : LexExpr)]
   [LexReturn (value : LexExpr)]
   [LexApp (fun : LexExpr) (args : (listof LexExpr))]
