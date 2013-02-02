@@ -34,7 +34,8 @@
       (LexSeq (list (PyLexNonLocal  args) body))))
 
 ;adds the "init" function to classes.
-(define (classes-add-init [body : LexExpr] )
+(define (classes-add-init [body : LexExpr] ) body)
+#;(define (classes-add-init [body : LexExpr] )
   (LexSeq
    (list
     (LexAssign (list (PyLexId '__init__ 'Store))
@@ -42,6 +43,7 @@
                              (LexAssign (list (LexDotField (LexLocalId 'self 'Load) '__class__ ))
                                         (LexBuiltinPrim '$class (list (LexLocalId 'self 'Load))))))
     body)))
+
 
 (define (pre-desugar [expr : PyExpr]) : LexExpr
   (assert-on-tree (lambda (y) true) "assert-on-tree seems to work" 
