@@ -19,6 +19,9 @@
   [LexNum (n : number)]
   [LexBool (b : boolean)]
 
+  ;for embedded primitives in lexical.
+  [LexBuiltinPrim (s : symbol) (args : (listof LexExpr))]
+
   ; exceptions and exception handling
   [LexRaise (expr : LexExpr)]
   [LexExcept (types : (listof LexExpr)) (body : LexExpr)]

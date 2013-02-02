@@ -545,6 +545,7 @@
 
       [LexImportFrom (module names asnames level) (rec-desugar (LexPass))]
                      ;(rec-desugar (desugar-importfrom-py module names asnames level))]
+      [LexBuiltinPrim (s args) (CBuiltinPrim s (map desugar args))]
 
 
       [else

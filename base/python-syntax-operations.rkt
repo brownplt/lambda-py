@@ -140,6 +140,7 @@
                                         ; primitive literals
               [LexNum (n) (LexNum n)]
               [LexBool (b) (LexBool b)]
+              [LexBuiltinPrim (s args) (LexBuiltinPrim s (map recur args))]
               [PyLexId (x ctx) (PyLexId x ctx)]
               [PyLexGlobal (ids) (PyLexGlobal ids)]
               [PyLexNonLocal (ids) (PyLexNonLocal ids)]
@@ -379,6 +380,7 @@
                                         ; primitive literals
               [LexNum (n) empty]
               [LexBool (b) empty]
+              [LexBuiltinPrim (s args) (map recur args)]
               [LexInstanceId (x ctx)  empty]
               [LexGlobalId (x ctx)  empty]
               [LexLocalId (x ctx)  empty]
