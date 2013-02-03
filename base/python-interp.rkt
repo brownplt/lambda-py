@@ -134,10 +134,15 @@
                                         (begin ;(display o) (display "\n")
                                                ;(display env) (display "\n")
                                                ;(display sb) (display "\n")
-                                        (v*s (fetch loc sb)
-                                             sb
-                                             (none)))]
-                                   [Return (vb sb ab) (v*s vb sb ab)]
+                                        (v*s (fetch loc sb) sb (none)))]
+                                   [Return (vb sb ab)
+                                           (if (and (VObject? vb)
+                                                    (some? (VObject-mval vb))
+                                                    (MetaNone? (some-v (VObject-mval vb))))
+                                               (v*s (fetch loc sb) sb (none))
+                                               (mk-exception 'TypeError
+                                                             "__init__() should return None"
+                                                             sb))]
                                    [Break (sb) (break-exception sb)]
                                    [Continue (sb) (continue-exception sb)] 
                                    [Exception (vb sb) (Exception vb sb)]))))]
@@ -449,6 +454,7 @@
 
     ;; only for ids!
     [CAssign (t v) 
+             (begin ;(display "ASSIGN: ") (display t) (display " ") (display v) (display "\n")
              (local [(define val (interp-env v env sto))]
                (type-case Result val
                  [v*s (vv sv av)
@@ -461,7 +467,7 @@
                  [Return (vv sv av) (return-exception sv)]
                  [Break (sv) (break-exception sv)]
                  [Continue (sv) (continue-exception sv)] 
-                 [Exception (vv sv) (Exception vv sv)]))]
+                 [Exception (vv sv) (Exception vv sv)])))]
     
     ;; is this used anymore?
     [CError (e) (type-case Result (interp-env e env sto)
@@ -522,7 +528,8 @@
     [CObject (c mval) (v*s (VObject c mval (hash empty)) sto (none))]
 
     [CLet (x type bind body)
-          (begin ;(display "LET: ") (display x) (display type) (display "\n")
+          (begin ;(display "LET: ") (display x) (display " ")
+                 ;(display type) (display bind) (display "\n")
           (interp-let x type (interp-env bind env sto) body env))]
 
     [CApp (fun arges sarg)
