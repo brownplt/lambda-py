@@ -381,12 +381,12 @@
             [Exception (vbases sbases) (Exception vbases sbases)]))]
    
     [CGetField (value attr)
-	       (type-case Result (interp-env value env sto)
-                    [v*s (vval sval aval) (get-field attr vval env sval)]
-                    [Return (vval sval aval) (return-exception sval)]
-                    [Break (sval) (break-exception sval)]
-                    [Continue (sval) (continue-exception sval)] 
-                    [Exception (vval sval) (Exception vval sval)])]
+               (type-case Result (interp-env value env sto)
+                          [v*s (vval sval aval) (get-field attr vval env sval)]
+                          [Return (vval sval aval) (return-exception sval)]
+                          [Break (sval) (break-exception sval)]
+                          [Continue (sval) (continue-exception sval)] 
+                          [Exception (vval sval) (Exception vval sval)])]
 			
     [CSeq (e1 e2) (type-case Result (interp-env e1 env sto)
                     [v*s (v1 s1 a1) (interp-env e2 env s1)]
@@ -454,7 +454,7 @@
 
     ;; only for ids!
     [CAssign (t v) 
-             (begin ;(display "ASSIGN: ") (display t) (display " ") (display v) (display "\n")
+             (begin ;(display "ASSIGN: ") (display t) (display " | ") (display v) (display "\n")
              (local [(define val (interp-env v env sto))]
                (type-case Result val
                  [v*s (vv sv av)
@@ -489,42 +489,49 @@
     [CId (x type)
          (local [(define name-error-str
                    (string-append "name '"
-                     (string-append (symbol->string x)
-                                    "' is not defined")))
+                                  (string-append (symbol->string x)
+                                                 "' is not defined")))
                  (define freevar-error-str
                    (string-append "free variable '"
-                     (string-append (symbol->string x)
-                                    "' referenced before assignment in enclosing scope")))
+                                  (string-append (symbol->string x)
+                                                 "' referenced before assignment in enclosing scope")))
                  (define unboundlocal-error-str
                    (string-append "local variable '"
-                     (string-append (symbol->string x)
-                                    "' referenced before assignment")))]
+                                  (string-append (symbol->string x)
+                                                 "' referenced before assignment")))]
            (type-case IdType type
              [LocalId () 
-               (local [(define local-w (lookup-local x env))]
-                 (if (some? local-w)
-                     (type-case CVal (fetch (some-v local-w) sto)
-                       [VUndefined () (mk-exception 'UnboundLocalError
-                                                  unboundlocal-error-str
-                                                  sto)]
-                       [else (v*s (fetch (some-v local-w) sto) sto local-w)])
-                     (local [(define full-w (lookup x env))]
-                       (if (some? full-w)
-                           (type-case CVal (fetch (some-v full-w) sto)
-                             [VUndefined () (mk-exception 'NameError freevar-error-str sto)]
-                             [else (v*s (fetch (some-v full-w) sto) sto full-w)])
-                           (mk-exception 'NameError
-                                       (string-append "global " name-error-str)
-                                       sto)))))]
+                      (local [(define local-w (lookup-local x env))]
+                        (if (some? local-w)
+                            (type-case CVal (fetch (some-v local-w) sto)
+                              [VUndefined () (mk-exception 'UnboundLocalError
+                                                           unboundlocal-error-str
+                                                           sto)]
+                              [else (v*s (fetch (some-v local-w) sto) sto local-w)])
+                            (local [(define full-w (lookup x env))]
+                              (if (some? full-w)
+                                  (local [(define full-val (fetch (some-v full-w) sto))]
+                                    (type-case CVal full-val
+                                      [VUndefined () (mk-exception 'NameError freevar-error-str sto)]
+                                      [else
+                                       (if (immutable-type? full-val)
+                                           (v*s full-val sto (none)) ; immutable return (none) as alias
+                                           (v*s full-val sto full-w))]))
+                                  (mk-exception 'NameError
+                                                (string-append "global " name-error-str)
+                                                sto)))))]
              [GlobalId ()
-               (local [(define full-w (lookup x env))]
-                 (if (some? full-w)
-                     (local [(define full-val (fetch (some-v full-w) sto))]
-                       (type-case CVal full-val
-                         [VUndefined () (mk-exception 'NameError name-error-str sto)]
-                         [else (v*s full-val sto full-w)]))
-                     (mk-exception 'NameError name-error-str sto)))]))]
-
+                       (local [(define full-w (lookup x env))]
+                         (if (some? full-w)
+                             (local [(define full-val (fetch (some-v full-w) sto))]
+                               (type-case CVal full-val
+                                 [VUndefined () (mk-exception 'NameError name-error-str sto)]
+                                 [else
+                                  (if (immutable-type? full-val)
+                                      (v*s full-val sto (none)) ; immutable return (none) as alias
+                                      (v*s full-val sto full-w))]))
+                             (mk-exception 'NameError name-error-str sto)))]))]
+    
     [CObject (c mval) (v*s (VObject c mval (hash empty)) sto (none))]
 
     [CLet (x type bind body)
@@ -654,7 +661,7 @@
                                 (VPointer (some-v (Return-a val)))
                                 (Return-v val))))]
     (if (some? mayb-loc)
-        (v*s vnone (hash-set sto (some-v mayb-loc) value) (none))
+        (v*s vnone (hash-set sto (some-v mayb-loc) value) (none))        
         (type-case IdType (CId-type id)
           [LocalId () (mk-exception 'NameError
                                   (string-append "name '"
@@ -1042,3 +1049,18 @@
                        [none () (lookup-mro (rest mro) n)]
                        [some (value) (some value)])]
             [else (error 'lookup-mro "an entry in __mro__ list is not an object")])]))
+
+;; immutable-type?: decide if the value of x is immutable type--str, number and tuple
+(define (immutable-type? [x : CVal]) : boolean
+  (type-case CVal x
+    [VObject (ante mval dict)
+             (if (some? mval) ;decide if the it is num, str, tuple
+                 (let ((metav (some-v mval)))
+                   (if (or (MetaNum? metav)
+                           (MetaStr? metav)
+                           (MetaTuple? metav))
+                       true
+                       false))
+                 false)]
+    [VPointer (a) false] ;VPointer will only point to mutable type
+    [else true]))
