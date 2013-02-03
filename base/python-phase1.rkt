@@ -34,8 +34,8 @@
       (LexSeq (list (PyLexNonLocal  args) body))))
 
 ;adds the "init" function to classes.
-(define (classes-add-init [body : LexExpr] ) body)
-#;(define (classes-add-init [body : LexExpr] )
+;(define (classes-add-init [body : LexExpr] ) body)
+(define (classes-add-init [body : LexExpr] )
   (LexSeq
    (list
     (LexAssign (list (PyLexId '__init__ 'Store))
