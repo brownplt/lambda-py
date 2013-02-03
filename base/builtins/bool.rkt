@@ -15,9 +15,10 @@
                         (CNone)))
              (def 'bool '__init__
                   (CFunc (list 'self) (some 'args)
-                         (CReturn (CBuiltinPrim 'bool-init
+                         (CAssign (CId 'self (LocalId))
+                                  (CBuiltinPrim 'bool-init
                                                 (list
-                                                  (CId 'args (LocalId)))))
+                                                 (CId 'args (LocalId)))))
                          true))
 
              (def 'bool '__str__

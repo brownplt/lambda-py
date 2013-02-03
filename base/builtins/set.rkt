@@ -36,7 +36,7 @@
                          true))
              (def 'set '__init__
                   (CFunc (list 'self) (some 'args)
-                         (CReturn
+                         (CAssign (CId 'self (LocalId))
                            (CIf ; Did we get any args?
                              (CBuiltinPrim 'num=
                                            (list
