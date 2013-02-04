@@ -522,7 +522,7 @@
                                                 (string-append "global " name-error-str)
                                                 sto)))))]
              [GlobalId ()
-                       (local [(define full-w (lookup x env))]
+                       (local [(define full-w (lookup-global x env))]
                          (if (some? full-w)
                              (local [(define full-val (fetch (some-v full-w) sto))]
                                (type-case CVal full-val
@@ -653,7 +653,10 @@
     )))
 
 (define (assign-to-id [id : CExpr] [val : Result] [env : Env] [sto : Store]) : Result
-  (local [(define mayb-loc (lookup (CId-x id) env))
+  (local [(define mayb-loc 
+            (type-case IdType (CId-type id)
+              [LocalId () (lookup (CId-x id) env)]
+              [GlobalId () (lookup-global (CId-x id) env)]))
           (define value (if (v*s? val)
                             (if (some? (v*s-a val))
                                 (VPointer (some-v (v*s-a val)))
