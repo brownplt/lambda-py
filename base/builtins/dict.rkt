@@ -170,10 +170,10 @@
 (define (dict-get [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto '$dict
       (local [(define d (first args))
-              (define meta-d (MetaDict-contents (some-v (VObject-mval d))))
+              (define meta-d (MetaDict-contents (some-v (VObjectClass-mval d))))
               (define key (second args))
               (define startuple (third args))
-              (define meta-startuple (MetaTuple-v (some-v (VObject-mval
+              (define meta-startuple (MetaTuple-v (some-v (VObjectClass-mval
                                                             startuple))))
               (define mayb-val (hash-ref meta-d key))]
              (if (some? mayb-val)
@@ -184,10 +184,10 @@
 
 (define (dict-update (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto '$dict
-     (let ([starargs (MetaTuple-v (some-v (VObject-mval (second args))))])
+     (let ([starargs (MetaTuple-v (some-v (VObjectClass-mval (second args))))])
         (if (= 1 (length starargs))
             (let ([target (MetaDict-contents mval1)]
-                  [extras (MetaDict-contents (some-v (VObject-mval (first starargs))))])
+                  [extras (MetaDict-contents (some-v (VObjectClass-mval (first starargs))))])
                  (begin
                    (map (lambda (pair)
                           (hash-set! target (car pair) (cdr pair)))

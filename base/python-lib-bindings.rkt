@@ -275,16 +275,16 @@
 
 (define lib-function-dummies
   (append
-      (map (lambda(b) (bind (bind-left b) (CNone)))
+      (map (lambda(b) (bind (bind-left b) (CUndefined)))
            lib-functions)
-      (list (bind 'iter (CNone))
-            (bind 'FuncIter (CNone))
-            (bind 'SeqIter (CNone))
-            (bind 'all (CNone))
-            (bind 'any (CNone))
-            (bind 'range (CNone))
-            ;(bind '___assertRaises (CNone))
-            (bind 'filter (CNone))
-            (bind 'dicteq (CNone)))
+      (list (bind 'iter (CUndefined))
+            (bind 'FuncIter (CUndefined))
+            (bind 'SeqIter (CUndefined))
+            (bind 'all (CUndefined))
+            (bind 'any (CUndefined))
+            (bind 'range (CUndefined))
+            ;(bind '___assertRaises (CUndefined))
+            (bind 'filter (CUndefined))
+            (bind 'dicteq (CUndefined)))
       empty empty empty))
 

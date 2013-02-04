@@ -97,8 +97,8 @@
 
 ;; produces true-val if the object is truthy and false-val if it is not
 (define (truthy-object? [o : CVal]) : boolean
-  (if (some? (VObject-mval o))
-      (let ([mval (some-v (VObject-mval o))])
+  (if (some? (VObjectClass-mval o))
+      (let ([mval (some-v (VObjectClass-mval o))])
         (type-case MetaVal mval
           [MetaNum (n) (if (= n 0) false true)]
           [MetaStr (s) (if (= (string-length s) 0) false true)]
@@ -112,7 +112,7 @@
 (define (obj-str (args : (listof CVal))) : (optionof CVal)
   (local [(define o (first args))]
          (type-case CVal o
-            [VObject (ante mval d)
+            [VObjectClass (ante mval d class)
                      (some (VObject 'str
                         (if (and (some? mval) (MetaClass? (some-v mval)))
                             (some (MetaStr (string-append "<class "

@@ -112,6 +112,10 @@
 (define (def (class : symbol) (name : symbol) (expr : CExpr)) : CExpr
   (CAssign (CGetField (CId class (GlobalId)) name) expr))
 
+(define (VObject [antecedent : symbol] [mval : (optionof MetaVal)]
+                 [dict : (hashof 'symbol Address)]) : CVal
+  (VObjectClass antecedent mval dict (none)))
+
 
 ; Macro to match varargs
 ; Example:
@@ -178,8 +182,8 @@
     [(check-types args env sto t1 body)
      (with-syntax ([mval1 (datum->syntax x 'mval1)])
        #'(let ([arg1 (first args)])
-           (if (and (VObject? arg1) (object-is? arg1 t1 env sto))
-               (let ([mayb-mval1 (VObject-mval arg1)])
+           (if (and (VObjectClass? arg1) (object-is? arg1 t1 env sto))
+               (let ([mayb-mval1 (VObjectClass-mval arg1)])
                  (if (some? mayb-mval1)
                      (let ([mval1 (some-v mayb-mval1)])
                        body)
@@ -190,11 +194,11 @@
                    [mval2 (datum->syntax x 'mval2)])
        #'(let ([arg1 (first args)]
                [arg2 (second args)])
-           (if (and (VObject? arg1) (VObject? arg2)
+           (if (and (VObjectClass? arg1) (VObjectClass? arg2)
                     (object-is? arg1 t1 env sto)
                     (object-is? arg2 t2 env sto))
-               (let ([mayb-mval1 (VObject-mval arg1)]
-                     [mayb-mval2 (VObject-mval arg2)])
+               (let ([mayb-mval1 (VObjectClass-mval arg1)]
+                     [mayb-mval2 (VObjectClass-mval arg2)])
                  (if (and (some? mayb-mval1) (some? mayb-mval2))
                      (let ([mval1 (some-v mayb-mval1)]
                            [mval2 (some-v mayb-mval2)])
@@ -208,14 +212,14 @@
        #'(let ([arg1 (first args)]
                [arg2 (second args)]
                [arg3 (third args)])
-           (if (and (VObject? arg1) (VObject? arg2)
-                    (VObject? arg3)
+           (if (and (VObjectClass? arg1) (VObjectClass? arg2)
+                    (VObjectClass? arg3)
                     (object-is? arg1 t1 env sto)
                     (object-is? arg2 t2 env sto)
                     (object-is? arg3 t3 env sto))
-               (let ([mayb-mval1 (VObject-mval arg1)]
-                     [mayb-mval2 (VObject-mval arg2)]
-                     [mayb-mval3 (VObject-mval arg3)])
+               (let ([mayb-mval1 (VObjectClass-mval arg1)]
+                     [mayb-mval2 (VObjectClass-mval arg2)]
+                     [mayb-mval3 (VObjectClass-mval arg3)])
                  (if (and (some? mayb-mval1) 
                           (some? mayb-mval2)
                           (some? mayb-mval3))
@@ -229,7 +233,7 @@
 ;; returns true if the given o is an object of the given class or somehow a
 ;; subclass of that one. Modified to look at __mro__ for multiple inheritance. 
 (define (object-is? [o : CVal] [c : symbol] [env : Env] [s : Store]) : boolean
-  (let ([obj-cls (fetch (some-v (lookup (VObject-antecedent o) env)) s)]
+  (let ([obj-cls (fetch (some-v (lookup (VObjectClass-antecedent o) env)) s)]
         [cls (fetch (some-v (lookup c env)) s)])
     (member cls (get-mro obj-cls s))))
 
@@ -238,8 +242,8 @@
 ;; termporarily prepended with cls to avoid self reference in __mro__
 (define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
   (begin ;(display cls) (display "\n")
-  (type-case (optionof Address) (hash-ref (VObject-dict cls) '__mro__)
-    [some (w) (cons cls (MetaTuple-v (some-v (VObject-mval (fetch w sto)))))]
+  (type-case (optionof Address) (hash-ref (VObjectClass-dict cls) '__mro__)
+    [some (w) (cons cls (MetaTuple-v (some-v (VObjectClass-mval (fetch w sto)))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
                                             (pretty cls)))])))
 (define (is? [v1 : CVal]
@@ -250,7 +254,7 @@
 
 (define (pretty arg)
   (type-case CVal arg
-    [VObject (a mval d) (if (some? mval)
+    [VObjectClass (a mval d class) (if (some? mval)
                             (pretty-metaval (some-v mval))
                             (string-append "<"
                               (string-append (symbol->string a)
@@ -295,16 +299,16 @@
     ))
 
 (define (pretty-exception [exn : CVal] [sto : Store]) : string
-  (local [(define name (symbol->string (VObject-antecedent exn)))
+  (local [(define name (symbol->string (VObjectClass-antecedent exn)))
           (define args
-            (begin ;(display (VObject-dict exn)) (display "\n")
-                   ;(display (VObject-mval (fetch (some-v (hash-ref (VObject-dict exn) 'args)) sto)))
+            (begin ;(display (VObjectClass-dict exn)) (display "\n")
+                   ;(display (VObjectClass-mval (fetch (some-v (hash-ref (VObjectClass-dict exn) 'args)) sto)))
                    ;(display "\n")
             (string-join 
               (map pretty
                    (MetaTuple-v
-                     (some-v (VObject-mval
-                               (fetch (some-v (hash-ref (VObject-dict exn) 'args)) sto)))))
+                     (some-v (VObjectClass-mval
+                               (fetch (some-v (hash-ref (VObjectClass-dict exn) 'args)) sto)))))
               " ")))]
     (if (not (string=? args ""))
         (string-append name 
@@ -341,8 +345,8 @@
 (define (get-optionof-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : (optionof CVal)
   (begin ;(display n) (display " -- ") (display c) (display "\n") (display e) (display "\n\n")
   (type-case CVal c
-    [VObject (antecedent mval d) 
-                    (let ([w (hash-ref (VObject-dict c) n)])
+    [VObjectClass (antecedent mval d class) 
+                    (let ([w (hash-ref (VObjectClass-dict c) n)])
               (type-case (optionof Address) w
                 [some (w) (some (fetch w s))]
                 [none () (let ([mayb-base (lookup antecedent e)])
