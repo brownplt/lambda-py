@@ -332,10 +332,24 @@
 
 
 (define (extract-unreplaced-locals [expr : LexExpr ] ) : (listof symbol)
-  (list-subtract
-   (filter (lambda (x) (not (contains-char? (symbol->string x) (chr "-") )))
-           (remove-duplicates (extract-locals-helper expr)))
-   (extract-globals expr true)))
+  (let ((overestimate (filter (lambda (x) (not (contains-char? (symbol->string x) (chr "-") )))
+           (remove-duplicates (extract-locals-helper expr))))
+        (globals (extract-globals expr true)))
+    (begin
+;      (display "expr: ")
+;      (display expr)
+;      (display "\n\n")
+;      (display overestimate)
+;      (display "\n\n")
+;      (display globals)
+;      (display "\n\n")
+      (let ((result (list-subtract overestimate globals)))
+        (begin
+;          (display result)
+;          (display "\n\n END END END\n\n")
+          result))
+      
+    )))
 
 
 ;takes a tree to traverse (the expression)
@@ -439,7 +453,9 @@
                    (LexBlock nls
                              (replace-all-locals es
                                                  (remove-duplicates
-                                                  (flatten (list locs (extract-unreplaced-locals es))))))]
+                                                  (flatten (list
+                                                            (list-subtract locs (extract-globals es true))
+                                                            (extract-unreplaced-locals es))))))]
          [else (error 'desugar:rename-locals "we should not get here")])))))
 
 (define (make-all-global [expr : LexExpr]) : LexExpr
