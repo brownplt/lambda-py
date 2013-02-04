@@ -73,12 +73,10 @@
                                         ; functions
               [PyLam (args body)
                      (LexLam args (recur body))]
-              [PyFunc (name args defaults body)
-                      (LexFunc name args (map recur defaults) (recur body))]
-              [PyClassFunc (name args body)
-                           (LexClassFunc name args (recur body))]
-              [PyFuncVarArg (name args sarg body)
-                            (LexFuncVarArg name args sarg (recur body))]
+              [PyFunc (name args defaults body decorators)
+                      (LexFunc name args (map recur defaults) (recur body) (map recur decorators))]
+              [PyFuncVarArg (name args sarg body decorators)
+                            (LexFuncVarArg name args sarg (recur body) (map recur decorators))]
               [PyReturn (value) (LexReturn (recur value))]
               [PyApp (fun args) (LexApp (recur fun) (map recur args))]
               [PyAppStarArg (fun args stararg)
@@ -189,12 +187,10 @@
                                         ; functions
               [LexLam (args body)
                      (LexLam args (recur body))]
-              [LexFunc (name args defaults body)
-                      (LexFunc name args (map recur defaults) (recur body))]
-              [LexClassFunc (name args body)
-                           (LexClassFunc name args (recur body))]
-              [LexFuncVarArg (name args sarg body)
-                            (LexFuncVarArg name args sarg (recur body))]
+              [LexFunc (name args defaults body decorators)
+                      (LexFunc name args (map recur defaults) (recur body) (map recur decorators))]
+              [LexFuncVarArg (name args sarg body decorators)
+                            (LexFuncVarArg name args sarg (recur body) (map recur decorators))]
               [LexReturn (value) (LexReturn (recur value))]
               [LexApp (fun args) (LexApp (recur fun) (map recur args))]
               [LexAppStarArg (fun args stararg)
@@ -312,11 +308,9 @@
                                         ; functions
               [PyLam (args body)
                      (recur body)]
-              [PyFunc (name args defaults body)
+              [PyFunc (name args defaults body decorators)
                       (flatten (list (map recur defaults) (list (recur body))))]
-              [PyClassFunc (name args body)
-                           (recur body)]
-              [PyFuncVarArg (name args sarg body)
+              [PyFuncVarArg (name args sarg body decorators)
                             (recur body)]
               [PyReturn (value) (recur value)]
               [PyApp (fun args) (flatten (list (list (recur fun)) (map recur args)))]
@@ -429,11 +423,9 @@
                                         ; functions
               [LexLam (args body)
                      (recur body)]
-              [LexFunc (name args defaults body)
+              [LexFunc (name args defaults body decorators)
                       (flatten (list (map recur defaults) (list (recur body))))]
-              [LexClassFunc (name args body)
-                           (recur body)]
-              [LexFuncVarArg (name args sarg body)
+              [LexFuncVarArg (name args sarg body decorators)
                             (recur body)]
               [LexReturn (value) (recur value)]
               [LexApp (fun args) (flatten (list (list (recur fun)) (map recur args)))]

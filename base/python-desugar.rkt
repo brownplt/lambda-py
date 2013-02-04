@@ -103,9 +103,8 @@
     [PyBinOp (l o r) (append (get-names l global? env)
                              (get-names r global? env))]
     [PyUnaryOp (o operand) (get-names operand global? env)]
-    [PyFunc (name args defvargs body) (list name)]
-    [PyClassFunc (name args body) (list name)]
-    [PyFuncVarArg (name args sarg body) (list name)]
+    [PyFunc (name args defvargs body decorators) (list name)]
+    [PyFuncVarArg (name args sarg body decorators) (list name)]
     [else empty]))
 
 (define (get-right-names [expr : PyExpr] [global? : boolean] [env : IdEnv]) : (listof symbol)
@@ -188,14 +187,15 @@
       [PyBinOp (l o r) (get-globals/nonlocals r global?
                                               (get-globals/nonlocals l global? env))]
       [PyUnaryOp (o operand) (get-globals/nonlocals operand global? env)]
-      [PyFunc (name args defargs body) (local [(define type (lookup-idtype name env))]
-                                         (if (some? type)
-                                             env 
-                                             (add-id name (if global?
-                                                              (GlobalId)
-                                                              (LocalId))
-                                                     env)))]
-      [PyFuncVarArg (name args sarg body)
+      [PyFunc (name args defargs body decorators) 
+              (local [(define type (lookup-idtype name env))]
+                (if (some? type)
+                    env 
+                    (add-id name (if global?
+                                     (GlobalId)
+                                     (LocalId))
+                            env)))]
+      [PyFuncVarArg (name args sarg body decorators)
                     (local [(define type (lookup-idtype name env))]
                       (if (some? type)
                           env
@@ -617,61 +617,78 @@
                        (none))
                 (DResult-env rbody)))]
       
-      [PyFunc (name args defargs body)
-              (if (> (length defargs) 0)
-                  (local [(define last-arg (first (reverse args)))]
-                    (rec-desugar
-                     ; assuming 1 defarg for now, generalize later
-                     (PySeq 
-                      (list
-                       (PyAssign (list (PyId last-arg 'DesugarVar))
-                                 (first (reverse defargs)))
-                       (PyFuncVarArg name empty
-                                     'stararg 
-                                     (PySeq
-                                      (list
-                                       (PyIf (PyCompOp (PyApp
-                                                        (PyDotField (PyId 'stararg 'Load)
-                                                                    '__len__)
-                                                        empty)
-                                                       (list 'Gt)
-                                                       (list (PyNum 0)))
-                                             (PyAssign (list (PyId last-arg
-                                                                   'DesugarVar))
-                                                       (PySubscript (PyId 'stararg 'Load)
-                                                                    'Load
-                                                                    (PyNum 0)))
-                                             (PyPass))
-                                       body))))) 
-                     global? 
-                     env
-                     (none)))
-                  
-                  (local [(define body-r (desugar-local-body body args env))]
-                    (DResult
-                     (CAssign (CId name (LocalId))
-                              (CFunc args (none) (DResult-expr body-r) opt-class))
-                     env)))]
+      [PyFunc (name args defargs body decorators)
+              (cond
+                ;; function with default arguments -> converted to vararg
+                [(> (length defargs) 0)
+                 (local [(define last-arg (first (reverse args)))]
+                   (rec-desugar
+                    ; assuming 1 defarg for now, generalize later
+                    (PySeq 
+                     (list
+                      (PyAssign (list (PyId last-arg 'DesugarVar))
+                                (first (reverse defargs)))
+                      (PyFuncVarArg name empty
+                                    'stararg 
+                                    (PySeq
+                                     (list
+                                      (PyIf (PyCompOp (PyApp
+                                                       (PyDotField (PyId 'stararg 'Load)
+                                                                   '__len__)
+                                                       empty)
+                                                      (list 'Gt)
+                                                      (list (PyNum 0)))
+                                            (PyAssign (list (PyId last-arg
+                                                                  'DesugarVar))
+                                                      (PySubscript (PyId 'stararg 'Load)
+                                                                   'Load
+                                                                   (PyNum 0)))
+                                            (PyPass))
+                                      body))
+                                    decorators))) 
+                    global? 
+                    env
+                    (none)))]
+                ;; no default arguments nor decorators
+                [(empty? decorators)
+                 (local [(define body-r (desugar-local-body body args env))]
+                   (DResult
+                    (CAssign (CId name (LocalId))
+                             (CFunc args (none) (DResult-expr body-r) opt-class))
+                    env))]
+                ;; no default arguments, take care of decorators
+                [else
+                 (rec-desugar (PySeq
+                               (list
+                                (PyFunc name args (list) body (list))
+                                ;; apply decorators to the function
+                                (PyAssign (list (PyId name 'Load))
+                                          (foldr (lambda (decorator func) 
+                                                   (PyApp decorator (list func)))
+                                                 (PyId name 'Load)
+                                                 decorators))))
+                              global? env opt-class)])]
       
-      ; a PyClassFunc is a method whose first argument should be the class rather than self
-      [PyClassFunc (name args body)
-                   ;; apply classmethod decorator, this should be generalized to any decorator,
-                   ;; there is no need for this special case!
-                   (rec-desugar (PySeq
-                                 (list
-                                  (PyFunc name args (list) body)
-                                  (PyAssign (list (PyId name 'Load))
-                                            (PyApp (PyId 'classmethod 'Load)
-                                                   (list (PyId name 'Load))))))
-                                global? env opt-class)]
-      
-      [PyFuncVarArg (name args sarg body)
-                    (local [(define body-r 
-                              (desugar-local-body body (append args (list sarg)) env))]
-                      (DResult
-                       (CAssign (CId name (LocalId))
-                                (CFunc args (some sarg) (DResult-expr body-r) opt-class))
-                       env))]
+      [PyFuncVarArg (name args sarg body decorators)
+                    (cond
+                      [(empty? decorators)
+                       (local [(define body-r 
+                                 (desugar-local-body body (append args (list sarg)) env))]
+                         (DResult
+                          (CAssign (CId name (LocalId))
+                                   (CFunc args (some sarg) (DResult-expr body-r) opt-class))
+                          env))]
+                      [else
+                       (rec-desugar (PySeq
+                                     (list
+                                      (PyFuncVarArg name args sarg body (list))
+                                      ;; apply decorators to the function
+                                      (PyAssign (list (PyId name 'Load))
+                                                (foldr (lambda (decorator func) 
+                                                         (PyApp decorator (list func)))
+                                                       (PyId name 'Load)
+                                                       decorators))))
+                                    global? env opt-class)])]
       
       [PyReturn (value)
                 (local [(define value-r (rec-desugar value global? env (none)))]

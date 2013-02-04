@@ -41,9 +41,12 @@
      (type-case PyExpr y
        [PyClass (name bases body) (LexClass name bases (LexBlock empty (pre-desugar body)))]
        [PyLam (args body) (LexLam args (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
-       [PyFunc (name args defaults body) (LexFunc name args (map pre-desugar defaults) (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
-       [PyClassFunc (name args body) (LexClassFunc name args (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
-       [PyFuncVarArg (name args sarg body) (LexFuncVarArg name args sarg (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
+       [PyFunc (name args defaults body decorators) (LexFunc name args (map pre-desugar defaults)
+                                                             (LexBlock args (cascade-nonlocal args (pre-desugar body)))
+                                                             (map pre-desugar decorators))]
+       [PyFuncVarArg (name args sarg body decorators) (LexFuncVarArg name args sarg
+                                                                     (LexBlock args (cascade-nonlocal args (pre-desugar body)))
+                                                                     (map pre-desugar decorators))]
        [else (haiku-error)]
        )))))
 
