@@ -107,6 +107,11 @@ ParselTongue.
 (define (lookup-local [x : symbol] [env : Env]) : (optionof Address)
   (hash-ref (first env) x))
 
+(define (lookup-global [x : symbol] [env : Env]) : (optionof Address)
+  (cond
+    [(empty? (rest env)) (hash-ref (first env) x)]
+    [else (lookup-global x (rest env))]))
+
 (define (fetch [w : Address] [sto : Store]) : CVal
   (local [(define val 
             (type-case (optionof CVal) (hash-ref sto w)

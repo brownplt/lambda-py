@@ -522,7 +522,7 @@
                                                 (string-append "global " name-error-str)
                                                 sto)))))]
              [GlobalId ()
-                       (local [(define full-w (lookup x env))]
+                       (local [(define full-w (lookup-global x env))]
                          (if (some? full-w)
                              (local [(define full-val (fetch (some-v full-w) sto))]
                                (type-case CVal full-val
