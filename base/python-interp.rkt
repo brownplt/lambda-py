@@ -76,7 +76,7 @@
                                             ;; for star args
                                             (define l (MetaTuple-v 
                                                         (some-v 
-                                                          (VObject-mval 
+                                                          (VObjectClass-mval 
                                                             (v*s-v sarg-r)))))
                                             (define lr (map (lambda (x)
                                                               (v*s x (v*s-s sarg-r) (none)))
@@ -98,13 +98,13 @@
                           [Break (sb) (break-exception sb)]
                           [Continue (sb) (continue-exception sb)] 
                           [Exception (vb sb) (Exception vb sb)]))))]
-     [VObject (b mval d)
+     [VObjectClass (b mval d class)
                (if (and (some? mval) (MetaClass? (some-v mval)))
                   ;; This means we're calling a class, like C().
                   ;; So we want to apply its __init__ method.
                   (local [(define f (v*s-v (get-field '__init__ vfun env sfun)))
                           ;; Create an empty object. This will be the new instance of the class.
-                          (define o (new-object (MetaClass-c (some-v mval)) env sfun))]
+                          (define o (new-object (MetaClass-c (some-v mval)) afun))]
                     (type-case CVal f
                       [VClosure (cenv argxs vararg body)
                                 ;; Interpret the arguments to __init__.
@@ -136,9 +136,9 @@
                                                ;(display sb) (display "\n")
                                         (v*s (fetch loc sb) sb (none)))]
                                    [Return (vb sb ab)
-                                           (if (and (VObject? vb)
-                                                    (some? (VObject-mval vb))
-                                                    (MetaNone? (some-v (VObject-mval vb))))
+                                           (if (and (VObjectClass? vb)
+                                                    (some? (VObjectClass-mval vb))
+                                                    (MetaNone? (some-v (VObjectClass-mval vb))))
                                                (v*s (fetch loc sb) sb (none))
                                                (mk-exception 'TypeError
                                                              "__init__() should return None"
@@ -221,7 +221,7 @@
                         [sto : Store]
                         [env : Env]
                         [exn : Result]) : Result
-  (local [(define exn-type (VObject-antecedent (Exception-v exn)))
+  (local [(define exn-type (VObjectClass-antecedent (Exception-v exn)))
           (define (find-match type exps fsto)
             (cond
               [(empty? exps) (values (none) fsto (none))]
@@ -234,22 +234,22 @@
                      (values (none) tsto (some (first exn?)))
                      (local [(define actual-except-types
                                (if (and (> (length except-types-results) 0)
-                                        (VObject? (v*s-v (first except-types-results)))
+                                        (VObjectClass? (v*s-v (first except-types-results)))
                                         (MetaTuple?
-                                          (some-v (VObject-mval
+                                          (some-v (VObjectClass-mval
                                                     (v*s-v (first except-types-results))))))
                                    (map (λ (v) (v*s v
                                                     (v*s-s (first except-types-results))
                                                     (none)))
                                         (MetaTuple-v
-                                          (some-v (VObject-mval
+                                          (some-v (VObjectClass-mval
                                                     (v*s-v (first except-types-results))))))
                                    except-types-results))
                              (define except-types
                                  (begin ;(display (map v*s-v actual-except-types)) (display "\n")
                                  (map (lambda (t)
                                          (type-case CVal (v*s-v t)
-                                           [VObject (ante mval dict) 
+                                           [VObjectClass (ante mval dict class) 
                                                     (if (and (some? mval) 
                                                              (MetaClass? (some-v mval)))
                                                       (some (MetaClass-c (some-v mval)))
@@ -289,12 +289,12 @@
               [Break (sbody) (Break sbody)]
               [Continue (sbody) (Continue sbody)] 
               [Exception (vbody sbody)
-                         (local [(define exn-args (hash-ref (VObject-dict vbody) 'args))
+                         (local [(define exn-args (hash-ref (VObjectClass-dict vbody) 'args))
                                  (define exn-args-val (if (some? exn-args)
                                                           (some (fetch (some-v exn-args) sbody))
                                                           (none)))
                                  (define exn-mval (if (some? exn-args-val)
-                                                      (VObject-mval (some-v exn-args-val))
+                                                      (VObjectClass-mval (some-v exn-args-val))
                                                       (none)))
                                  (define exn-tuple (if (some? exn-mval)
                                                        (some (MetaTuple-v (some-v exn-mval)))
@@ -302,7 +302,7 @@
                                  (define exn-tuple-mval (if (and (some? exn-tuple)
                                                                  (> (length (some-v exn-tuple))
                                                                     0))
-                                                            (VObject-mval
+                                                            (VObjectClass-mval
                                                               (first (some-v exn-tuple)))
                                                             (none)))
                                  (define exn-str (if (some? exn-tuple-mval)
@@ -324,7 +324,8 @@
               [Exception (v s) (values v s (none))]))
           (define loc (if (some? mayb-loc)
                           (some-v mayb-loc)
-                          (new-loc)))]
+                          (new-loc)))
+          (define newenv (cons (hash-set (first env) name loc) (rest env)))]
     (interp-env body
                 ; Needed still?
                 ; From Anand:
@@ -333,8 +334,8 @@
                     ; Assuming that there won't be any local bindings in the let body.
                     (cons (hash-set (hash (list)) name loc) env) 
                     (cons (hash-set (first env) name loc) (rest env)))|#
-                (cons (hash-set (first env) name loc) (rest env))
-                (hash-set sto loc val))))
+                newenv 
+                (hash-set sto loc (set-class val env)))))
 
 ;; interp-env : CExpr * Env * Store -> Result
 (define (interp-env [expr : CExpr] [env : Env] [sto : Store]) : Result
@@ -599,7 +600,7 @@
                 (type-case Result (interp-env (some-v expr) env sto)
                   [v*s (vexpr sexpr aexpr)
                        (cond
-                         [(and (VObject? vexpr) (object-is? vexpr 'Exception env sto))
+                         [(and (VObjectClass? vexpr) (object-is? vexpr 'Exception env sto))
                           (Exception vexpr sexpr)]
                          [else (mk-exception 'TypeError
                                              "exceptions must derive from BaseException"
@@ -661,7 +662,7 @@
                                 (VPointer (some-v (Return-a val)))
                                 (Return-v val))))]
     (if (some? mayb-loc)
-        (v*s vnone (hash-set sto (some-v mayb-loc) value) (none))        
+        (v*s vnone (hash-set sto (some-v mayb-loc) (set-class value env)) (none))        
         (type-case IdType (CId-type id)
           [LocalId () (mk-exception 'NameError
                                   (string-append "name '"
@@ -684,20 +685,20 @@
          ;(display e) (display "\n\n")
     ;(display e) (display "\n\n")
     (cond 
-      [(and (some? (VObject-mval c)) (MetaClass? (some-v (VObject-mval c))))
+      [(and (some? (VObjectClass-mval c)) (MetaClass? (some-v (VObjectClass-mval c))))
        ;; class lookup
        (get-field-from-class n c e s)]
       [else
         ;; instance lookup
         (type-case CVal c
-          [VObject (antecedent mval d) 
-                   (let ([w (hash-ref (VObject-dict c) n)])
+          [VObjectClass (antecedent mval d class) 
+                   (let ([w (hash-ref (VObjectClass-dict c) n)])
                      (begin ;(display "loc: ") (display w) (display "\n\n")
                        (type-case (optionof Address) w
                          [some (w) 
                                (v*s (fetch w s) s (some w))]
                          [none () 
-                               (local [(define __class__w (hash-ref (VObject-dict c) '__class__))]
+                               (local [(define __class__w class)]
                                  (type-case (optionof Address) __class__w
                                    [some (w)
                                          (get-field-from-class n
@@ -717,15 +718,17 @@
   (type-case Result (interp-env o e s)
     [v*s (vo so ao)
          (type-case CVal vo
-           [VObject (ante-name mval d)
-             (local [(define loc (hash-ref (VObject-dict vo) f))
-                     (define value (if (v*s? v)
-                                       (if (some? (v*s-a v))
-                                           (VPointer (some-v (v*s-a v)))
-                                           (v*s-v v))
-                                       (if (some? (Return-a v))
-                                           (VPointer (some-v (Return-a v)))
-                                           (Return-v v))))]
+           [VObjectClass (ante-name mval d class)
+             (local [(define loc (hash-ref (VObjectClass-dict vo) f))
+                     (define value (set-class 
+                                     (if (v*s? v)
+                                         (if (some? (v*s-a v))
+                                             (VPointer (some-v (v*s-a v)))
+                                             (v*s-v v))
+                                         (if (some? (Return-a v))
+                                             (VPointer (some-v (Return-a v)))
+                                             (Return-v v)))
+                                     e))]
                (type-case (optionof Address) loc
                  [some (w) (v*s vnone (hash-set so w value) (none))]
                  [none () (local [(define w (new-loc))
@@ -736,7 +739,7 @@
                                     (hash-set so (some-v nw) 
                                               (VObject ante-name
                                                        mval
-                                                       (hash-set (VObject-dict vo) f w)))))]
+                                                       (hash-set (VObjectClass-dict vo) f w)))))]
                               (v*s vnone
                                    (hash-set snew w value)
                                    (none)))]))]
@@ -746,8 +749,21 @@
     [Continue (so) (continue-exception so)] 
     [Exception (vo so) (Exception vo so)])))
 
-(define (new-object [c-name : symbol] [e : Env] [s : Store]) : CVal
-  (VObject c-name (none) (hash empty)))
+(define (new-object [c-name : symbol] [c-loc : (optionof Address)]) : CVal
+  (VObjectClass c-name (none) (hash empty) c-loc))
+
+(define (set-class [val : CVal] [env : Env]) : CVal
+  (begin ;(display val) (display "\n")
+  (type-case CVal val
+    [VObjectClass (antecedent mval dict class)
+                  (if (none? class)
+                      (if (none? (lookup antecedent env))
+                          (error 'interp (string-append
+                                           "Class not in environment: "
+                                           (symbol->string antecedent)))
+                          (VObjectClass antecedent mval dict (lookup antecedent env)))
+                      val)]
+    [else val])))
 
 ;; bind-args, recursively binds the provided values to the provided argument symbols.
 ;; If a stararg symbol is provided, extra arguments are packaged in a tuple and bound
@@ -808,7 +824,7 @@
                  (define loc
                    (if (some? av)
                        (type-case CVal vv
-                         [VObject (ante-name mayb-mval dict)
+                         [VObjectClass (ante-name mayb-mval dict class)
                                   (if (some? mayb-mval)
                                       (type-case MetaVal (some-v mayb-mval)
                                         [MetaList (l) (some-v av)]
@@ -819,7 +835,7 @@
                          [else (new-loc)])
                        (new-loc)))
                  (define e (cons (hash-set (first ext) (first args) loc) (rest ext)))
-                 (define s (hash-set sto loc vv))]
+                 (define s (hash-set sto loc (set-class vv env)))]
            (bind-args (rest args) sarg (rest vals) (rest arges) env e s))]))
 
 (define (mk-exception [type : symbol] [arg : string] [sto : Store]) : Result
@@ -859,7 +875,7 @@
 (define (truthy? [val : CVal]) : boolean
   (type-case CVal val
     [VClosure (e a s b) true]
-    [VObject (a mval d) (truthy-object? (VObject a mval d))]
+    [VObjectClass (a mval d class) (truthy-object? (VObject a mval d))]
     [VUndefined () false]
     [else (error 'truthy? "Shouldn't check truthiness of Pointer.")]))
 
@@ -904,7 +920,7 @@
                  [h-dict : (hashof symbol Address)]
                  [sto : Store]
                  [env : Env]) : Result
-  (local [(define bases-list (MetaTuple-v (some-v (VObject-mval bases))))
+  (local [(define bases-list (MetaTuple-v (some-v (VObjectClass-mval bases))))
           (define w (new-loc))
           (define bases_w (new-loc))
           (define mro_w (new-loc))
@@ -1044,7 +1060,7 @@
   (cond
     [(empty? mro) (none)]
     [else (type-case CVal (first mro)
-            [VObject (antecedent mval d)
+            [VObjectClass (antecedent mval d class)
                      (type-case (optionof Address) (hash-ref d n)
                        [none () (lookup-mro (rest mro) n)]
                        [some (value) (some value)])]
@@ -1053,7 +1069,7 @@
 ;; immutable-type?: decide if the value of x is immutable type--str, number and tuple
 (define (immutable-type? [x : CVal]) : boolean
   (type-case CVal x
-    [VObject (ante mval dict)
+    [VObjectClass (ante mval dict class)
              (if (some? mval) ;decide if the it is num, str, tuple
                  (let ((metav (some-v mval)))
                    (if (or (MetaNum? metav)

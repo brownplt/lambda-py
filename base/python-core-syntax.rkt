@@ -57,7 +57,8 @@ ParselTongue.
 (define-type-alias port 'port)
 
 (define-type CVal
-  [VObject (antecedent : symbol) (mval : (optionof MetaVal)) (dict : object-dict)]
+  [VObjectClass (antecedent : symbol) (mval : (optionof MetaVal))
+                (dict : object-dict) (class : (optionof Address))]
   [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr)]
   [VUndefined]
   [VPointer (a : Address)])

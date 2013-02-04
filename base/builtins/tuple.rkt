@@ -215,7 +215,7 @@
                               (hash empty)))))
 
 (define (tuple-in [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
- (letrec ([self-list (MetaTuple-v (some-v (VObject-mval (first args))))]
+ (letrec ([self-list (MetaTuple-v (some-v (VObjectClass-mval (first args))))]
           [test (second args)]
           [contains (lambda ([lst : (listof CVal)] [val : CVal]) : CVal
                     (cond

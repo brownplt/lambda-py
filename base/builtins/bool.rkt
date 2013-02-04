@@ -54,13 +54,14 @@
         (MetaNum 0)))))
 
 (define (bool-init [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (local [(define meta-startuple (MetaTuple-v (some-v (VObject-mval (first args)))))]
+  (local [(define meta-startuple (MetaTuple-v (some-v (VObjectClass-mval (first args)))))]
      (if (= (length meta-startuple) 0)
        (some false-val) 
        (type-case CVal (first meta-startuple) 
                   [VClosure (e a s b) (some true-val)] 
-                  [VObject (a mval d) (if (truthy-object? (VObject a mval d)) 
-                                        (some true-val) 
-                                        (some false-val))]
+                  [VObjectClass (a mval d class)
+                                (if (truthy-object? (VObject a mval d)) 
+                                    (some true-val) 
+                                    (some false-val))]
                   [VUndefined () (some false-val)]
                   [else (error 'bool-init "Should not initialize boolean from pointer")]))))

@@ -34,7 +34,7 @@ primitives here.
 (define (callable [arg : CVal]) : CVal 
   (type-case CVal arg
     [VClosure (e a v b) true-val]
-    [VObject (a m d) (if (some? m)
+    [VObjectClass (a m d c) (if (some? m)
                        (if (MetaClass? (some-v m))
                          true-val
                          false-val)
@@ -57,8 +57,8 @@ primitives here.
                         (some (make-builtin-numv (- (MetaNum-n mval1) 
                                                    (MetaNum-n mval2)))))]
     ['num*
-        (if (and (some? (VObject-mval (second args)))
-              (MetaStr? (some-v (VObject-mval (second args)))))
+        (if (and (some? (VObjectClass-mval (second args)))
+              (MetaStr? (some-v (VObjectClass-mval (second args)))))
           (builtin-prim 'str* (reverse args) env sto)
           (check-types args env sto 'num 'num 
                         (some (VObject 'num (some (MetaNum 
@@ -120,7 +120,7 @@ primitives here.
     ['num-str (let ([arg (first args)])
             (some (VObject 'str 
                            (some (MetaStr 
-                             (number->string (MetaNum-n (some-v (VObject-mval
+                             (number->string (MetaNum-n (some-v (VObjectClass-mval
                                                                   arg))))))
                            (hash empty))))]
     ;string
@@ -210,13 +210,13 @@ primitives here.
 
     ;isinstance
     ['isinstance 
-               (if (or (none? (VObject-mval (second args)))
-                       (not (MetaClass? (some-v (VObject-mval (second args))))))
+               (if (or (none? (VObjectClass-mval (second args)))
+                       (not (MetaClass? (some-v (VObjectClass-mval (second args))))))
                (none)
                (if (object-is? (first args) 
                                (MetaClass-c 
                                  (some-v 
-                                   (VObject-mval (second args))))
+                                   (VObjectClass-mval (second args))))
                                env
                                sto)
                  (some true-val)
@@ -227,10 +227,10 @@ primitives here.
     ; Otherwise, it is itself. NB: classmethod implementation depends on this non-standard behavior!
     ['$class
      (local [(define me (first args))
-            (define my-antecedent (VObject-antecedent me))
+            (define my-antecedent (VObjectClass-antecedent me))
             (define antecedent-class (fetch (some-v (lookup my-antecedent env)) sto))
-            (define am-class (and (some? (VObject-mval me))
-                                  (MetaClass? (some-v (VObject-mval me)))))]
+            (define am-class (and (some? (VObjectClass-mval me))
+                                  (MetaClass? (some-v (VObjectClass-mval me)))))]
        (some
          (if am-class
              me
@@ -238,7 +238,7 @@ primitives here.
 
     ['$super ;; modified to use the __mro__ attibute, but it doesn't support multiple inheritance, yet.
      (letrec ([me (first args)]
-              [my-antecedent (VObject-antecedent me)]
+              [my-antecedent (VObjectClass-antecedent me)]
               [antecedent-class (fetch (some-v (lookup my-antecedent env)) sto)]
               [mro (get-mro antecedent-class sto)])
        (if (> (length mro) 1) (some (second mro)) (none)))]
