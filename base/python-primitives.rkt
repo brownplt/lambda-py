@@ -12,6 +12,7 @@
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/file.rkt"
+         "builtins/code.rkt"
          (typed-in racket/string (string-join : ((listof string) string -> string)))
          (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (quotient : (number number -> number)))
@@ -217,6 +218,10 @@ primitives here.
     ;['dict-delitem (dict-delitem args env sto)]
     ['dict->list (dict->list args env sto)]
 
+    ;code
+    ['code-str (code-str args env sto)]
+    ['code-globals (code-globals args env sto)]
+
     ;set
     ['set-set (set-set args env sto)]
     ['set-len (set-len args env sto)]
@@ -288,6 +293,4 @@ primitives here.
     ['$locals (begin
                ; (display env) (display "\n\n")
                 (some (make-under-dict (first env) sto)))]
-    ['globals (begin (pretty-print env)
-                     (some (sym-addr-hash->dictobj (last env))))]
 ))

@@ -11,6 +11,7 @@
          "builtins/set.rkt"
          "builtins/none.rkt"
          "builtins/file.rkt"
+         "builtins/code.rkt"
          "util.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
@@ -214,10 +215,21 @@
           (CBuiltinPrim '$class (list (CId 'self (LocalId)))))
          false))
 
-(define globals-lambda
-  (CFunc (list) (none)
+
+;; (define globals-lambda
+;;   (CFunc (list) (none)
+;;          (CReturn
+;;           (CBuiltinPrim 'globals (list)))
+;;          false))
+
+(define compile-lambda
+  (CFunc (list 'source 'filename 'mode) (none)
          (CReturn
-          (CBuiltinPrim 'globals (list)))
+          (CBuiltinPrim 'compile
+                        (list
+                         (CId 'source (LocalId))
+                         (CId 'filename (LocalId))
+                         (CId 'mode (LocalId)))))
          false))
 
 (define lib-functions
@@ -242,8 +254,12 @@
         (bind 'file file-class)
         (bind 'open file-class)
 
-        ;; module related
-        (bind 'globals (assign 'globals globals-lambda))
+        
+        ;;; module related
+        ;FIXME: globals should bound here
+        ;now the globals is implemented in CApp directly
+        ;(bind 'globals (assign 'globals globals-lambda))
+        (bind '$code code-class)
 
         (bind 'len (assign 'len len-lambda))
         (bind 'min (assign 'min min-lambda))
