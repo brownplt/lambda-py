@@ -14,7 +14,10 @@
          (typed-in racket/string (string-join : ((listof string) string -> string)))
          (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (quotient : (number number -> number)))
-         (typed-in racket/base (remainder : (number number -> number))))
+         (typed-in racket/base (remainder : (number number -> number)))
+         (typed-in racket/base (car : (('a * 'b) -> 'a)))
+         (typed-in racket/base (cdr : (('a * 'b) -> 'b)))
+         (typed-in racket/base (hash->list : ((hashof 'a 'b) -> (listof ('a * 'b))))))
 
 #|
 
@@ -245,6 +248,13 @@ primitives here.
 
     ['$locals (begin
                ; (display env) (display "\n\n")
-                (some (make-under-dict (first env) sto)))]
+                (some (make-under-dict 
+                        (hash
+                          (map (lambda (p)
+                                 (values (car p) (cdr p)))
+                               (filter (lambda (p)
+                                         (not (VUndefined? (fetch (cdr p) sto))))
+                                       (hash->list (first env)))))
+                        sto)))]
 
 ))

@@ -735,11 +735,13 @@
                (type-case (optionof Address) loc
                  [some (w) (v*s vnone (hash-set so w value) (none))]
                  [none () (local [(define w (new-loc))
-                                  (define nw (lookup (CId-x o) e))
+                                  (define objw (if (some? ao)
+                                                 (some-v ao)
+                                                 (new-loc)))
                                   (define snew
                                     (begin ;(display vo) (display "\n")
-                                           ;(display nw) (display "\n")
-                                    (hash-set so (some-v nw) 
+                                           ;(display objw) (display "\n")
+                                    (hash-set so objw 
                                               (VObject ante-name
                                                        mval
                                                        (hash-set (VObjectClass-dict vo) f w)))))]
@@ -862,18 +864,24 @@
     [v*s (vexpr sexpr aexpr) (display "")]
     [Return (vexpr sexpr aexpr)
             (local [(define exn (return-exception sexpr))]
-              (raise-user-error (pretty-exception (Exception-v exn)
-                                                  (Exception-s exn))))]
+              (raise-user-error (string-append
+                                  (pretty-exception (Exception-v exn)
+                                                    (Exception-s exn))
+                                  "\n")))]
     [Break (sexpr)
            (local [(define exn (break-exception sexpr))]
-             (raise-user-error (pretty-exception (Exception-v exn)
-                                                 (Exception-s exn))))]
+             (raise-user-error (string-append
+                                 (pretty-exception (Exception-v exn)
+                                                   (Exception-s exn))
+                                 "\n")))]
     [Continue (sexpr)
            (local [(define exn (continue-exception sexpr))]
-             (raise-user-error (pretty-exception (Exception-v exn)
-                                                 (Exception-s exn))))] 
+             (raise-user-error (string-append
+                                 (pretty-exception (Exception-v exn)
+                                                   (Exception-s exn))
+                                 "\n")))] 
     [Exception (vexpr sexpr)
-               (raise-user-error (pretty-exception vexpr sexpr))]))
+               (raise-user-error (string-append (pretty-exception vexpr sexpr) "\n"))]))
 
 (define (truthy? [val : CVal]) : boolean
   (type-case CVal val
