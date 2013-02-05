@@ -73,8 +73,8 @@
                      (LexSeq (list
                               (LexAssign (list (PyLexId name 'Store)) 
                                          (LexFuncVarArg name args sarg
-                                                        (LexBlock args
-                                                                  (cascade-nonlocal args (pre-desugar body)))))))]
+                                                        (LexBlock (cons sarg args)
+                                                                  (cascade-nonlocal (cons sarg args) (pre-desugar body)))))))]
        [else (haiku-error)]
        )))))
 
