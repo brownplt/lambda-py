@@ -13,6 +13,7 @@
          "builtins/bool.rkt"
          "builtins/file.rkt"
          "builtins/code.rkt"
+         ;"python-compile.rkt"
          (typed-in racket/string (string-join : ((listof string) string -> string)))
          (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (quotient : (number number -> number)))
@@ -221,6 +222,9 @@ primitives here.
     ;code
     ['code-str (code-str args env sto)]
     ['code-globals (code-globals args env sto)]
+
+    ;TODO: compile
+    ; ['compile (compile args env sto)]
 
     ;set
     ['set-set (set-set args env sto)]

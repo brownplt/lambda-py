@@ -260,6 +260,7 @@
         ;now the globals is implemented in CApp directly
         ;(bind 'globals (assign 'globals globals-lambda))
         (bind '$code code-class)
+        (bind 'compile (assign 'compile compile-lambda))
 
         (bind 'len (assign 'len len-lambda))
         (bind 'min (assign 'min min-lambda))
