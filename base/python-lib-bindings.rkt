@@ -12,6 +12,7 @@
          "builtins/none.rkt"
          "builtins/file.rkt"
          "builtins/code.rkt"
+         "builtins/module.rkt"
          "util.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
@@ -232,6 +233,13 @@
                          (CId 'mode (LocalId)))))
          false))
 
+(define make-module-lambda
+  (CFunc (list 'dictobj) (none)
+         (CReturn
+          (CBuiltinPrim 'make-module
+                        (list (CId 'dictobj (LocalId)))))
+         false))
+
 (define lib-functions
   (list (bind 'True (assign 'True (CTrue)))
         (bind 'False (assign 'False (CFalse)))
@@ -260,7 +268,11 @@
         ;now the globals is implemented in CApp directly
         ;(bind 'globals (assign 'globals globals-lambda))
         (bind '$code code-class)
+        (bind '$module module-class)
+        
         (bind 'compile (assign 'compile compile-lambda))
+        (bind '__module (assign '__module make-module-lambda))
+
 
         (bind 'len (assign 'len len-lambda))
         (bind 'min (assign 'min min-lambda))
