@@ -13,6 +13,8 @@
          "builtins/file.rkt"
          "builtins/code.rkt"
          "builtins/module.rkt"
+         "builtins/modules/sys.rkt"
+         "builtins/modules/imp.rkt"
          "util.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
@@ -272,6 +274,9 @@
         
         (bind 'compile (assign 'compile compile-lambda))
         (bind '__module (assign '__module make-module-lambda))
+        ;builtin module
+        (bind '$imp imp-module)
+        (bind '$sys sys-module) 
 
 
         (bind 'len (assign 'len len-lambda))

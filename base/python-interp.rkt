@@ -851,10 +851,11 @@
 (define (interp expr)
   (type-case Result (interp-env expr (list (#|make-|#hash (list))) (hash (list)))
     [v*s (vexpr sexpr aexpr)
-           (if (not (MetaNone? (some-v (VObject-mval vexpr))))
-             (begin (display (pretty vexpr sexpr)) 
-                    (display "\n"))
-             (display ""))]
+         (begin ;(pprint sexpr)
+                (if (not (MetaNone? (some-v (VObject-mval vexpr))))
+                    (begin (display (pretty vexpr sexpr)) 
+                           (display "\n"))
+                    (display "")))]
     [Return (vexpr sexpr aexpr)
             (local [(define exn (return-exception sexpr))]
               (raise-user-error (pretty-exception (Exception-v exn)
