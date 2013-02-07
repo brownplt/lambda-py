@@ -39,6 +39,13 @@
       (get-structured-python
         (parse-python/port port (get-pypath))))))
 
+(define (desugar-w/lib port)
+  (python-lib
+   (desugar
+    (new-scope-phase
+     (get-structured-python
+      (parse-python/port port (get-pypath)))))))
+
 (define (get-core-syntax port)
   (desugar
     (new-scope-phase
@@ -67,6 +74,10 @@
   ("--get-core-syntax" "Get desugared python"
    (pretty-write (get-core-syntax (current-input-port))))
 
+  ("--get-core-syntax-with-libs" "Get desugared python and libraries (big)"
+   (pretty-write (desugar-w/lib (current-input-port))))
+
+  
   ("--test" dirname "Run all tests in dirname"
    (display (results-summary (run-tests (mk-proc-eval/silent python-test-runner) dirname))))
 
