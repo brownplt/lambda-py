@@ -20,13 +20,12 @@ ParselTongue.
   [CGetField (value : CExpr) (attr : symbol)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
   [CAssign (target : CExpr) (value : CExpr)]
-  [CError (e1 : CExpr)]
   [CIf (test : CExpr) (then : CExpr) (else : CExpr)]
   [CId (x : symbol) (type : IdType)]
   [CLet (x : symbol) (type : IdType) (bind : CExpr) (body : CExpr)]
   [CApp (fun : CExpr) (args : (listof CExpr)) (stararg : (optionof CExpr))]
   [CFunc (args : (listof symbol)) (varargs : (optionof symbol)) (body : CExpr)
-         (method : boolean)]
+         (opt-class : (optionof symbol))] ; class name for methods
   [CWhile (test : CExpr) (body : CExpr) (orelse : CExpr)]
   [CReturn (value : CExpr)]
   [CPrim1 (prim : symbol) (arg : CExpr)]
@@ -59,9 +58,11 @@ ParselTongue.
 (define-type CVal
   [VObjectClass (antecedent : symbol) (mval : (optionof MetaVal))
                 (dict : object-dict) (class : (optionof Address))]
-  [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr)]
   [VUndefined]
   [VPointer (a : Address)])
+  [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr)
+            (opt-class : (optionof symbol))] ; class name for methods
+  [VUndefined])
 
 (define-type MetaVal
              [MetaNum (n : number)]
@@ -122,3 +123,7 @@ ParselTongue.
         (fetch (VPointer-a val) sto)
         val)))
 
+(define-type ActivationRecord
+  [Frame (env : Env) (class : (optionof CVal)) (self : (optionof CVal))])
+
+(define-type-alias Stack (listof ActivationRecord))

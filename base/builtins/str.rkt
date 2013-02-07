@@ -13,10 +13,13 @@
          (typed-in racket/base (char->integer : (char -> number)))
          (typed-in racket/base (abs : (number -> number)))
          (typed-in racket/base (integer->char : (number -> char)))
-         (typed-in racket/base (andmap : ( ('a -> boolean) (listof 'a) -> boolean))))
+         (typed-in racket/base (andmap : ( ('a -> boolean) (listof 'a) -> boolean)))
+         (typed-in racket/base (string->number : (string number -> number)))
+         (typed-in racket/base (integer? : (number -> boolean))))
 
 (define str-class : CExpr
   (seq-ops (list 
+<<<<<<< HEAD
              (CAssign (CId 'str  (GlobalId))
                       (CClass
                         'str 
@@ -122,6 +125,115 @@
                                                   (CId 'upper (LocalId))
                                                   (CId 'step (LocalId)))))
                          true)))))
+=======
+                  (def '__init__
+                       (CFunc (list 'self 'other) (none) 
+                              (CAssign
+                                (CId 'self (LocalId))
+                                (CApp (CGetField (CId 'other (LocalId)) '__str__)
+                                             (list)
+                                             (none)))
+                              (some 'str)))
+                  (def '__add__
+                    (CFunc (list 'self 'other) (none)
+                           (CReturn (CBuiltinPrim 'str+
+                                                  (list
+                                                   (CId 'self (LocalId))
+                                                   (CId 'other (LocalId)))))
+                           (some 'str)))
+                  (def '__mult__
+                    (CFunc (list 'self 'other) (none)
+                           (CReturn (CBuiltinPrim 'str*
+                                         (list
+                                          (CId 'self (LocalId))
+                                          (CId 'other (LocalId)))))
+                           (some 'str)))
+                  (def '__iter__
+                       (CFunc (list 'self) (none)
+                           (CReturn (CApp (CGetField (CId 'SeqIter (LocalId)) '__init__)
+                                          (list (CObject 'SeqIter (none)) 
+                                                (CId 'self (LocalId)))
+                                          (none)))
+                           (some 'str)))
+                  (def '__str__
+                       (CFunc (list 'self) (none)
+                              (CReturn (CId 'self (LocalId)))
+                              (some 'str)))
+                  (def '__eq__
+                    (CFunc (list 'self 'other) (none)
+                           (CReturn (CBuiltinPrim 'str=
+                                         (list
+                                          (CId 'self (LocalId))
+                                          (CId 'other (LocalId)))))
+                           (some 'str)))
+                  (def '__cmp__
+                     (CFunc (list 'self 'other) (none)
+                            (CReturn (CBuiltinPrim 'strcmp
+                                         (list
+                                           (CId 'self (LocalId))
+                                           (CId 'other (LocalId)))))
+                            (some 'str)))
+                  (def '__in__
+                     (CFunc (list 'self 'test) (none)
+                            (CReturn (CBuiltinPrim 'strin
+                                         (list
+                                           (CId 'self (LocalId))
+                                           (CId 'test (LocalId)))))
+                            (some 'str)))
+                  (def '__min__
+                     (CFunc (list 'self) (none)
+                            (CReturn (CBuiltinPrim 'strmin
+                                         (list
+                                           (CId 'self (LocalId)))))
+                            (some 'str)))
+                  (def '__max__
+                     (CFunc (list 'self) (none)
+                            (CReturn (CBuiltinPrim 'strmax
+                                         (list
+                                           (CId 'self (LocalId)))))
+                            (some 'str)))
+                  (def '__len__
+                     (CFunc (list 'self) (none)
+                            (CReturn (CBuiltinPrim 'strlen
+                                         (list
+                                           (CId 'self (LocalId)))))
+                            (some 'str)))
+
+                  (def '__list__
+                     (CFunc (list 'self) (none)
+                            (CReturn (CBuiltinPrim 'strlist
+                                         (list
+                                           (CId 'self (LocalId)))))
+                            (some 'str)))
+                  (def '__tuple__
+                     (CFunc (list 'self) (none)
+                            (CReturn (CBuiltinPrim 'str-tuple
+                                         (list
+                                           (CId 'self (LocalId)))))
+                            (some 'str)))
+                  (def '__getitem__
+                     (CFunc (list 'self 'idx) (none)
+                            (CReturn (CBuiltinPrim 'str-getitem
+                                         (list
+                                           (CId 'self (LocalId))
+                                           (CId 'idx (LocalId)))))
+                            (some 'str)))
+                 (def '__slice__
+                    (CFunc (list 'self 'lower 'upper 'step) (none)
+                        (CReturn (CBuiltinPrim 'strslice
+                                    (list 
+                                      (CId 'self (LocalId))
+                                      (CId 'lower (LocalId))
+                                      (CId 'upper (LocalId))
+                                      (CId 'step (LocalId)))))
+                        (some 'str)))
+                 (def '__int__
+                     (CFunc (list 'self) (none)
+                            (CReturn (CBuiltinPrim 'strint
+                                         (list
+                                           (CId 'self (LocalId)))))
+                            (some 'str))))))) 
+>>>>>>> master
 
 (define (make-builtin-str [s : string]) : CExpr
   (CObject
@@ -231,6 +343,13 @@
      (some (if (string=? (MetaStr-s mval1) "")
                false-val
                true-val))))
+
+(define (strint [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
+  (check-types args env sto 'str
+     (let ([n  (string->number (MetaStr-s mval1) 10)])
+       (if (integer? n)
+           (some (make-builtin-numv n))
+           (none)))))
 
 (define (strmin [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'str

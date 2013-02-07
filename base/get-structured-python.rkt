@@ -114,6 +114,12 @@ structure that you define in python-syntax.rkt
        (PyRaise (PyPass))
        (PyRaise (get-structured-python exc)))]
 
+    [(hash-table ('nodetype "Assert")
+                 ('test test)
+                 ('msg msg))
+     (PyAssert (get-structured-python test)
+               (if (char? msg) (list) (list (get-structured-python msg))))]
+
     [(hash-table ('nodetype "arg")
                  ('arg arg))
      (string->symbol arg)]
@@ -153,16 +159,8 @@ structure that you define in python-syntax.rkt
                       (string->symbol (hash-ref arg 'arg))) 
                     (hash-ref args 'args)) 
                (string->symbol (hash-ref args 'vararg))
-             (get-structured-python body))]
-
-      ; special case: classmethod decorator
-      [(and (not (empty? decorator-list))
-            (string=? "classmethod" (hash-ref (first decorator-list) 'id)))
-       (PyClassFunc (string->symbol name)
-               (map (lambda(arg) 
-                      (string->symbol (hash-ref arg 'arg))) 
-                    (hash-ref args 'args)) 
-             (get-structured-python body))]
+             (get-structured-python body)
+             (map get-structured-python decorator-list))]
 
       ; regular function
       [else
@@ -173,7 +171,8 @@ structure that you define in python-syntax.rkt
                (map (lambda(arg) 
                       (get-structured-python arg))
                     (hash-ref args 'defaults)) 
-               (get-structured-python body))])]
+               (get-structured-python body)
+               (map get-structured-python decorator-list))])]
 
     [(hash-table ('nodetype "Return")
                  ('value value))

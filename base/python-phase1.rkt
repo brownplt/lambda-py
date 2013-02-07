@@ -58,7 +58,7 @@
                                                                               (pre-desugar body))))))]
        [PyLam (args body)
               (LexLam args (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
-       [PyFunc (name args defaults body)
+       [PyFunc (name args defaults body decorators)
                (LexSeq (list (LexAssign (list (PyLexId name 'Store)) 
                                         (LexFunc name args
                                                  (map pre-desugar defaults)
@@ -68,13 +68,15 @@
                              (LexAssign (list (PyLexId name 'Store)) 
                                         (LexClassFunc name args
                                                       (LexBlock args
-                                                                (cascade-nonlocal args (pre-desugar body)))))))]
-       [PyFuncVarArg (name args sarg body)
+                                                                (cascade-nonlocal args (pre-desugar body))
+                                                                (map pre-desugar decorators))))))]
+       [PyFuncVarArg (name args sarg body decorators)
                      (LexSeq (list
                               (LexAssign (list (PyLexId name 'Store)) 
                                          (LexFuncVarArg name args sarg
                                                         (LexBlock (cons sarg args)
-                                                                  (cascade-nonlocal (cons sarg args) (pre-desugar body)))))))]
+                                                                  (cascade-nonlocal (cons sarg args) (pre-desugar body))
+                                                                  (map pre-desugar decorators))))))]
        [else (haiku-error)]
        )))))
 
