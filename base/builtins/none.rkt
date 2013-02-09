@@ -6,7 +6,6 @@
 
 
 (define none-class
-<<<<<<< HEAD
   (seq-ops (list 
              (CAssign (CId 'none (GlobalId))
                       (CClass
@@ -18,16 +17,6 @@
                          (CReturn (make-builtin-str "None"))
                          true)))))
 
-=======
-  (CClass
-    'none
-    (list 'object)
-    (seq-ops (list 
-               (def '__str__
-                    (CFunc (list 'self) (none)
-                           (CReturn (make-builtin-str "None"))
-                           (some 'none)))))))
->>>>>>> master
 (define cnone
   (CObject 
     'none

@@ -7,7 +7,6 @@
          "object.rkt")
 
 (define bool-class 
-<<<<<<< HEAD
   (seq-ops (list
              (CAssign (CId 'bool (GlobalId))
                       (CClass 
@@ -45,40 +44,6 @@
                                               (make-builtin-num 0.0))
                                         (none)))
                          true)))))
-=======
-  (CClass 
-    'bool
-    (list 'int)
-    (seq-ops (list
-               (def '__init__
-                    (CFunc (list 'self) (some 'args)
-                           (CReturn (CBuiltinPrim 'bool-init
-                                                  (list
-                                                   (CId 'args (LocalId)))))
-                           (some 'bool)))
-
-               (def '__str__
-                    (CFunc (list 'self) (none)
-                           (CIf (CApp (CGetField (CId 'self (LocalId)) '__eq__)
-                                      (list (make-builtin-num 1))
-                                      (none))
-                                (CReturn (make-builtin-str "True"))
-                                (CReturn (make-builtin-str "False")))
-                           (some 'bool)))
-               (def '__int__
-                    (CFunc (list 'self) (none)
-                           (CReturn (CApp (CGetField (CId 'self (LocalId)) '__add__) 
-                                          (list (make-builtin-num 0))
-                                          (none)))
-                           (some 'bool)))
-
-               (def '__float__
-                    (CFunc (list 'self) (none)
-                           (CReturn (CApp (CGetField (CId 'self (LocalId)) '__add__) 
-                                          (list (make-builtin-num 0.0))
-                                          (none)))
-                           (some 'bool)))))))
->>>>>>> master
 
 (define (make-builtin-bool [b : boolean]) : CExpr
   (CObject 
@@ -93,7 +58,6 @@
      (if (= (length meta-startuple) 0)
        (some false-val) 
        (type-case CVal (first meta-startuple) 
-<<<<<<< HEAD
                   [VClosure (e a s b) (some true-val)] 
                   [VObjectClass (a mval d class)
                                 (if (truthy-object? (VObject a mval d)) 
@@ -101,10 +65,3 @@
                                     (some false-val))]
                   [VUndefined () (some false-val)]
                   [else (error 'bool-init "Should not initialize boolean from pointer")]))))
-=======
-                  [VClosure (e a s b o) (some true-val)] 
-                  [VObject (a mval d) (if (truthy-object? (VObject a mval d)) 
-                                        (some true-val) 
-                                        (some false-val))]
-                  [VUndefined () (some false-val)]))))
->>>>>>> master
