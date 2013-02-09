@@ -59,10 +59,9 @@ ParselTongue.
   [VObjectClass (antecedent : symbol) (mval : (optionof MetaVal))
                 (dict : object-dict) (class : (optionof Address))]
   [VUndefined]
-  [VPointer (a : Address)])
+  [VPointer (a : Address)]
   [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr)
-            (opt-class : (optionof symbol))] ; class name for methods
-  [VUndefined])
+            (opt-class : (optionof symbol))]) ; class name for methods
 
 (define-type MetaVal
              [MetaNum (n : number)]
