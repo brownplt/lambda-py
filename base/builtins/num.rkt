@@ -56,6 +56,7 @@
                         'num
                         (list 'object)
                         (CNone)))
+             
              (def 'num '__add__ 
                   (CFunc (list 'self 'other)  (none)
                          (CReturn (CBuiltinPrim 'num+ 
@@ -63,6 +64,7 @@
                                                   (CId 'self (LocalId)) 
                                                   (CId 'other (LocalId)))))
                          true))
+             
              (def 'num '__sub__ 
                   (CFunc (list 'self 'other)  (none)
                          (CReturn (CBuiltinPrim 'num-
@@ -78,6 +80,7 @@
                                                   (CId 'self (LocalId)) 
                                                   (CId 'other (LocalId)))))
                          true))
+             
              (def 'num '__div__ 
                   (CFunc (list 'self 'other)  (none)
                          (CIf (CApp (CGetField (CId 'other (LocalId)) '__eq__) 
@@ -90,6 +93,7 @@
                                                        (CId 'self (LocalId)) 
                                                        (CId 'other (LocalId))))))
                          true))
+             
              (def 'num '__floordiv__ 
                   (CFunc (list 'self 'other)  (none)
                          (CIf (CApp (CGetField (CId 'other (LocalId)) '__eq__) 
@@ -102,6 +106,7 @@
                                                        (CId 'self (LocalId)) 
                                                        (CId 'other (LocalId))))))
                          true))
+             
              (def 'num '__mod__ 
                   (CFunc (list 'self 'other)  (none)
                          (CIf (CApp (CGetField (CId 'other (LocalId)) '__eq__) 
@@ -114,11 +119,13 @@
                                                        (CId 'self (LocalId)) 
                                                        (CId 'other (LocalId))))))
                          true))
+             
              (def 'num '__str__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'num-str
                                                 (list (CId 'self (LocalId)))))
                          true))
+             
              (def 'num '__eq__
                   (CFunc (list 'self 'other) (none)
                          (CReturn (CBuiltinPrim 'num=
@@ -126,6 +133,7 @@
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
                          true))
+             
              (def 'num '__gt__
                   (CFunc (list 'self 'other) (none)
                          (CReturn (CBuiltinPrim 'num>
@@ -133,6 +141,7 @@
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
                          true))
+             
              (def 'num '__lt__
                   (CFunc (list 'self 'other) (none)
                          (CReturn (CBuiltinPrim 'num<
@@ -140,6 +149,7 @@
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
                          true))
+             
              (def 'num '__gte__
                   (CFunc (list 'self 'other) (none)
                          (CReturn (CBuiltinPrim 'num>=
@@ -147,16 +157,18 @@
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
                          true))
+             
              (def 'num '__invrt__
                   (CFunc  (list 'self) (none)
                           (CReturn (CBuiltinPrim 'num-
                                                  (list 
-                                               (make-builtin-num 0) 
-                                               (CBuiltinPrim 'num+
-                                                   (list (CId 'self (LocalId)) 
-                                                         (make-builtin-num
-                                                           1))))))
+                                                  (make-builtin-num 0) 
+                                                  (CBuiltinPrim 'num+
+                                                                (list (CId 'self (LocalId)) 
+                                                                      (make-builtin-num
+                                                                       1))))))
                           true))
+             
              (def 'num '__abs__
                   (CFunc (list 'self) (none)
                          (CIf (CBuiltinPrim 'num< 
@@ -170,6 +182,7 @@
                                                      (list (make-builtin-num 0)
                                                            (CId 'self (LocalId))))))
                          true))
+             
              (def 'num '__lte__
                   (CFunc (list 'self 'other) (none)
                          (CReturn (CBuiltinPrim 'num<=
@@ -184,6 +197,4 @@
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
                          true)))))
-
-
 

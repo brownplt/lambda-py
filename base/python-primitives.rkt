@@ -14,7 +14,10 @@
          (typed-in racket/string (string-join : ((listof string) string -> string)))
          (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (quotient : (number number -> number)))
-         (typed-in racket/base (remainder : (number number -> number))))
+         (typed-in racket/base (remainder : (number number -> number)))
+         (typed-in racket/base (car : (('a * 'b) -> 'a)))
+         (typed-in racket/base (cdr : (('a * 'b) -> 'b)))
+         (typed-in racket/base (hash->list : ((hashof 'a 'b) -> (listof ('a * 'b))))))
 
 #|
 
@@ -33,12 +36,12 @@ primitives here.
 
 (define (callable [arg : CVal]) : CVal 
   (type-case CVal arg
-    [VClosure (e a v b) true-val]
     [VObjectClass (a m d c) (if (some? m)
-                       (if (MetaClass? (some-v m))
-                         true-val
-                         false-val)
-                       false-val)]
+    [VClosure (e a v b o) true-val]
+    (if (MetaClass? (some-v m))
+        true-val
+        false-val)
+    false-val)]
     [else false-val]))
 
 
@@ -48,7 +51,7 @@ primitives here.
     [(callable) (callable arg)]))
 
 (define (builtin-prim [op : symbol] [args : (listof CVal)] 
-                      [env : Env] [sto : Store]) : (optionof CVal)
+                      [env : Env] [sto : Store] [stk : Stack]) : (optionof CVal)
   (case op
     ['num+ (check-types args env sto 'num 'num 
                         (some (make-builtin-numv (+ (MetaNum-n mval1) 
@@ -130,6 +133,7 @@ primitives here.
     ['strcmp (strcmp args env sto)]
     ['strlen (strlen args env sto)]
     ['strbool (strbool args env sto)]
+    ['strint (strint args env sto)]
     ['strmin (strmin args env sto)]
     ['strmax (strmax args env sto)]
     ['strin (strin args env sto)]
@@ -174,6 +178,7 @@ primitives here.
     ['dict-setitem (dict-setitem args env sto)]
     ['dict-delitem (dict-delitem args env sto)]
     ['dict->list (dict->list args env sto)]
+    ['dict-init (dict-init args env sto)]
 
     ;set
     ['set-set (set-set args env sto)]
@@ -223,8 +228,6 @@ primitives here.
                  (some false-val)))]
 
     ; Returns the class of the given object
-    ; If it is an object (i.e., an instance), it is its antecedent.
-    ; Otherwise, it is itself. NB: classmethod implementation depends on this non-standard behavior!
     ['$class
      (local [(define me (first args))
             (define my-antecedent (VObjectClass-antecedent me))
@@ -245,6 +248,34 @@ primitives here.
 
     ['$locals (begin
                ; (display env) (display "\n\n")
-                (some (make-under-dict (first env) sto)))]
+                (some (make-under-dict 
+                        (hash
+                          (map (lambda (p)
+                                 (values (car p) (cdr p)))
+                               (filter (lambda (p)
+                                         (not (VUndefined? (fetch (cdr p) sto))))
+                                       (hash->list (first env)))))
+                        sto)))]
+    #;['$locals (begin
+                ;(display env) (display "\n\n")
+                ;(display stk) (display "\n\n")
+                (if (> (length stk) 0) ;; it must be used inside a function
+                    (some (make-under-dict (first (Frame-env (first stk))) sto))
+                    (none)))]
 
+    ['$self ;; returns the active self, if any, from the stack
+     (local [(define (fetch-self [st : Stack]) : (optionof CVal)
+               (cond
+                 [(empty? st) (none)]
+                 [(some? (Frame-self (first st))) (Frame-self (first st))]
+                 [else (fetch-self (rest st))]))]
+       (fetch-self stk))]
+
+    ['$thisclass ;; returns the embodying class, if any, from the stack
+     (local [(define (fetch-class [st : Stack]) : (optionof CVal)
+               (cond
+                 [(empty? st) (none)]
+                 [(some? (Frame-class (first st))) (Frame-class (first st))]
+                 [else (fetch-class (rest st))]))]
+       (fetch-class stk))]
 ))

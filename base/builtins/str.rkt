@@ -13,7 +13,9 @@
          (typed-in racket/base (char->integer : (char -> number)))
          (typed-in racket/base (abs : (number -> number)))
          (typed-in racket/base (integer->char : (number -> char)))
-         (typed-in racket/base (andmap : ( ('a -> boolean) (listof 'a) -> boolean))))
+         (typed-in racket/base (andmap : ( ('a -> boolean) (listof 'a) -> boolean)))
+         (typed-in racket/base (string->number : (string number -> number)))
+         (typed-in racket/base (integer? : (number -> boolean))))
 
 (define str-class : CExpr
   (seq-ops (list 
@@ -231,6 +233,13 @@
      (some (if (string=? (MetaStr-s mval1) "")
                false-val
                true-val))))
+
+(define (strint [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
+  (check-types args env sto 'str
+     (let ([n  (string->number (MetaStr-s mval1) 10)])
+       (if (integer? n)
+           (some (make-builtin-numv n))
+           (none)))))
 
 (define (strmin [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'str

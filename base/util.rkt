@@ -19,6 +19,7 @@
 (require [typed-in racket (format : (string 'a -> string))])
 (require [typed-in racket (flatten : ((listof (listof 'a) ) -> (listof 'a)))])
 (require [typed-in racket (remove-duplicates : ((listof 'a) -> (listof 'a)))])
+(require [typed-in racket (memq : ('a (listof 'a) -> (listof 'a)))])
 
 
 (print-only-errors #t)
@@ -141,7 +142,7 @@
 (define-syntax (if-varargs x)
   (syntax-case x ()
     [(if-varargs 'args vars body)
-     #'(if-varargs 'args vars body (CError (CStr "argument mismatch")))]
+     #'(if-varargs 'args vars body (make-exception 'TypeError "argument mismatch"))]
     [(if-varargs 'args () body else-part)
      #'(CIf ; Did we get 0 args?
         (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
@@ -167,13 +168,12 @@
 
 (define (py-len name)
   (CApp (CGetField (CId name (LocalId)) '__len__)
-        (list (CId name (LocalId)))
+        (list)
         (none)))
 
 (define (py-getitem name index)
   (CApp (CGetField (CId name (LocalId)) '__getitem__)
-        (list (CId name (LocalId))
-              (CObject 'num (some (MetaNum index))))
+        (list (CObject 'num (some (MetaNum index))))
         (none)))
 
 ;; the copypasta here is bad but we aren't clever enough with macros
@@ -235,17 +235,43 @@
 (define (object-is? [o : CVal] [c : symbol] [env : Env] [s : Store]) : boolean
   (let ([obj-cls (fetch (some-v (lookup (VObjectClass-antecedent o) env)) s)]
         [cls (fetch (some-v (lookup c env)) s)])
-    (member cls (get-mro obj-cls s))))
+    (member cls (get-mro obj-cls (none) s))))
 
 
 ;; get-mro: fetch __mro__ field as a list of classes
 ;; termporarily prepended with cls to avoid self reference in __mro__
-(define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
+#;(define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
   (begin ;(display cls) (display "\n")
   (type-case (optionof Address) (hash-ref (VObjectClass-dict cls) '__mro__)
     [some (w) (cons cls (MetaTuple-v (some-v (VObjectClass-mval (fetch w sto)))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
                                             (pretty cls)))])))
+
+;; get-mro: fetch __mro__ field as a list of classes, filtered up to thisclass if given
+;; and prepended with cls to avoid self reference in __mro__
+(define (get-mro [cls : CVal] 
+                 [thisclass : (optionof CVal)]
+                 [sto : Store]) : (listof CVal)
+  (type-case (optionof Address) (hash-ref (VObjectClass-dict cls) '__mro__)
+    [some (w) (let ([mro (cons cls (MetaTuple-v (some-v (VObjectClass-mval (fetch w sto)))))])
+                (if (none? thisclass)
+                    mro
+                    (rest (memq (some-v thisclass) mro))))]
+    [none () (error 'get-mro (string-append "class without __mro__ field " 
+                                            (pretty cls)))]))
+
+;; get-class: retrieve the object's class
+(define (get-class [obj : CVal] [env : Env] [sto : Store]) : CVal
+  (local ([define __class__w (hash-ref (VObjectClass-dict obj) '__class__)]
+          [define w_obj-cls (if (some? __class__w)
+                                __class__w 
+                                (lookup (VObjectClass-antecedent obj) env))])
+    (type-case (optionof Address) w_obj-cls
+      [some (w) (fetch w sto)]
+      [none () (error 'get-class (string-append "object without class " 
+                                            (pretty obj)))])))
+
+
 (define (is? [v1 : CVal]
              [v2 : CVal]) : boolean
   (begin
@@ -256,10 +282,8 @@
   (type-case CVal arg
     [VObjectClass (a mval d class) (if (some? mval)
                             (pretty-metaval (some-v mval))
-                            (string-append "<"
-                              (string-append (symbol->string a)
-                                             " object>")))]
-    [VClosure (env args sarg body) "<function>"]
+                            "Can't print non-builtin object.")]
+    [VClosure (env args sarg body opt-class) "<function>"]
     [VUndefined () "Undefined"]
     [VPointer (a) (string-append "Pointer to address " (number->string a))]))
 
@@ -355,6 +379,7 @@
                                  (get-optionof-field n base e s))
                                            (none)))]))]
     [else (error 'interp "Not an object with functions.")])))
+
 
 (define (make-set [vals : (listof CVal)]) : Set
   (foldl (lambda (elt st)
