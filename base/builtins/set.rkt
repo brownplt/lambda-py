@@ -16,7 +16,6 @@
 )
 
 (define set-class : CExpr
-<<<<<<< HEAD
   (seq-ops (list 
              (CAssign (CId 'set (GlobalId))
                       (CClass
@@ -137,125 +136,6 @@
                          (CReturn (CBuiltinPrim 'set-list
                                                 (list (CId 'self (LocalId)))))
                          true)))))
-=======
-  (CClass
-   'set
-   (list 'object)
-   (seq-ops (list 
-              (def '__len__
-                    (CFunc (list 'self) (none)
-                           (CReturn (CBuiltinPrim 'set-len
-                                                  (list
-                                                   (CId 'self (LocalId)))))
-                           (some 'set)))
-              (def '__set__
-                    (CFunc (list 'self) (none)
-                           (CReturn (CBuiltinPrim 'set-set
-                                                  (list
-                                                   (CId 'self (LocalId)))))
-                           (some 'set)))
-              (def '__init__
-                   (CFunc (list 'self) (some 'args)
-                          (CReturn
-                          (CIf ; Did we get any args?
-                            (CBuiltinPrim 'num=
-                                          (list
-                                            (CApp (CGetField (CId 'args (LocalId)) '__len__)
-                                                  (list)
-                                                  (none))
-                                            (CObject 'num (some (MetaNum 0)))))
-                            ; No. Return an empty set
-                            (CSet empty)
-                            ; Yes. Call __set__ on the first argument.
-                            (CLet 'first-arg
-                                  (CApp (CGetField (CId 'args (LocalId)) '__getitem__)
-                                        (list (CObject 'num (some (MetaNum 0))))
-                                        (none))
-                                  (CApp (CGetField (CId 'first-arg (LocalId)) '__set__)
-                                        (list)
-                                        (none)))))
-                          (some 'set))
-                          )
-
-                          ;(CReturn (CBuiltinPrim 'set-init
-                           ;                          (list (CId 'self))))))
-              #|
-              (def 'clear
-                   (CFunc (list 'self) (none)
-                          (CReturn (CBuiltinPrim 'set-clear
-                                                     (list (CId 'self))))
-                          true))
-
-              (def 'update
-                   (CFunc (list 'self 'other) (none)
-                          (CReturn (CBuiltinPrim 'set-update
-                                                     (list (CId 'self)
-                                                           (CId 'other))))
-                          true))
-              |#
-
-              (def '__iter__
-                   (CFunc (list 'self) (none)
-                       (CReturn (CApp (CGetField (CId 'SeqIter (LocalId)) '__init__)
-                                      (list (CObject 'SeqIter (none)) 
-                                            (CApp (CGetField (CId 'self
-                                                                  (LocalId))
-                                                             '__list__)
-                                                  (list)
-                                                  (none))) 
-                                      (none)))
-                       (some 'set)))
-              (def '__in__
-                (CFunc (list 'self 'other) (none)
-                       (CReturn (CBuiltinPrim 'set-in
-                                              (list
-                                               (CId 'self (LocalId))
-                                               (CId 'other (LocalId))
-                                               )))
-                       (some 'set)))
-
-              (def '__eq__
-                (CFunc (list 'self 'other) (none)
-                       (CReturn (CBuiltinPrim 'set-eq
-                                              (list
-                                               (CId 'self (LocalId))
-                                               (CId 'other (LocalId))
-                                               )))
-                       (some 'set)))
-
-              (def '__sub__
-                (CFunc (list 'self 'other) (none)
-                       (CReturn (CBuiltinPrim 'set-sub
-                                              (list (CId 'self (LocalId)) 
-                                                    (CId 'other (LocalId)))))
-                       (some 'set)))
-              (def '__and__
-                (CFunc (list 'self 'other) (none)
-                       (CReturn (CBuiltinPrim 'set-and
-                                              (list (CId 'self (LocalId)) 
-                                                    (CId 'other (LocalId)))))
-                       (some 'set)))
-
-              (def '__or__
-                (CFunc (list 'self 'other) (none)
-                       (CReturn (CBuiltinPrim 'set-or
-                                              (list (CId 'self (LocalId))
-                                                    (CId 'other (LocalId)))))
-                       (some 'set)))
-
-              (def '__xor__
-                (CFunc (list 'self 'other) (none)
-                       (CReturn (CBuiltinPrim 'set-xor
-                                              (list (CId 'self (LocalId))
-                                                    (CId 'other (LocalId)))))
-                       (some 'set)))
-              (def '__list__
-                (CFunc (list 'self) (none)
-                       (CReturn (CBuiltinPrim 'set-list
-                                              (list (CId 'self (LocalId)))))
-                       (some 'set)))
-))))
->>>>>>> master
 
 ; returns a copy of this set
 (define (set-set (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
