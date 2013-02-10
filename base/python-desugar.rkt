@@ -257,13 +257,12 @@
       ;; assert check is always enabled, it doesn't test __debug__ builtin variable.
       [LexAssert (test msg)
                 (rec-desugar
-                 (PyIf test
-                       (PyPass)
-                       (PyRaise (PyApp (PyId 'AssertionError 'Load) msg)))
-                 global? env (none))]
+                 (LexIf test
+                       (LexPass)
+                       (LexRaise (LexApp (LexGlobalId 'AssertionError 'Load) msg))))]
 
       ; LexPass is an empty lambda
-      [LexPass () (CApp (CFunc empty (none) (CNone) false) empty (none))] 
+      [LexPass () (CApp (CFunc empty (none) (CNone) (none)) empty (none))] 
       [LexIf (test body orelse)
             (local [(define test-r (rec-desugar test))
                     (define body-r (rec-desugar body))
@@ -361,11 +360,11 @@
       [LexListComp (elt gens) (desugar-listcomp elt gens)]
       [LexComprehen (target iter) (error 'desugar "Can't desugar LexComprehen")]
       
-      [LexLam (args body) (CFunc args (none) (CReturn (rec-desugar body)) false)]
+      [LexLam (args body) (CFunc args (none) (CReturn (rec-desugar body)) (none))]
 
-      [LexFunc (name args defargs body decorators)
+      [LexFunc (name args defargs body decorators opt-class)
                (cond
-                [(> (length defargs) 0
+                [(> (length defargs) 0 )
                    (local [(define last-arg (first (reverse args)))]
                      (rec-desugar
                        ; assuming 1 defarg for now, generalize later
@@ -392,7 +391,7 @@
                                                                   (LexNum 0)))
                                                      (LexPass))
                                               body))
-                                          decorators))))))]
+                                          decorators opt-class)))))]
                  [(empty? decorators)
                    (local [(define body-r (rec-desugar body))]
                      (CFunc args (none) body-r opt-class))]
@@ -400,7 +399,7 @@
                  [else
                   (rec-desugar (LexSeq
                                 (list
-                                 (LexFunc name args (list) body (list))
+                                 (LexFunc name args (list) body (list) opt-class)
                                  ;; apply decorators to the function
                                  (LexAssign (list (LexLocalId name 'Load))
                                            (foldr (lambda (decorator func)
@@ -408,29 +407,13 @@
                                                   (LexLocalId name 'Load)
                                                   decorators)))))])]
       
-      ; a LexClassFunc is a method whose first argument should be the class rather than self
-      [LexClassFunc (name args body)
-                    (local [(define body-r (rec-desugar body))]
-                           (CFunc args (none)
-                                        ; We do this by, inside the function body,
-                                        ; taking the first argument, which is "self",
-                                        ; using that to look up the object's class, and then
-                                        ; "overwriting" the first argument with that value.
-                                        ; The result is that, in the function body, the first
-                                        ; argument is the class, as expected.
-                                  (CSeq (CAssign (CId (first args) (LocalId))
-                                                 (CBuiltinPrim '$class
-                                                               (list (CId (first args)
-                                                                          (LocalId)))))
-                                        body-r)
-                                  false))]
       
-      [LexFuncVarArg (name args sarg body decorators)
+      [LexFuncVarArg (name args sarg body decorators opt-class)
                      (if (empty? decorators)
-                         (CFunc args (some sarg) (rec-desugar body) false)
+                         (CFunc args (some sarg) (rec-desugar body) opt-class)
                          (rec-desugar (LexSeq
                                        (list
-                                        (LexFuncVarArg name args sarg body (list))
+                                        (LexFuncVarArg name args sarg body (list) opt-class)
                                         ;; apply decorators to the function
                                         (LexAssign (list (LexLocalId name 'Load))
                                                   (foldr (lambda (decorator func)
@@ -478,10 +461,11 @@
                                                                      'TypeError
                                                                      "object is not subscriptable")))))
                                        (CNone) (CNone))
-                                      (CApp (CGetField (CId left-id (localId))
+                                      (CApp (CGetField (CId left-id (LocalId))
                                                        '__getitem__)
-                                            (list (DResult-expr slice-r))
-                                            (none)))))))]
+                                            (list slice-r)
+                                            (none) ;TODO: not sure what to do with stararg.
+                                            ))))))]
                       [(symbol=? ctx 'Store)
                        (error 'desugar "bad syntax: LexSubscript has context 'Store' outside a LexAssign")]
                       [else (error 'desugar "unrecognized context in LexSubscript")])]
@@ -492,7 +476,7 @@
 
       [LexApp (fun args)
              (local [(define f (rec-desugar fun ))
-                     (define f-expr (DResult-expr f))
+                     (define f-expr  f)
                      (define results
                        (map desugar args ))]
                 (CApp f-expr results (none))
