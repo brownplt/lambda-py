@@ -21,6 +21,7 @@
                         'file
                         (list 'object)
                         (CNone)))
+             
              (def 'file '__init__
                   (CFunc (list 'self 'path 'mode) (none)
                          (CAssign
