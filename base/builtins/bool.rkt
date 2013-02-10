@@ -30,7 +30,7 @@
                               (CReturn (make-builtin-str "True"))
                               (CReturn (make-builtin-str "False")))
                          (some 'bool)))
-             
+
              (def 'bool '__int__
                   (CFunc (list 'self) (none)
                          (CReturn (CApp (CGetField (CId 'self (LocalId)) '__add__) 

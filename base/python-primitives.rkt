@@ -249,20 +249,16 @@ primitives here.
 
     ['$locals (begin
                ; (display env) (display "\n\n")
-                (some (make-under-dict 
-                        (hash
-                          (map (lambda (p)
-                                 (values (car p) (cdr p)))
-                               (filter (lambda (p)
-                                         (not (VUndefined? (fetch (cdr p) sto))))
-                                       (hash->list (first env)))))
-                        sto)))]
-    #;['$locals (begin
-                ;(display env) (display "\n\n")
-                ;(display stk) (display "\n\n")
-                (if (> (length stk) 0) ;; it must be used inside a function
-                    (some (make-under-dict (first (Frame-env (first stk))) sto))
-                    (none)))]
+               (if (> (length stk) 0) ;; it must be used inside a function
+                   (some (make-under-dict 
+                           (hash
+                             (map (lambda (p)
+                                    (values (car p) (cdr p)))
+                                  (filter (lambda (p)
+                                            (not (VUndefined? (fetch (cdr p) sto))))
+                                          (hash->list (first (Frame-env (first stk)))))))
+                           sto))
+                   (none)))]
 
     ['$self ;; returns the active self, if any, from the stack
      (local [(define (fetch-self [st : Stack]) : (optionof CVal)

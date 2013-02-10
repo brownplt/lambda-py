@@ -54,8 +54,7 @@
                                    (CApp (CGetField (CId 'first-arg (LocalId)) '__set__)
                                          (list)
                                          (none)))))
-                         (some 'set))
-                  )
+                         (some 'set)))
 
              ;(CReturn (CBuiltinPrim 'set-init
              ;                          (list (CId 'self))))))
@@ -64,14 +63,14 @@
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'set-clear
                                                 (list (CId 'self))))
-                         true))
+                         (some 'set)))
 
              (def 'set 'update
                   (CFunc (list 'self 'other) (none)
                          (CReturn (CBuiltinPrim 'set-update
                                                 (list (CId 'self)
                                                       (CId 'other))))
-                         true))
+                         (some 'set)))
              |#
 
              (def 'set '__iter__

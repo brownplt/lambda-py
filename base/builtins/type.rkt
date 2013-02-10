@@ -5,13 +5,15 @@
          "../util.rkt")
 
 (define type-class
-  (CClass 
-    'type
-    (list 'object)
-    (seq-ops (list
+  (seq-ops (list
+             (CAssign (CId 'type (GlobalId))
+                      (CClass 
+                        'type
+                        (list 'object)
+                        (CNone)))
               ;; Only the 1 argument version is supported
-              (def '__init__
+              (def 'type '__init__
                 (CFunc (list 'self 'obj) (none)
                        (CAssign (CId 'self (LocalId))
                                 (CBuiltinPrim '$class (list (CId 'obj (LocalId)))))
-                       (none)))))))
+                       (some 'type))))))

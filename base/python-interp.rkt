@@ -298,7 +298,7 @@
                           (interp-env (some-v match?) env hsto stk)))]
               (type-case Result result
                 [v*s (vbody sbody abody) (v*s vnone sbody (none))]
-                [Return (vbody sbody abody) (return-exception sbody)]
+                [Return (vbody sbody abody) (Return vbody sbody abody)]
                 [Break (sbody) (Break sbody)]
                 [Continue (sbody) (Continue sbody)] 
                 [Exception (vbody sbody)
@@ -720,23 +720,7 @@
                        (type-case (optionof Address) w
                          [some (w) 
                                (v*s (fetch w s) s (some w))]
-                         [none () 
-                               ; THIS?
-                               (get-field-from-obj n c w_c (none) e s)])))]
-                               ; OR THIS?
-                               ;(local [(define __class__w class)]
-                               ;  (type-case (optionof Address) __class__w
-                               ;    [some (w)
-                               ;          (get-field-from-class n
-                               ;                                (fetch (some-v __class__w) s)
-                               ;                                e s)]
-                               ;    [none () (let ([mayb-base (lookup antecedent e)])
-                               ;               (if (some? mayb-base)
-                               ;                   (let ([base (fetch (some-v mayb-base) s)])
-                               ;                     (get-field-from-class n base e s))
-                               ;                   (error 'get-field (string-append 
-                               ;                                       "Object without class: "
-                               ;                                       (pretty c)))))]))])))]
+                         [none () (get-field-from-obj n c w_c (none) e s)])))]
           [else (error 'interp "Not an object with fiedls.")])])))
 
 (define (assign-to-field o f v [env : Env] [sto : Store] [stk : Stack]) : Result

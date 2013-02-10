@@ -145,7 +145,6 @@
                                                     (CId 'self (LocalId)))))
                             (some 'str))))))
                           
-
 (define (make-builtin-str [s : string]) : CExpr
   (CObject
     'str
