@@ -32,7 +32,7 @@
                                   (CApp (CGetField (CId 'other (LocalId)) '__int__)
                                         (list)
                                         (none)))
-                         true)))))
+                         (some 'int))))))
 
 (define float-class
   (seq-ops (list
@@ -47,7 +47,7 @@
                                   (CApp (CGetField (CId 'other (LocalId)) '__float__)
                                         (list)
                                         (none)))
-                         true)))))
+                         (some 'float))))))
 
 (define num-class 
   (seq-ops (list 
@@ -63,7 +63,7 @@
                                                 (list 
                                                   (CId 'self (LocalId)) 
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__sub__ 
                   (CFunc (list 'self 'other)  (none)
@@ -71,7 +71,7 @@
                                                 (list 
                                                   (CId 'self (LocalId)) 
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
 
              (def 'num '__mult__ 
                   (CFunc (list 'self 'other)  (none)
@@ -79,7 +79,7 @@
                                                 (list 
                                                   (CId 'self (LocalId)) 
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__div__ 
                   (CFunc (list 'self 'other)  (none)
@@ -92,7 +92,7 @@
                                                      (list 
                                                        (CId 'self (LocalId)) 
                                                        (CId 'other (LocalId))))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__floordiv__ 
                   (CFunc (list 'self 'other)  (none)
@@ -105,7 +105,7 @@
                                                      (list 
                                                        (CId 'self (LocalId)) 
                                                        (CId 'other (LocalId))))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__mod__ 
                   (CFunc (list 'self 'other)  (none)
@@ -118,13 +118,13 @@
                                                      (list 
                                                        (CId 'self (LocalId)) 
                                                        (CId 'other (LocalId))))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__str__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'num-str
                                                 (list (CId 'self (LocalId)))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__eq__
                   (CFunc (list 'self 'other) (none)
@@ -132,7 +132,7 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__gt__
                   (CFunc (list 'self 'other) (none)
@@ -140,7 +140,7 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__lt__
                   (CFunc (list 'self 'other) (none)
@@ -148,7 +148,7 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__gte__
                   (CFunc (list 'self 'other) (none)
@@ -156,7 +156,7 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__invrt__
                   (CFunc  (list 'self) (none)
@@ -167,7 +167,7 @@
                                                                 (list (CId 'self (LocalId)) 
                                                                       (make-builtin-num
                                                                        1))))))
-                          true))
+                          (some 'num)))
              
              (def 'num '__abs__
                   (CFunc (list 'self) (none)
@@ -181,7 +181,7 @@
                               (CReturn (CBuiltinPrim 'num+
                                                      (list (make-builtin-num 0)
                                                            (CId 'self (LocalId))))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__lte__
                   (CFunc (list 'self 'other) (none)
@@ -189,12 +189,12 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
              (def 'num '__cmp__
                   (CFunc (list 'self 'other) (none)
                          (CReturn (CBuiltinPrim 'numcmp
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true)))))
+                         (some 'num))))))
 

@@ -19,7 +19,7 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'tuple)))
 
              (def 'tuple '__init__
                   (CFunc (list 'self) (some 'args)
@@ -41,7 +41,7 @@
                                    (CApp (CGetField (CId 'first-arg (LocalId)) '__tuple__)
                                          (list)
                                          (none)))))
-                         true))
+                         (some 'tuple)))
 
              (def 'tuple '__mult__
                   (CFunc (list 'self 'other) (none)
@@ -49,52 +49,52 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'tuple)))
              (def 'tuple '__len__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'tuple-len
                                                 (list
                                                   (CId 'self (LocalId)))))
-                         true))
+                         (some 'tuple)))
              (def 'tuple '__in__
                   (CFunc (list 'self 'test) (none)
                          (CReturn (CBuiltinPrim 'tuple-in
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'test (LocalId)))))
-                         true))
+                         (some 'tuple)))
              (def 'tuple '__iter__
                   (CFunc (list 'self) (none)
                          (CReturn (CApp (CGetField (CId 'SeqIter (LocalId)) '__init__)
                                         (list (CId 'self (LocalId)))
                                         (none)))
-                         true))
+                         (some 'tuple)))
              (def 'tuple '__list__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'tuple-list
                                                 (list
                                                   (CId 'self (LocalId)))))
-                         true))
+                         (some 'tuple)))
 
              (def 'tuple '__tuple__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'tuple-tuple
                                                 (list
                                                   (CId 'self (LocalId)))))
-                         true))
+                         (some 'tuple)))
 
              (def 'tuple '__str__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'tuple-str
                                                 (list (CId 'self (LocalId)))))
-                         true))
+                         (some 'tuple)))
              (def 'tuple '__getitem__
                   (CFunc (list 'self 'idx) (none)
                          (CReturn (CBuiltinPrim 'tuple-getitem
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'idx (LocalId)))))
-                         true))
+                         (some 'tuple)))
 
              ;;; tuple comparisons - taken verbatim from list comparisons ;;;
              (def 'tuple '__cmp__
@@ -145,7 +145,7 @@
                                     (CId 'other (LocalId))
                                     (make-builtin-num 0))
                               (none))))
-                    true))
+                    (some 'tuple)))
 
              (def 'tuple '__eq__
                   (CFunc (list 'self 'other) (none)
@@ -157,7 +157,7 @@
                                                          '__eq__)
                                               (list (make-builtin-num 0))
                                               (none))))
-                         true)))))
+                         (some 'tuple))))))
 
 (define (make-builtin-tuple [l : (listof CVal)]) : CVal
   (VObject 'tuple

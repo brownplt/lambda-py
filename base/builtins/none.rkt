@@ -15,7 +15,7 @@
              (def 'none '__str__
                   (CFunc (list 'self) (none)
                          (CReturn (make-builtin-str "None"))
-                         true)))))
+                         (some 'none))))))
 
 (define cnone
   (CObject 

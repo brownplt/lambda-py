@@ -20,7 +20,7 @@
                                   (CBuiltinPrim 'bool-init
                                                 (list
                                                  (CId 'args (LocalId)))))
-                         true))
+                         (some 'bool)))
 
              (def 'bool '__str__
                   (CFunc (list 'self) (none)
@@ -29,20 +29,20 @@
                                     (none))
                               (CReturn (make-builtin-str "True"))
                               (CReturn (make-builtin-str "False")))
-                         true))
+                         (some 'bool)))
              (def 'bool '__int__
                   (CFunc (list 'self) (none)
                          (CReturn (CApp (CGetField (CId 'self (LocalId)) '__add__) 
                                         (list (make-builtin-num 0))
                                         (none)))
-                         true))
+                         (some 'bool)))
 
              (def 'bool '__float__
                   (CFunc (list 'self) (none)
                          (CReturn (CApp (CGetField (CId 'self (LocalId)) '__add__) 
                                         (list (make-builtin-num 0.0))
                                         (none)))
-                         true)))))
+                         (some 'bool))))))
 
 (define (make-builtin-bool [b : boolean]) : CExpr
   (CObject 

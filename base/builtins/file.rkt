@@ -30,7 +30,7 @@
                                          (list
                                            (CId 'path (LocalId))
                                            (CId 'mode (LocalId)))))
-                         true))
+                         (some 'file)))
 
              (def 'file 'read
                   (CFunc (list 'self) (some 'args)
@@ -42,14 +42,14 @@
                                                                         (list
                                                                           (CId 'self (LocalId))
                                                                           (CId 'size (LocalId)))))])
-                         true))
+                         (some 'file)))
 
              (def 'file 'readline
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'file-readline
                                                 (list
                                                   (CId 'self (LocalId)))))
-                         true))
+                         (some 'file)))
 
              (def 'file 'write
                   (CFunc (list 'self 'data) (none)
@@ -57,14 +57,14 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'data (LocalId)))))
-                         true))
+                         (some 'file)))
 
              (def 'file 'close
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'file-close
                                                 (list
                                                   (CId 'self (LocalId)))))
-                         true))
+                         (some 'file)))
              )))
 
 (define (file-open (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
