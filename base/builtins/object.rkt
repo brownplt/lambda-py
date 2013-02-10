@@ -17,19 +17,19 @@
              (def 'object '__init__ 
                   (CFunc (list 'self) (none)
                          (CId 'self (LocalId))
-                         true))
+                         (some 'object)))
              (def 'object '__eq__
                   (CFunc (list 'self 'other) (none)
                          (CReturn (CPrim2 'Is
                                           (CId 'self (LocalId))
                                           (CId 'other (LocalId))))
-                         true))
+                         (some 'object)))
 
              (def 'object '__str__ 
                   (CFunc (list 'self)  (none)
                          (CReturn (CBuiltinPrim 'obj-str (list (CId
                                                                  'self (LocalId)))))
-                         true))
+                         (some 'object)))
 
              (def 'object '__cmp__
                   (CFunc (list 'self 'other) (none)
@@ -38,7 +38,7 @@
                                                (CId 'other (LocalId)))
                                        (make-builtin-num 0)
                                        (make-builtin-num -1)))
-                         true))
+                         (some 'object)))
 
              (def 'object '__gt__
                   (CFunc (list 'self 'other) (none)
@@ -49,7 +49,7 @@
                                (CReturn (CApp (CGetField (CId '_cmpresult (LocalId)) '__gt__)
                                               (list (make-builtin-num 0))
                                               (none))))
-                         true))
+                         (some 'object)))
              (def 'object '__lt__
                   (CFunc (list 'self 'other) (none)
                          (CLet '_cmpresult (LocalId)
@@ -59,7 +59,7 @@
                                (CReturn (CApp (CGetField (CId '_cmpresult (LocalId)) '__lt__)
                                               (list (make-builtin-num 0))
                                               (none))))
-                         true))
+                         (some 'object)))
              (def 'object '__lte__
                   (CFunc (list 'self 'other) (none)
                          (CLet '_cmpresult (LocalId)
@@ -70,13 +70,13 @@
                                                          '__lte__)
                                               (list (make-builtin-num 0))
                                               (none))))
-                         true))
+                         (some 'object)))
              (def 'object '__iter__
                   (CFunc (list 'self) (none)
                          (CReturn (CApp (CGetField (CId 'SeqIter (LocalId)) '__init__)
                                         (list (CId 'self (LocalId)))
                                         (none)))
-                         true))
+                         (some 'object)))
              (def 'object '__gte__
                   (CFunc (list 'self 'other) (none)
                          (CLet '_cmpresult (LocalId)
@@ -87,7 +87,7 @@
                                                          '__gte__)
                                               (list (make-builtin-num 0))
                                               (none))))
-                         true)))))
+                         (some 'object))))))
 
 
 ;; produces true-val if the object is truthy and false-val if it is not

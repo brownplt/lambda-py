@@ -18,7 +18,7 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'list)))
 
              (def 'list 'extend
                   (CFunc (list 'self 'other) (none)
@@ -27,64 +27,64 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'list)))
              (def 'list '__init__
                   (CFunc (list 'self 'other) (none) 
                          (CAssign (CId 'self (LocalId))
                                   (CApp (CGetField (CId 'other (LocalId)) '__list__)
                                         (list)
                                         (none)))
-                         true))
+                         (some 'list)))
              (def 'list '__len__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'list-len
                                                 (list
                                                   (CId 'self (LocalId)))))
-                         true))
+                         (some 'list)))
              (def 'list '__list__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'list-cpy
                                                 (list 
                                                   (CId 'self (LocalId)))))
-                         true))
+                         (some 'list)))
              (def 'list '__iter__
                   (CFunc (list 'self) (none)
                          (CReturn (CApp (CGetField (CId 'SeqIter (LocalId)) '__init__)
                                         (list (CId 'self (LocalId)))
                                         (none)))
-                         true))
+                         (some 'list)))
 
              (def 'list '__tuple__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'list-tuple
                                                 (list (CId 'self (LocalId)))))
-                         true))
+                         (some 'list)))
 
              (def 'list '__set__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'list-set
                                                 (list
                                                   (CId 'self (LocalId)))))
-                         true))
+                         (some 'list)))
              (def 'list '__in__
                   (CFunc (list 'self 'test) (none)
                          (CReturn (CBuiltinPrim 'list-in
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'test (LocalId)))))
-                         true))
+                         (some 'list)))
              (def 'list '__str__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'list-str
                                                 (list (CId 'self (LocalId)))))
-                         true))
+                         (some 'list)))
              (def 'list '__getitem__
                   (CFunc (list 'self 'idx) (none)
                          (CReturn (CBuiltinPrim 'list-getitem
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'idx (LocalId)))))
-                         true))
+                         (some 'list)))
              (def 'list '__setitem__
                   (CFunc (list 'self 'idx 'val) (none)
                          (CAssign (CId 'self (LocalId))
@@ -93,7 +93,7 @@
                                                   (CId 'self (LocalId))
                                                   (CId 'idx (LocalId))
                                                   (CId 'val (LocalId)))))
-                         true))
+                         (some 'list)))
              (def 'list '__cmp__
                   (CFunc (list 'self 'other) (none)
                     (CLet 'listcmp (LocalId)
@@ -135,14 +135,14 @@
                                                                          (CId 'nidx (LocalId)))
                                                                    (none))))
                                                      (CReturn (CId 'cmpval (LocalId)))))))))
-                        false)
+                        (none))
                       (CReturn 
                         (CApp (CId 'listcmp (LocalId))
                               (list (CId 'self (LocalId))
                                     (CId 'other (LocalId))
                                     (make-builtin-num 0))
                               (none))))
-                    true))
+                    (some 'list)))
 
              (def 'list 'append
                   (CFunc (list 'self 'other) (none)
@@ -150,7 +150,7 @@
                                   (CBuiltinPrim 'list-append 
                                                 (list (CId 'self (LocalId)) 
                                                       (CId 'other (LocalId)))))
-                         true))
+                         (some 'list)))
              (def 'list '__eq__
                   (CFunc (list 'self 'other) (none)
                          (CLet '_cmpresult (LocalId)
@@ -161,7 +161,7 @@
                                                          '__eq__)
                                               (list (make-builtin-num 0))
                                               (none))))
-                         true)))))
+                         (some 'list))))))
 
 (define (make-builtin-list [l : (listof CVal)]) : CVal
   (VObject 'list

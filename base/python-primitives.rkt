@@ -36,12 +36,13 @@ primitives here.
 
 (define (callable [arg : CVal]) : CVal 
   (type-case CVal arg
-    [VObjectClass (a m d c) (if (some? m)
-    [VClosure (e a v b o) true-val]
-    (if (MetaClass? (some-v m))
-        true-val
-        false-val)
-    false-val)]
+    [VClosure (e a v b o) true-val]             
+    [VObjectClass (a m d c)
+                  (if (some? m)
+                      (if (MetaClass? (some-v m))
+                          true-val
+                          false-val)
+                      false-val)]
     [else false-val]))
 
 
@@ -61,10 +62,10 @@ primitives here.
                                                    (MetaNum-n mval2)))))]
     ['num*
         (if (and (some? (VObjectClass-mval (second args)))
-              (MetaStr? (some-v (VObjectClass-mval (second args)))))
-          (builtin-prim 'str* (reverse args) env sto)
-          (check-types args env sto 'num 'num 
-                        (some (VObject 'num (some (MetaNum 
+                 (MetaStr? (some-v (VObjectClass-mval (second args)))))
+            (builtin-prim 'str* (reverse args) env sto)
+            (check-types args env sto 'num 'num 
+                         (some (VObject 'num (some (MetaNum 
                                                     (* (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
                                        (hash empty)))))]
