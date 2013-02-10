@@ -21,95 +21,103 @@
                         '$dict
                         (list 'object)
                         (CNone)))
+             
+             (def '$dict '__init__
+               (CFunc (list 'self) (none)
+                      (CAssign (CId 'self (LocalId))
+                               (CBuiltinPrim 'dict-init
+                                             (list
+                                              (CId 'self (LocalId)))))
+                      (some '$dict)))
+                      
              (def '$dict '__len__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'dict-len
                                                 (list
                                                   (CId 'self (LocalId)))))
-                         true))
+                         (some '$dict)))
              (def '$dict '__str__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'dict-str
                                                 (list (CId 'self (LocalId)))))
-                         true))
+                         (some '$dict)))
 
              (def '$dict '__list__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'dict->list
                                                 (list (CId 'self (LocalId)))))
-                         true))
+                         (some '$dict)))
 
              (def '$dict 'clear
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'dict-clear
                                                 (list (CId 'self (LocalId)))))
-                         true))
+                         (some '$dict)))
 
              (def '$dict 'update
                   (CFunc (list 'self) (some 'other)
                          (CReturn (CBuiltinPrim 'dict-update
                                                 (list (CId 'self (LocalId))
                                                       (CId 'other (LocalId)))))
-                         true))
+                         (some '$dict)))
              (def '$dict 'get
                   (CFunc (list 'self 'key) (some 'default)
                          (CReturn (CBuiltinPrim 'dict-get 
                                                 (list (CId 'self (LocalId)) 
                                                       (CId 'key (LocalId)) 
                                                       (CId 'default (LocalId)))))
-                         true))
+                         (some '$dict)))
              (def '$dict '__iter__
                   (local [(define keys-id (new-id))]
                     (CFunc (list 'self) (none)
                            (CLet keys-id (LocalId)
                                  (CApp (CGetField (CId 'self (LocalId)) 'keys) 
-                                       (list (CId 'self (LocalId)))
+                                       (list)
                                        (none))
                                  (CReturn (CApp (CGetField (CId keys-id (LocalId)) '__iter__)
-                                                (list (CId keys-id (LocalId)))
+                                                (list)
                                                 (none))))
-                           true)))
+                           (some '$dict))))
              (def '$dict '__in__
                   (CFunc (list 'self 'other) (none)
                          (CReturn (CBuiltinPrim 'dict-in
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some '$dict)))
 
              (def '$dict '__eq__
                   (CFunc (list 'self 'other) (none)
                          (CReturn (CApp (CId 'dicteq (GlobalId))
                                         (list
-                                          (CId 'self (LocalId))
                                           (CId 'other (LocalId)))
                                         (none)))
-                         true))
+                         (some '$dict)))
 
              (def '$dict 'keys
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'dict-keys
                                                 (list (CId 'self (LocalId)))))
-                         true))
+                         (some '$dict)))
 
              (def '$dict 'values
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'dict-values
                                                 (list (CId 'self (LocalId)))))
-                         true))
+                         (some '$dict)))
 
              (def '$dict 'items
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'dict-items
                                                 (list (CId 'self (LocalId)))))
-                         true))
+                         (some '$dict)))
 
              (def '$dict '__getitem__
                   (CFunc (list 'self 'other) (none)
                          (CReturn (CBuiltinPrim 'dict-getitem
                                                 (list (CId 'self (LocalId))
                                                       (CId 'other (LocalId)))))
-                         true))
+                         (some '$dict)))
 
              (def '$dict '__setitem__
                   (CFunc (list 'self 'target 'value) (none)
@@ -117,14 +125,14 @@
                                                 (list (CId 'self (LocalId))
                                                       (CId 'target (LocalId))
                                                       (CId 'value (LocalId)))))
-                         true))
+                         (some '$dict)))
 
              (def '$dict '__delitem__
                   (CFunc (list 'self 'slice) (none)
                          (CReturn (CBuiltinPrim 'dict-delitem
                                                 (list (CId 'self (LocalId))
                                                       (CId 'slice (LocalId)))))
-                         true)))))
+                         (some '$dict))))))
 
 
 (define (make-under-dict [h : (hashof symbol Address)] [sto : Store]) : CVal
@@ -258,3 +266,10 @@
                       (VObject 'list
                                (some (MetaList (hash-keys contents)))
                                (hash empty))))))
+
+(define (dict-init [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
+  (let ([obj (first args)])
+    (some
+     (VObject (VObjectClass-antecedent obj)
+              (some (MetaDict (make-hash empty)))
+              (VObjectClass-dict obj)))))

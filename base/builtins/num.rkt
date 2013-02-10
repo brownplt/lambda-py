@@ -20,19 +20,24 @@
     (make-hash empty)))
 
 (define int-class
+  
   (seq-ops (list
              (CAssign (CId 'int (GlobalId))
                       (CClass
                         'int
                         (list 'num)
                         (CNone)))
+             
              (def 'int '__init__
-                  (CFunc (list 'self 'other) (none)
-                         (CAssign (CId 'self (LocalId))
-                                  (CApp (CGetField (CId 'other (LocalId)) '__int__)
-                                        (list (CId 'other (LocalId)))
-                                        (none)))
-                         true)))))
+                  (CFunc (list 'self) (some 'args)
+                        (CIf (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
+                             (CAssign (CId 'self (LocalId))
+                                      (py-num 0))
+                             (CAssign (CId 'self (LocalId))
+                                      (CApp (CGetField (py-getitem 'args 0) '__int__)
+                                            (list)
+                                            (none))))
+                        (some 'int))))))
 
 (define float-class
   (seq-ops (list
@@ -45,9 +50,9 @@
                   (CFunc (list 'self 'other) (none)
                          (CAssign (CId 'self (LocalId))
                                   (CApp (CGetField (CId 'other (LocalId)) '__float__)
-                                        (list (CId 'other (LocalId)))
+                                        (list)
                                         (none)))
-                         true)))))
+                         (some 'float))))))
 
 (define num-class 
   (seq-ops (list 
@@ -63,7 +68,7 @@
                                                 (list 
                                                   (CId 'self (LocalId)) 
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__sub__ 
                   (CFunc (list 'self 'other)  (none)
@@ -71,7 +76,7 @@
                                                 (list 
                                                   (CId 'self (LocalId)) 
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
 
              (def 'num '__mult__ 
                   (CFunc (list 'self 'other)  (none)
@@ -79,25 +84,26 @@
                                                 (list 
                                                   (CId 'self (LocalId)) 
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__div__ 
                   (CFunc (list 'self 'other)  (none)
                          (CIf (CApp (CGetField (CId 'other (LocalId)) '__eq__) 
-                                    (list (CId 'other (LocalId)) (make-builtin-num 0))
+                                    (list (make-builtin-num 0))
                                     (none))
+;
                               (CRaise (some (make-exception 'ZeroDivisionError
                                                             "Divided by 0")))
                               (CReturn (CBuiltinPrim 'num/
                                                      (list 
-                                                       (CId 'self (LocalId)) 
-                                                       (CId 'other (LocalId))))))
-                         true))
+                                                      (CId 'self (LocalId)) 
+                                                      (CId 'other (LocalId))))))
+                         (some 'num)))
              
              (def 'num '__floordiv__ 
                   (CFunc (list 'self 'other)  (none)
                          (CIf (CApp (CGetField (CId 'other (LocalId)) '__eq__) 
-                                    (list (CId 'other (LocalId)) (make-builtin-num 0))
+                                    (list (make-builtin-num 0))
                                     (none))
                               (CRaise (some (make-exception 'ZeroDivisionError
                                                             "Divided by 0")))
@@ -105,12 +111,12 @@
                                                      (list 
                                                        (CId 'self (LocalId)) 
                                                        (CId 'other (LocalId))))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__mod__ 
                   (CFunc (list 'self 'other)  (none)
                          (CIf (CApp (CGetField (CId 'other (LocalId)) '__eq__) 
-                                    (list (CId 'other (LocalId)) (make-builtin-num 0))
+                                    (list (make-builtin-num 0))
                                     (none))
                               (CRaise (some (make-exception 'ZeroDivisionError
                                                             "Divided by 0")))
@@ -118,13 +124,13 @@
                                                      (list 
                                                        (CId 'self (LocalId)) 
                                                        (CId 'other (LocalId))))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__str__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'num-str
                                                 (list (CId 'self (LocalId)))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__eq__
                   (CFunc (list 'self 'other) (none)
@@ -132,7 +138,7 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__gt__
                   (CFunc (list 'self 'other) (none)
@@ -140,7 +146,7 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__lt__
                   (CFunc (list 'self 'other) (none)
@@ -148,7 +154,7 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__gte__
                   (CFunc (list 'self 'other) (none)
@@ -156,7 +162,7 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__invrt__
                   (CFunc  (list 'self) (none)
@@ -167,7 +173,7 @@
                                                                 (list (CId 'self (LocalId)) 
                                                                       (make-builtin-num
                                                                        1))))))
-                          true))
+                          (some 'num)))
              
              (def 'num '__abs__
                   (CFunc (list 'self) (none)
@@ -181,7 +187,7 @@
                               (CReturn (CBuiltinPrim 'num+
                                                      (list (make-builtin-num 0)
                                                            (CId 'self (LocalId))))))
-                         true))
+                         (some 'num)))
              
              (def 'num '__lte__
                   (CFunc (list 'self 'other) (none)
@@ -189,12 +195,12 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true))
+                         (some 'num)))
              (def 'num '__cmp__
                   (CFunc (list 'self 'other) (none)
                          (CReturn (CBuiltinPrim 'numcmp
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
-                         true)))))
+                         (some 'num))))))
 

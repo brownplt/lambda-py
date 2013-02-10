@@ -13,37 +13,37 @@
                         'bool
                         (list 'int)
                         (CNone)))
+             
              (def 'bool '__init__
                   (CFunc (list 'self) (some 'args)
                          (CAssign (CId 'self (LocalId))
                                   (CBuiltinPrim 'bool-init
                                                 (list
                                                  (CId 'args (LocalId)))))
-                         true))
+                         (some 'bool)))
 
              (def 'bool '__str__
                   (CFunc (list 'self) (none)
                          (CIf (CApp (CGetField (CId 'self (LocalId)) '__eq__)
-                                    (list (CId 'self (LocalId)) (make-builtin-num 1))
+                                    (list (make-builtin-num 1))
                                     (none))
                               (CReturn (make-builtin-str "True"))
                               (CReturn (make-builtin-str "False")))
-                         true))
+                         (some 'bool)))
+
              (def 'bool '__int__
                   (CFunc (list 'self) (none)
                          (CReturn (CApp (CGetField (CId 'self (LocalId)) '__add__) 
-                                        (list (CId 'self (LocalId)) 
-                                              (make-builtin-num 0))
+                                        (list (make-builtin-num 0))
                                         (none)))
-                         true))
+                         (some 'bool)))
 
              (def 'bool '__float__
                   (CFunc (list 'self) (none)
                          (CReturn (CApp (CGetField (CId 'self (LocalId)) '__add__) 
-                                        (list (CId 'self (LocalId)) 
-                                              (make-builtin-num 0.0))
+                                        (list (make-builtin-num 0.0))
                                         (none)))
-                         true)))))
+                         (some 'bool))))))
 
 (define (make-builtin-bool [b : boolean]) : CExpr
   (CObject 
@@ -58,7 +58,7 @@
      (if (= (length meta-startuple) 0)
        (some false-val) 
        (type-case CVal (first meta-startuple) 
-                  [VClosure (e a s b) (some true-val)] 
+                  [VClosure (e a s b c) (some true-val)] 
                   [VObjectClass (a mval d class)
                                 (if (truthy-object? (VObject a mval d)) 
                                     (some true-val) 

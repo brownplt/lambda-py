@@ -74,9 +74,9 @@
               [PyLam (args body)
                      (LexLam args (recur body))]
               [PyFunc (name args defaults body decorators)
-                      (LexFunc name args (map recur defaults) (recur body) (map recur decorators))]
+                      (LexFunc name args (map recur defaults) (recur body) (map recur decorators) (none))]
               [PyFuncVarArg (name args sarg body decorators)
-                            (LexFuncVarArg name args sarg (recur body) (map recur decorators))]
+                            (LexFuncVarArg name args sarg (recur body) (map recur decorators) (none))]
               [PyReturn (value) (LexReturn (recur value))]
               [PyApp (fun args) (LexApp (recur fun) (map recur args))]
               [PyAppStarArg (fun args stararg)
@@ -190,10 +190,10 @@
               [LexLam (args body)
                      (LexLam args (recur body))]
 
-              [LexFunc (name args defaults body decorators)
-                      (LexFunc name args (map recur defaults) (recur body) (map recur decorators))]
-              [LexFuncVarArg (name args sarg body decorators)
-                            (LexFuncVarArg name args sarg (recur body) (map recur decorators))]
+              [LexFunc (name args defaults body decorators class)
+                      (LexFunc name args (map recur defaults) (recur body) (map recur decorators) class)]
+              [LexFuncVarArg (name args sarg body decorators class)
+                            (LexFuncVarArg name args sarg (recur body) (map recur decorators) class)]
               [LexReturn (value) (LexReturn (recur value))]
               [LexApp (fun args) (LexApp (recur fun) (map recur args))]
               [LexAppStarArg (fun args stararg)
@@ -210,7 +210,7 @@
               [LexComprehen (target iter)
                            (LexComprehen (recur target) (recur iter))]
               
-                                        ; builtin data structures
+                                        ; Builtin data structures
               [LexStr (s) (LexStr s)]
               [LexDict (keys values)
                       (LexDict (map recur keys) (map recur values))]
@@ -429,9 +429,9 @@
                                         ; functions
               [LexLam (args body)
                      (recur body)]
-              [LexFunc (name args defaults body decorators)
+              [LexFunc (name args defaults body decorators class)
                       (flatten (list (map recur defaults) (list (recur body))))]
-              [LexFuncVarArg (name args sarg body decorators)
+              [LexFuncVarArg (name args sarg body decorators class)
                             (recur body)]
               [LexReturn (value) (recur value)]
               [LexApp (fun args) (flatten (list (list (recur fun)) (map recur args)))]
