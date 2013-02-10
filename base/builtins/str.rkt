@@ -28,7 +28,7 @@
                   (CFunc (list 'self 'other) (none) 
                          (CAssign (CId 'self (LocalId))
                                   (CApp (CGetField (CId 'other (LocalId)) '__str__)
-                                        (list (CId 'other (LocalId)))
+                                        (list)
                                         (none)))
                          true))
              (def 'str '__add__
@@ -48,8 +48,7 @@
              (def 'str '__iter__
                   (CFunc (list 'self) (none)
                          (CReturn (CApp (CGetField (CId 'SeqIter (LocalId)) '__init__)
-                                        (list (CObject 'SeqIter (none)) 
-                                              (CId 'self (LocalId)))
+                                        (list (CId 'self (LocalId)))
                                         (none)))
                          true))
              (def 'str '__str__
