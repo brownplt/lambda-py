@@ -240,19 +240,20 @@
 
 ;; get-mro: fetch __mro__ field as a list of classes
 ;; termporarily prepended with cls to avoid self reference in __mro__
-(define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
+#;(define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
   (begin ;(display cls) (display "\n")
   (type-case (optionof Address) (hash-ref (VObjectClass-dict cls) '__mro__)
     [some (w) (cons cls (MetaTuple-v (some-v (VObjectClass-mval (fetch w sto)))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
                                             (pretty cls)))])))
+
 ;; get-mro: fetch __mro__ field as a list of classes, filtered up to thisclass if given
 ;; and prepended with cls to avoid self reference in __mro__
-#;(define (get-mro [cls : CVal] 
+(define (get-mro [cls : CVal] 
                  [thisclass : (optionof CVal)]
                  [sto : Store]) : (listof CVal)
-  (type-case (optionof Address) (hash-ref (VObject-dict cls) '__mro__)
-    [some (w) (let ([mro (cons cls (MetaTuple-v (some-v (VObject-mval (fetch w sto)))))])
+  (type-case (optionof Address) (hash-ref (VObjectClass-dict cls) '__mro__)
+    [some (w) (let ([mro (cons cls (MetaTuple-v (some-v (VObjectClass-mval (fetch w sto)))))])
                 (if (none? thisclass)
                     mro
                     (rest (memq (some-v thisclass) mro))))]
@@ -261,10 +262,10 @@
 
 ;; get-class: retrieve the object's class
 (define (get-class [obj : CVal] [env : Env] [sto : Store]) : CVal
-  (local ([define __class__w (hash-ref (VObject-dict obj) '__class__)]
+  (local ([define __class__w (hash-ref (VObjectClass-dict obj) '__class__)]
           [define w_obj-cls (if (some? __class__w)
                                 __class__w 
-                                (lookup (VObject-antecedent obj) env))])
+                                (lookup (VObjectClass-antecedent obj) env))])
     (type-case (optionof Address) w_obj-cls
       [some (w) (fetch w sto)]
       [none () (error 'get-class (string-append "object without class " 

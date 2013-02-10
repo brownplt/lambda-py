@@ -21,6 +21,7 @@
                         'file
                         (list 'object)
                         (CNone)))
+             
              (def 'file '__init__
                   (CFunc (list 'self 'path 'mode) (none)
                          (CAssign
@@ -29,7 +30,6 @@
                                          (list
                                            (CId 'path (LocalId))
                                            (CId 'mode (LocalId)))))
-<<<<<<< HEAD
                          true))
 
              (def 'file 'read
@@ -66,44 +66,6 @@
                                                   (CId 'self (LocalId)))))
                          true))
              )))
-=======
-                           (some 'file)))
-
-              (def 'read
-                    (CFunc (list 'self) (some 'args)
-                           (match-varargs 'args
-                            [() (CReturn (CBuiltinPrim 'file-readall
-                                                       (list
-                                                        (CId 'self (LocalId)))))]
-                            [('size) (CReturn (CBuiltinPrim 'file-read
-                                                            (list
-                                                             (CId 'self (LocalId))
-                                                             (CId 'size (LocalId)))))])
-                           (some 'file)))
-
-              (def 'readline
-                (CFunc (list 'self) (none)
-                       (CReturn (CBuiltinPrim 'file-readline
-                                              (list
-                                               (CId 'self (LocalId)))))
-                       (some 'file)))
-
-              (def 'write
-                (CFunc (list 'self 'data) (none)
-                       (CReturn (CBuiltinPrim 'file-write
-                                              (list
-                                               (CId 'self (LocalId))
-                                               (CId 'data (LocalId)))))
-                       (some 'file)))
-
-              (def 'close
-                    (CFunc (list 'self) (none)
-                           (CReturn (CBuiltinPrim 'file-close
-                                                  (list
-                                                   (CId 'self (LocalId)))))
-                           (some 'file)))
-              ))))
->>>>>>> master
 
 (define (file-open (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'str 'str
