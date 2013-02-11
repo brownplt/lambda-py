@@ -192,16 +192,24 @@
 
 (define (dict-update (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto '$dict
-     (let ([starargs (MetaTuple-v (some-v (VObjectClass-mval (second args))))])
-        (if (= 1 (length starargs))
-            (let ([target (MetaDict-contents mval1)]
-                  [extras (MetaDict-contents (some-v (VObjectClass-mval (first starargs))))])
-                 (begin
-                   (map (lambda (pair)
-                          (hash-set! target (car pair) (cdr pair)))
-                        (hash->list extras))
-                   (some vnone)))
-            (some vnone)))))
+               (let ([starargs (MetaTuple-v (some-v (VObjectClass-mval (second args))))])
+                 (cond
+                  ;; only work when the argument is a dict, it should handle pair iterators.
+                  [(and (= 1 (length starargs)) 
+                        (VObjectClass? (first starargs)) 
+                        (some? (VObjectClass-mval (first starargs)))
+                        (MetaDict? (some-v (VObjectClass-mval (first starargs)))))
+                   (let ([target (MetaDict-contents mval1)]
+                         [extras (MetaDict-contents (some-v (VObjectClass-mval (first starargs))))])
+                     (begin
+                       (map (lambda (pair)
+                              (hash-set! target (car pair) (cdr pair)))
+                            (hash->list extras))
+                       (some vnone)))]
+                  [(= 0 (length starargs))
+                   (some vnone)]
+                  [else
+                   (none)]))))
 
 (define (dict-keys (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto '$dict
