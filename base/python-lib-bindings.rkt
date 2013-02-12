@@ -198,15 +198,6 @@
                           (CId 'type (LocalId)))))
     false))
 
-; This function returns the first super-class of the instance.
-; It uses the __mro__, but it doesn't implement cooperative
-; multiple inheritance, yet.
-(define super-lambda
-  (CFunc (list 'self) (none)
-         (CReturn
-          (CBuiltinPrim '$super (list (CId 'self (LocalId)))))
-         false))
-
 ;; type should be a (meta)class...
 (define type-lambda
   (CFunc (list 'self) (none)
@@ -246,7 +237,6 @@
         (bind 'isinstance (assign 'isinstance isinstance-lambda))
         (bind 'print (assign 'print print-lambda))
         (bind 'callable (assign 'callable callable-lambda))
-        (bind 'super (assign 'super super-lambda))
         (bind 'type (assign 'type type-lambda))
 
         (bind 'Exception exception)

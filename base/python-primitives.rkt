@@ -240,13 +240,6 @@ primitives here.
              me
              antecedent-class)))]
 
-    ['$super ;; modified to use the __mro__ attibute, but it doesn't support multiple inheritance, yet.
-     (letrec ([me (first args)]
-              [my-antecedent (VObjectClass-antecedent me)]
-              [antecedent-class (fetch (some-v (lookup my-antecedent env)) sto)]
-              [mro (get-mro antecedent-class sto)])
-       (if (> (length mro) 1) (some (second mro)) (none)))]
-
     ['$locals (begin
                ; (display env) (display "\n\n")
                (if (> (length stk) 0) ;; it must be used inside a function
