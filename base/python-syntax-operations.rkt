@@ -15,7 +15,7 @@
 
 (print-only-errors #t)
 
-(define (haiku-error) (error 'err "Errors have occurred.\nWe won't tell you where or why.\nLazy programmers."))
+(define (haiku-error) (error 'haiku "Bad error message, find and fix"))
 
 (define (pyexpr-modify-tree [expr : PyExpr] [special-func : (PyExpr -> LexExpr)]) : LexExpr
   (local (
@@ -248,7 +248,7 @@
        (lambda (e)
          (type-case PyExpr e
            [PyStr (s) (PyLexId (string->symbol s) 'none)]
-           [else (haiku-error)])))
+           [else (error 'pyexpr-modify-tree (format "pyexpr-modify-tree: Not a PyStr ~a" e))])))
       (LexTuple (list (PyLexId 'ji 'none) (LexTuple (list (PyLexId 'yo 'none)))))
       )
 (define (pyexpr-fold-tree [expr : PyExpr] [special-func : (PyExpr -> (listof 'a))]) : (listof 'a)

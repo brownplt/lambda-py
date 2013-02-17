@@ -34,24 +34,24 @@
                        (list (CId 'to-print (LocalId)))
                        (none)))
       (CNone))
-    false))
+    (none)))
 
 (define callable-lambda
   (CFunc (list 'to-check) (none)
       (CReturn
         (CPrim1 'callable (CId 'to-check (LocalId))))
-      false))
+      (none)))
 
 
 (define assert-true-lambda
   (CFunc (list 'check-true) (none)
-    (CIf (CId 'check-true (LocalId)) (CNone) (CError (CStr "Assert failed")))
-    false))
+    (CIf (CId 'check-true (LocalId)) (CNone) (CRaise (some (CStr "Assert failed"))))
+    (none)))
 
 (define assert-false-lambda
   (CFunc (list 'check-false) (none)
-    (CIf (CId 'check-false (LocalId)) (CError (CStr "Assert failed")) (CTrue))
-    false))
+    (CIf (CId 'check-false (LocalId)) (CRaise (some (CStr "Assert failed"))) (CTrue))
+    (none)))
 
 (define assert-equal-lambda
   (CFunc (list 'check1 'check2)  (none)
@@ -59,41 +59,41 @@
                (list (CId 'check1 (LocalId)) (CId 'check2 (LocalId)))
                (none))
          (CNone)
-         (CError (CStr "Assert failed")))
-    false))
+         (CRaise (some (CStr "Assert failed"))))
+    (none)))
 
 (define assert-is-lambda
   (CFunc (list 'check1 'check2) (none)
     (CIf (CPrim2 'Is (CId 'check1 (LocalId)) (CId 'check2 (LocalId)))
          (CNone)
-         (CError (CStr "Assert failed")))
-    false))
+         (CRaise (some (CStr "Assert failed"))))
+    (none)))
 
 (define assert-isnot-lambda
   (CFunc (list 'check1 'check2) (none)
     (CIf (CPrim2 'Is (CId 'check1 (LocalId)) (CId 'check2 (LocalId)))
-         (CError (CStr "Assert failed"))
+         (CRaise (some (CStr "Assert failed")))
          (CNone))
-    false))
+    (none)))
 
 (define assert-in-lambda
   (CFunc (list 'check1 'check2) (none)
     (CIf (desugar (LexBinOp (LexLocalId 'check1 'DUMMY) 'In (LexLocalId 'check2 'DUMMY)))
          (CNone)
-         (CError (CStr "Assert failed")))
-    false))
+         (CRaise (some (CStr "Assert failed"))))
+    (none)))
 
 (define assert-notin-lambda
   (CFunc (list 'check1 'check2) (none)
     (CIf (desugar (LexBinOp (LexLocalId 'check1 'DUMMY) 'In (LexLocalId 'check2 'DUMMY)))
-         (CError (CStr "Assert failed"))
+         (CRaise (some (CStr "Assert failed")))
          (CNone))
-    false))
+    (none)))
 
 (define fail-lambda
   (CFunc (list) (none)
-    (CError (CStr "Assert failed"))
-    false))
+    (CRaise (some (CStr "Assert failed")))
+    (none)))
 
 (define exception
   (seq-ops
@@ -116,13 +116,13 @@
                         (CId 'self (LocalId))
                         '__class__)
                       (CId 'Exception (LocalId))))
-                  true))
+                  (some 'Exception)))
       (def 'Exception '__str__
            (CFunc (list 'self) (none)
                   (CReturn
                     (CBuiltinPrim 'exception-str
                                   (list (CId 'self (LocalId)))))
-                  true)))))
+                  (some 'Exception))))))
 
 (define len-lambda
   (CFunc (list 'self) (none)
@@ -133,7 +133,7 @@
           '__len__)
         (list (CId 'self (LocalId)))
         (none)))
-    false))
+    (none)))
 
 (define min-lambda
   (CFunc (list 'self) (none)
@@ -144,7 +144,7 @@
           '__min__)
         (list (CId 'self (LocalId)))
         (none)))
-    false))
+    (none)))
 
 (define max-lambda
   (CFunc (list 'self) (none)
@@ -155,7 +155,7 @@
           '__max__)
         (list (CId 'self (LocalId)))
         (none)))
-    false))
+    (none)))
 
 (define abs-lambda
   (CFunc (list 'self) (none)
@@ -166,7 +166,7 @@
           '__abs__)
         (list (CId 'self (LocalId)))
         (none)))
-    false))
+    (none)))
 
 (define iter-lambda
   (CFunc (list 'self) (none)
@@ -177,7 +177,7 @@
           '__iter__)
         (list (CId 'self (LocalId)))
         (none)))
-    false))
+    (none)))
 
 (define next-lambda
   (CFunc (list 'self) (none)
@@ -188,7 +188,7 @@
           '__next__)
         (list (CId 'self (LocalId)))
         (none)))
-    false))
+    (none)))
 
 (define isinstance-lambda
   (CFunc (list 'self 'type) (none)
@@ -196,14 +196,21 @@
       (CBuiltinPrim 'isinstance
                     (list (CId 'self (LocalId))
                           (CId 'type (LocalId)))))
-    false))
+    (none)))
 
 ;; type should be a (meta)class...
 (define type-lambda
   (CFunc (list 'self) (none)
          (CReturn
           (CBuiltinPrim '$class (list (CId 'self (LocalId)))))
-         false))
+         (none)))
+
+(define locals-lambda
+  (CFunc (list) (none)
+         (CReturn
+          (CBuiltinPrim '$locals empty))
+         (none)))
+  
 
 
 (define lib-functions
@@ -238,6 +245,8 @@
         (bind 'print (assign 'print print-lambda))
         (bind 'callable (assign 'callable callable-lambda))
         (bind 'type (assign 'type type-lambda))
+
+        (bind 'locals locals-lambda)
 
         (bind 'Exception exception)
         (bind 'NameError (assign 'NameError (make-exception-class 'NameError)))

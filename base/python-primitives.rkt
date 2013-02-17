@@ -63,7 +63,7 @@ primitives here.
     ['num*
         (if (and (some? (VObjectClass-mval (second args)))
                  (MetaStr? (some-v (VObjectClass-mval (second args)))))
-            (builtin-prim 'str* (reverse args) env sto)
+            (builtin-prim 'str* (reverse args) env sto stk)
             (check-types args env sto 'num 'num 
                          (some (VObject 'num (some (MetaNum 
                                                     (* (MetaNum-n mval1) 
