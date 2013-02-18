@@ -11,6 +11,8 @@
          "builtins/set.rkt"
          "builtins/none.rkt"
          "builtins/file.rkt"
+         "builtins/type.rkt"
+         "builtins/method.rkt"
          "util.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
@@ -234,6 +236,11 @@
         (bind 'set set-class)
         (bind 'file file-class)
         (bind 'open file-class)
+        (bind 'type type-class)
+        (bind 'method method-class)
+        (bind 'classmethod classmethod-class)
+        (bind 'staticmethod staticmethod-class)
+        (bind 'super super-class)
 
         (bind 'len (assign 'len len-lambda))
         (bind 'min (assign 'min min-lambda))

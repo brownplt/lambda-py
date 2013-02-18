@@ -22,6 +22,7 @@
          (typed-in racket/base (append : ((listof 'a) (listof 'a) -> (listof'a))))
          (typed-in racket/list (remove-duplicates : ((listof 'a) -> (listof 'a))))
          (typed-in racket/base (immutable? : ((hashof 'a 'b) -> boolean)))
+         (typed-in racket/base (format : (string 'a -> string)))
          )
 
 (define (append3 a b c)
@@ -168,7 +169,10 @@
                                  (define m_env
                                    (cons (hash-set (first env) id_self (some-v w_self)) 
                                          (rest env)))]
-                                (interp-vclosure func m_arges stararg m_env sc stk))]
+                                (begin
+                                  ;(display (format "Method is: ~a\n" vc))
+                                  ;(display (format "Func is: ~a\n" func))
+                                  (interp-vclosure func m_arges stararg m_env sc stk)))]
                              [else
                                ;; for unbound methods, use function application
                                (interp-vclosure vc arges stararg env sfun stk)])]
