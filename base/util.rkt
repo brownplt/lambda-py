@@ -41,15 +41,6 @@
             l1 l2)
       h)))
 
-
-(test (lists->hash (list "a" "b" "c") (list 1 2 3))
-      (let ([h (make-hash empty)])
-        (begin
-          (hash-set! h "a" 1)
-          (hash-set! h "b" 2)
-          (hash-set! h "c" 3) 
-          h)))
-
 (define (make-exception-class [name : symbol]) : CExpr
   (CClass
     name
@@ -70,8 +61,6 @@
     [(empty? small) big]
     [else (list-subtract (list-remove big (first small)) (rest small))])))
 
-(test (list-subtract (list 'a 'b 'c 'd 'e) (list 'c 'e)) (list 'a 'b 'd))
-
 (define (contains-char? [str : string] [c : char] ) : boolean
   (not (empty? (filter (lambda (x) (char=? x c)) (string->list str)))))
 
@@ -81,14 +70,6 @@
         (first strlist)
         (error 'python-desugar:chr (format "cannot convert ~a into a single character" str)))))
 
-(test/exn (chr "hi") "cannot convert hi into a single character")
-(test/exn (chr "") "cannot convert  into a single character")
-
-(test (contains-char? "hello" (chr "l") ) true)
-(test (contains-char? "jasfdjoiewfa" (chr "-") ) false)
-(test (contains-char? "custom-identifier" (chr "-")) true)
-(test (contains-char? "customidentifier" (chr "-")) false)
-
 
 
 (define (list-replace [i : number] [val : 'a] [l : (listof 'a)]) : (listof 'a)
@@ -96,7 +77,6 @@
     [(empty? l) (error 'util "list-replace out of range")]
     [(= 0 i) (cons val (rest l))]
     [else (cons (first l) (list-replace (- i 1) val (rest l)))]))
-(test (list-replace 2 63 (list 1 2 3 4)) (list 1 2 63 4))
 
 (define (immutable-hash-copy h)
   (let ([r (hash empty)])
