@@ -516,6 +516,10 @@
                                        (none)
                                        (rec-desugar body))]
 
+      [LexExceptAs (types name body) (CExcept (map rec-desugar types)
+                                       (some name)
+                                       (rec-desugar body))]
+
       [LexWhile (test body orelse) (CWhile (rec-desugar test)
                                            (rec-desugar body)
                                            (rec-desugar orelse))]
