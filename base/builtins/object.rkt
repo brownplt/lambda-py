@@ -1,4 +1,4 @@
-#lang plai-typed
+#lang plai-typed/untyped
 
 ;; object - the base-class of everything
 (require "../python-core-syntax.rkt" 
