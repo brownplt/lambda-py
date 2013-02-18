@@ -172,12 +172,12 @@
                                                  (LexFunc name args
                                                           (map remove-unneeded-assigns defaults)
                                                           (remove-unneeded-assigns body)
-                                                          decorators
+                                                          (map remove-unneeded-assigns decorators)
                                                           class)]
                                         [LexFuncVarArg (name args sarg body decorators class)
                                                        (LexFuncVarArg name args sarg
                                                                       (remove-unneeded-assigns body)
-                                                                      decorators
+                                                                      (map remove-unneeded-assigns decorators)
                                                                       class)]
                                         [else (error 'remove-unneeded-assigns
                                                      "undefined pattern present without declaration")]
