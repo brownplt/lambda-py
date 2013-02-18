@@ -34,11 +34,12 @@
                               (hash-set sto w_self self)
                               sto)])
     (values
-     (VObject 'method
+     (VObjectClass 'method
               (none)
               (hash 
                (list [values '__func__ w_func]
-                     [values '__self__ w_self])))
+                     [values '__self__ w_self]))
+              (none))
      self_sto)))
 
 ;; classmethod type
