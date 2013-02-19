@@ -277,46 +277,46 @@
                        (define right-c right-r)] 
                  (case op 
                    ['Add (CApp (CGetField left-c '__add__) 
-                               (list left-c right-c)
+                               (list right-c)
                                (none))]
                    ['Sub (CApp (CGetField left-c '__sub__) 
-                               (list left-c right-c)
+                               (list right-c)
                                (none))]
                    ['Mult (CApp (CGetField left-c '__mult__)
-                                (list left-c right-c)
+                                (list right-c)
                                 (none))]
                    ['Div (CApp (CGetField left-c '__div__)
-                               (list left-c right-c)
+                               (list right-c)
                                (none))]
                    ['FloorDiv (CApp (CGetField left-c '__floordiv__)
-                                    (list left-c right-c)
+                                    (list right-c)
                                     (none))]
                    ['Mod (CApp (CGetField left-c '__mod__)
-                               (list left-c right-c)
+                               (list right-c)
                                (none))]
                    ['BitAnd (CApp (CGetField left-c '__and__)
-                                  (list left-c right-c)
+                                  (list right-c)
                                   (none))]
                    ['BitOr (CApp (CGetField left-c '__or__)
-                                 (list left-c right-c)
+                                 (list right-c)
                                  (none))]
                    ['BitXor (CApp (CGetField left-c '__xor__)
-                                  (list left-c right-c)
+                                  (list right-c)
                                   (none))]
                    ['Eq (CApp (CGetField left-c '__eq__)
-                              (list left-c right-c)
+                              (list right-c)
                               (none))]
                    ['Gt (CApp (CGetField left-c '__gt__)
-                              (list left-c right-c)
+                              (list right-c)
                               (none))]
                    ['Lt (CApp (CGetField left-c '__lt__)
-                              (list left-c right-c)
+                              (list right-c)
                               (none))]
                    ['LtE (CApp (CGetField left-c '__lte__)
-                               (list left-c right-c)
+                               (list right-c)
                                (none))]
                    ['GtE (CApp (CGetField left-c '__gte__)
-                               (list left-c right-c)
+                               (list right-c)
                                (none))]
                    ['NotEq (rec-desugar (LexUnaryOp 'Not (LexBinOp left 'Eq right)))]
                    ['In (CApp (CFunc (list 'self 'test) (none)
@@ -340,7 +340,7 @@
                                                                           "is not iterable")))))
                                                         (none))))))
                                      (none))
-                              (list right-c left-c)
+                              (list left-c)
                               (none))]
                    ['NotIn (rec-desugar (LexUnaryOp 'Not (LexBinOp left 'In right)))]
                    [else (CPrim2 op left-c right-c)]))]
