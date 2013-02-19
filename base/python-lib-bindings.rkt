@@ -197,7 +197,7 @@
         (bind 'isinstance (assign 'isinstance isinstance-lambda))
         (bind 'print (assign 'print print-lambda))
         (bind 'callable (assign 'callable callable-lambda))
-        (bind 'locals locals-lambda)
+        (bind 'locals (assign 'locals locals-lambda))
 
         (bind 'Exception exception)
         (bind 'NameError (assign 'NameError (make-exception-class 'NameError)))
