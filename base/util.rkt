@@ -223,15 +223,6 @@
   (let ([cls (fetch (some-v (lookup c env)) s)])
     (object-is-cls? o cls env s)))
 
-;; get-mro: fetch __mro__ field as a list of classes
-;; termporarily prepended with cls to avoid self reference in __mro__
-#;(define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
-  (begin ;(display cls) (display "\n")
-  (type-case (optionof Address) (hash-ref (VObjectClass-dict cls) '__mro__)
-    [some (w) (cons cls (MetaTuple-v (some-v (VObjectClass-mval (fetch w sto)))))]
-    [none () (error 'get-mro (string-append "class without __mro__ field " 
-                                            (pretty cls)))])))
-
 ;; get-mro: fetch __mro__ field as a list of classes, filtered up to thisclass if given
 ;; and prepended with cls to avoid self reference in __mro__
 (define (get-mro [cls : CVal] 

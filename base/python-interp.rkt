@@ -70,7 +70,7 @@
                       (define exn? (filter Exception? argvs-r))]
                   (if (< 0 (length exn?))
                       (first exn?)
-                      (local [(define argvs (map v*s-v argvs-r))
+                      (local [(define argvs argvs-r)
                               (define result
                                 (if (some? stararg)
                                     (local [(define sarg-r
@@ -83,8 +83,12 @@
                                                             (v*s-v sarg-r)))))]
                                       (bind-and-execute 
                                         body opt-class argxs vararg 
-                                        (append argvs l)
-                                        (append arges (map (lambda(x) (make-builtin-num 0)) l))
+                                        (append argvs (map (lambda (v)
+                                                             (v*s v (v*s-s sarg-r) (none)))
+                                                           l))
+                                        (append arges (map (lambda(x)
+                                                             (make-builtin-num 0))
+                                                           l))
                                         env cenv (v*s-s sarg-r) stk)) 
                                     (bind-and-execute
                                       body opt-class argxs vararg
@@ -115,6 +119,8 @@
                   ; Get its constructor
                   (local [(define f (v*s-v (get-field '__init__ vfun (none) env sfun)))
                           ; Create an empty object. This will be the instance of that class.
+                          (define loc (new-loc))
+                          (define nid (new-id))
                           (define o (new-object (MetaClass-c (some-v mval)) afun))]
                     (type-case CVal f
                       [VClosure (cenv argxs vararg body opt-class)
@@ -123,18 +129,18 @@
                                  (define exn? (filter Exception? argvs-r))]
                            (if (< 0 (length exn?))
                                (first exn?)
-                               (local [(define argvs (map v*s-v argvs-r))
-                                       (define loc (new-loc))
-                                       (define nid (new-id))
+                               (local [(define argvs argvs-r)
+                                       (define sto-with-obj (hash-set sc loc o))
+                                       (define obj (v*s o sto-with-obj (some loc)))
                                        ; bind the interpreted arguments to the constructor
                                        (define result (bind-and-execute
                                                         body opt-class argxs vararg
-                                                        (cons o argvs)
+                                                        (cons obj argvs)
                                                         (cons (CId (new-id) (LocalId)) arges)
                                                         (cons (hash-set (first env) nid loc)
                                                               (rest env))
                                                         cenv
-                                                        (hash-set sc loc o)
+                                                        sto-with-obj 
                                                         stk))]
                                  (type-case Result result
                                    [v*s (vb sb ab) (v*s (fetch loc sb) sb (none))]
@@ -212,12 +218,11 @@
 (define (bind-and-execute [body : CExpr]
                           [opt-class : (optionof symbol)]
                           [argxs : (listof symbol)]
-                          [vararg : (optionof symbol)] [argvs : (listof CVal)]
+                          [vararg : (optionof symbol)] [argvs : (listof Result)]
                           [arges : (listof CExpr)] [env : Env]
                           [ext : Env] [sto : Store] [stk : Stack]) : Result
   (local
-    [(define argrs (map (lambda (v) (v*s v sto (none))) argvs))
-     (define-values (env_new sto_new result) (bind-args argxs vararg argrs arges env ext sto))]
+    [(define-values (env_new sto_new result) (bind-args argxs vararg argvs arges env ext sto))]
     (if (some? result)
         (some-v result)
         (local [(define class 

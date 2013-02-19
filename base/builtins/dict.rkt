@@ -268,12 +268,12 @@
                    (some vnone)))))
 
 (define (dict->list [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-     (check-types args env sto '$dict
-                  (local [(define contents (MetaDict-contents mval1))]
-                    (some
-                      (VObject 'list
-                               (some (MetaList (hash-keys contents)))
-                               (hash empty))))))
+  (check-types args env sto '$dict
+               (local [(define contents (MetaDict-contents mval1))]
+                 (some
+                   (VObject 'list
+                            (some (MetaList (hash-keys contents)))
+                            (hash empty))))))
 
 (define (dict-init [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (let ([obj (first args)])
