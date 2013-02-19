@@ -1,4 +1,8 @@
 all:
-	git ls-files | grep '\.rkt$$' | xargs raco make -j 5
+	for foo in `git grep 'lang plai-typed$$' | grep '\.rkt$$'`; do sed -i s/'lang plai-typed$$'/'lang plai-typed\/untyped'/g $foo; done && git ls-files  | grep '\.rkt$$' | xargs raco make -j 5
+
+typecheck:
+	git ls-files | grep '\.rkt$$' | xargs sed -i s/'lang plai-typed\/untyped'/'lang plai-typed'/g && git ls-files | grep '\.rkt$$' | xargs raco make -j 5; git ls-files | grep '\.rkt$$' | xargs sed -i s/'lang plai-typed$$'/'lang plai-typed\/untyped'/g
+
 typed:
-	git diff --name-only | sed s%^%"`git rev-parse --show-toplevel`/"%g | grep '\.rkt$$' | xargs sed -i s/'lang plai-typed\/untyped'/'lang plai-typed'/g && git ls-files | grep '\.rkt$$' | xargs raco make -j 5; git diff --name-only | grep '\.rkt$$' | xargs sed -i s/'lang plai-typed$$'/'lang plai-typed\/untyped'/g
+	for foo in `git grep 'lang plai-typed/untyped' | grep '\.rkt$$'`; do sed -i s/'lang plai-typed\/untyped'/'lang plai-typed'/g $foo; done && git ls-files | grep '\.rkt$$' | xargs raco make -j 5
