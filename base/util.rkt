@@ -211,12 +211,17 @@
                (none))))]))
 
 ;; returns true if the given o is an object of the given class or somehow a
-;; subclass of that one. Modified to look at __mro__ for multiple inheritance. 
-(define (object-is? [o : CVal] [c : symbol] [env : Env] [s : Store]) : boolean
-  (let ([obj-cls (fetch (some-v (lookup (VObjectClass-antecedent o) env)) s)]
-        [cls (fetch (some-v (lookup c env)) s)])
+;; subclass of that one. Modified to look at __mro__ for multiple inheritance
+;; and to use the class object instead of the class name.
+(define (object-is-cls? [o : CVal] [cls : CVal] [env : Env] [s : Store]) : boolean
+  (let ([obj-cls (get-class o env s)])
     (member cls (get-mro obj-cls (none) s))))
 
+;; idem before, but uses class name, preseved for compatibility with check-types macro,
+;; it should be avoided for other uses.
+(define (object-is? [o : CVal] [c : symbol] [env : Env] [s : Store]) : boolean
+  (let ([cls (fetch (some-v (lookup c env)) s)])
+    (object-is-cls? o cls env s)))
 
 ;; get-mro: fetch __mro__ field as a list of classes
 ;; termporarily prepended with cls to avoid self reference in __mro__
@@ -242,14 +247,13 @@
 
 ;; get-class: retrieve the object's class
 (define (get-class [obj : CVal] [env : Env] [sto : Store]) : CVal
-  (local ([define __class__w (hash-ref (VObjectClass-dict obj) '__class__)]
-          [define w_obj-cls (if (some? __class__w)
-                                __class__w 
-                                (lookup (VObjectClass-antecedent obj) env))])
-    (type-case (optionof Address) w_obj-cls
+  (local ([define w_class (if (some? (VObjectClass-class obj))
+                              (VObjectClass-class obj)
+                              (lookup (VObjectClass-antecedent obj) env))])
+    (type-case (optionof Address) w_class
       [some (w) (fetch w sto)]
       [none () (error 'get-class (string-append "object without class " 
-                                            (pretty obj)))])))
+                                                (pretty obj)))])))
 
 
 (define (is? [v1 : CVal]

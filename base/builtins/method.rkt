@@ -96,4 +96,4 @@
                                     (CBuiltinPrim '$self (list))))
                          ;; self and thisclass must be from the calling environment,
                          ;; so mark this method as a function.
-                         (some 'super))))))
+                         (none))))))

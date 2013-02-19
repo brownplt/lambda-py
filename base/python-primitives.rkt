@@ -216,29 +216,16 @@ primitives here.
 
     ;isinstance
     ['isinstance 
-               (if (or (none? (VObjectClass-mval (second args)))
-                       (not (MetaClass? (some-v (VObjectClass-mval (second args))))))
-               (none)
-               (if (object-is? (first args) 
-                               (MetaClass-c 
-                                 (some-v 
-                                   (VObjectClass-mval (second args))))
-                               env
-                               sto)
-                 (some true-val)
-                 (some false-val)))]
+     (if (or (none? (VObjectClass-mval (second args)))
+             (not (MetaClass? (some-v (VObjectClass-mval (second args))))))
+         (none)
+         (if (object-is-cls? (first args) (second args) env sto)
+             (some true-val)
+             (some false-val)))]
 
     ; Returns the class of the given object
     ['$class
-     (local [(define me (first args))
-            (define my-antecedent (VObjectClass-antecedent me))
-            (define antecedent-class (fetch (some-v (lookup my-antecedent env)) sto))
-            (define am-class (and (some? (VObjectClass-mval me))
-                                  (MetaClass? (some-v (VObjectClass-mval me)))))]
-       (some
-         (if am-class
-             me
-             antecedent-class)))]
+     (some (get-class (first args) env sto))]
 
     ['$locals (begin
                ; (display env) (display "\n\n")
