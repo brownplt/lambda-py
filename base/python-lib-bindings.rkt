@@ -28,75 +28,6 @@
 (define-type LibBinding
   [bind (left : symbol) (right : CExpr)])
 
-(define print-lambda
-  (CFunc (list 'to-print) (none) 
-    (CSeq 
-      (CPrim1 'print (CApp 
-                       (CGetField (CId 'to-print (LocalId)) '__str__) 
-                       (list (CId 'to-print (LocalId)))
-                       (none)))
-      (CNone))
-    (none)))
-
-(define callable-lambda
-  (CFunc (list 'to-check) (none)
-      (CReturn
-        (CPrim1 'callable (CId 'to-check (LocalId))))
-      (none)))
-
-
-(define assert-true-lambda
-  (CFunc (list 'check-true) (none)
-    (CIf (CId 'check-true (LocalId)) (CNone) (CRaise (some (CStr "Assert failed"))))
-    (none)))
-
-(define assert-false-lambda
-  (CFunc (list 'check-false) (none)
-    (CIf (CId 'check-false (LocalId)) (CRaise (some (CStr "Assert failed"))) (CTrue))
-    (none)))
-
-(define assert-equal-lambda
-  (CFunc (list 'check1 'check2)  (none)
-    (CIf (CApp (CGetField (CId 'check1 (LocalId)) '__eq__)
-               (list (CId 'check1 (LocalId)) (CId 'check2 (LocalId)))
-               (none))
-         (CNone)
-         (CRaise (some (CStr "Assert failed"))))
-    (none)))
-
-(define assert-is-lambda
-  (CFunc (list 'check1 'check2) (none)
-    (CIf (CPrim2 'Is (CId 'check1 (LocalId)) (CId 'check2 (LocalId)))
-         (CNone)
-         (CRaise (some (CStr "Assert failed"))))
-    (none)))
-
-(define assert-isnot-lambda
-  (CFunc (list 'check1 'check2) (none)
-    (CIf (CPrim2 'Is (CId 'check1 (LocalId)) (CId 'check2 (LocalId)))
-         (CRaise (some (CStr "Assert failed")))
-         (CNone))
-    (none)))
-
-(define assert-in-lambda
-  (CFunc (list 'check1 'check2) (none)
-    (CIf (desugar (LexBinOp (LexLocalId 'check1 'DUMMY) 'In (LexLocalId 'check2 'DUMMY)))
-         (CNone)
-         (CRaise (some (CStr "Assert failed"))))
-    (none)))
-
-(define assert-notin-lambda
-  (CFunc (list 'check1 'check2) (none)
-    (CIf (desugar (LexBinOp (LexLocalId 'check1 'DUMMY) 'In (LexLocalId 'check2 'DUMMY)))
-         (CRaise (some (CStr "Assert failed")))
-         (CNone))
-    (none)))
-
-(define fail-lambda
-  (CFunc (list) (none)
-    (CRaise (some (CStr "Assert failed")))
-    (none)))
-
 (define exception
   (seq-ops
     (list 
@@ -133,7 +64,7 @@
         (CGetField
           (CId 'self (LocalId))
           '__len__)
-        (list (CId 'self (LocalId)))
+        (list)
         (none)))
     (none)))
 
@@ -144,7 +75,7 @@
         (CGetField
           (CId 'self (LocalId))
           '__min__)
-        (list (CId 'self (LocalId)))
+        (list)
         (none)))
     (none)))
 
@@ -155,7 +86,7 @@
         (CGetField
           (CId 'self (LocalId))
           '__max__)
-        (list (CId 'self (LocalId)))
+        (list)
         (none)))
     (none)))
 
@@ -166,7 +97,7 @@
         (CGetField
           (CId 'self (LocalId))
           '__abs__)
-        (list (CId 'self (LocalId)))
+        (list)
         (none)))
     (none)))
 
@@ -177,7 +108,7 @@
         (CGetField
           (CId 'self (LocalId))
           '__iter__)
-        (list (CId 'self (LocalId)))
+        (list)
         (none)))
     (none)))
 
@@ -188,7 +119,7 @@
         (CGetField
           (CId 'self (LocalId))
           '__next__)
-        (list (CId 'self (LocalId)))
+        (list)
         (none)))
     (none)))
 
@@ -200,11 +131,27 @@
                           (CId 'type (LocalId)))))
     (none)))
 
-;; type should be a (meta)class...
-(define type-lambda
-  (CFunc (list 'self) (none)
-         (CReturn
-          (CBuiltinPrim '$class (list (CId 'self (LocalId)))))
+(define print-lambda
+  (CFunc (list 'to-print) (none) 
+         (CSeq 
+          (CPrim1 'print (CApp 
+                          (CGetField (CId 'to-print (LocalId)) '__str__) 
+                          (list)
+                          (none)))
+          (CNone))
+         (none)))
+
+(define callable-lambda
+  (CFunc (list 'to-check) (none)
+         (CSeq
+          (CTryExceptElseFinally
+           ;; try to get __call__ attribute and return True
+           (CSeq
+            (CGetField (CId 'to-check (LocalId)) '__call__)
+            (CReturn (CTrue)))
+           (list (CExcept (list) (none) (CNone))) (CNone) (CNone))
+          ;; use the primary operator
+          (CReturn (CPrim1 'callable (CId 'to-check (LocalId)))))
          (none)))
 
 (define locals-lambda
@@ -213,7 +160,6 @@
           (CBuiltinPrim '$locals empty))
          (none)))
   
-
 
 (define lib-functions
   (list (bind 'True (assign 'True (CTrue)))
@@ -251,8 +197,6 @@
         (bind 'isinstance (assign 'isinstance isinstance-lambda))
         (bind 'print (assign 'print print-lambda))
         (bind 'callable (assign 'callable callable-lambda))
-        (bind 'type (assign 'type type-lambda))
-
         (bind 'locals locals-lambda)
 
         (bind 'Exception exception)
@@ -269,15 +213,7 @@
         (bind 'ZeroDivisionError
               (assign 'ZeroDivisionError (make-exception-class 'ZeroDivisionError)))
         (bind 'StopIteration (assign 'StopIteration (make-exception-class 'StopIteration)))
-
-        (bind '___assertEqual (CAssign (CId '___assertEqual (GlobalId)) assert-equal-lambda))
-        (bind '___assertTrue (CAssign (CId '___assertTrue (GlobalId)) assert-true-lambda))
-        (bind '___assertFalse (CAssign (CId '___assertFalse (GlobalId)) assert-false-lambda))
-        (bind '___assertIs (CAssign (CId '___assertIs (GlobalId)) assert-is-lambda))
-        (bind '___assertIsNot (CAssign (CId '___assertIsNot (GlobalId)) assert-isnot-lambda))
-        (bind '___assertIn (CAssign (CId '___assertIn (GlobalId)) assert-in-lambda))
-        (bind '___assertNotIn (CAssign (CId '___assertNotIn (GlobalId)) assert-notin-lambda))
-        (bind '___fail (CAssign (CId '___fail (GlobalId)) fail-lambda))))
+        (bind 'AssertionError (assign 'AssertionError (make-exception-class 'AssertionError)))))
 
 (define lib-function-dummies
   (append
@@ -289,8 +225,17 @@
             (bind 'all (CUndefined))
             (bind 'any (CUndefined))
             (bind 'range (CUndefined))
-            ;(bind '___assertRaises (CUndefined))
             (bind 'filter (CUndefined))
-            (bind 'dicteq (CUndefined)))
+            (bind 'dicteq (CUndefined))
+            ;; test functions defined in py-prelude.py
+            (bind '___assertEqual (CUndefined))
+            (bind '___assertTrue (CUndefined))
+            (bind '___assertFalse (CUndefined))
+            (bind '___assertIs (CUndefined))
+            (bind '___assertIsNot (CUndefined))
+            (bind '___assertIn (CUndefined))
+            (bind '___assertNotIn (CUndefined))
+            (bind '___fail (CUndefined))
+            (bind '___assertRaises (CUndefined)))
       empty empty empty))
 
