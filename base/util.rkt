@@ -308,20 +308,20 @@
 
 (define (pretty-exception [exn : CVal] [sto : Store]) : string
   (local [(define name (symbol->string (VObjectClass-antecedent exn)))
-          (define args (hash-ref (VObjectClass-dict exn) 'args))
-          (define pretty-args (if (some? args)
+          (define args-loc (hash-ref (VObjectClass-dict exn) 'args))
+          (define pretty-args (if (some? args-loc)
                                   (string-join 
                                     (map pretty
                                          (MetaTuple-v
                                            (some-v
                                              (VObjectClass-mval
-                                               (fetch (some-v args) sto)))))
+                                               (fetch (some-v args-loc) sto)))))
                                     " ")
                                   ""))]
     (if (not (string=? pretty-args ""))
         (string-append name 
                        (string-append ": "
-                                      args))
+                                      pretty-args))
         name)))
 
 (define (make-exception [name : symbol] [error : string]) : CExpr
