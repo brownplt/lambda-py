@@ -931,6 +931,7 @@
     [VClosure (e a s b o) true]
     [VObjectClass (a mval d class) (truthy-object? (VObjectClass a mval d class))]
     [VUndefined () false]
+    [VSym (t) (equal? t 'true)]
     [else (error 'truthy? "Shouldn't check truthiness of Pointer.")]))
 
 (define (interp-cprim2 [prim : symbol] 

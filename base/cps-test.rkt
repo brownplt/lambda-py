@@ -2,6 +2,7 @@
 
 (require
   "util.rkt"
+  "builtins/num.rkt"
   "python-lib.rkt"
   "python-core-syntax.rkt"
   "python-cps.rkt")
@@ -60,30 +61,42 @@
 
 #;(test (cps (CWhile (CTrue) (CStr "body") (CStr "else")))
       (pylam (K R E B C)
-        (CLet '-while (CNone)
-          (CSeq
-            (CAssign (Id '-while)
+        (Let '-while (CSym 'nothing)
+        (Let '-continue (CSym 'nothing)
+        (Let '-elsethunk
+          (pylam ()
+            (pyapp
               (pylam (K R E B C)
+                (pyapp Ki (CStr "else")))
+              Ki Ri Ei Bi Ci))
+            (CSeq
+              (CAssign (Id '-while)
                 (pylam (K R E B C)
-                  (pyapp Ki (CTrue)))
-                (pylam (V)
-                 (CIf
-                   Vi
-                   (pyapp
+                  (pyapp
                     (pylam (K R E B C)
-                      (pyapp Ki (CStr "body")))
+                      (pyapp Ki (CTrue)))
                     (pylam (V)
-                      (pyapp (Id '-while) Ki Ri Ei Bi Ci))
-                    Ri Ei Bi Ci)
-                   (pyapp
-                    (pylam (K R E B C)
-                      (pyapp Ki (CStr "else")))
-                    ;; TODO(joe): should these be the
-                    ;; outer bindings for the else block?
-                    Ki Ri Ei Bi Ci)))
-                 Ri Ei Bi Ci))
-            ;; TODO(joe): Bi/Ci special
-            (pyapp (Id '-while) Ki Ri Ei Bi Ci)))))
+                     (CIf
+                       Vi
+                       (pyapp
+                        (pylam (K R E B C)
+                          (pyapp Ki (CStr "body")))
+                        (pylam (V)
+                          (pyapp (Id '-while) Ki Ri Ei Bi Ci))
+                        Ri Ei Bi Ci)
+                       (pyapp (Id '-elsethunk))))
+                     Ri Ei Bi Ci)))
+            (CSeq
+              (CAssign '-continue
+                (pylam (V)
+                  (pyapp
+                   (Id '-while)
+                   Ki
+                   Ri
+                   Ei
+                   (pylam (V) (pyapp (Id '-elsethunk)))
+                   (Id '-continue))))
+              (pyapp (Id 'continue) (CSym 'nothing)))))))))
 
 ;; TODO(joe): I thinks some logic from interp needs to
 ;; go to desugar to make this work with excepts, etc.
@@ -110,4 +123,21 @@
 
 (test (cps-eval (CSeq (CSym 'foo) (CSym 'bar)))
       (VSym 'bar))
+
+(test (cps-eval (CWhile (CSym 'false) (CSym 'body) (CSym 'else)))
+      (VSym 'else))
+
+;; TODO(joe): need builtin prim (list cps) for this to work.
+#;(test (cps-eval
+  (Let 'x (make-builtin-num 0)
+    (CWhile (CTrue)
+      (CIf
+        (CBuiltinPrim 'num> (list (Id 'x) (make-builtin-num 10)))
+        (CBreak)
+        (CNone))
+      (CSym 'finished))))
+  (VSym 'finished))
+
+#;(test (cps-eval (CWhile (CSym 'true) (CSym 'body) (CSym 'else)))
+      (VSym 'body))
 
