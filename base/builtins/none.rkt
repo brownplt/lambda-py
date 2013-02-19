@@ -28,3 +28,7 @@
     (some (MetaNone))
     (hash empty)))
 
+(define (renew-none val)
+  (begin
+    (set! vnone val)
+    vnone))
