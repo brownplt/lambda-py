@@ -176,8 +176,11 @@
         (bind 'tuple tuple-class)
         ; this is a hack because one test overrides the dict name, 
         ; we should do this $ thing for all builtin names for this reason
+        ; TODO: I think we should try to avoid doing this, it was just hiding a problem:
+        ; the use of the class name instead of the class object (or a reference to it) 
+        ; as unique identifier for the class (Alejandro).
         (bind '$dict dict-class) 
-        (bind 'dict (CId '$dict (GlobalId)))
+        (bind 'dict (assign 'dict (CId '$dict (GlobalId))))
         (bind 'bool bool-class)
         (bind 'set set-class)
         (bind 'file file-class)
