@@ -73,9 +73,9 @@
 
 (define (cps-eval expr)
   (interp (pyapp (cps expr)
-                 (pylam (V) V)
-                 (pylam (V) (CRaise (CStr "Top-level return")))
-                 (pylam (V) (CRaise (CStr "Top-level exception")))
-                 (pylam (V) (CRaise (CStr "Top-level break")))
-                 (pylam (V) (CRaise (CStr "Top-level continue"))))))
+                 (pylam (V) (Id V)) ;todo - I assume this was the intention.
+                 (pylam (V) (CRaise (some (CStr "Top-level return"))))
+                 (pylam (V) (CRaise (some (CStr "Top-level exception"))))
+                 (pylam (V) (CRaise (some (CStr "Top-level break"))))
+                 (pylam (V) (CRaise (some (CStr "Top-level continue")))))))
 
