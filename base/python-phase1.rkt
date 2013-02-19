@@ -1,4 +1,4 @@
-#lang plai-typed
+#lang plai-typed/untyped
 
 (require "python-syntax.rkt"
          "python-core-syntax.rkt"
@@ -22,6 +22,7 @@
   (call/cc
    (lambda (outer)
      (begin
+       (display "this is a print statement")
        (call/cc
         (lambda (inner)
           (outer (lexexpr-modify-tree expr (lambda (x) (if (fun x) (haiku-error) (inner (display message))))))))
