@@ -319,9 +319,9 @@
                                (list right-c)
                                (none))]
                    ['NotEq (rec-desugar (LexUnaryOp 'Not (LexBinOp left 'Eq right)))]
-                   ['In (CApp (CFunc (list 'self 'test) (none)
+                   ['In (CApp (CFunc (list 'container 'test) (none)
                                      (CLet '__infunc__ (LocalId)
-                                           (CGetField (CId 'self (LocalId))
+                                           (CGetField (CId 'container (LocalId))
                                                       '__in__)
                                            (CIf (CId '__infunc__ (LocalId))
                                                 (CReturn
@@ -340,7 +340,7 @@
                                                                           "is not iterable")))))
                                                         (none))))))
                                      (none))
-                              (list left-c)
+                              (list right-c left-c)
                               (none))]
                    ['NotIn (rec-desugar (LexUnaryOp 'Not (LexBinOp left 'In right)))]
                    [else (CPrim2 op left-c right-c)]))]

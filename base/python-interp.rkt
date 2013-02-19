@@ -96,7 +96,7 @@
                           [Break (sb) (break-exception sb)]
                           [Continue (sb) (continue-exception sb)]
                           [Exception (vb sb) (Exception vb sb)]))))]
-    [else (error 'interp "Not a closure or constructor.")]))
+    [else (error 'interp "Not a closure.")]))
 
 (define (interp-capp [fun : CExpr] [arges : (listof CExpr)] 
                      [stararg : (optionof CExpr)]
@@ -184,7 +184,7 @@
                                                              (symbol->string b)
                                                              " object is not callable")
                                                            sto)])))]
-      [else (error 'interp "Not a closure or constructor")])]
+      [else (error 'interp "Not a closure or constructor.")])]
    [Return (vfun sfun afun) (return-exception sfun)]
    [Break (sfun) (break-exception sfun)]
    [Continue (sfun) (continue-exception sfun)]
@@ -340,16 +340,14 @@
 
 (define (interp-let [name : symbol] [type : IdType] [value : Result]
                     [body : CExpr] [env : Env] [stk : Stack]) : Result
-  (local [(define-values (val sto mayb-loc)
+  (local [(define-values (val sto)
             (type-case Result value
-              [v*s (v s a) (values v s a)]
-              [Return (v s a) (values v s a)]
-              [Break (s) (values vnone s (none))]
-              [Continue (s) (values vnone s (none))] 
-              [Exception (v s) (values v s (none))]))
-          (define loc (if (some? mayb-loc)
-                          (some-v mayb-loc)
-                          (new-loc)))
+              [v*s (v s a) (values v s)]
+              [Return (v s a) (values v s)]
+              [Break (s) (values vnone s)]
+              [Continue (s) (values vnone s)] 
+              [Exception (v s) (values v s)]))
+          (define loc (new-loc))
           (define newenv (cons (hash-set (first env) name loc) (rest env)))]
     (interp-env body
                 ; Needed still?
@@ -731,7 +729,7 @@
 (define (get-field [n : symbol] [c : CVal] [w_c : (optionof Address)] 
                    [e : Env] [s : Store]) : Result
   (begin ;(display "GET: ") (display n) (display " ") (display c) 
-         ;(display " ") (display w_c) (display "\n")
+         ;(display " ") (display w_c) (display "\n\n")
          ;(display e) (display "\n\n")
     (cond
       [(not (VObjectClass? c))
@@ -1118,8 +1116,7 @@
                      (cond
                        ;; For functions, create method object bound to the object itself
                        [(VClosure? value) 
-                        (local [(define-values (meth sto-m) 
-                                  (mk-method w obj w_obj sto))]
+                        (local [(define-values (meth sto-m) (mk-method w obj w_obj sto))]
                           (v*s meth sto-m (some w)))]
                        ;; for classmethod objects create method object bound to the object's class
                        [(and (VObjectClass? value) 

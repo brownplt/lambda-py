@@ -30,9 +30,7 @@
 (define (mk-method [w_func : Address] [self : CVal] [opt_w_self : (optionof Address)]
                    [sto : Store]) : (CVal * Store)
   (local ([define w_self (if (some? opt_w_self) (some-v opt_w_self) (new-loc))]
-          [define self_sto (if (none? opt_w_self) 
-                              (hash-set sto w_self self)
-                              sto)])
+          [define self_sto (if (none? opt_w_self) (hash-set sto w_self self) sto)])
     (values
      (VObjectClass 'method
               (none)
