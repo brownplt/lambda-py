@@ -3,12 +3,13 @@
 (require
   "python-core-syntax.rkt"
   "python-interp.rkt"
+  (typed-in racket/base (format : (string 'a -> string)))
   (typed-in racket/base (gensym : (symbol -> symbol))))
 
 (define-syntax pylam
   (syntax-rules ()
     [(_ (arg ...) body)
-     (CFunc (list arg ...) (none) body (none))]))
+     (CFunc (list arg ...) (none) (CReturn body) (none))]))
 
 (define-syntax pyapp
   (syntax-rules ()
@@ -41,6 +42,7 @@
   ]
   (type-case CExpr expr
     [CStr (s) (const expr)]
+    [CSym (s) (const expr)]
     [CTrue () (const expr)]
     [CFalse () (const expr)]
     [CNone () (const expr)]
@@ -69,13 +71,21 @@
      (pylam (K R E B C)
        (pyapp (cps val) Ri Ri Ei Bi Ci))]
 
-    [else (error 'cps "Not handled")])))
+    [CRaise (val)
+     (pylam (K R E B C)
+       (pyapp (cps val) Ei Ri Ei Bi Ci))]
+
+    [else (error 'cps (format "Not handled: ~a" expr))])))
 
 (define (cps-eval expr)
-  (interp (pyapp (cps expr)
-                 (pylam (V) (Id V)) ;todo - I assume this was the intention.
-                 (pylam (V) (CRaise (some (CStr "Top-level return"))))
-                 (pylam (V) (CRaise (some (CStr "Top-level exception"))))
-                 (pylam (V) (CRaise (some (CStr "Top-level break"))))
-                 (pylam (V) (CRaise (some (CStr "Top-level continue")))))))
+  (v*s-v
+    (interp-env
+      (pyapp (cps expr)
+             ; NOTE(joe): Not todo.  This is the base case of CPS
+             (pylam (V) (Id V))
+             (pylam (V) (CRaise (some (CStr "Top-level return"))))
+             (pylam (V) (CRaise (some (CStr "Top-level exception"))))
+             (pylam (V) (CRaise (some (CStr "Top-level break"))))
+             (pylam (V) (CRaise (some (CStr "Top-level continue")))))
+      (list (hash empty)) (hash empty) empty)))
 
