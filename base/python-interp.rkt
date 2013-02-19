@@ -215,9 +215,9 @@
                           [vararg : (optionof symbol)] [argvs : (listof CVal)]
                           [arges : (listof CExpr)] [env : Env]
                           [ext : Env] [sto : Store] [stk : Stack]) : Result
-  (local [
-    (define argrs (map (lambda (v) (v*s v sto (none))) argvs))
-    (define-values (env_new sto_new result) (bind-args argxs vararg argrs arges env ext sto))]
+  (local
+    [(define argrs (map (lambda (v) (v*s v sto (none))) argvs))
+     (define-values (env_new sto_new result) (bind-args argxs vararg argrs arges env ext sto))]
     (if (some? result)
         (some-v result)
         (local [(define class 
@@ -235,6 +235,10 @@
                     ;; used the dynamic environment for compatibility with base code.
                     ;; TODO(joe): env_new vs env in the Frame?  We lost dyn in
                     ;; the update for scope
+                    ;;
+                    ;; As far as I could tell, dyn was a copy of env, so I got rid of it.
+                    ;; I think env is right here.
+                    ;; - Sumner
                     (cons (Frame env class self) stk))))))
 
 (define (interp-excepts [excepts : (listof CExpr)]
@@ -423,6 +427,9 @@
                   [Exception (v s) (Exception v s)]))]
     
     ;; TODO(joe): first non in VOBjectClass below?
+    ;;
+    ;; The (none) is fine here because we aren't placing the object in the store yet.
+    ;; - Sumner
     [CStr (s) (v*s (VObjectClass 'str (some (MetaStr s)) (hash empty) (none)) sto (none))]
     [CTrue () (v*s true-val sto (none))]
     [CFalse () (v*s false-val sto (none))]
@@ -481,6 +488,9 @@
              (begin
                (interp-pairs (hash->list contents))
                ;; TODO(joe): none in VObjectClass again
+               ;;
+               ;; Fine again here; not placing it in the store;
+               ;; - Sumner
                (v*s (VObjectClass '$dict
                               (some (MetaDict interped-hash))
                               (hash empty)
@@ -495,6 +505,9 @@
                       (first exn?) 
                       (let ([val-list (map v*s-v result-list)])
                            ;; TODO(joe): none in VObjectClass again
+                           ;; 
+                           ;; and again.
+                           ;; - Sumner
                            (v*s (VObjectClass 'set
                                          (some (MetaSet (make-set val-list)))
                                          (hash empty)
@@ -635,7 +648,7 @@
                               "No active exception to reraise"
                               sto))]
     
-    ;; revisit this, I think there are some errors with finally
+    ;; revisit this, I think there are some errors with finally (Sumner)
     ;; TODO(joe): Who wrote the above?  Please sign your comments.  What
     ;; finally tests do you fear failures on?
     [CTryExceptElseFinally (try excepts orelse finally)
@@ -663,8 +676,8 @@
                          (if (empty? excepts)
                              (Exception vtry stry)
                              (interp-excepts excepts stry env (Exception vtry stry) stk)))]
-                 ;; TODO: make sure this is still right!
-                 ;; TODO: It's not. Fix it.
+                 ;; TODO(Sumner): make sure this is still right!
+                 ;; TODO(Sumner): It's not. Fix it.
                  ;; TODO(joe): Please sign your comments so we know who to
                  ;; contact with questions.  It's fine that it doesn't work,
                  ;; but everyone should know who to ask for how to get started
@@ -858,7 +871,7 @@
                  (define loc
                    (if (some? av)
                        (type-case CVal vv
-                         ;; TODO: better mutability check?
+                         ;; TODO(Sumner): better mutability check?
                          [VObjectClass (ante-name mayb-mval dict class)
                                   (if (some? mayb-mval)
                                       (type-case MetaVal (some-v mayb-mval)
@@ -870,6 +883,7 @@
                          [else (new-loc)])
                        (new-loc)))
                  (define e (cons (hash-set (first ext) (first args) loc) (rest ext)))
+                 ; TODO(Sumner): why env and not ext here?
                  (define s (hash-set sto loc (set-class vv env)))]
            (bind-args (rest args) sarg (rest vals) (rest arges) env e s))]))
 
@@ -1027,6 +1041,15 @@
 
          ;; TODO(joe): the (none) at the end of VObjectClass is questionable
          ;; here, as well, because I'm touching code I don't fully understand
+         ;;
+         ;; The last field in VObjectClass an optionof location of the class of
+         ;; the object in the store. Here, it would be the store location of the
+         ;; object representing the class 'tuple'. We decided to maintain an invariant
+         ;; that all objects placed into the store would have this field filled in.
+         ;; That means it's fine to have (none) here because we are only creating an
+         ;; object; we're not placing it in the store right now. It will get filled in
+         ;; elsewhere.
+         ;; - Sumner
          (v*s (VObjectClass 'tuple (some (MetaTuple (some-v maybe-mro))) (hash empty) (none))
               sto
               (none)))])))
