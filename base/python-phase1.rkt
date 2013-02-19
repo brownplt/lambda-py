@@ -22,7 +22,7 @@
   (call/cc
    (lambda (outer)
      (begin
-       (display "this is a print statement")
+
        (call/cc
         (lambda (inner)
           (outer (lexexpr-modify-tree expr (lambda (x) (if (fun x) (haiku-error) (inner (display message))))))))
@@ -88,6 +88,18 @@
            [LexInstanceId (x ctx) (LexDotField class-expr x)]
            [LexClass (scope name bases body) (LexClass scope name bases body)]
            [else (haiku-error)]))))
+    (define (annotate-methods-with-class expr classname)
+      (lexexpr-modify-tree
+       expr
+       (lambda (y)
+         (type-case LexExpr y
+           [LexFunc (name args defaults body decorators class)
+                    (LexFunc name args defaults body decorators (some classname))]
+           [LexFuncVarArg (name args sarg body decorators class)
+                          (LexFuncVarArg name args sarg body decorators (some classname)) ]
+           [LexClass (scope name bases body)
+                     (LexClass scope name bases (annotate-methods-with-class body name))]
+           [else (haiku-error)]))))
     (define (deal-with-class expr class-expr)
       (lexexpr-modify-tree
        expr
@@ -104,7 +116,9 @@
                           (LexSeq (list (LexAssign
                                          (list class-expr)
                                          (LexClass scope name bases (LexPass)))
-                                        (deal-with-class new-body class-expr)))))]
+                                        (deal-with-class
+                                         (annotate-methods-with-class new-body name)
+                                         class-expr)))))]
             [else (haiku-error)]))))
     (define (top-level-deal-with-class expr)
       (lexexpr-modify-tree
