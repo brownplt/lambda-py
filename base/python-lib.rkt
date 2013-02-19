@@ -1,4 +1,4 @@
-#lang plai-typed
+#lang plai-typed/untyped
 
 (require "python-core-syntax.rkt")
 (require "builtins/num.rkt"
@@ -20,6 +20,7 @@
          (typed-in "parse-python.rkt"
                    (parse-python/port : ('a string -> 'b)))
          (typed-in racket/base (open-input-file : ('a -> 'b)))
+         (typed-in racket/base (close-input-port : ('a -> 'b)))
          "python-syntax.rkt"
          "python-lexical-syntax.rkt"
          "python-desugar.rkt"
@@ -39,13 +40,16 @@ that calls the primitive `print`.
 ;; these are builtin functions that we have written in actual python files which
 ;; are pulled in here and desugared for lib purposes
 (define (get-pylib-programs)
-  (map (lambda(file) 
-         (desugar 
-           (new-scope-phase
-             (get-structured-python 
-               (parse-python/port 
-                 (open-input-file file)
-                 (get-pypath))))))
+  (map (lambda (file) 
+    (local [
+      (define f (open-input-file file))
+      (define pyast (parse-python/port f (get-pypath)))
+    ]
+    (begin
+      (close-input-port f)
+      (desugar 
+        (new-scope-phase
+          (get-structured-python pyast))))))
        (list "pylib/range.py"
              "pylib/seq_iter.py"
              "pylib/filter.py"

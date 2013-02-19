@@ -1,4 +1,4 @@
-#lang plai-typed
+#lang plai-typed/untyped
 
 ;; type - the metaclass of everything
 (require "../python-core-syntax.rkt" 

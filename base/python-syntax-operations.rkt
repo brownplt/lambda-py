@@ -1,4 +1,4 @@
-#lang plai-typed
+#lang plai-typed/untyped
 
 (require "python-syntax.rkt"
          "python-core-syntax.rkt"
@@ -243,14 +243,7 @@
               ret
           ))))
 
-(test (pyexpr-modify-tree
-       (PyTuple (list (PyStr "ji") (PyTuple (list (PyStr "yo")))))
-       (lambda (e)
-         (type-case PyExpr e
-           [PyStr (s) (PyLexId (string->symbol s) 'none)]
-           [else (error 'pyexpr-modify-tree (format "pyexpr-modify-tree: Not a PyStr ~a" e))])))
-      (LexTuple (list (PyLexId 'ji 'none) (LexTuple (list (PyLexId 'yo 'none)))))
-      )
+
 (define (pyexpr-fold-tree [expr : PyExpr] [special-func : (PyExpr -> (listof 'a))]) : (listof 'a)
   (local (
         (define (default this-expr)

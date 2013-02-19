@@ -1,4 +1,4 @@
-#lang plai-typed
+#lang plai-typed/untyped
 
 (require "python-core-syntax.rkt"
          "python-primitives.rkt"
@@ -1056,27 +1056,6 @@
             (if (any (map (lambda (xs) (member el (rest xs))) xss))
                 (c3-select xss (add1 n))
                 (some el)))]))
-
-(define ex1 (list (list 'o)))
-(test (c3-merge ex1 empty) (some (list 'o)))
-(define ex2 (list (list 'a 'o) 
-                  (list 'o)))
-(define ex3 (list (list 'a 'o)
-                  (list 'b 'a 'o)
-                  (list 'a 'b)))
-(test (c3-merge ex3 empty) (none))
-(define ex4 (list (list 'a 'o)
-                  (list 'c 'a 'o)
-                  (list 'b 'a 'o)
-                  (list 'a 'c 'b)))
-(test (c3-merge ex4 empty) (none))
-(test (c3-merge ex2 empty) (some (list 'a 'o)))
-(define ex5 (list (list 'd 'c 'b 'a 'o)
-                  (list 'c 'a 'o)
-                  (list 'b 'a 'o)
-                  (list 'a 'o)
-                  (list 'o)))
-(test (c3-merge ex5 empty) (some (list 'd 'c 'b 'a 'o)))
 
 ;; get-field-from-obj: looks for a field of an object using the class __mro__
 ;; skip up to thisclass in __mro__, if defined.
