@@ -233,7 +233,7 @@
                 (define self 
                   (if (and (some? opt-class) (> (length argvs) 0))
                       ;; self is the first argument, if any, for methods
-                      (some (first argvs))
+                      (some (v*s-v (first argvs)))
                       (none)))]
         (interp-env body env_new sto_new 
                     ;; push new activation record on the stack
