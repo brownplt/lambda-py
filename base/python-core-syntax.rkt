@@ -80,12 +80,15 @@ ParselTongue.
 (define-type-alias Address number)
 (define Address->string number->string)
 (define-type-alias Store (hashof Address CVal))
-(define new-loc
+(define-values (new-loc reset-loc)
   (let ([n (box 0)])
-    (lambda ()
-      (begin
-        (set-box! n (add1 (unbox n)))
-        (unbox n)))))
+    (values
+      (lambda ()
+        (begin
+          (set-box! n (add1 (unbox n)))
+          (unbox n)))
+      (lambda ()
+        (set-box! n 0)))))
 
 (define-type Result
   [v*s (v : CVal) (s : Store) (a : (optionof Address))]
@@ -117,7 +120,8 @@ ParselTongue.
             (type-case (optionof CVal) (hash-ref sto w)
               [some (v) v]
               [none () (error 'interp
-                              (string-append "No value at address " (Address->string w)))]))]
+                              (begin ;(display sto)
+                              (string-append "No value at address " (Address->string w))))]))]
     (if (VPointer? val)
         (fetch (VPointer-a val) sto)
         val)))
