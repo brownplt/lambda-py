@@ -893,6 +893,8 @@
   (mk-exception 'SyntaxError "'continue' outside loop" sto))
 
 (define (interp expr)
+(begin
+  (reset-loc)
   (type-case Result (interp-env expr (list (hash empty)) (hash empty) empty)
     [v*s (vexpr sexpr aexpr) (display "")]
     [Return (vexpr sexpr aexpr)
@@ -914,7 +916,7 @@
                                                    (Exception-s exn))
                                  "\n")))] 
     [Exception (vexpr sexpr)
-               (raise-user-error (string-append (pretty-exception vexpr sexpr) "\n"))]))
+               (raise-user-error (string-append (pretty-exception vexpr sexpr) "\n"))])))
 
 (define (truthy? [val : CVal]) : boolean
   (type-case CVal val
