@@ -5,6 +5,8 @@
   "builtins/num.rkt"
   "python-lib.rkt"
   "python-core-syntax.rkt"
+  "python-interp.rkt"
+  "python-lib.rkt"
   "python-cps.rkt")
 
 (test (pylam ('k) (CId 'x (LocalId)))
@@ -58,6 +60,20 @@
           (pylam (K R E B C)
             (pyapp Ki (CStr "bar")))
           Ei Ri Ei Bi Ci)))
+
+#|
+(test (cps (CBuiltinPrim 'num+ (CStr "as") (CStr "foo") (CStr "bar")))
+  (pylam (K R E B C)
+    (pyapp
+      (pylam (K R E B C) (pyapp Ki (CStr "as")))
+      (pylam (V)
+        (pyapp
+          (pylam (K R E B C) (pyapp Ki (CStr "foo")))
+          (pylam (V2)
+            (pyapp
+              (pylam (K R E B C) (pyapp Ki (CStr "bar")))
+              (pyapp Ki (CBuiltinPrim 'num+ Vi V2i
+              |#
 
 #;(test (cps (CWhile (CTrue) (CStr "body") (CStr "else")))
       (pylam (K R E B C)
@@ -127,16 +143,42 @@
 (test (cps-eval (CWhile (CSym 'false) (CSym 'body) (CSym 'else)))
       (VSym 'else))
 
+(test (cps-eval (pyapp (gid 'print) (CStr "foo")))
+      (VObjectClass 'none (some (MetaNone)) (hash empty) (none)))
+
+(define fun-expr (CApp (CFunc (list) (some 'arg)
+			      (CReturn (Id 'arg))
+			      (none))
+		       (list)
+		       (some (CTuple (list (CStr "foo-starred"))))))
+
+(test (VObjectClass-mval
+       (first (MetaTuple-v (some-v (VObjectClass-mval
+		       (cps-eval fun-expr))))))
+      (some (MetaStr "foo-starred")))
+
+(define tuple-field-expr (pyget (CTuple (list (CSym 'foo)))
+				(make-builtin-num 0)))
+(test (cps-eval tuple-field-expr)
+      (VSym 'foo))
+
 ;; TODO(joe): need builtin prim (list cps) for this to work.
-#;(test (cps-eval
+(test (cps-eval
   (Let 'x (make-builtin-num 0)
     (CWhile (CTrue)
-      (CIf
-        (CBuiltinPrim 'num> (list (Id 'x) (make-builtin-num 10)))
-        (CBreak)
-        (CNone))
+      (CSeq
+        (CNone);(CPrim1 'print (Id 'x))
+        (CIf
+	  (CSeq
+	   (pyapp (gid 'print) (CBuiltinPrim 'num> (list (Id 'x) (make-builtin-num 10))))
+	   (CSeq (pyapp (gid 'print) (Id 'x))
+          (CBuiltinPrim 'num> (list (Id 'x) (make-builtin-num 10)))))
+          (CBreak)
+          (CSeq
+            (CNone);(CPrim1 'print (Id 'x))
+            (CAssign (Id 'x) (CBuiltinPrim 'num+ (list (Id 'x) (make-builtin-num 2)))))))
       (CSym 'finished))))
-  (VSym 'finished))
+  (VObjectClass 'none (none) (hash empty) (none)))
 
 #;(test (cps-eval (CWhile (CSym 'true) (CSym 'body) (CSym 'else)))
       (VSym 'body))

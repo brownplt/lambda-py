@@ -219,10 +219,12 @@
 
 (define (tuple-getitem (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   ; TODO: slicing
+  (begin
+  (display "getting item")
   (check-types args env sto 'tuple 'num
                (some
                  (try (list-ref (MetaTuple-v mval1) (MetaNum-n mval2))
-                      (lambda () vnone)))))
+                      (lambda () vnone))))))
 
 (define (tuple-str (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'tuple

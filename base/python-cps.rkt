@@ -20,6 +20,10 @@
     [(_ fun arg ...)
      (CApp fun (list arg ...) (none))]))
 
+(define (pyget val fld)
+  (pyapp (CGetField val '__getitem__)
+	 fld))
+
 (define (Id x)
   (CId x (LocalId)))
 (define (Let x v e)
@@ -41,7 +45,21 @@
 (define V (gensym 'value))
 (define Vi (Id V))
 (define V2 (gensym 'value))
-(define V2i (Id V))
+(define V2i (Id V2))
+
+(define (cps-list exprs base-thunk)
+  (pylam (K R E B C)
+    (cps-list/help exprs empty base-thunk)))
+
+(define (cps-list/help exprs ids base-thunk)
+  (cond
+    [(empty? exprs) (base-thunk (map Id ids))]
+    [(cons? exprs)
+     (local [(define id (gensym '-cps/list))]
+       (pyapp
+        (cps (first exprs))
+        (pylam (id) (cps-list/help (rest exprs) (cons id ids) base-thunk))
+        Ri Ei Bi Ci))]))
 
 (define (cps expr)
   (local [
@@ -56,6 +74,38 @@
     [CNone () (const expr)]
     [CId (x l) (const expr)]
     [CObject (c b) (const expr)]
+    [CFunc (args varargs body opt-class) (const expr)]
+
+    [CClass (nm bases body) (error 'cps "Not written yet")]
+    [CGetField (val attr)
+      (pylam (K R E B C)
+	(pyapp (cps val)
+	  (pylam (V)
+	    (CGetField Vi attr))
+	  Ri Ei Bi Ci))]
+    
+    [CApp (fun args stararg)
+     (pylam (K R E B C)
+       (pyapp (cps fun)
+         (pylam (V)
+          (pyapp 
+	   (cps-list
+	    args 
+	    (lambda (ids)
+	      (type-case (optionof CExpr) stararg
+	        [none () (CApp Vi ids (none))]
+		[some (e)
+		  (pyapp (cps e)
+		    (pylam (V2)
+		    (CApp Vi ids (some V2i)))
+		  Ri Ei Bi Ci)])))
+	   Ki Ei Ri Bi Ci))
+	 Ri Ei Bi Ci))]
+
+    [CList (values) (error 'cps "Not written yet")]
+    [CTuple (values) (cps-list values (lambda (ids) (CTuple ids)))]
+    [CDict (contents) (error 'cps "Not written yet")]
+    [CSet (values) (error 'cps "Not written yet")]
 
     [CLet (x typ bind body)
      (pylam (K R E B C)
@@ -64,6 +114,12 @@
           (CLet x typ Vi
             (pyapp (cps body) Ki Ri Ei Bi Ci)))
         Ri Ei Bi Ci))]
+
+    [CPrim1 (op e1)
+     (pylam (K R E B C)
+       (pyapp (cps e1)
+        (pylam (V)
+          (pyapp Ki (CPrim1 op Vi)))))] 
 
     [CPrim2 (op e1 e2)
      (pylam (K R E B C)
@@ -74,6 +130,9 @@
             (pyapp Ki (CPrim2 op Vi V2i)))
            Ri Ei Bi Ci))
         Ri Ei Bi Ci))]
+
+    [CBuiltinPrim (op args)
+     (cps-list args (lambda (ids) (CBuiltinPrim op ids)))]
 
     [CIf (test then els)
      (pylam (K R E B C)
@@ -127,21 +186,29 @@
             (pylam (K R E B C)
               (pyapp (cps test)
                (pylam (V)
+		(CSeq
+		 (pyapp (gid 'print) (CStr "test continuation"))
                 (CIf Vi
+		  (CSeq
+		   (pyapp (gid 'print) (CStr "body of while"))
                   (pyapp (cps body)
-                    (pylam (V) (pyapp (Id '-while) Ki Ri Ei Bi Ci))
-                    Ri Ei Bi Ci)
-                  (pyapp (Id '-elsethunk))))
+                    (pylam (V2) (pyapp (Id '-while) Ki Ri Ei Bi Ci))
+                    Ri Ei Bi Ci))
+                  (pyapp (Id '-elsethunk)))))
                Ri Ei Bi Ci)))
           (CSeq
            (CAssign (Id '-continue)
             (pylam (V)
+	      (CSeq
+	       (pyapp (gid 'print) (CStr "continue continuation"))
               (pyapp
                (Id '-while)
-               Ki Ri Ei
-               (pylam (V) (pyapp (Id 'elsethunk)))
-               (Id '-continue))))
+               Ki Ri Ei Ki ;; NOTE(joe): Break becomes the "normal" continuation Ki
+               (Id '-continue)))))
            (pyapp (Id '-continue) (CSym 'nothing))))))))]
+
+    [CTryExceptElseFinally (try excepts orelse finally) (error 'cps "Not written yet")]
+
 
     [else (error 'cps (format "Not handled: ~a" expr))])))
 
