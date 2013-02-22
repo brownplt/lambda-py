@@ -335,21 +335,11 @@
     (some (MetaNum 1))
     (hash empty)))
 
-(define (renew-true val)
-  (begin
-    (set! true-val val)
-    true-val))
-
 (define false-val
   (VObject
     'bool
     (some (MetaNum 0))
     (hash empty)))
-
-(define (renew-false val)
-  (begin 
-    (set! false-val val)
-    false-val))
 
 (define (get-optionof-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : (optionof CVal)
   (begin ;(display n) (display " -- ") (display c) (display "\n") (display e) (display "\n\n")

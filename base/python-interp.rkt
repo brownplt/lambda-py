@@ -434,9 +434,9 @@
     ;; The (none) is fine here because we aren't placing the object in the store yet.
     ;; - Sumner
     [CStr (s) (v*s (VObjectClass 'str (some (MetaStr s)) (hash empty) (none)) sto (none))]
-    [CTrue () (v*s (renew-true (set-class true-val env)) sto (none))]
-    [CFalse () (v*s (renew-false (set-class false-val env)) sto (none))]
-    [CNone () (v*s (renew-none (set-class vnone env)) sto (none))]
+    [CTrue () (v*s true-val sto (none))]
+    [CFalse () (v*s false-val sto (none))]
+    [CNone () (v*s vnone sto (none))]
     [CUndefined () (v*s (VUndefined) sto (none))]
 
     [CClass (name bases body)
@@ -948,7 +948,7 @@
            (type-case Result (interp-env arg2 env sarg1 stk)
              [v*s (varg2 sarg2 aarg2) 
                   (case prim
-                    ;; Handle Is, IsNot
+                    ;; Handle Is, IsNot, In, NotIn
                     ['Is (if (is? varg1 varg2)
                            (v*s true-val sarg2 (none))
                            (v*s false-val sarg2 (none)))]
