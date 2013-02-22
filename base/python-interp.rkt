@@ -363,7 +363,7 @@
                     (cons (hash-set (hash (list)) name loc) env) 
                     (cons (hash-set (first env) name loc) (rest env)))|#
                 newenv 
-                (hash-set sto loc (set-class val env))
+                (hash-set sto loc val)
                 stk)))
 
 (define (interp-id [id : symbol] [type : IdType]
@@ -571,7 +571,8 @@
     
     [CId (x t) (interp-id x t env sto)]
 
-    [CObject (c mval) (v*s (VObjectClass c mval (hash empty) (none)) sto (none))]
+    [CObject (c mval)
+     (v*s (VObjectClass c mval (hash empty) (none)) sto (lookup c env))]
 
     [CLet (x type bind body)
           (begin ;(display "LET: ") (display x) (display " ")
@@ -712,7 +713,7 @@
                                 (VPointer (some-v (Return-a val)))
                                 (Return-v val))))]
     (if (some? mayb-loc)
-        (v*s vnone (hash-set sto (some-v mayb-loc) (set-class value env)) (none))        
+        (v*s vnone (hash-set sto (some-v mayb-loc) value) (none))        
         (type-case IdType (CId-type id)
           [LocalId () (mk-exception 'NameError
                                   (string-append "name '"
@@ -768,15 +769,13 @@
          (type-case CVal vo
            [VObjectClass (antecedent mval d class)
              (local [(define loc (hash-ref (VObjectClass-dict vo) f))
-                     (define value (set-class 
-                                     (if (v*s? v)
-                                         (if (some? (v*s-a v))
-                                             (VPointer (some-v (v*s-a v)))
-                                             (v*s-v v))
-                                         (if (some? (Return-a v))
-                                             (VPointer (some-v (Return-a v)))
-                                             (Return-v v)))
-                                     env))]
+                     (define value (if (v*s? v)
+                                       (if (some? (v*s-a v))
+                                           (VPointer (some-v (v*s-a v)))
+                                           (v*s-v v))
+                                       (if (some? (Return-a v))
+                                           (VPointer (some-v (Return-a v)))
+                                           (Return-v v))))]
                (type-case (optionof Address) loc
                  [some (w) (v*s vnone (hash-set so w value) (none))]
                  [none () (local [(define w (new-loc))
@@ -790,7 +789,7 @@
                                               (VObjectClass antecedent
                                                        mval
                                                        (hash-set (VObjectClass-dict vo) f w)
-                                                       (none)))))]
+                                                       class))))] ;; NOTE(joe) ensuring same class as above
                               (v*s vnone
                                    (hash-set snew w value)
                                    (none)))]))]
@@ -802,19 +801,6 @@
 
 (define (new-object [c-name : symbol] [c-loc : (optionof Address)]) : CVal
   (VObjectClass c-name (none) (hash empty) c-loc))
-
-(define (set-class [val : CVal] [env : Env]) : CVal
-  (begin ;(display val) (display "\n")
-  (type-case CVal val
-    [VObjectClass (antecedent mval dict class)
-                  (if (none? class)
-                      (if (none? (lookup antecedent env))
-                          (error 'interp (string-append
-                                           "Class not in environment: "
-                                           (symbol->string antecedent)))
-                          (VObjectClass antecedent mval dict (lookup antecedent env)))
-                      val)]
-    [else val])))
 
 ;; bind-args, recursively binds the provided values to the provided argument symbols.
 ;; If a stararg symbol is provided, extra arguments are packaged in a tuple and bound
@@ -887,7 +873,7 @@
                        (new-loc)))
                  (define e (cons (hash-set (first ext) (first args) loc) (rest ext)))
                  ; TODO(Sumner): why env and not ext here?
-                 (define s (hash-set sto loc (set-class vv env)))]
+                 (define s (hash-set sto loc vv))]
            (bind-args (rest args) sarg (rest vals) (rest arges) env e s))]))
 
 (define (mk-exception [type : symbol] [arg : string] [sto : Store]) : Result
