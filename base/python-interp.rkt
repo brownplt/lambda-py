@@ -572,7 +572,7 @@
     [CId (x t) (interp-id x t env sto)]
 
     [CObject (c mval)
-     (v*s (VObjectClass c mval (hash empty) (none)) sto (lookup c env))]
+     (v*s (VObjectClass c mval (hash empty) (none)) sto (none))]
 
     [CLet (x type bind body)
           (begin ;(display "LET: ") (display x) (display " ")
