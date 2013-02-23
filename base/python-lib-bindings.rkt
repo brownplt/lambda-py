@@ -160,7 +160,6 @@
           (CBuiltinPrim '$locals empty))
          (none)))
   
-
 (define lib-functions
   (list (bind 'True (assign 'True (CTrue)))
         (bind 'False (assign 'False (CFalse)))
@@ -173,7 +172,6 @@
         (bind 'float float-class)
         (bind 'str str-class)
         (bind 'list list-class)
-        (bind 'tuple tuple-class)
         ; this is a hack because one test overrides the dict name, 
         ; we should do this $ thing for all builtin names for this reason
         ; TODO: I think we should try to avoid doing this, it was just hiding a problem:
@@ -230,6 +228,7 @@
             (bind 'range (CUndefined))
             (bind 'filter (CUndefined))
             (bind 'dicteq (CUndefined))
+            (bind 'tuple (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))
