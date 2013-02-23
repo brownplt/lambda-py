@@ -26,7 +26,7 @@ class tuple(object):
     while c < self.__len__():
       if self.__getitem__(c).__eq__(other):
         return True
-      c.__add__(1)
+      c = c.__add__(1)
     return False
 
   def __iter__(self):
