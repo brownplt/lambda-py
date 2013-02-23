@@ -90,7 +90,8 @@
                   (CFunc (list 'self 'other) (none)
                          (CReturn (CApp (CId 'dicteq (GlobalId))
                                         (list
-                                          (CId 'other (LocalId)))
+                                         (CId 'self (LocalId))
+                                         (CId 'other (LocalId)))
                                         (none)))
                          (some '$dict)))
 

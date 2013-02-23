@@ -126,6 +126,41 @@ ParselTongue.
         (fetch (VPointer-a val) sto)
         val)))
 
+;; fetch only once in the store
+(define (fetch-once [w : Address] [sto : Store]) : CVal
+  (type-case (optionof CVal) (hash-ref sto w)
+             [some (v) v]
+             [none () (error 'interp
+                             (string-append "No value at address " (Address->string w)))]))
+
+;; lookup in the env and sto, in order to get the final address through the aliasing address.
+(define (deep-lookup [x : symbol] [env : Env] [sto : Store]) : (optionof Address)
+  (let ((env-addr (lookup x env)))
+    (if (some? env-addr)
+        (let ((mayb-pointer (fetch-once (some-v env-addr) sto)))
+          (if (VPointer? mayb-pointer)
+              (some (VPointer-a mayb-pointer))
+              env-addr))               
+        (none))))
+
+(define (deep-lookup-global [x : symbol] [env : Env] [sto : Store]) : (optionof Address)
+  (let ((env-addr (lookup-global x env)))
+    (if (some? env-addr)
+        (let ((mayb-pointer (fetch-once (some-v env-addr) sto)))
+          (if (VPointer? mayb-pointer)
+              (some (VPointer-a mayb-pointer))
+              env-addr))
+        (none))))
+
+(define (deep-lookup-local [x : symbol] [env : Env] [sto : Store]) : (optionof Address)
+  (let ((env-addr (lookup-local x env)))
+    (if (some? env-addr)
+        (let ((mayb-pointer (fetch-once (some-v env-addr) sto)))
+          (if (VPointer? mayb-pointer)
+              (some (VPointer-a mayb-pointer))
+              env-addr))
+        (none))))
+
 (define-type ActivationRecord
   [Frame (env : Env) (class : (optionof CVal)) (self : (optionof CVal))])
 
