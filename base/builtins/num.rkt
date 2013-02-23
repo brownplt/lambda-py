@@ -4,13 +4,6 @@
 (require "../util.rkt"
          (typed-in racket/base (exact? : (number -> boolean))))
 
-(define (make-builtin-num [n : number]) : CExpr
-  (CObject
-    (if (exact? n)
-      'int
-      'float)
-    (some (MetaNum n))))
-
 (define (make-builtin-numv [n : number]) : CVal
   (VObject
     (if (exact? n)

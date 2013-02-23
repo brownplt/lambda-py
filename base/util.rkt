@@ -14,6 +14,7 @@
  (typed-in racket/set (set->list : (set? -> (listof 'a))))
  (typed-in racket/set (set : ( -> set?)))
  (typed-in racket/set (set-add : (set? 'a -> set?)))
+ (typed-in racket/base (exact? : (number -> boolean)))
  
  )
 (require [typed-in racket (format : (string 'a -> string))])
@@ -142,19 +143,6 @@
                     body))
         else-part)]))
 
-;; syntactic sugars to avoid writing long expressions in the core language
-(define (py-num [n : number])
-  (CObject 'num (some (MetaNum n))))
-
-(define (py-len name)
-  (CApp (CGetField (CId name (LocalId)) '__len__)
-        (list)
-        (none)))
-
-(define (py-getitem name index)
-  (CApp (CGetField (CId name (LocalId)) '__getitem__)
-        (list (CObject 'num (some (MetaNum index))))
-        (none)))
 
 ;; the copypasta here is bad but we aren't clever enough with macros
 (define-syntax (check-types x)
@@ -162,7 +150,10 @@
     [(check-types args env sto t1 body)
      (with-syntax ([mval1 (datum->syntax x 'mval1)])
        #'(let ([arg1 (first args)])
-           (if (and (VObjectClass? arg1) (object-is? arg1 t1 env sto))
+           (if (and (VObjectClass? arg1)
+                ;; TODO(joe): what is going on here? t1 seems to always be a
+                ;; symbol, which doesn't jive with what object-is? expects
+                #;(object-is? arg1 t1 env sto))
                (let ([mayb-mval1 (VObjectClass-mval arg1)])
                  (if (some? mayb-mval1)
                      (let ([mval1 (some-v mayb-mval1)])
@@ -175,8 +166,8 @@
        #'(let ([arg1 (first args)]
                [arg2 (second args)])
            (if (and (VObjectClass? arg1) (VObjectClass? arg2)
-                    (object-is? arg1 t1 env sto)
-                    (object-is? arg2 t2 env sto))
+                    #;(object-is? arg1 t1 env sto)
+                    #;(object-is? arg2 t2 env sto))
                (let ([mayb-mval1 (VObjectClass-mval arg1)]
                      [mayb-mval2 (VObjectClass-mval arg2)])
                  (if (and (some? mayb-mval1) (some? mayb-mval2))
@@ -194,9 +185,9 @@
                [arg3 (third args)])
            (if (and (VObjectClass? arg1) (VObjectClass? arg2)
                     (VObjectClass? arg3)
-                    (object-is? arg1 t1 env sto)
-                    (object-is? arg2 t2 env sto)
-                    (object-is? arg3 t3 env sto))
+                    #;(object-is? arg1 t1 env sto)
+                    #;(object-is? arg2 t2 env sto)
+                    #;(object-is? arg3 t3 env sto))
                (let ([mayb-mval1 (VObjectClass-mval arg1)]
                      [mayb-mval2 (VObjectClass-mval arg2)]
                      [mayb-mval3 (VObjectClass-mval arg3)])
@@ -365,3 +356,71 @@
 ;; any: any of a list of boolean (used in the c3 mro algorithm)
 (define (any [bs : (listof boolean)]) : boolean
   (foldr (lambda (e1 e2) (or e1 e2)) #f bs))
+
+
+
+;; syntactic sugars to avoid writing long expressions in the core language
+(define (py-num [n : number])
+  (CObject 'num (some (MetaNum n))))
+
+(define (py-len name)
+  (CApp (CGetField (CId name (LocalId)) '__len__)
+        (list)
+        (none)))
+
+(define (py-getitem name index)
+  (CApp (CGetField (CId name (LocalId)) '__getitem__)
+        (list (CObject 'num (some (MetaNum index))))
+        (none)))
+
+(define-syntax pylam
+  (syntax-rules ()
+    [(_ (arg ...) body)
+     (CFunc (list arg ...) (none) body (none))]))
+
+(define-syntax pyapp
+  (syntax-rules ()
+    [(_ fun arg ...)
+     (CApp fun (list arg ...) (none))]))
+
+(define (Id x)
+  (CId x (LocalId)))
+(define (gid x)
+  (CId x (GlobalId)))
+
+(define (Let id val lastbody)
+  (CLet id (LocalId) val lastbody))
+
+(define-syntax (Prim stx)
+  (syntax-case stx ()
+    [(_ op arg ...) #'(CBuiltinPrim op (list arg ...))]))
+
+(define-syntax (Method stx)
+  (syntax-case stx ()
+    [(_ obj name arg ...) #'(CApp (CGetField obj name) (list arg ...) (none))]))
+
+
+ 
+(define (make-builtin-num [n : number]) : CExpr
+  (CObject
+    (if (exact? n)
+      'int
+      'float)
+    (some (MetaNum n))))
+
+(define (Num num)
+  (make-builtin-num num))
+
+(define-syntax (Construct stx)
+  (syntax-case stx ()
+    [(_ class arg ...)
+     #'(CApp (CGetField class '__init__) (list arg ...) (none))]))
+
+(test (Let 'x (CNone) (CStr "foo"))
+      (CLet 'x (LocalId) (CNone)
+        (CStr "foo")))
+
+(test (Prim 'num< (CStr "foo") (CStr "bar"))
+      (CBuiltinPrim 'num< (list (CStr "foo") (CStr "bar"))))
+
+

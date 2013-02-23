@@ -2,6 +2,7 @@
 
 (require
   "python-core-syntax.rkt"
+  "util.rkt"
   "python-cps.rkt")
 
 (test (pylam ('k) (CId 'x (LocalId)))

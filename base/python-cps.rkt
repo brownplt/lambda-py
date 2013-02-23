@@ -2,23 +2,9 @@
 
 (require
   "python-core-syntax.rkt"
+  "util.rkt"
   "python-interp.rkt"
   (typed-in racket/base (gensym : (symbol -> symbol))))
-
-(define-syntax pylam
-  (syntax-rules ()
-    [(_ (arg ...) body)
-     (CFunc (list arg ...) (none) body (none))]))
-
-(define-syntax pyapp
-  (syntax-rules ()
-    [(_ fun arg ...)
-     (CApp fun (list arg ...) (none))]))
-
-(define (Id x)
-  (CId x (LocalId)))
-(define (gid x)
-  (CId x (GlobalId)))
 
 ;; Identifiers used in the headers of CPS-generated lambdas
 (define K (gensym 'next))
