@@ -366,6 +366,12 @@
                 (hash-set sto loc val)
                 stk)))
 
+;; interp-id will first lookup id in env, then fetch the value of the id in the sto.
+;; At the same time, interp-id will return the address of the id for aliasing.
+;; NOTE: for aliasing id, which has the value of (VPointer original-addr), the
+;; returned address will be the original one, not the address of the VPointer. The
+;; deep-lookup-* will obtain the original address of an identifier.
+;; --Junsong
 (define (interp-id [id : symbol] [type : IdType]
                    [env : Env] [sto : Store]) : Result
   (local [(define name-error-str
@@ -382,14 +388,14 @@
                                           "' referenced before assignment")))]
     (type-case IdType type
       [LocalId () 
-               (local [(define local-w (lookup-local id env))]
+               (local [(define local-w (deep-lookup-local id env sto))]
                  (if (some? local-w)
                      (type-case CVal (fetch (some-v local-w) sto)
                        [VUndefined () (mk-exception 'UnboundLocalError
                                                     unboundlocal-error-str
                                                     sto)]
                        [else (v*s (fetch (some-v local-w) sto) sto local-w)])
-                     (local [(define full-w (lookup id env))]
+                     (local [(define full-w (deep-lookup id env sto))]
                        (if (some? full-w)
                            (local [(define full-val (fetch (some-v full-w) sto))]
                              (type-case CVal full-val
@@ -403,7 +409,7 @@
                                          (string-append "global " name-error-str)
                                          sto)))))]
       [GlobalId ()
-                (local [(define full-w (lookup-global id env))]
+                (local [(define full-w (deep-lookup-global id env sto))]
                   (if (some? full-w)
                       (local [(define full-val (fetch (some-v full-w) sto))]
                         (type-case CVal full-val
@@ -545,7 +551,7 @@
                             (none))))))]
 
     [CAssign (t v) 
-             (begin ;(display "ASSIGN: ") (display t) (display " | ") (display v) (display "\n")
+             (begin ;(display "\nASSIGN: ") (display t) (display " | ") (display v) (display "\n")
              (local [(define val (interp-env v env sto stk))]
                (type-case Result val
                  [v*s (vv sv av)
@@ -580,7 +586,7 @@
           (interp-let x type (interp-env bind env sto stk) body env stk))]
 
     [CApp (fun arges sarg)
-          (begin ;(display fun) (display arges)
+          (begin ;(display "CApp") (display fun) (display arges) (display "\n")
           (interp-capp fun arges
                        (if (none? sarg)
                            (some (CTuple empty))
@@ -703,8 +709,8 @@
                       [sto : Store]) : Result
   (local [(define mayb-loc 
             (type-case IdType (CId-type id)
-              [LocalId () (lookup (CId-x id) env)]
-              [GlobalId () (lookup-global (CId-x id) env)]))
+              [LocalId () (deep-lookup (CId-x id) env sto)]
+              [GlobalId () (deep-lookup-global (CId-x id) env sto)]))
           (define value (if (v*s? val)
                             (if (some? (v*s-a val))
                                 (VPointer (some-v (v*s-a val)))
@@ -712,19 +718,25 @@
                             (if (some? (Return-a val))
                                 (VPointer (some-v (Return-a val)))
                                 (Return-v val))))]
-    (if (some? mayb-loc)
-        (v*s vnone (hash-set sto (some-v mayb-loc) value) (none))        
-        (type-case IdType (CId-type id)
-          [LocalId () (mk-exception 'NameError
-                                  (string-append "name '"
-                                    (string-append (symbol->string (CId-x id))
-                                      "' is not defined"))
-                                    sto)]
-          [GlobalId () (mk-exception 'NameError
-                                   (string-append "name '"
-                                     (string-append (symbol->string (CId-x id))
-                                       "' is not defined"))
-                                   sto)]))))
+(begin ;(display "mayb-loc:") (display  mayb-loc) (display "\n")
+       ;(display "before assign, the store:")
+       ;(if (some? mayb-loc) (pprint (fetch-once (some-v mayb-loc) sto)) (pprint "OH NO"))
+       ;(display "after assign, the store:")
+       ;(if (some? mayb-loc) (pprint value) (pprint "OLD STO"))
+       ;(display "\n")
+  (if (some? mayb-loc)
+      (v*s vnone (hash-set sto (some-v mayb-loc) value) (none))        
+      (type-case IdType (CId-type id)
+                 [LocalId () (mk-exception 'NameError
+                                           (string-append "name '"
+                                                          (string-append (symbol->string (CId-x id))
+                                                                         "' is not defined"))
+                                           sto)]
+                 [GlobalId () (mk-exception 'NameError
+                                            (string-append "name '"
+                                                           (string-append (symbol->string (CId-x id))
+                                                                          "' is not defined"))
+                                            sto)])))))
 
 (define (global-scope? [env : Env]) : boolean
   (= (length env) 1))
@@ -874,7 +886,7 @@
                  (define e (cons (hash-set (first ext) (first args) loc) (rest ext)))
                  ; TODO(Sumner): why env and not ext here?
                  (define s (hash-set sto loc vv))]
-           (bind-args (rest args) sarg (rest vals) (rest arges) env e s))]))
+                (bind-args (rest args) sarg (rest vals) (rest arges) env e s))]))
 
 (define (mk-exception [type : symbol] [arg : string] [sto : Store]) : Result
   (local [(define loc (new-loc))

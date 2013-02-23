@@ -21,10 +21,13 @@
 (require [typed-in racket (remove-duplicates : ((listof 'a) -> (listof 'a)))])
 (require [typed-in racket (memq : ('a (listof 'a) -> (listof 'a)))])
 
+(require (typed-in racket/pretty (pretty-print : ('a -> 'b))))
 
 (print-only-errors #t)
 
 ; a file for utility functions that aren't specific to python stuff
+(define (pprint exp)
+  (pretty-print exp))
 
 (define python-path "/usr/local/bin/python3.2")
 (define (get-pypath)
