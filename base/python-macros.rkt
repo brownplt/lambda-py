@@ -12,7 +12,7 @@
          (cond
           [(and (LexGlobalId? fun) (equal? (LexGlobalId-x fun) '___id)
                 (> (length args) 0) (LexStr? (first args)))
-           (LexLocalId (string->symbol (LexStr-s (first args))))]
+           (LexLocalId (string->symbol (LexStr-s (first args))) 'Load)]
           [(and (LexGlobalId? fun) (equal? (LexGlobalId-x fun) '___delta)
                 (> (length args) 0) (LexStr? (first args)))
            (LexBuiltinPrim (string->symbol (LexStr-s (first args))) (rest args))]

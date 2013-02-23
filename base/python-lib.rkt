@@ -42,7 +42,7 @@ that calls the primitive `print`.
 ;; these are builtin functions that we have written in actual python files which
 ;; are pulled in here and desugared for lib purposes
 (define (get-pylib-programs)
-  (type-case (optionof (Listof CExpr)) pylib-programs
+  (type-case (optionof (listof CExpr)) pylib-programs
     [none ()
      (begin
        (set! pylib-programs
