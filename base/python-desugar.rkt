@@ -74,29 +74,25 @@
       (DResult-expr body))
      (DResult-env body))))
 
-;; for the body of some local scope level like a class or function, hoist
-;; all the assignments and defs to the top as undefineds
-
 (define (desugar-for [target : LexExpr] [iter : LexExpr]
                      [body : LexExpr]) : CExpr
-  (local [(define iter-pyid (LexLocalId (new-id) 'Load))]
-
+  (local [(define iter-id (new-id))]
     (rec-desugar
-     (LexSeq
-      (list (LexAssign (list iter-pyid) (LexApp (LexGlobalId 'iter 'Load) (list iter)))
-            (LexWhile (LexBool true)
-                     (LexSeq 
-                      (list 
-                       (LexAssign (list target) (LexNone))
-                       (LexTryExceptElseFinally
-                         (LexAssign (list target) 
-                                    (LexApp (LexDotField iter-pyid '__next__) empty))
-                         (list (LexExcept (list (LexGlobalId 'StopIteration 'Load))
-                                          (LexBreak)))
-                         (LexPass)
-                         (LexPass))
-                       body))
-                     (LexPass)))))))
+     (LexLocalLet iter-id (LexApp (LexDotField iter '__iter__) empty)
+                  (LexWhile (LexBool true)
+                            (LexSeq
+                             (list
+                              (LexTryExceptElseFinally
+                               (LexAssign (list target)
+                                          (LexApp (LexDotField (LexLocalId iter-id 'Load)
+                                                               '__next__)
+                                                  empty))
+                               (list (LexExcept (list (LexGlobalId 'StopIteration 'Load))
+                                                (LexBreak)))
+                               (LexPass)
+                               (LexPass))
+                              body))
+                            (LexPass))))))
 
 (define (desugar-listcomp [body : LexExpr] [gens : (listof LexExpr)] ) : CExpr
   (local [(define list-id (LexLocalId (new-id) 'Load))
