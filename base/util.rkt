@@ -234,9 +234,13 @@
 (define (get-class [obj : CVal] [env : Env] [sto : Store]) : CVal
   (local ([define w_class (if (some? (VObjectClass-class obj))
                               (VObjectClass-class obj)
-                              (lookup (VObjectClass-antecedent obj) env))])
-    (type-case (optionof Address) w_class
-      [some (w) (fetch w sto)]
+                              (some (fetch (some-v (lookup (VObjectClass-antecedent obj) env)) sto)))])
+    (type-case (optionof CVal) w_class
+      [some (cv)
+        (type-case CVal cv
+          [VPointer (a) (fetch a sto)]
+          [VObjectClass (_ __ ___ ____) cv]
+          [else (error 'get-class (string-append "bad class value: ~a" (pretty cv)))])]
       [none () (error 'get-class (string-append "object without class " 
                                                 (pretty obj)))])))
 
