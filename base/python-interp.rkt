@@ -812,7 +812,7 @@
     [Exception (vo so) (Exception vo so)])))
 
 (define (new-object [c-name : symbol] [c-loc : (optionof Address)]) : CVal
-  (VObjectClass c-name (none) (hash empty) c-loc))
+  (VObjectClass c-name (none) (hash empty) (some (VPointer (some-v c-loc)))))
 
 ;; bind-args, recursively binds the provided values to the provided argument symbols.
 ;; If a stararg symbol is provided, extra arguments are packaged in a tuple and bound
