@@ -96,8 +96,10 @@
                          (some 'list)))
              (def 'list '__cmp__
                   (CFunc (list 'self 'other) (none)
-                    (CLet 'listcmp (LocalId)
-                      (CFunc (list 'self 'other 'idx) (none)
+                    (CLet 'listcmp (LocalId) (CUndefined)
+                      (CSeq
+                       (CAssign (CId 'listcmp (LocalId))
+                       (CFunc (list 'self 'other 'idx) (none)
                         (CLet 'li1 (LocalId)
                           (CApp (CGetField (CId 'self (LocalId))
                                            '__getitem__)
@@ -135,13 +137,13 @@
                                                                          (CId 'nidx (LocalId)))
                                                                    (none))))
                                                      (CReturn (CId 'cmpval (LocalId)))))))))
-                        (none))
+                        (none)))
                       (CReturn 
                         (CApp (CId 'listcmp (LocalId))
                               (list (CId 'self (LocalId))
                                     (CId 'other (LocalId))
                                     (make-builtin-num 0))
-                              (none))))
+                              (none)))))
                     (some 'list)))
 
              (def 'list 'append
