@@ -156,7 +156,7 @@
            (if (and (VObjectClass? arg1)
                 ;; TODO(joe): what is going on here? t1 seems to always be a
                 ;; symbol, which doesn't jive with what object-is? expects
-                #;(object-is? arg1 t1 env sto))
+                (object-is? arg1 t1 env sto))
                (let ([mayb-mval1 (VObjectClass-mval arg1)])
                  (if (some? mayb-mval1)
                      (let ([mval1 (some-v mayb-mval1)])
@@ -169,8 +169,8 @@
        #'(let ([arg1 (first args)]
                [arg2 (second args)])
            (if (and (VObjectClass? arg1) (VObjectClass? arg2)
-                    #;(object-is? arg1 t1 env sto)
-                    #;(object-is? arg2 t2 env sto))
+                    (object-is? arg1 t1 env sto)
+                    (object-is? arg2 t2 env sto))
                (let ([mayb-mval1 (VObjectClass-mval arg1)]
                      [mayb-mval2 (VObjectClass-mval arg2)])
                  (if (and (some? mayb-mval1) (some? mayb-mval2))
@@ -188,9 +188,9 @@
                [arg3 (third args)])
            (if (and (VObjectClass? arg1) (VObjectClass? arg2)
                     (VObjectClass? arg3)
-                    #;(object-is? arg1 t1 env sto)
-                    #;(object-is? arg2 t2 env sto)
-                    #;(object-is? arg3 t3 env sto))
+                    (object-is? arg1 t1 env sto)
+                    (object-is? arg2 t2 env sto)
+                    (object-is? arg3 t3 env sto))
                (let ([mayb-mval1 (VObjectClass-mval arg1)]
                      [mayb-mval2 (VObjectClass-mval arg2)]
                      [mayb-mval3 (VObjectClass-mval arg3)])
@@ -234,9 +234,13 @@
 (define (get-class [obj : CVal] [env : Env] [sto : Store]) : CVal
   (local ([define w_class (if (some? (VObjectClass-class obj))
                               (VObjectClass-class obj)
-                              (lookup (VObjectClass-antecedent obj) env))])
-    (type-case (optionof Address) w_class
-      [some (w) (fetch w sto)]
+                              (some (fetch (some-v (lookup (VObjectClass-antecedent obj) env)) sto)))])
+    (type-case (optionof CVal) w_class
+      [some (cv)
+        (type-case CVal cv
+          [VPointer (a) (fetch a sto)]
+          [VObjectClass (_ __ ___ ____) cv]
+          [else (error 'get-class (string-append "bad class value: ~a" (pretty cv)))])]
       [none () (error 'get-class (string-append "object without class " 
                                                 (pretty obj)))])))
 

@@ -161,7 +161,6 @@ primitives here.
     ['tuple-len (tuple-len args env sto)]
     ['tuple-getitem (tuple-getitem args env sto)]
     ['tuple-str (tuple-str args env sto)]
-    ['tuple-list (tuple-list args env sto)]
 
     ;dict
     ['dict-len (dict-len args env sto)]

@@ -57,7 +57,7 @@ ParselTongue.
 
 (define-type CVal
   [VObjectClass (antecedent : symbol) (mval : (optionof MetaVal))
-                (dict : object-dict) (class : (optionof Address))]
+                (dict : object-dict) (class : (optionof CVal))]
   [VUndefined]
   [VPointer (a : Address)]
   [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr)
