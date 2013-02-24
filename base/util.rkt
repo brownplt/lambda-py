@@ -156,7 +156,7 @@
            (if (and (VObjectClass? arg1)
                 ;; TODO(joe): what is going on here? t1 seems to always be a
                 ;; symbol, which doesn't jive with what object-is? expects
-                #;(object-is? arg1 t1 env sto))
+                (object-is? arg1 t1 env sto))
                (let ([mayb-mval1 (VObjectClass-mval arg1)])
                  (if (some? mayb-mval1)
                      (let ([mval1 (some-v mayb-mval1)])
@@ -169,8 +169,8 @@
        #'(let ([arg1 (first args)]
                [arg2 (second args)])
            (if (and (VObjectClass? arg1) (VObjectClass? arg2)
-                    #;(object-is? arg1 t1 env sto)
-                    #;(object-is? arg2 t2 env sto))
+                    (object-is? arg1 t1 env sto)
+                    (object-is? arg2 t2 env sto))
                (let ([mayb-mval1 (VObjectClass-mval arg1)]
                      [mayb-mval2 (VObjectClass-mval arg2)])
                  (if (and (some? mayb-mval1) (some? mayb-mval2))
@@ -188,9 +188,9 @@
                [arg3 (third args)])
            (if (and (VObjectClass? arg1) (VObjectClass? arg2)
                     (VObjectClass? arg3)
-                    #;(object-is? arg1 t1 env sto)
-                    #;(object-is? arg2 t2 env sto)
-                    #;(object-is? arg3 t3 env sto))
+                    (object-is? arg1 t1 env sto)
+                    (object-is? arg2 t2 env sto)
+                    (object-is? arg3 t3 env sto))
                (let ([mayb-mval1 (VObjectClass-mval arg1)]
                      [mayb-mval2 (VObjectClass-mval arg2)]
                      [mayb-mval3 (VObjectClass-mval arg3)])
