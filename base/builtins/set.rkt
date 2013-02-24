@@ -75,9 +75,8 @@
 
              (def 'set '__iter__
                   (CFunc (list 'self) (none)
-                         (CReturn (CApp (CGetField (CId 'SeqIter (LocalId)) '__init__)
-                                        (list (CObject 'SeqIter (none)) 
-                                              (CApp (CGetField (CId 'self
+                         (CReturn (CApp (CId 'SeqIter (GlobalId))
+                                        (list (CApp (CGetField (CId 'self
                                                                     (LocalId))
                                                                '__list__)
                                                     (list)
