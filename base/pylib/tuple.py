@@ -8,7 +8,7 @@ class tuple(object):
       self = first_arg.__tuple__()
 
   def __len__(self):
-    return ___delta("tuple-len", self)
+    return ___delta("tuple-len", self, int)
 
   def __getitem__(self, f):
     return ___delta("tuple-getitem", self, f)
@@ -16,10 +16,10 @@ class tuple(object):
   def __tuple__(self): return self
 
   def __add__(self, other):
-    return ___delta("tuple+", self, other)
+    return ___delta("tuple+", self, other, tuple)
 
   def __mult__(self, other):
-    return ___delta("tuple*", self, other)
+    return ___delta("tuple*", self, other, tuple)
 
   def __in__(self, other):
     c = 0
