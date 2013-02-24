@@ -78,7 +78,7 @@
                      [body : LexExpr]) : CExpr
   (local [(define iter-id (new-id))]
     (rec-desugar
-     (LexLocalLet iter-id (LexApp (LexDotField iter '__iter__) empty)
+     (LexLocalLet iter-id (LexApp (LexGlobalId 'iter 'Load) (list iter))
                   (LexWhile (LexBool true)
                             (LexSeq
                              (list
