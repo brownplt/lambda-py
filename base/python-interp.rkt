@@ -198,7 +198,7 @@
                                                              (symbol->string b)
                                                              " object is not callable")
                                                            sto)])))]
-      [else (error 'interp "Not a closure or constructor.")]))))
+      [else (error 'interp "Not a closure or constructor.")])))))
 
 (define (interp-while [test : CExpr] [body : CExpr] [orelse : CExpr]
                       [env : Env] [sto : Store] [stk : Stack]) : Result
