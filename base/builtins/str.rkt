@@ -51,7 +51,7 @@
              
              (def 'str '__iter__
                   (CFunc (list 'self) (none)
-                         (CReturn (CApp (CGetField (CId 'SeqIter (LocalId)) '__init__)
+                         (CReturn (CApp (CId 'SeqIter (GlobalId))
                                         (list (CId 'self (LocalId)))
                                         (none)))
                          (some 'str)))
