@@ -465,8 +465,12 @@
                (handle-result (interp-env value env sto stk)
                           (lambda (vval sval aval) (get-field attr vval aval env sval)))]
 			
-    [CSeq (e1 e2) (handle-result (interp-env e1 env sto stk)
-                    (lambda (v1 s1 a1) (interp-env e2 env s1 stk)))]
+    [CSeq (e1 e2) (type-case Result (interp-env e1 env sto stk)
+                    [v*s (v1 s1 a1) (interp-env e2 env s1 stk)]
+                    [Return (v1 s1 a1) (Return v1 s1 a1)]
+                    [Break (s1) (Break s1)]
+                    [Continue (s1) (Continue s1)] 
+                    [Exception (v1 s1) (Exception v1 s1)])]
     
     ;; note that for now we're assuming that dict keys and values aren't going
     ;; to mess with the environment and store, but this might be wrong
