@@ -25,6 +25,14 @@
          (typed-in racket/base (format : (string 'a -> string)))
          )
 
+(define (handle-result result fun)
+   (type-case Result result
+     [v*s (v s a) (fun v s a)]
+     [Return (v s a) (return-exception s)]
+     [Break (s) (break-exception s)]
+     [Continue (s) (continue-exception s)] 
+     [Exception (v s) (Exception v s)]))
+
 (define (append3 a b c)
   (append a (append b c)))
 
@@ -107,8 +115,8 @@
                      [env : Env] [sto : Store] [stk : Stack]) : Result
   (begin ;(display "APP: ") (display fun) (display "\n") (display arges) (display "\n\n\n")
          ;(display env) (display "\n\n")
- (type-case Result (interp-env fun env sto stk)
-   [v*s (vfun sfun afun) 
+ (handle-result (interp-env fun env sto stk)
+  (lambda (vfun sfun afun)
     (type-case CVal vfun
       [VClosure (cenv argxs vararg body opt-class)
                 (interp-vclosure vfun arges stararg env sfun stk)]
@@ -190,11 +198,7 @@
                                                              (symbol->string b)
                                                              " object is not callable")
                                                            sto)])))]
-      [else (error 'interp "Not a closure or constructor.")])]
-   [Return (vfun sfun afun) (return-exception sfun)]
-   [Break (sfun) (break-exception sfun)]
-   [Continue (sfun) (continue-exception sfun)]
-   [Exception (vfun sfun) (Exception vfun sfun)])))
+      [else (error 'interp "Not a closure or constructor.")]))))
 
 (define (interp-while [test : CExpr] [body : CExpr] [orelse : CExpr]
                       [env : Env] [sto : Store] [stk : Stack]) : Result
@@ -428,12 +432,8 @@
   (type-case CExpr expr
     [CModule (prelude body)
              (local [(define prelude-r (interp-env prelude env sto stk))]
-                (type-case Result prelude-r
-                  [v*s (v s a) (interp-env body env s stk)]
-                  [Return (v s a) (return-exception s)]
-                  [Break (s) (break-exception s)]
-                  [Continue (s) (continue-exception s)] 
-                  [Exception (v s) (Exception v s)]))]
+                (handle-result prelude-r
+                  (lambda (v s a) (interp-env body env s stk))))]
     
     ;; TODO(joe): first non in VOBjectClass below?
     ;;
@@ -449,40 +449,24 @@
             ;; the tuple of bases is evaluated assuming global scope for class names,
             ;; should be changed for a more general lookup with the new scope implementation
             (begin ;(display "BEGIN CLASS\n") (display bases)
-            (type-case Result (interp-env (CTuple (map (lambda (id) (CId id (GlobalId)))
+            (handle-result (interp-env (CTuple (map (lambda (id) (CId id (GlobalId)))
                                                        bases))
                                           env sto stk)
-              [v*s (vbases sbases abases)
-                   (type-case Result (interp-env body (cons (hash empty) env) sto stk)
-                     [v*s (vbody sbody abody)
+              (lambda (vbases sbases abases)
+                   (handle-result (interp-env body (cons (hash empty) env) sto stk)
+                     (lambda (vbody sbody abody)
                           (begin ;(display name) (display "\n")
                                  ;(display env) (display "\n")
                                  ;(display sbody) (display "\n")
                                  (let ([res (mk-type name vbases (hash empty) sbody env)])
-                                   res))]
-                     [Return (vval sval aval) (return-exception sval)]
-                     [Break (sval) (break-exception sval)]
-                     [Continue (sval) (continue-exception sval)] 
-                     [Exception (vval sval) (Exception vval sval)])]
-              [Return (vbases sbases abases) (return-exception sbases)]
-              [Break (sbases) (break-exception sbases)]
-              [Continue (sbases) (continue-exception sbases)] 
-              [Exception (vbases sbases) (Exception vbases sbases)]))]
+                                   res)))))))]
    
     [CGetField (value attr)
-               (type-case Result (interp-env value env sto stk)
-                          [v*s (vval sval aval) (get-field attr vval aval env sval)]
-                          [Return (vval sval aval) (return-exception sval)]
-                          [Break (sval) (break-exception sval)]
-                          [Continue (sval) (continue-exception sval)] 
-                          [Exception (vval sval) (Exception vval sval)])]
+               (handle-result (interp-env value env sto stk)
+                          (lambda (vval sval aval) (get-field attr vval aval env sval)))]
 			
-    [CSeq (e1 e2) (type-case Result (interp-env e1 env sto stk)
-                    [v*s (v1 s1 a1) (interp-env e2 env s1 stk)]
-                    [Return (v1 s1 a1) (Return v1 s1 a1)]
-                    [Break (s1) (Break s1)]
-                    [Continue (s1) (Continue s1)] 
-                    [Exception (v1 s1) (Exception v1 s1)])]
+    [CSeq (e1 e2) (handle-result (interp-env e1 env sto stk)
+                    (lambda (v1 s1 a1) (interp-env e2 env s1 stk)))]
     
     ;; note that for now we're assuming that dict keys and values aren't going
     ;; to mess with the environment and store, but this might be wrong
@@ -553,27 +537,19 @@
     [CAssign (t v) 
              (begin ;(display "\nASSIGN: ") (display t) (display " | ") (display v) (display "\n")
              (local [(define val (interp-env v env sto stk))]
-               (type-case Result val
-                 [v*s (vv sv av)
+               (handle-result val
+                 (lambda (vv sv av)
                       (type-case CExpr t
                         [CId (x type) (assign-to-id t val env sv)]
                         [CGetField (o a) (assign-to-field o a val env sv stk)]
                         [else (mk-exception 'SyntaxError
                                             "can't assign to literals"
-                                            sv)])]
-                 [Return (vv sv av) (return-exception sv)]
-                 [Break (sv) (break-exception sv)]
-                 [Continue (sv) (continue-exception sv)] 
-                 [Exception (vv sv) (Exception vv sv)])))]
+                                            sv)])))))]
     
-    [CIf (i t e) (type-case Result (interp-env i env sto stk)
-                   [v*s (vi si ai) (if (truthy? vi)
+    [CIf (i t e) (handle-result (interp-env i env sto stk)
+                   (lambda (vi si ai) (if (truthy? vi)
                                        (interp-env t env si stk)
-                                       (interp-env e env si stk))]
-                   [Return (vi si ai) (return-exception si)]
-                   [Break (si) (break-exception si)]
-                   [Continue (si) (continue-exception si)] 
-                   [Exception (vi si) (Exception vi si)])]
+                                       (interp-env e env si stk))))]
     
     [CId (x t) (interp-id x t env sto)]
 
@@ -603,25 +579,17 @@
                 (none)))]
 
     [CReturn (value)
-             (type-case Result (interp-env value env sto stk)
-               [v*s (vv sv av) (Return vv sv av)]
-               [Return (vv sv av) (return-exception sv)]
-               [Break (sv) (break-exception sv)]
-               [Continue (sv) (continue-exception sv)] 
-               [Exception (vv sv) (Exception vv sv)])]
+             (handle-result (interp-env value env sto stk)
+               (lambda (vv sv av) (Return vv sv av)))]
 
     [CPrim1 (prim arg)
-            (type-case Result (interp-env arg env sto stk)
-              [v*s (varg sarg aarg) 
+            (handle-result (interp-env arg env sto stk)
+              (lambda (varg sarg aarg) 
                    (case prim
                      ['Not (if (truthy? varg)
                              (v*s false-val sarg (none))
                              (v*s true-val sarg (none)))]
-                     [else (v*s (python-prim1 prim varg) sarg (none))])]
-              [Return (varg sarg aarg) (return-exception sarg)]
-              [Break (sarg) (break-exception sarg)]
-              [Continue (sarg) (continue-exception sarg)] 
-              [Exception (varg sarg) (Exception varg sarg)])]
+                     [else (v*s (python-prim1 prim varg) sarg (none))])))]
 
     [CWhile (body test orelse) (interp-while body test orelse env sto stk)]
 
@@ -642,18 +610,14 @@
                                             sto)))))]
     [CRaise (expr) 
             (if (some? expr)
-                (type-case Result (interp-env (some-v expr) env sto stk)
-                  [v*s (vexpr sexpr aexpr)
+                (handle-result (interp-env (some-v expr) env sto stk)
+                  (lambda (vexpr sexpr aexpr)
                        (cond
                          [(and (VObjectClass? vexpr) (object-is? vexpr 'Exception env sto))
                           (Exception vexpr sexpr)]
                          [else (mk-exception 'TypeError
                                              "exceptions must derive from BaseException"
-                                             sexpr)])]
-                  [Return (vexpr sexpr aexpr) (return-exception sexpr)]
-                  [Break (sexpr) (break-exception sexpr)]
-                  [Continue (sexpr) (continue-exception sexpr)] 
-                  [Exception (vexpr sexpr) (Exception vexpr sexpr)])
+                                             sexpr)])))
                 (mk-exception 'RuntimeError
                               "No active exception to reraise"
                               sto))]
@@ -776,8 +740,8 @@
 
 (define (assign-to-field o f v [env : Env] [sto : Store] [stk : Stack]) : Result
   (begin ;(display o) (display "---") (display f) (display "\n")
-  (type-case Result (interp-env o env sto stk)
-    [v*s (vo so ao)
+  (handle-result (interp-env o env sto stk)
+    (lambda (vo so ao)
          (type-case CVal vo
            [VObjectClass (antecedent mval d class)
              (local [(define loc (hash-ref (VObjectClass-dict vo) f))
@@ -805,11 +769,7 @@
                               (v*s vnone
                                    (hash-set snew w value)
                                    (none)))]))]
-           [else (error 'interp "Can't assign to nonobject.")])]
-    [Return (vo so ao) (return-exception so)]
-    [Break (so) (break-exception so)]
-    [Continue (so) (continue-exception so)] 
-    [Exception (vo so) (Exception vo so)])))
+           [else (error 'interp "Can't assign to nonobject.")])))))
 
 (define (new-object [c-name : symbol] [c-loc : (optionof Address)]) : CVal
   (VObjectClass c-name (none) (hash empty) (some (VPointer (some-v c-loc)))))
@@ -943,10 +903,10 @@
                        [sto : Store]
                        [env : Env]
                        [stk : Stack]) : Result
-    (type-case Result (interp-env arg1 env sto stk)
-      [v*s (varg1 sarg1 aarg1)
-           (type-case Result (interp-env arg2 env sarg1 stk)
-             [v*s (varg2 sarg2 aarg2) 
+    (handle-result (interp-env arg1 env sto stk)
+      (lambda (varg1 sarg1 aarg1)
+           (handle-result (interp-env arg2 env sarg1 stk)
+             (lambda (varg2 sarg2 aarg2) 
                   (case prim
                     ;; Handle Is, IsNot, In, NotIn
                     ['Is (if (is? varg1 varg2)
@@ -957,15 +917,7 @@
                            (v*s false-val sarg2 (none)))]
                     [else (error 'interp (string-append "Haven't implemented a case yet: "
                                                         (symbol->string
-                                                          prim)))])]
-             [Return (varg2 sarg2 aarg2) (return-exception sarg2)]
-             [Break (sarg2) (break-exception sarg2)]
-             [Continue (sarg2) (continue-exception sarg2)] 
-             [Exception (varg2 sarg2) (Exception varg2 sarg2)])]
-      [Return (varg1 sarg1 aarg1) (return-exception sarg1)]
-      [Break (sarg1) (break-exception sarg1)]
-      [Continue (sarg1) (continue-exception sarg1)] 
-      [Exception (varg1 sarg1) (Exception varg1 sarg1)]))
+                                                          prim)))]))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; multiple inheritance ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -990,8 +942,8 @@
                                      (string-append "Class '"
                                        (string-append (symbol->string name)
                                          "' does not have a location in the store")))))]
-    (type-case Result (build-mro name bases-list env sto)
-      [v*s (vmro smro amro) 
+    (handle-result (build-mro name bases-list env sto)
+      (lambda (vmro smro amro) 
              (v*s (VObjectClass 'type
                            (some (MetaClass name)) 
                            (hash-set
@@ -1007,11 +959,7 @@
                       (hash-set sto w (make-under-dict h-dict sto))
                       bases_w bases)
                     mro_w vmro)
-                  (none))]
-      [Return (vmro smro amro) (return-exception smro)]
-      [Break (smro) (break-exception smro)]
-      [Continue (smro) (continue-exception smro)] 
-      [Exception (vmro smro) (Exception vmro smro)])))
+                  (none))))))
 
 ;; build-mro: merge the __mro__ of the bases using the C3 algorithm
 ;; Raises TypeError if there are duplicated bases or linearization is not possible.
