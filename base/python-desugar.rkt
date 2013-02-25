@@ -95,21 +95,22 @@
                             (LexPass))))))
 
 (define (desugar-listcomp [body : LexExpr] [gens : (listof LexExpr)] ) : CExpr
-  (local [(define list-id (LexLocalId (new-id) 'Load))
+  (local [(define list-id (new-id))
           (define (make-comploop gens)
-            (cond 
-              [(empty? gens) (LexApp (LexDotField list-id 'append) 
-                                    (list body))]
+            (cond
+              [(empty? gens) (LexApp (LexDotField (LexLocalId list-id 'Load)
+                                                  'append)
+                                     (list body))]
               [(cons? gens)
                (LexFor (LexComprehen-target (first gens))
-                      (LexComprehen-iter (first gens))
-                      (make-comploop (rest gens)))]))
+                       (LexComprehen-iter (first gens))
+                       (make-comploop (rest gens)))]))
           (define full-expr
-            (LexSeq
-             (list 
-              (LexAssign (list list-id) (LexList empty))
-              (make-comploop gens)
-              list-id)))]
+            (LexLocalLet list-id (LexList empty)
+                         (LexSeq
+                          (list
+                           (make-comploop gens)
+                           (LexLocalId list-id 'Load)))))]
          (rec-desugar full-expr)))
 
 (define (which-scope [scp : LocalOrGlobal]) : IdType
