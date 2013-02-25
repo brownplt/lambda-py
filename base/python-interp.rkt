@@ -108,7 +108,7 @@
                           [Break (sb) (break-exception sb)]
                           [Continue (sb) (continue-exception sb)]
                           [Exception (vb sb) (Exception vb sb)]))))]
-    [else (error 'interp "Not a closure.")]))
+    [else (error 'interp (string-append "Not a closure: " (to-string vfun)))]))
 
 (define (interp-capp [fun : CExpr] [arges : (listof CExpr)] 
                      [stararg : (optionof CExpr)]
@@ -824,7 +824,7 @@
                                          "expected "
                                          (to-string args)
                                          ", received "
-                                         (to-string vals))
+                                         (to-string (map v*s-v vals)))
                                    "")
                                  sto)))]
         [(and (cons? args) (cons? vals))
@@ -1074,7 +1074,7 @@
                        ;; For functions, create method object bound to the object itself
                        [(VClosure? value) 
                         (local [(define-values (meth sto-m) (mk-method w obj w_obj sto))]
-                          (v*s meth sto-m (some w)))]
+                          (v*s meth sto-m (none)))]
                        ;; for classmethod objects create method object bound to the object's class
                        [(and (VObjectClass? value) 
                              (equal? (VObjectClass-antecedent value) 'classmethod))
@@ -1082,14 +1082,14 @@
                                   (some-v (hash-ref (VObjectClass-dict value) '__func__)))
                                 (define-values (meth sto-m) 
                                   (mk-method w_func obj-cls (none) sto))]
-                          (v*s meth sto-m (some w_func)))]
+                          (v*s meth sto-m (none)))]
                        ;; for staticmethod obj. return func attribute
                        [(and (VObjectClass? value) 
                              (equal? (VObjectClass-antecedent value) 'staticmethod))
                                   (get-field '__func__ value (none) env sto)]
                        ;; otherwise return the value of the attribute
                        [else 
-                        (v*s value sto w_obj)]))]
+                        (v*s value sto w)]))]
          [none () (mk-exception 'AttributeError
                                 (string-append 
                                  (string-append "object " 
@@ -1123,14 +1123,14 @@
                        (equal? (VObjectClass-antecedent value) 'classmethod))
                   (local [(define w_func (some-v (hash-ref (VObjectClass-dict value) '__func__)))
                           (define-values (meth sto-m) (mk-method w_func cls w_cls sto))]
-                    (v*s meth sto-m (some w_func)))]
-                     ;; for staticmethod obj. return func attribute
-                     [(and (VObjectClass? value) 
-                           (equal? (VObjectClass-antecedent value) 'staticmethod))
-                        (get-field '__func__ value (none) env sto)]
-                     ;; otherwise return the value of the attribute
-                     [else 
-                      (v*s value sto (some w))]))]
+                    (v*s meth sto-m (none)))]
+                 ;; for staticmethod obj. return func attribute
+                 [(and (VObjectClass? value)
+                       (equal? (VObjectClass-antecedent value) 'staticmethod))
+                  (get-field '__func__ value (none) env sto)]
+                 ;; otherwise return the value of the attribute
+                 [else
+                  (v*s value sto (some w))]))]
        [none () (mk-exception 'AttributeError
                               (string-append 
                                (string-append "class " 
