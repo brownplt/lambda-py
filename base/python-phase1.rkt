@@ -78,7 +78,7 @@
        [else (haiku-error)]
        )))))
 
-(define (post-desugar [expr : LexExpr]) : LexExpr
+ (define (post-desugar [expr : LexExpr]) : LexExpr
   (local
    [(define (replace-instance expr class-expr)
       (lexexpr-modify-tree
@@ -133,7 +133,7 @@
                                                                       (LexGlobalId name 'Load)
                                                                       (LexLocalId name 'Load)))))]
            [else (haiku-error)]))))]
-   (top-level-deal-with-class expr)))
+   (identity expr)))
 
 (define (scope-phase [expr : PyExpr] ) : LexExpr
   (LexModule
@@ -344,7 +344,24 @@
                           [LexBlock (nonlocals es) (if current-scope-only? empty (extract-globals-cls es))]
                           [PyLexGlobal(globals) globals]
                           [else (error 'desugar:extract-globals "should never get here")])))))
-
+(define (find-all-instance expr)
+      (let [[post-remove
+      (list-subtract
+       (list-subtract
+        (lexexpr-fold-tree
+         expr
+         (lambda (x) : (listof symbol)
+           (type-case LexExpr x
+             [LexAssign (lhs rhs) (map (lambda (y)
+                                         (type-case LexExpr y
+                                          [PyLexId (name ctx) name]
+                                          [else (error 'find-all-instance "can't handle non-pyid")])) lhs)]
+             [LexAugAssign (op lhs rhs) (list (PyLexId-x lhs))]
+             [LexBlock (_ __) empty]
+             [else (haiku-error)])))
+        (extract-globals expr true))
+         (extract-nonlocals expr))]]
+        post-remove))
 
 (define (extract-unreplaced-locals [expr : LexExpr ] ) : (listof symbol)
   (let ((overestimate (filter (lambda (x) (not (contains-char? (symbol->string x) (chr "-") )))
@@ -425,29 +442,12 @@
              (type-case LexExpr x
                                         ;[LexId (e) (LexInstanceId e)]
                [LexAssign (targets value) (LexAssign (map assign-func
-                                                      targets) value)]
-               [LexAugAssign (op target value) (LexAugAssign op (assign-func target) value)]
+                                                      targets) (assign-func value))]
+               [LexAugAssign (op target value) (LexAugAssign op (assign-func target) (assign-func value))]
                [LexBlock (nls e) (LexBlock nls (toplevel e))]
                [LexClass (scope name super body) (toplevel x)]
                [else (haiku-error)]))))))
-    (define (find-all-instance expr)
-      (let [[post-remove
-      (list-subtract
-       (list-subtract
-        (lexexpr-fold-tree
-         expr
-         (lambda (x) : (listof symbol)
-           (type-case LexExpr x
-             [LexAssign (lhs rhs) (map (lambda (y)
-                                         (type-case LexExpr y
-                                          [PyLexId (name ctx) name]
-                                          [else (error 'find-all-instance "can't handle non-pyid")])) lhs)]
-             [LexAugAssign (op lhs rhs) (list (PyLexId-x lhs))]
-             [LexBlock (_ __) empty]
-             [else (haiku-error)])))
-        (extract-globals expr true))
-         (extract-nonlocals expr))]]
-        post-remove))]
+    ]
    (toplevel expr)))
       
 
