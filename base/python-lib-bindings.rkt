@@ -229,6 +229,7 @@
             (bind 'filter (CUndefined))
             (bind 'dicteq (CUndefined))
             (bind 'tuple (CUndefined))
+            (bind '%tuple (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))

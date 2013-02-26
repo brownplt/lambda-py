@@ -4,7 +4,7 @@ class tuple(object):
     if ___delta("num=", args.__len__(), 0):
       self = ()
     else:
-      first_arg = args.__getitem__(0)
+      first_arg = ___delta("tuple-getitem", args, 0)
       self = first_arg.__tuple__()
 
   def __len__(self):
@@ -59,4 +59,6 @@ class tuple(object):
 
   def __list__(self):
     return SeqIter(self).__list__()
+
+___assign("%tuple", tuple)
 

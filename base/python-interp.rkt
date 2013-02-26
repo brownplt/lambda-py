@@ -449,7 +449,10 @@
             ;; the tuple of bases is evaluated assuming global scope for class names,
             ;; should be changed for a more general lookup with the new scope implementation
             (begin ;(display "BEGIN CLASS\n") (display bases)
-            (handle-result (interp-env (CTuple (map (lambda (id) (CId id (GlobalId)))
+            ;; NOTE(joe): weird CTuple of none, probably should be constructed
+            ;; in desugaring.
+            (handle-result (interp-env (CTuple (CNone)
+                                               (map (lambda (id) (CId id (GlobalId)))
                                                        bases))
                                           env sto stk)
               (lambda (vbases sbases abases)
@@ -525,18 +528,20 @@
                               new-s
                               (none))))))]
 
-    [CTuple (values)
-           (local [(define-values (result-list new-s) (interp-cascade values sto env stk))]
-               (let ([exn? (filter Exception? result-list)])
-                   (if (< 0 (length exn?))
-                       (first exn?) 
-                      (let ([val-list (map v*s-v result-list)])
-                       (v*s (VObjectClass 'tuple
-                                     (some (MetaTuple val-list))
-                                     (hash empty)
-                                     (none))
-                            new-s
-                            (none))))))]
+    [CTuple (class values)
+     (local [(define-values (result-list new-s) (interp-cascade values sto env stk))]
+         (let ([exn? (filter Exception? result-list)])
+             (if (< 0 (length exn?))
+                 (first exn?) 
+                 (handle-result (interp-env class env new-s stk)
+                  (lambda (cval csto cloc)
+                (let ([val-list (map v*s-v result-list)])
+                 (v*s (VObjectClass 'tuple
+                               (some (MetaTuple val-list))
+                               (hash empty)
+                               (some cval))
+                      csto
+                      (none))))))))]
 
     [CAssign (t v) 
              (begin ;(display "\nASSIGN: ") (display t) (display " | ") (display v) (display "\n")
@@ -569,7 +574,7 @@
           (begin ;(display "CApp") (display fun) (display arges) (display "\n")
           (interp-capp fun arges
                        (if (none? sarg)
-                           (some (CTuple empty))
+                           (some (CTuple (CNone) empty))
                            sarg)
                        env sto stk))]
 

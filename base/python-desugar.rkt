@@ -424,7 +424,7 @@
                                                  (map rec-desugar values)))]
       [LexSet (elts) (CSet (map rec-desugar elts))]
       [LexList (values) (CList (map rec-desugar values))]
-      [LexTuple (values) (CTuple (map rec-desugar values))]
+      [LexTuple (values) (CTuple (CId '%tuple (GlobalId)) (map rec-desugar values))]
       
       [LexSubscript (left ctx slice)
                     (cond
