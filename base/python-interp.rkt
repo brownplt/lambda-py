@@ -515,18 +515,20 @@
                                 new-s
                                 (none))))))]
     
-    [CList (values)
-           (local [(define-values (result-list new-s) (interp-cascade values sto env stk))]
-               (let ([exn? (filter Exception? result-list)])
-                   (if (< 0 (length exn?))
-                       (first exn?)
-                       (let ([val-list (map v*s-v result-list)])
-                         (v*s (VObjectClass 'list
-                                       (some (MetaList val-list))
-                                       (hash empty)
-                                       (none))
-                              new-s
-                              (none))))))]
+    [CList (class values)
+     (local [(define-values (result-list new-s) (interp-cascade values sto env stk))]
+         (let ([exn? (filter Exception? result-list)])
+             (if (< 0 (length exn?))
+                 (first exn?) 
+                 (handle-result (interp-env class env new-s stk)
+                  (lambda (cval csto cloc)
+                (let ([val-list (map v*s-v result-list)])
+                 (v*s (VObjectClass 'list
+                               (some (MetaList val-list))
+                               (hash empty)
+                               (some cval))
+                      csto
+                      (none))))))))]
 
     [CTuple (class values)
      (local [(define-values (result-list new-s) (interp-cascade values sto env stk))]
@@ -919,8 +921,8 @@
                   (case prim
                     ;; Handle Is, IsNot, In, NotIn
                     ['Is (if (is? varg1 varg2)
-                           (v*s true-val sarg2 (none))
-                           (v*s false-val sarg2 (none)))]
+                          (v*s true-val sarg2 (none))
+                          (v*s false-val sarg2 (none)))]
                     ['IsNot (if (not (is? varg1 varg2))
                            (v*s true-val sarg2 (none))
                            (v*s false-val sarg2 (none)))]

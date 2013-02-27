@@ -32,6 +32,7 @@ class tuple(object):
   def __iter__(self):
     return SeqIter(self)
 
+  # NOTE(joe): copied code (list.py)
   def __cmp__(self, other):
     def lstcmp(self, other, idx):
       li1 = self.__getitem__(idx)
@@ -51,7 +52,7 @@ class tuple(object):
             return lstcmp(self, other, nidx)
           else:
             return cmpval
-    lstcmp(self, other, 0)
+    return lstcmp(self, other, 0)
 
   def __eq__(self, other):
     cmpresult = self.__cmp__(other)

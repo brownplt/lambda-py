@@ -59,6 +59,7 @@ that calls the primitive `print`.
                   (new-scope-phase
                     (get-structured-python pyast)))))))
                (list "pylib/tuple.py"
+                     "pylib/list.py"
                      "pylib/range.py"
                      "pylib/seq_iter.py"
                      "pylib/filter.py"

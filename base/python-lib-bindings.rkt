@@ -171,7 +171,6 @@
         (bind 'int int-class)
         (bind 'float float-class)
         (bind 'str str-class)
-        (bind 'list list-class)
         ; this is a hack because one test overrides the dict name, 
         ; we should do this $ thing for all builtin names for this reason
         ; TODO: I think we should try to avoid doing this, it was just hiding a problem:
@@ -220,7 +219,8 @@
   (append
       (map (lambda(b) (bind (bind-left b) (CUndefined)))
            lib-functions)
-      (list (bind 'iter (CUndefined))
+      (list 
+            (bind 'iter (CUndefined))
             (bind 'FuncIter (CUndefined))
             (bind 'SeqIter (CUndefined))
             (bind 'all (CUndefined))
@@ -230,6 +230,8 @@
             (bind 'dicteq (CUndefined))
             (bind 'tuple (CUndefined))
             (bind '%tuple (CUndefined))
+            (bind 'list (CUndefined))
+            (bind '%list (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))

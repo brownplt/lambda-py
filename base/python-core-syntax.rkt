@@ -31,7 +31,7 @@ ParselTongue.
   [CPrim1 (prim : symbol) (arg : CExpr)]
   [CPrim2 (prim : symbol) (arg1 : CExpr) (arg2 : CExpr)]
   [CBuiltinPrim (op : symbol) (args : (listof CExpr))]
-  [CList (values : (listof CExpr))]
+  [CList (class : CExpr) (values : (listof CExpr))]
   [CTuple (class : CExpr) (values : (listof CExpr))]
   [CDict (contents : (hashof CExpr CExpr))]
   [CSet (values : (listof CExpr))]
