@@ -329,12 +329,10 @@
                                                     (none)))
                                                 (CRaise (some
                                                   (CApp (CId 'TypeError (LocalId))
-                                                        (list (CObject
-                                                                'str
-                                                                (some (MetaStr 
-                                                                        (string-append
-                                                                          "argument of type '___'" 
-                                                                          "is not iterable")))))
+                                                        (list (CStr
+                                                               (string-append
+                                                                "argument of type '___'" 
+                                                                "is not iterable")))
                                                         (none))))))
                                      (none))
                               (list right-c left-c)

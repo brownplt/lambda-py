@@ -18,9 +18,7 @@
                          (some 'none))))))
 
 (define cnone
-  (CObject 
-    'none
-    (some (MetaNone))))
+  (CNone))
 
 (define vnone
   (VObject

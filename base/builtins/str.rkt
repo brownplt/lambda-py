@@ -146,9 +146,7 @@
                             (some 'str))))))
                           
 (define (make-builtin-str [s : string]) : CExpr
-  (CObject
-    'str
-    (some (MetaStr s))))
+  (CStr s))
 
 (define (make-str-value [s : string]) : CVal
   (VObject

@@ -46,12 +46,9 @@
                          (some 'bool))))))
 
 (define (make-builtin-bool [b : boolean]) : CExpr
-  (CObject 
-    'bool
-    (some 
-      (if b 
-        (MetaNum 1)
-        (MetaNum 0)))))
+  (if b
+      (CTrue)
+      (CFalse)))
 
 (define (bool-init [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (local [(define meta-startuple (MetaTuple-v (some-v (VObjectClass-mval (first args)))))]

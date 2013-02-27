@@ -11,7 +11,6 @@
          "builtins/set.rkt"
          "builtins/none.rkt"
          "builtins/file.rkt"
-         "builtins/type.rkt"
          "builtins/method.rkt"
          "util.rkt"
          (typed-in "get-structured-python.rkt"
@@ -168,18 +167,15 @@
         (bind 'object object-class)
         (bind 'none none-class)
         (bind 'num num-class)
+        (bind '%num (assign '%num (CId 'num (GlobalId))))
         (bind 'int int-class)
+        (bind '%int (assign '%int (CId 'int (GlobalId))))
         (bind 'float float-class)
+        (bind '%float (assign '%float (CId 'float (GlobalId))))
         (bind 'str str-class)
-        ; this is a hack because one test overrides the dict name, 
-        ; we should do this $ thing for all builtin names for this reason
-        ; TODO: I think we should try to avoid doing this, it was just hiding a problem:
-        ; the use of the class name instead of the class object (or a reference to it) 
-        ; as unique identifier for the class (Alejandro).
         (bind 'bool bool-class)
         (bind 'file file-class)
         (bind 'open file-class)
-        (bind 'type type-class)
         (bind 'method method-class)
         (bind 'classmethod classmethod-class)
         (bind 'staticmethod staticmethod-class)
@@ -233,6 +229,8 @@
             (bind '%dict (CUndefined))
             (bind 'set (CUndefined))
             (bind '%set (CUndefined))
+            (bind 'type (CUndefined))
+            (bind '%type (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))

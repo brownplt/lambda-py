@@ -560,8 +560,15 @@
     
     [CId (x t) (interp-id x t env sto)]
 
-    [CObject (c mval)
-     (v*s (VObjectClass c mval (hash empty) (none)) sto (none))]
+    [CObject (class mval)
+             (handle-result (interp-env class env sto stk)
+               (lambda (cval csto cloc)
+                 (v*s (VObjectClass (MetaClass-c (some-v (VObjectClass-mval cval)))
+                                    mval
+                                    (hash empty)
+                                    (some (VPointer (some-v cloc))))
+                      csto
+                      (none))))]
 
     [CLet (x type bind body)
           (begin ;(display "LET: ") (display x) (display " ")
@@ -717,7 +724,7 @@
 ;; optional address field added to support self aliasing in bound methods calls.
 (define (get-field [n : symbol] [c : CVal] [w_c : (optionof Address)] 
                    [e : Env] [s : Store]) : Result
-  (begin ;(display "GET: ") (display n) (display " ") (display c) 
+  (begin ;(display "GET: ") (display n) (display " ") (display c)
          ;(display " ") (display w_c) (display "\n\n")
          ;(display e) (display "\n\n")
     (cond
@@ -1047,7 +1054,7 @@
                             [thisclass : (optionof CVal)]
                             [env : Env] 
                             [sto : Store]) : Result
-  (begin ;(display "GET-OBJ: ") (display fld) (display " ") (display obj) 
+  (begin ;(display "GET-OBJ: ") (display fld) (display " ") (display obj)
          ;(display " ") (display w_obj) (display "\n")
   (cond
     ;; for method objects, __call__ attribute is the object itself
@@ -1110,7 +1117,9 @@
                             [thisclass : (optionof CVal)]
                             [env : Env] 
                             [sto : Store]) : Result
-  (cond 
+  (begin ;(display "GET-CLS: ") (display fld) (display " ") (display cls)
+         ;(display " ") (display w_cls) (display "\n")
+  (cond
     [(equal? fld '__mro__) 
      ;; temporary hack to avoid self-reference in __mro__
      (v*s (VObjectClass 'tuple (some (MetaTuple (get-mro cls thisclass sto))) (hash empty) (none))
@@ -1140,7 +1149,7 @@
                                               (symbol->string (VObjectClass-antecedent cls)))
                                (string-append " has no attribute "
                                               (symbol->string fld)))
-                              sto)])]))
+                              sto)])])))
 
 ;; lookup-mro: looks for field in mro list
 (define (lookup-mro [mro : (listof CVal)] [n : symbol]) : (optionof Address)
@@ -1170,4 +1179,4 @@
 
 ;; special methods
 (define (is-special-method? [n : symbol])
-  (member n (list '__eq__ '__cmp__ '__str__ '__getitem__ '__gt__ '__lt__ '__lte__ '__gte__)))
+  (member n (list '__call__ '__eq__ '__cmp__ '__str__ '__getitem__ '__gt__ '__lt__ '__lte__ '__gte__)))

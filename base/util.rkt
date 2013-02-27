@@ -106,7 +106,7 @@
 ; Example:
 ;
 ; (match-varargs 'args
-;   [() (CObject 'num (some (MetaNum 0)))]
+;   [() (CObject (gid '%num) (some (MetaNum 0)))]
 ;   [('a) (CId 'a (LocalId))]
 ;   [('a 'b) (CBuiltinPrim 'num+ (CId 'a (LocalId)) (CId 'b (LocalId)))])
 ;
@@ -368,7 +368,7 @@
 
 ;; syntactic sugars to avoid writing long expressions in the core language
 (define (py-num [n : number])
-  (CObject 'num (some (MetaNum n))))
+  (CObject (gid '%num) (some (MetaNum n))))
 
 (define (py-len name)
   (CApp (CGetField (CId name (LocalId)) '__len__)
@@ -377,7 +377,7 @@
 
 (define (py-getitem name index)
   (CApp (CGetField (CId name (LocalId)) '__getitem__)
-        (list (CObject 'num (some (MetaNum index))))
+        (list (CObject (gid '%num) (some (MetaNum index))))
         (none)))
 
 (define-syntax pylam
@@ -411,8 +411,8 @@
 (define (make-builtin-num [n : number]) : CExpr
   (CObject
     (if (exact? n)
-      'int
-      'float)
+        (gid '%int)
+        (gid '%float))
     (some (MetaNum n))))
 
 (define (Num num)

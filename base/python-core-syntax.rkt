@@ -15,7 +15,7 @@ ParselTongue.
   [CTrue]
   [CFalse]
   [CNone]
-  [CClass (name : symbol) (bases : (listof symbol)) (body : CExpr)]
+  [CClass (name : CExpr) (bases : (listof symbol)) (body : CExpr)]
   [CObject (class : symbol) (bval : (optionof MetaVal))]
   [CGetField (value : CExpr) (attr : symbol)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
