@@ -17,6 +17,27 @@
 
 (define (haiku-error) (error 'haiku "Bad error message, find and fix"))
 
+(define haiku (call/cc (lambda (k)
+           (call-with-exception-handler
+            (lambda (y)
+             (k y))
+            (lambda ()
+              (k (haiku-error)
+              ))))))
+(define (gen-recur default special-func)
+  (lambda (this-expr)
+    (call/cc (lambda (k)
+               (call-with-exception-handler
+                (lambda (y)
+                  (k
+                   (begin
+                     (if (equal? (to-string haiku) (to-string y))
+                         (default this-expr)
+                         (error 'gen-recur (to-string y))))))
+                (lambda ()
+                  (k (special-func this-expr))
+                  ))))))
+
 (define (pyexpr-modify-tree [expr : PyExpr] [special-func : (PyExpr -> LexExpr)]) : LexExpr
   (local (
         (define (default this-expr)
@@ -110,17 +131,13 @@
               [PyNone [] (LexNone)]
               [PyBreak [] (LexBreak)]
               [PyContinue [] (LexContinue)]))
-        (define (recur this-expr)
-            (call/cc (lambda (k)
-                    (call-with-exception-handler
-                     (lambda (y)
-                       (k
-                        (default this-expr)))
-                     (lambda ()
-                       (k (special-func this-expr))
-                       ))))))
+        (define
+          recur (gen-recur default special-func)
+            ))
           (recur expr)
           ))
+
+
 
 (define (lexexpr-modify-tree [expr : LexExpr] [special-func : (LexExpr -> LexExpr)]) : LexExpr
   (local (
@@ -228,20 +245,14 @@
               [LexImport [names asnames] (LexImport names asnames)]
               [LexImportFrom [module names asnames level]
                              (LexImportFrom module names asnames level)])))
-        (define (recur this-expr)
-            (call/cc (lambda (k)
-                    (call-with-exception-handler
-                     (lambda (y)
-                       (k
-                        (default this-expr)))
-                     (lambda ()
-                       (k (special-func this-expr))
-                       ))))))
+        (define recur
+            (gen-recur default special-func)))
           (let ((ret (recur expr)))
             (begin
-              #;(display "done\n")
+              ;(display "done\n")
               ret
           ))))
+
 
 
 (define (pyexpr-fold-tree [expr : PyExpr] [special-func : (PyExpr -> (listof 'a))]) : (listof 'a)
@@ -343,21 +354,15 @@
               [PyContinue [] empty]
               [PyImport (names asnames) empty]
               [PyImportFrom (module names asnames level) empty]))
-        (define (recur this-expr)
-            (call/cc (lambda (k)
-                    (call-with-exception-handler
-                     (lambda (y)
-                       (k
-                        (default this-expr)))
-                     (lambda ()
-                       (k (special-func this-expr))
-                       ))))))
+        (define recur
+            (gen-recur default special-func)))
           (recur expr)
           ))
 
+
 (define (lexexpr-fold-tree [expr : LexExpr] [special-func : (LexExpr -> (listof 'a))]) : (listof 'a)
   (local (
-        (define (default this-expr)
+        (define (default [this-expr : LexExpr])
             (type-case LexExpr this-expr
                                         ; control structures
               [LexIf (test body orelse)
@@ -461,14 +466,8 @@
               [LexBlock [a b] (recur b)]
               [LexImport (names asnames) empty]
               [LexImportFrom (module names asnames level) empty]))
-        (define (recur this-expr)
-            (call/cc (lambda (k)
-                    (call-with-exception-handler
-                     (lambda (y)
-                       (k
-                        (default this-expr)))
-                     (lambda ()
-                       (k (special-func this-expr))
-                       ))))))
+        (define (recur expr) ((gen-recur default special-func) expr)
+            ))
           (recur expr)
           ))
+
