@@ -22,7 +22,7 @@ class SeqIter:
 
     def __next__(self):
         has_length = True
-        ret = None
+        found = False
         try:
             len(self.l)
         except AttributeError:
@@ -32,13 +32,17 @@ class SeqIter:
             if has_length and self.i >= len(self.l):
                 raise StopIteration()
             ret = self.l[self.i]
+            found = True
         except IndexError:
             raise StopIteration()
         except StopIteration:
             raise StopIteration()
 
         self.i += 1
-        return ret
+        if found:
+          return ret
+        else:
+          return None
 
 def iter(l, *args):
     if len(args) == 1:
