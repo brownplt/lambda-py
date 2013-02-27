@@ -177,7 +177,6 @@
         ; the use of the class name instead of the class object (or a reference to it) 
         ; as unique identifier for the class (Alejandro).
         (bind 'bool bool-class)
-        (bind 'set set-class)
         (bind 'file file-class)
         (bind 'open file-class)
         (bind 'type type-class)
@@ -232,6 +231,8 @@
             (bind '%list (CUndefined))
             (bind 'dict (CUndefined))
             (bind '%dict (CUndefined))
+            (bind 'set (CUndefined))
+            (bind '%set (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))

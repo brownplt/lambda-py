@@ -61,6 +61,7 @@ that calls the primitive `print`.
                (list "pylib/tuple.py"
                      "pylib/list.py"
                      "pylib/dict.py"
+                     "pylib/set.py"
                      "pylib/range.py"
                      "pylib/seq_iter.py"
                      "pylib/filter.py"

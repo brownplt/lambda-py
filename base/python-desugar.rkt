@@ -423,7 +423,7 @@
       [LexDict (keys values) (CDict (CId '%dict (GlobalId))
                                     (lists->hash (map rec-desugar keys)
                                                  (map rec-desugar values)))]
-      [LexSet (elts) (CSet (map rec-desugar elts))]
+      [LexSet (elts) (CSet (CId '%set (GlobalId)) (map rec-desugar elts))]
       [LexList (values) (CList (CId '%list (GlobalId)) (map rec-desugar values))]
       [LexTuple (values) (CTuple (CId '%tuple (GlobalId)) (map rec-desugar values))]
       
