@@ -12,6 +12,7 @@
          "builtins/bool.rkt"
          "builtins/file.rkt"
          (typed-in racket/string (string-join : ((listof string) string -> string)))
+         (typed-in racket/base (format : ('a -> string)))
          (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (quotient : (number number -> number)))
          (typed-in racket/base (remainder : (number number -> number)))
@@ -251,4 +252,5 @@ primitives here.
                  [(some? (Frame-class (first st))) (Frame-class (first st))]
                  [else (fetch-class (rest st))]))]
        (fetch-class stk))]
+    [else (error 'prim (format "Missed primitive: ~a" op))]
 ))

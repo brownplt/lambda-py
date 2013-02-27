@@ -176,8 +176,6 @@
         ; TODO: I think we should try to avoid doing this, it was just hiding a problem:
         ; the use of the class name instead of the class object (or a reference to it) 
         ; as unique identifier for the class (Alejandro).
-        (bind '$dict dict-class) 
-        (bind 'dict (assign 'dict (CId '$dict (GlobalId))))
         (bind 'bool bool-class)
         (bind 'set set-class)
         (bind 'file file-class)
@@ -232,6 +230,8 @@
             (bind '%tuple (CUndefined))
             (bind 'list (CUndefined))
             (bind '%list (CUndefined))
+            (bind 'dict (CUndefined))
+            (bind '%dict (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))

@@ -14,127 +14,6 @@
   (typed-in racket/base (hash-values : ((hashof 'a 'b) -> (listof 'b))))
 )
 
-(define dict-class : CExpr
-  (seq-ops (list 
-             (CAssign (CId '$dict (GlobalId))
-                      (CClass
-                        '$dict
-                        (list 'object)
-                        (CNone)))
-             
-             (def '$dict '__init__
-               (CFunc (list 'self) (none)
-                      (CAssign (CId 'self (LocalId))
-                               (CBuiltinPrim 'dict-init
-                                             (list
-                                              (CId 'self (LocalId)))))
-                      (some '$dict)))
-                      
-             (def '$dict '__len__
-                  (CFunc (list 'self) (none)
-                         (CReturn (CBuiltinPrim 'dict-len
-                                                (list
-                                                  (CId 'self (LocalId)))))
-                         (some '$dict)))
-             (def '$dict '__str__
-                  (CFunc (list 'self) (none)
-                         (CReturn (CBuiltinPrim 'dict-str
-                                                (list (CId 'self (LocalId)))))
-                         (some '$dict)))
-
-             (def '$dict '__list__
-                  (CFunc (list 'self) (none)
-                         (CReturn (CBuiltinPrim 'dict->list
-                                                (list (CId 'self (LocalId)))))
-                         (some '$dict)))
-
-             (def '$dict 'clear
-                  (CFunc (list 'self) (none)
-                         (CReturn (CBuiltinPrim 'dict-clear
-                                                (list (CId 'self (LocalId)))))
-                         (some '$dict)))
-
-             (def '$dict 'update
-                  (CFunc (list 'self) (some 'other)
-                         (CReturn (CBuiltinPrim 'dict-update
-                                                (list (CId 'self (LocalId))
-                                                      (CId 'other (LocalId)))))
-                         (some '$dict)))
-             (def '$dict 'get
-                  (CFunc (list 'self 'key) (some 'default)
-                         (CReturn (CBuiltinPrim 'dict-get 
-                                                (list (CId 'self (LocalId)) 
-                                                      (CId 'key (LocalId)) 
-                                                      (CId 'default (LocalId)))))
-                         (some '$dict)))
-             (def '$dict '__iter__
-                  (local [(define keys-id (new-id))]
-                    (CFunc (list 'self) (none)
-                           (CLet keys-id (LocalId)
-                                 (CApp (CGetField (CId 'self (LocalId)) 'keys) 
-                                       (list)
-                                       (none))
-                                 (CReturn (CApp (CGetField (CId keys-id (LocalId)) '__iter__)
-                                                (list)
-                                                (none))))
-                           (some '$dict))))
-             (def '$dict '__in__
-                  (CFunc (list 'self 'other) (none)
-                         (CReturn (CBuiltinPrim 'dict-in
-                                                (list
-                                                  (CId 'self (LocalId))
-                                                  (CId 'other (LocalId)))))
-                         (some '$dict)))
-
-             (def '$dict '__eq__
-                  (CFunc (list 'self 'other) (none)
-                         (CReturn (CApp (CId 'dicteq (GlobalId))
-                                        (list
-                                         (CId 'self (LocalId))
-                                         (CId 'other (LocalId)))
-                                        (none)))
-                         (some '$dict)))
-
-             (def '$dict 'keys
-                  (CFunc (list 'self) (none)
-                         (CReturn (CBuiltinPrim 'dict-keys
-                                                (list (CId 'self (LocalId)))))
-                         (some '$dict)))
-
-             (def '$dict 'values
-                  (CFunc (list 'self) (none)
-                         (CReturn (CBuiltinPrim 'dict-values
-                                                (list (CId 'self (LocalId)))))
-                         (some '$dict)))
-
-             (def '$dict 'items
-                  (CFunc (list 'self) (none)
-                         (CReturn (CBuiltinPrim 'dict-items
-                                                (list (CId 'self (LocalId)))))
-                         (some '$dict)))
-
-             (def '$dict '__getitem__
-                  (CFunc (list 'self 'other) (none)
-                         (CReturn (CBuiltinPrim 'dict-getitem
-                                                (list (CId 'self (LocalId))
-                                                      (CId 'other (LocalId)))))
-                         (some '$dict)))
-
-             (def '$dict '__setitem__
-                  (CFunc (list 'self 'target 'value) (none)
-                         (CReturn (CBuiltinPrim 'dict-setitem
-                                                (list (CId 'self (LocalId))
-                                                      (CId 'target (LocalId))
-                                                      (CId 'value (LocalId)))))
-                         (some '$dict)))
-
-             (def '$dict '__delitem__
-                  (CFunc (list 'self 'slice) (none)
-                         (CReturn (CBuiltinPrim 'dict-delitem
-                                                (list (CId 'self (LocalId))
-                                                      (CId 'slice (LocalId)))))
-                         (some '$dict))))))
-
 
 (define (make-under-dict [h : (hashof symbol Address)] [sto : Store]) : CVal
   (local [(define filledhash (make-hash empty))
@@ -143,26 +22,28 @@
                                               (make-str-value (symbol->string (car pair)))
                                               (fetch (cdr pair) sto)))
                                 (hash->list h)))]
-  (VObject '$dict
+  (VObject 'dict
            (some (MetaDict filledhash))
            (hash empty))))
 
 
 (define (dict-len (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '$dict
-               (some (VObject 'num
+  (check-types args env sto 'dict
+               (some (VObjectClass 'num
                               (some (MetaNum (length (hash-keys (MetaDict-contents mval1)))))
-                              (hash empty)))))
+                              (hash empty)
+                              (second args)))))
 
 (define (dict-str (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '$dict
-               (some (VObject 'str 
+  (check-types args env sto 'dict
+               (some (VObjectClass 'str 
                         (some (MetaStr
                                 (pretty-metaval mval1)))
-                        (hash empty)))))
+                        (hash empty)
+                        (second args)))))
 
 (define (dict-clear (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '$dict
+  (check-types args env sto 'dict
                (let ([contents (MetaDict-contents mval1)])
                  (begin
                    ; remove all key-value pairs from hash
@@ -171,13 +52,14 @@
                    (some vnone)))))
 
 (define (dict-in [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '$dict
+  (check-types args env sto 'dict
                (let ([contents (MetaDict-contents mval1)])
                  (if (hash-has-key? contents (second args)) ; FIXME: what if (second args) DNE?
                      (some true-val)
                      (some false-val)))))
+
 (define (dict-get [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '$dict
+  (check-types args env sto 'dict
       (local [(define d (first args))
               (define meta-d (MetaDict-contents (some-v (VObjectClass-mval d))))
               (define key (second args))
@@ -192,7 +74,7 @@
                  (some vnone))))))
 
 (define (dict-update (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '$dict
+  (check-types args env sto 'dict
                (let ([starargs (MetaTuple-v (some-v (VObjectClass-mval (second args))))])
                  (cond
                   ;; only work when the argument is a dict, it should handle pair iterators.
@@ -213,23 +95,25 @@
                    (none)]))))
 
 (define (dict-keys (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '$dict
+  (check-types args env sto 'dict
                (let ([contents (MetaDict-contents mval1)])
                     (some
-                      (VObject 'set
+                      (VObjectClass 'set
                                (some (MetaSet (make-set (hash-keys contents))))
-                               (hash empty))))))
+                               (hash empty)
+                               (second args))))))
 
 (define (dict-values (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '$dict
+  (check-types args env sto 'dict
                (let ([contents (MetaDict-contents mval1)])
                     (some
-                      (VObject 'set
+                      (VObjectClass 'set
                                (some (MetaSet (make-set (hash-values contents))))
-                               (hash empty))))))
+                               (hash empty)
+                               (second args))))))
 
 (define (dict-items (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '$dict
+  (check-types args env sto 'dict
                (letrec ([contents (MetaDict-contents mval1)]
                         [items (map (lambda (pair) ; create a tuple for each (key, value)
                                             (VObject 'tuple
@@ -237,13 +121,14 @@
                                                      (hash empty)))
                                     (hash->list contents))])
                     (some
-                      (VObject 'set
+                      (VObjectClass 'set
                                (some (MetaSet (make-set items)))
-                               (hash empty))))))
+                               (hash empty)
+                               (second args))))))
 
 
 (define (dict-getitem [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '$dict
+  (check-types args env sto 'dict
                (letrec ([contents (MetaDict-contents mval1)]
                         [target (second args)]
                         [mayb-val (hash-ref contents target)])
@@ -252,7 +137,7 @@
                    (some vnone)))))
 
 (define (dict-setitem [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '$dict
+  (check-types args env sto 'dict
                (letrec ([contents (MetaDict-contents mval1)]
                         [target (second args)]
                         [value (third args)])
@@ -261,7 +146,7 @@
                    (some vnone)))))
 
 (define (dict-delitem [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '$dict
+  (check-types args env sto 'dict
                (letrec ([contents (MetaDict-contents mval1)]
                         [target (second args)])
                  (begin
@@ -269,16 +154,19 @@
                    (some vnone)))))
 
 (define (dict->list [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '$dict
+  (check-types args env sto 'dict
                (local [(define contents (MetaDict-contents mval1))]
                  (some
-                   (VObject 'list
+                   (VObjectClass 'list
                             (some (MetaList (hash-keys contents)))
-                            (hash empty))))))
+                            (hash empty)
+                            (second args))))))
 
 (define (dict-init [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (let ([obj (first args)])
     (some
-     (VObject (VObjectClass-antecedent obj)
+     (VObjectClass (VObjectClass-antecedent obj)
               (some (MetaDict (make-hash empty)))
-              (VObjectClass-dict obj)))))
+              (VObjectClass-dict obj)
+              (second args)))))
+

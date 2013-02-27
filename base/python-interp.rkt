@@ -477,7 +477,7 @@
     
     ;; note that for now we're assuming that dict keys and values aren't going
     ;; to mess with the environment and store, but this might be wrong
-    [CDict (contents)
+    [CDict (class contents)
            (letrec ([interped-hash (make-hash empty)]
                     [interp-pairs (lambda (lst)
                                   (map (lambda (pair)
@@ -487,16 +487,14 @@
                                       lst))])
              (begin
                (interp-pairs (hash->list contents))
-               ;; TODO(joe): none in VObjectClass again
-               ;;
-               ;; Fine again here; not placing it in the store;
-               ;; - Sumner
-               (v*s (VObjectClass '$dict
-                              (some (MetaDict interped-hash))
-                              (hash empty)
-                              (none))
-                    sto
-                    (none))))]
+                 (handle-result (interp-env class env sto stk)
+                  (lambda (cval csto cloc)
+                     (v*s (VObjectClass 'dict
+                                   (some (MetaDict interped-hash))
+                                   (hash empty)
+                                   (some cval))
+                      csto
+                      (none))))))]
 
     [CSet (elts)
           (local [(define-values (result-list new-s) (interp-cascade elts sto env stk))]
