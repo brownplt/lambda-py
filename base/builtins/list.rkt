@@ -77,8 +77,8 @@
                                    (hash empty)
                                    (some (second args)))))))
 
-(define (list-setitem [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal) 
-  (check-types args env sto 'list 'num 'num
+(define (list-setitem [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
+  (check-types args env sto 'list 'num
                (some (make-builtin-list
                        (list-replace (MetaNum-n mval2) 
                                      (third args)
