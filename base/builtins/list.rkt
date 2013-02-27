@@ -41,7 +41,7 @@
                         (some (second args))))))
 
 (define (list-in [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
- (letrec ([self-list (MetaList-v (some-v (VObjectClass (first args))))]
+ (letrec ([self-list (MetaList-v (some-v (VObjectClass-mval (first args))))]
           [test (second args)]
           [contains (lambda ([lst : (listof CVal)] [val : CVal]) : CVal
                     (cond

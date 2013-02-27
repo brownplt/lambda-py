@@ -32,7 +32,7 @@
                (some (VObjectClass 'num
                               (some (MetaNum (length (hash-keys (MetaDict-contents mval1)))))
                               (hash empty)
-                              (second args)))))
+                              (some (second args))))))
 
 (define (dict-str (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'dict
@@ -40,7 +40,7 @@
                         (some (MetaStr
                                 (pretty-metaval mval1)))
                         (hash empty)
-                        (second args)))))
+                        (some (second args))))))
 
 (define (dict-clear (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'dict
@@ -101,7 +101,7 @@
                       (VObjectClass 'set
                                (some (MetaSet (make-set (hash-keys contents))))
                                (hash empty)
-                               (second args))))))
+                               (some (second args)))))))
 
 (define (dict-values (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'dict
@@ -110,7 +110,7 @@
                       (VObjectClass 'set
                                (some (MetaSet (make-set (hash-values contents))))
                                (hash empty)
-                               (second args))))))
+                               (some (second args)))))))
 
 (define (dict-items (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'dict
@@ -124,7 +124,7 @@
                       (VObjectClass 'set
                                (some (MetaSet (make-set items)))
                                (hash empty)
-                               (second args))))))
+                               (some (second args)))))))
 
 
 (define (dict-getitem [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
@@ -160,7 +160,7 @@
                    (VObjectClass 'list
                             (some (MetaList (hash-keys contents)))
                             (hash empty)
-                            (second args))))))
+                            (some (second args)))))))
 
 (define (dict-init [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (let ([obj (first args)])
@@ -168,5 +168,5 @@
      (VObjectClass (VObjectClass-antecedent obj)
               (some (MetaDict (make-hash empty)))
               (VObjectClass-dict obj)
-              (second args)))))
+              (some (second args))))))
 

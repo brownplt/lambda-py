@@ -66,7 +66,7 @@ class list(object):
     return self.__add__(other)
 
   def append(self, other):
-    return self.extend([other])
+    self = self.extend([other])
 
 ___assign("%list", list)
 

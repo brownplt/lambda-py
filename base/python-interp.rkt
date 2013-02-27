@@ -1094,7 +1094,7 @@
                                   (get-field '__func__ value (none) env sto)]
                        ;; otherwise return the value of the attribute
                        [else 
-                        (v*s value sto w)]))]
+                        (v*s value sto (some w))]))]
          [none () (mk-exception 'AttributeError
                                 (string-append 
                                  (string-append "object " 
