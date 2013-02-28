@@ -37,7 +37,7 @@ class dict(object):
     return ___delta("dict-values", self, set)
 
   def items(self):
-    return ___delta("dict-items", self, set)
+    return ___delta("dict-items", self, set, tuple)
 
   def __getitem__(self, key):
     return ___delta("dict-getitem", self, key)
