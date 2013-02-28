@@ -41,11 +41,13 @@
               [PyExcept (types  body) (LexExcept (map recur types) (recur body))]
               [PyExceptAs (types name body)
                           (LexExceptAs (map recur types) name (recur body))]
-              [PyTryExceptElseFinally (try except orelse finally)
-                                      (LexTryExceptElseFinally (recur try)
-                                                               (map recur except)
-                                                               (recur orelse)
-                                                               (recur finally))]
+              [PyTryExceptElse (try except orelse)
+                               (LexTryExceptElse (recur try)
+                                                 (map recur except)
+                                                 (recur orelse))]
+              [PyTryFinally (try finally)
+                            (LexTryFinally (recur try)
+                                           (recur finally))]
                                         ;loops 
               [PyWhile (test body orelse)
                        (LexWhile (recur test) (recur body) (recur orelse))]
@@ -157,11 +159,13 @@
               [LexExcept (types  body) (LexExcept (map recur types) (recur body))]
               [LexExceptAs (types name body)
                           (LexExceptAs (map recur types) name (recur body))]
-              [LexTryExceptElseFinally (try except orelse finally)
-                                      (LexTryExceptElseFinally (recur try)
-                                                               (map recur except)
-                                                               (recur orelse)
-                                                               (recur finally))]
+              [LexTryExceptElse (try except orelse)
+                                (LexTryExceptElse (recur try)
+                                                  (map recur except)
+                                                  (recur orelse))]
+              [LexTryFinally (try finally)
+                             (LexTryFinally (recur try)
+                                            (recur finally))]
                                         ;loops 
               [LexWhile (test body orelse)
                        (LexWhile (recur test) (recur body) (recur orelse))]
@@ -271,12 +275,15 @@
                         (flatten (list (map recur types) (list (recur body))))]
               [PyExceptAs (types name body)
                           (flatten (list (map recur types) (list (recur body))))]
-              [PyTryExceptElseFinally (try except orelse finally)
-                                      (flatten (list
-                                                (list (recur try))
-                                                (map recur except)
-                                                (list (recur orelse))
-                                                (list (recur finally))))]
+              [PyTryExceptElse (try except orelse)
+                               (flatten (list
+                                          (list (recur try))
+                                          (map recur except)
+                                          (list (recur orelse))))]
+              [PyTryFinally (try finally)
+                            (flatten (list
+                                       (list (recur try))
+                                       (list (recur finally))))]
                                         ;loops 
               [PyWhile (test body orelse)
                        (flatten (list (recur test) (recur body) (recur orelse)))]
@@ -388,12 +395,15 @@
                         (flatten (list (map recur types) (list (recur body))))]
               [LexExceptAs (types name body)
                           (flatten (list (map recur types) (list (recur body))))]
-              [LexTryExceptElseFinally (try except orelse finally)
-                                      (flatten (list
-                                                (list (recur try))
-                                                (map recur except)
-                                                (list (recur orelse))
-                                                (list (recur finally))))]
+              [LexTryExceptElse (try except orelse)
+                                (flatten (list
+                                           (list (recur try))
+                                           (map recur except)
+                                           (list (recur orelse))))]
+              [LexTryFinally (try finally)
+                             (flatten (list
+                                        (list (recur try))
+                                        (list (recur finally))))]
                                         ;loops 
               [LexWhile (test body orelse)
                        (flatten (list (recur test) (recur body) (recur orelse)))]

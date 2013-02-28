@@ -195,7 +195,7 @@ primitives here.
     ['exception-str (let ([arg (first args)])
                       (some (VObject 'str
                         (some (MetaStr
-                                (pretty-exception arg sto)))
+                                (pretty-exception arg sto #f)))
                         (hash empty))))]
                             
 

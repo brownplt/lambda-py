@@ -385,6 +385,7 @@
                                                                 (target-fun target))) ]
                   [PyLexNonLocal (ids) ids]
                   [LexBlock (nls es) empty]
+                  [LexExceptAs (types name body) (list name)]
                   [else (error 'desugar:extract-locals-helper "this shouldn't be reachable")]))))
     (lexexpr-fold-tree expr spec)))
 

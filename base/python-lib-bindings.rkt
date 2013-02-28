@@ -143,12 +143,14 @@
 (define callable-lambda
   (CFunc (list 'to-check) (none)
          (CSeq
-          (CTryExceptElseFinally
-           ;; try to get __call__ attribute and return True
-           (CSeq
-            (CGetField (CId 'to-check (LocalId)) '__call__)
-            (CReturn (CTrue)))
-           (list (CExcept (list) (none) (CNone))) (CNone) (CNone))
+          (CTryExceptElse
+            ;; try to get __call__ attribute and return True
+            (CSeq
+              (CGetField (CId 'to-check (LocalId)) '__call__)
+              (CReturn (CTrue)))
+            (new-id)
+            (CExcept (list) (none) (CNone))
+            (CNone))
           ;; use the primary operator
           (CReturn (CPrim1 'callable (CId 'to-check (LocalId)))))
          (none)))
@@ -199,6 +201,7 @@
         (bind 'SyntaxError (assign 'SyntaxError (make-exception-class 'SyntaxError)))
         (bind 'AttributeError (assign 'AttributeError (make-exception-class 'AttributeError)))
         (bind 'RuntimeError (assign 'RuntimeError (make-exception-class 'RuntimeError)))
+        (bind '$Reraise (assign '$Reraise (make-exception-class '$Reraise)))
         (bind 'KeyError (assign 'KeyError (make-exception-class 'KeyError)))
         (bind 'IndexError (assign 'IndexError (make-exception-class 'IndexError)))
         (bind 'UnboundLocalError

@@ -20,8 +20,8 @@
   [PyRaise (expr : PyExpr)]
   [PyExcept (types : (listof PyExpr)) (body : PyExpr)]
   [PyExceptAs (types : (listof PyExpr)) (name : symbol) (body : PyExpr)]
-  [PyTryExceptElseFinally (try : PyExpr) (except : (listof PyExpr))
-                          (orelse : PyExpr) (finally : PyExpr)]
+  [PyTryExceptElse (try : PyExpr) (except : (listof PyExpr)) (orelse : PyExpr)]
+  [PyTryFinally (try : PyExpr) (finally : PyExpr)]
 
   ;loops 
   [PyWhile (test : PyExpr) (body : PyExpr) (orelse : PyExpr)]

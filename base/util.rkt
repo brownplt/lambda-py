@@ -295,7 +295,7 @@
     [else "builtin-value"]
     ))
 
-(define (pretty-exception [exn : CVal] [sto : Store]) : string
+(define (pretty-exception [exn : CVal] [sto : Store] [print-name : boolean]) : string
   (local [(define name (symbol->string (VObjectClass-antecedent exn)))
           (define args-loc (hash-ref (VObjectClass-dict exn) 'args))
           (define pretty-args (if (some? args-loc)
@@ -307,11 +307,13 @@
                                                (fetch (some-v args-loc) sto)))))
                                     " ")
                                   ""))]
-    (if (not (string=? pretty-args ""))
-        (string-append name 
-                       (string-append ": "
-                                      pretty-args))
-        name)))
+    (if print-name
+        (if (not (string=? pretty-args ""))
+            (string-append name 
+                           (string-append ": "
+                                          pretty-args))
+            name)
+        pretty-args)))
 
 (define (make-exception [name : symbol] [error : string]) : CExpr
   (CApp

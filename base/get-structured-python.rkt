@@ -270,7 +270,7 @@ structure that you define in python-syntax.rkt
                  ('finalbody fbody))
      (let ([TEE (get-structured-python body)]
            [F (get-structured-python fbody)])
-            (PyTryExceptElseFinally TEE empty (PyPass) F))]
+            (PyTryFinally TEE F))]
 
     [(hash-table ('nodetype "TryExcept")
                  ('body body)
@@ -279,7 +279,7 @@ structure that you define in python-syntax.rkt
      (let ([try (get-structured-python body)]
            [excepts (map get-structured-python handlers)]
            [orelse (get-structured-python else-expr)])
-       (PyTryExceptElseFinally try excepts orelse (PyPass)))]
+       (PyTryExceptElse try excepts orelse))]
 
     [(hash-table ('nodetype "Break")) (PyBreak)]
 

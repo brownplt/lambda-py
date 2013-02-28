@@ -26,8 +26,9 @@
   [LexRaise (expr : LexExpr)]
   [LexExcept (types : (listof LexExpr)) (body : LexExpr)]
   [LexExceptAs (types : (listof LexExpr)) (name : symbol) (body : LexExpr)]
-  [LexTryExceptElseFinally (try : LexExpr) (except : (listof LexExpr))
-                          (orelse : LexExpr) (finally : LexExpr)]
+  [LexTryExceptElse (try : LexExpr) (except : (listof LexExpr))
+                          (orelse : LexExpr)]
+  [LexTryFinally (try : LexExpr) (finally : LexExpr)]
 
   ;loops 
   [LexWhile (test : LexExpr) (body : LexExpr) (orelse : LexExpr)]

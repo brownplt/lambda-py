@@ -250,103 +250,6 @@
                     ;; - Sumner
                     (cons (Frame env class self) stk))))))
 
-(define (interp-excepts [excepts : (listof CExpr)]
-                        [sto : Store]
-                        [env : Env]
-                        [exn : Result]
-                        [stk : Stack]) : Result
-  (local [(define exn-type (VObjectClass-antecedent (Exception-v exn)))
-          (define (find-match type exps fsto)
-            (cond
-              [(empty? exps) (values (none) fsto (none))]
-              [(cons? exps)
-               ;; need to interp exprs and then check
-               (local [(define-values (except-types-results tsto)
-                         (interp-cascade (CExcept-types (first exps)) fsto env stk))
-                       (define exn? (filter Exception? except-types-results))]
-                 (if (< 0 (length exn?))
-                     (values (none) tsto (some (first exn?)))
-                     (local [(define actual-except-types
-                               (if (and (> (length except-types-results) 0)
-                                        (VObjectClass? (v*s-v (first except-types-results)))
-                                        (MetaTuple?
-                                          (some-v (VObjectClass-mval
-                                                    (v*s-v (first except-types-results))))))
-                                   (map (lambda (v) (v*s v
-                                                    (v*s-s (first except-types-results))
-                                                    (none)))
-                                        (MetaTuple-v
-                                          (some-v (VObjectClass-mval
-                                                    (v*s-v (first except-types-results))))))
-                                   except-types-results))
-                             (define except-types
-                                 (begin ;(display (map v*s-v actual-except-types)) (display "\n")
-                                 (map (lambda (t)
-                                         (type-case CVal (v*s-v t)
-                                           [VObjectClass (ante mval dict class) 
-                                                    (if (and (some? mval) 
-                                                             (MetaClass? (some-v mval)))
-                                                      (some (MetaClass-c (some-v mval)))
-                                                      (none))]
-                                           [else (none)]))
-                                       actual-except-types)))
-                             (define exn-again? (filter none? except-types))]
-                                (if (< 0 (length exn-again?))
-                                  (values (none) tsto
-                                          (some (mk-exception
-                                                  'TypeError
-                                                  "can't catch closures. This will go away."
-                                                  tsto)))
-                                  (if (or (member exn-type (map some-v except-types))
-                                          (empty? (CExcept-types (first exps))))
-                                    (values (some (first exps)) tsto (none))
-                                    (find-match type (rest exps) tsto))))))]))
-          (define-values (match? hsto exn?) (find-match exn-type excepts sto))]
-
-    ; we might have found a matching except clause
-    (if (some? exn?)
-        (some-v exn?)
-        (if (some? match?)
-            (local [(define as-name (CExcept-name (some-v match?)))
-                    (define result
-                      (if (some? as-name)
-                          (interp-let (some-v as-name)
-                                ;; This could potentially be in global scope. Does it matter?
-                                (LocalId)
-                                (Exception (Exception-v exn) hsto)
-                                (CExcept-body (some-v match?))
-                                env stk)
-                          (interp-env (some-v match?) env hsto stk)))]
-              (type-case Result result
-                [v*s (vbody sbody abody) (v*s vnone sbody (none))]
-                [Return (vbody sbody abody) (Return vbody sbody abody)]
-                [Break (sbody) (Break sbody)]
-                [Continue (sbody) (Continue sbody)] 
-                [Exception (vbody sbody)
-                           (local [(define exn-args (hash-ref (VObjectClass-dict vbody) 'args))
-                                   (define exn-args-val (if (some? exn-args)
-                                                            (some (fetch (some-v exn-args) sbody))
-                                                            (none)))
-                                   (define exn-mval (if (some? exn-args-val)
-                                                        (VObjectClass-mval (some-v exn-args-val))
-                                                        (none)))
-                                   (define exn-tuple (if (some? exn-mval)
-                                                         (some (MetaTuple-v (some-v exn-mval)))
-                                                         (none)))
-                                   (define exn-tuple-mval (if (and (some? exn-tuple)
-                                                                   (> (length (some-v exn-tuple))
-                                                                      0))
-                                                              (VObjectClass-mval
-                                                                (first (some-v exn-tuple)))
-                                                              (none)))
-                                   (define exn-str (if (some? exn-tuple-mval)
-                                                       (MetaStr-s (some-v exn-tuple-mval))
-                                                       ""))]
-                             (if (string=? exn-str "No active exception to reraise")
-                                 (Exception (Exception-v exn) sbody)
-                                 result))]))
-          (Exception (Exception-v exn) hsto)))))
-
 (define (interp-let [name : symbol] [type : IdType] [value : Result]
                     [body : CExpr] [env : Env] [stk : Stack]) : Result
   (local [(define-values (val sto)
@@ -632,25 +535,15 @@
                          [else (mk-exception 'TypeError
                                              "exceptions must derive from BaseException"
                                              sexpr)])))
-                (mk-exception 'RuntimeError
-                              "No active exception to reraise"
+                (mk-exception '$Reraise
+                              "reraise previous exception if possible"
                               sto))]
     
-    ;; revisit this, I think there are some errors with finally (Sumner)
-    ;; TODO(joe): Who wrote the above?  Please sign your comments.  What
-    ;; finally tests do you fear failures on?
-    [CTryExceptElseFinally (try excepts orelse finally)
+    [CTryExceptElse (try exn-id excepts orelse)
          (type-case Result (interp-env try env sto stk)
             [v*s (vtry stry atry)
                    (type-case Result (interp-env orelse env stry stk)
-                      [v*s (velse selse aelse)
-                             (type-case Result (interp-env finally env selse stk)
-                                [v*s (vfin sfin afin)
-                                       (v*s vnone sfin (none))]
-                                [Return (vfin sfin afin) (return-exception sfin)]
-                                [Break (sfin) (Break sfin)]
-                                [Continue (sfin) (Continue sfin)] 
-                                [Exception (vfin sfin) (Exception vfin sfin)])]
+                      [v*s (velse selse aelse) (v*s velse selse aelse)]
                       [Return (velse selse aelse) (return-exception selse)]
                       [Break (selse) (Break selse)]
                       [Continue (selse) (Continue selse)]
@@ -660,23 +553,43 @@
             [Continue (stry) (Continue stry)]
             ;; handle excepts here
             [Exception (vtry stry)
-               (local [(define result 
-                         (if (empty? excepts)
+                       (local [(define excepts-r
+                                 (interp-let exn-id (LocalId)
+                                             (Exception vtry stry)
+                                             excepts
+                                             env stk))]
+                         (if (and (Exception? excepts-r)
+                                  (VObjectClass? (Exception-v excepts-r))
+                                  (object-is? (Exception-v excepts-r) '$Reraise env stry))
                              (Exception vtry stry)
-                             (interp-excepts excepts stry env (Exception vtry stry) stk)))]
-                 ;; TODO(Sumner): make sure this is still right!
-                 ;; TODO(Sumner): It's not. Fix it.
-                 ;; TODO(joe): Please sign your comments so we know who to
-                 ;; contact with questions.  It's fine that it doesn't work,
-                 ;; but everyone should know who to ask for how to get started
-                 ;; fixing it!
-                 (type-case Result result
-                   [v*s (vexc sexc aexc) (interp-env finally env sexc stk)]
-                   ;; finally block is excecuted, but side effects are ignored...
-                   [Return (vexc sexc aexc) (begin (interp-env finally env sexc stk) result)]
-                   [Break (sexc) (begin (interp-env finally env sexc stk) result)]
-                   [Continue (sexc) (begin (interp-env finally env sexc stk) result)]
-                   [Exception (vexc sexc) (begin (interp-env finally env sexc stk) result)]))])]
+                             excepts-r))])]
+
+    [CTryFinally (try finally)
+      (local [(define try-r (interp-env try env sto stk))
+              (define stry (type-case Result try-r
+                             [v*s (v s a) s]
+                             [Return (v s a) s]
+                             [Break (s) s]
+                             [Continue (s) s]
+                             [Exception (v s) s]))
+              (define finally-r (interp-env finally env stry stk))]
+        (if (v*s? try-r)
+            finally-r
+            (type-case Result finally-r
+              [v*s (vtry stry atry) try-r]
+              [Return (vtry stry atry) finally-r]
+              [Break (stry) finally-r]
+              [Continue (stry)
+                        (mk-exception 'SyntaxError
+                                      "'continue' not supported inside 'finally' clause"
+                                      stry)]
+              [Exception (vtry stry)
+                         (if (and (VObjectClass? vtry)
+                                  (object-is? vtry '$Reraise env stry))
+                             (if (Exception? try-r)
+                                 try-r
+                                 finally-r)
+                             finally-r)])))]
 
     [CExcept (types name body) (interp-env body env sto stk)]
     
@@ -887,22 +800,25 @@
             (local [(define exn (return-exception sexpr))]
               (raise-user-error (string-append
                                   (pretty-exception (Exception-v exn)
-                                                    (Exception-s exn))
+                                                    (Exception-s exn)
+                                                    #t)
                                   "\n")))]
     [Break (sexpr)
            (local [(define exn (break-exception sexpr))]
              (raise-user-error (string-append
                                  (pretty-exception (Exception-v exn)
-                                                   (Exception-s exn))
+                                                   (Exception-s exn)
+                                                   #t)
                                  "\n")))]
     [Continue (sexpr)
            (local [(define exn (continue-exception sexpr))]
              (raise-user-error (string-append
                                  (pretty-exception (Exception-v exn)
-                                                   (Exception-s exn))
+                                                   (Exception-s exn)
+                                                   #t)
                                  "\n")))] 
     [Exception (vexpr sexpr)
-               (raise-user-error (string-append (pretty-exception vexpr sexpr) "\n"))])))
+               (raise-user-error (string-append (pretty-exception vexpr sexpr #t) "\n"))])))
 
 (define (truthy? [val : CVal]) : boolean
   (type-case CVal val
