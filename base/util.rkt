@@ -316,7 +316,7 @@
 (define (make-exception [name : symbol] [error : string]) : CExpr
   (CApp
     (CId name (GlobalId))
-    (list (CStr error))
+    (list (make-builtin-str error))
     (none)))
 
 ; generates a new unique variable name that isn't allowed by user code 
@@ -408,6 +408,9 @@
 
 
  
+(define (make-builtin-str [s : string]) : CExpr
+  (CObject (gid '%str) (some (MetaStr s))))
+
 (define (make-builtin-num [n : number]) : CExpr
   (CObject
     (if (exact? n)
@@ -423,11 +426,11 @@
     [(_ class arg ...)
      #'(CApp (CGetField class '__init__) (list arg ...) (none))]))
 
-(test (Let 'x (CNone) (CStr "foo"))
+(test (Let 'x (CNone) (make-builtin-str "foo"))
       (CLet 'x (LocalId) (CNone)
-        (CStr "foo")))
+        (make-builtin-str "foo")))
 
-(test (Prim 'num< (CStr "foo") (CStr "bar"))
-      (CBuiltinPrim 'num< (list (CStr "foo") (CStr "bar"))))
+(test (Prim 'num< (make-builtin-str "foo") (make-builtin-str "bar"))
+      (CBuiltinPrim 'num< (list (make-builtin-str "foo") (make-builtin-str "bar"))))
 
 

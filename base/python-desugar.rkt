@@ -329,7 +329,7 @@
                                                     (none)))
                                                 (CRaise (some
                                                   (CApp (CId 'TypeError (LocalId))
-                                                        (list (CStr
+                                                        (list (make-builtin-str
                                                                (string-append
                                                                 "argument of type '___'" 
                                                                 "is not iterable")))

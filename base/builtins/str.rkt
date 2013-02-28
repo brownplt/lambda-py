@@ -145,9 +145,6 @@
                                                     (CId 'self (LocalId)))))
                             (some 'str))))))
                           
-(define (make-builtin-str [s : string]) : CExpr
-  (CStr s))
-
 (define (make-str-value [s : string]) : CVal
   (VObject
     'str

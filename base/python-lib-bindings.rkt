@@ -173,6 +173,7 @@
         (bind 'float float-class)
         (bind '%float (assign '%float (CId 'float (GlobalId))))
         (bind 'str str-class)
+        (bind '%str (assign '%str (CId 'str (GlobalId))))
         (bind 'bool bool-class)
         (bind 'file file-class)
         (bind 'open file-class)

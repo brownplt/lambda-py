@@ -439,7 +439,6 @@
     ;;
     ;; The (none) is fine here because we aren't placing the object in the store yet.
     ;; - Sumner
-    [CStr (s) (v*s (VObjectClass 'str (some (MetaStr s)) (hash empty) (none)) sto (none))]
     [CTrue () (v*s true-val sto (none))]
     [CFalse () (v*s false-val sto (none))]
     [CNone () (v*s vnone sto (none))]

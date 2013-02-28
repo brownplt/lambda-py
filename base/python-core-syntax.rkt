@@ -11,12 +11,11 @@ ParselTongue.
 (require [opaque-type-in racket/set [Set set?]])
 
 (define-type CExpr
-  [CStr (s : string)]
   [CTrue]
   [CFalse]
   [CNone]
-  [CClass (name : CExpr) (bases : (listof symbol)) (body : CExpr)]
-  [CObject (class : symbol) (bval : (optionof MetaVal))]
+  [CClass (name : symbol) (bases : (listof symbol)) (body : CExpr)]
+  [CObject (class : CExpr) (bval : (optionof MetaVal))]
   [CGetField (value : CExpr) (attr : symbol)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
   [CAssign (target : CExpr) (value : CExpr)]
