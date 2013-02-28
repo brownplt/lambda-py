@@ -14,10 +14,17 @@
                         'object
                         (list)
                         (CNone)))
+
+             (def 'object '__new__
+                  (CFunc (list 'cls) (some 'args)
+                         (CReturn (CObject (CId 'cls (LocalId)) (none)))
+                         (some 'object)))
+
              (def 'object '__init__ 
                   (CFunc (list 'self) (none)
                          (CId 'self (LocalId))
                          (some 'object)))
+
              (def 'object '__eq__
                   (CFunc (list 'self 'other) (none)
                          (CReturn (CPrim2 'Is

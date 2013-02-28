@@ -74,46 +74,43 @@
       (DResult-expr body))
      (DResult-env body))))
 
-;; for the body of some local scope level like a class or function, hoist
-;; all the assignments and defs to the top as undefineds
-
 (define (desugar-for [target : LexExpr] [iter : LexExpr]
                      [body : LexExpr]) : CExpr
-  (local [(define iter-pyid (LexLocalId (new-id) 'Load))]
-
+  (local [(define iter-id (new-id))]
     (rec-desugar
-     (LexSeq
-      (list (LexAssign (list iter-pyid) (LexApp (LexGlobalId 'iter 'Load) (list iter)))
-            (LexWhile (LexBool true)
-                     (LexSeq 
-                      (list 
-                       (LexAssign (list target) (LexNone))
-                       (LexTryExceptElseFinally
-                         (LexAssign (list target) 
-                                    (LexApp (LexDotField iter-pyid '__next__) empty))
-                         (list (LexExcept (list (LexGlobalId 'StopIteration 'Load))
-                                          (LexBreak)))
-                         (LexPass)
-                         (LexPass))
-                       body))
-                     (LexPass)))))))
+     (LexLocalLet iter-id (LexApp (LexGlobalId 'iter 'Load) (list iter))
+                  (LexWhile (LexBool true)
+                            (LexSeq
+                             (list
+                              (LexTryExceptElseFinally
+                               (LexAssign (list target)
+                                          (LexApp (LexDotField (LexLocalId iter-id 'Load)
+                                                               '__next__)
+                                                  empty))
+                               (list (LexExcept (list (LexGlobalId 'StopIteration 'Load))
+                                                (LexBreak)))
+                               (LexPass)
+                               (LexPass))
+                              body))
+                            (LexPass))))))
 
 (define (desugar-listcomp [body : LexExpr] [gens : (listof LexExpr)] ) : CExpr
-  (local [(define list-id (LexLocalId (new-id) 'Load))
+  (local [(define list-id (new-id))
           (define (make-comploop gens)
-            (cond 
-              [(empty? gens) (LexApp (LexDotField list-id 'append) 
-                                    (list body))]
+            (cond
+              [(empty? gens) (LexApp (LexDotField (LexLocalId list-id 'Load)
+                                                  'append)
+                                     (list body))]
               [(cons? gens)
                (LexFor (LexComprehen-target (first gens))
-                      (LexComprehen-iter (first gens))
-                      (make-comploop (rest gens)))]))
+                       (LexComprehen-iter (first gens))
+                       (make-comploop (rest gens)))]))
           (define full-expr
-            (LexSeq
-             (list 
-              (LexAssign (list list-id) (LexList empty))
-              (make-comploop gens)
-              list-id)))]
+            (LexLocalLet list-id (LexList empty)
+                         (LexSeq
+                          (list
+                           (make-comploop gens)
+                           (LexLocalId list-id 'Load)))))]
          (rec-desugar full-expr)))
 
 (define (which-scope [scp : LocalOrGlobal]) : IdType
@@ -332,12 +329,10 @@
                                                     (none)))
                                                 (CRaise (some
                                                   (CApp (CId 'TypeError (LocalId))
-                                                        (list (CObject
-                                                                'str
-                                                                (some (MetaStr 
-                                                                        (string-append
-                                                                          "argument of type '___'" 
-                                                                          "is not iterable")))))
+                                                        (list (make-builtin-str
+                                                               (string-append
+                                                                "argument of type '___'" 
+                                                                "is not iterable")))
                                                         (none))))))
                                      (none))
                               (list right-c left-c)
@@ -423,11 +418,12 @@
 
       [LexReturn (value) (CReturn (rec-desugar value))]
       
-      [LexDict (keys values) (CDict (lists->hash (map rec-desugar keys)
+      [LexDict (keys values) (CDict (CId '%dict (GlobalId))
+                                    (lists->hash (map rec-desugar keys)
                                                  (map rec-desugar values)))]
-      [LexSet (elts) (CSet (map rec-desugar elts))]
-      [LexList (values) (CList (map rec-desugar values))]
-      [LexTuple (values) (CTuple (map rec-desugar values))]
+      [LexSet (elts) (CSet (CId '%set (GlobalId)) (map rec-desugar elts))]
+      [LexList (values) (CList (CId '%list (GlobalId)) (map rec-desugar values))]
+      [LexTuple (values) (CTuple (CId '%tuple (GlobalId)) (map rec-desugar values))]
       
       [LexSubscript (left ctx slice)
                     (cond

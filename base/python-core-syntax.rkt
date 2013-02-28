@@ -11,12 +11,11 @@ ParselTongue.
 (require [opaque-type-in racket/set [Set set?]])
 
 (define-type CExpr
-  [CStr (s : string)]
   [CTrue]
   [CFalse]
   [CNone]
   [CClass (name : symbol) (bases : (listof symbol)) (body : CExpr)]
-  [CObject (class : symbol) (bval : (optionof MetaVal))]
+  [CObject (class : CExpr) (bval : (optionof MetaVal))]
   [CGetField (value : CExpr) (attr : symbol)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
   [CAssign (target : CExpr) (value : CExpr)]
@@ -31,10 +30,10 @@ ParselTongue.
   [CPrim1 (prim : symbol) (arg : CExpr)]
   [CPrim2 (prim : symbol) (arg1 : CExpr) (arg2 : CExpr)]
   [CBuiltinPrim (op : symbol) (args : (listof CExpr))]
-  [CList (values : (listof CExpr))]
-  [CTuple (values : (listof CExpr))]
-  [CDict (contents : (hashof CExpr CExpr))]
-  [CSet (values : (listof CExpr))]
+  [CList (class : CExpr) (values : (listof CExpr))]
+  [CTuple (class : CExpr) (values : (listof CExpr))]
+  [CDict (class : CExpr) (contents : (hashof CExpr CExpr))]
+  [CSet (class : CExpr) (values : (listof CExpr))]
   [CRaise (expr : (optionof CExpr))]
   [CTryExceptElseFinally (try : CExpr) (excepts : (listof CExpr))
                          (orelse : CExpr) (finally : CExpr)]
@@ -57,7 +56,7 @@ ParselTongue.
 
 (define-type CVal
   [VObjectClass (antecedent : symbol) (mval : (optionof MetaVal))
-                (dict : object-dict) (class : (optionof Address))]
+                (dict : object-dict) (class : (optionof CVal))]
   [VUndefined]
   [VPointer (a : Address)]
   [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr)
@@ -80,12 +79,15 @@ ParselTongue.
 (define-type-alias Address number)
 (define Address->string number->string)
 (define-type-alias Store (hashof Address CVal))
-(define new-loc
+(define-values (new-loc reset-loc)
   (let ([n (box 0)])
-    (lambda ()
-      (begin
-        (set-box! n (add1 (unbox n)))
-        (unbox n)))))
+    (values
+      (lambda ()
+        (begin
+          (set-box! n (add1 (unbox n)))
+          (unbox n)))
+      (lambda ()
+        (set-box! n 0)))))
 
 (define-type Result
   [v*s (v : CVal) (s : Store) (a : (optionof Address))]
@@ -117,10 +119,46 @@ ParselTongue.
             (type-case (optionof CVal) (hash-ref sto w)
               [some (v) v]
               [none () (error 'interp
-                              (string-append "No value at address " (Address->string w)))]))]
+                              (begin ;(display sto)
+                              (string-append "No value at address " (Address->string w))))]))]
     (if (VPointer? val)
         (fetch (VPointer-a val) sto)
         val)))
+
+;; fetch only once in the store
+(define (fetch-once [w : Address] [sto : Store]) : CVal
+  (type-case (optionof CVal) (hash-ref sto w)
+             [some (v) v]
+             [none () (error 'interp
+                             (string-append "No value at address " (Address->string w)))]))
+
+;; lookup in the env and sto, in order to get the final address through the aliasing address.
+(define (deep-lookup [x : symbol] [env : Env] [sto : Store]) : (optionof Address)
+  (let ((env-addr (lookup x env)))
+    (if (some? env-addr)
+        (let ((mayb-pointer (fetch-once (some-v env-addr) sto)))
+          (if (VPointer? mayb-pointer)
+              (some (VPointer-a mayb-pointer))
+              env-addr))               
+        (none))))
+
+(define (deep-lookup-global [x : symbol] [env : Env] [sto : Store]) : (optionof Address)
+  (let ((env-addr (lookup-global x env)))
+    (if (some? env-addr)
+        (let ((mayb-pointer (fetch-once (some-v env-addr) sto)))
+          (if (VPointer? mayb-pointer)
+              (some (VPointer-a mayb-pointer))
+              env-addr))
+        (none))))
+
+(define (deep-lookup-local [x : symbol] [env : Env] [sto : Store]) : (optionof Address)
+  (let ((env-addr (lookup-local x env)))
+    (if (some? env-addr)
+        (let ((mayb-pointer (fetch-once (some-v env-addr) sto)))
+          (if (VPointer? mayb-pointer)
+              (some (VPointer-a mayb-pointer))
+              env-addr))
+        (none))))
 
 (define-type ActivationRecord
   [Frame (env : Env) (class : (optionof CVal)) (self : (optionof CVal))])

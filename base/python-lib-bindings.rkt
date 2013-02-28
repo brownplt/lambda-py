@@ -11,7 +11,6 @@
          "builtins/set.rkt"
          "builtins/none.rkt"
          "builtins/file.rkt"
-         "builtins/type.rkt"
          "builtins/method.rkt"
          "util.rkt"
          (typed-in "get-structured-python.rkt"
@@ -160,7 +159,6 @@
           (CBuiltinPrim '$locals empty))
          (none)))
   
-
 (define lib-functions
   (list (bind 'True (assign 'True (CTrue)))
         (bind 'False (assign 'False (CFalse)))
@@ -169,20 +167,16 @@
         (bind 'object object-class)
         (bind 'none none-class)
         (bind 'num num-class)
+        (bind '%num (assign '%num (CId 'num (GlobalId))))
         (bind 'int int-class)
+        (bind '%int (assign '%int (CId 'int (GlobalId))))
         (bind 'float float-class)
+        (bind '%float (assign '%float (CId 'float (GlobalId))))
         (bind 'str str-class)
-        (bind 'list list-class)
-        (bind 'tuple tuple-class)
-        ; this is a hack because one test overrides the dict name, 
-        ; we should do this $ thing for all builtin names for this reason
-        (bind '$dict dict-class) 
-        (bind 'dict (CId '$dict (GlobalId)))
+        (bind '%str (assign '%str (CId 'str (GlobalId))))
         (bind 'bool bool-class)
-        (bind 'set set-class)
         (bind 'file file-class)
         (bind 'open file-class)
-        (bind 'type type-class)
         (bind 'method method-class)
         (bind 'classmethod classmethod-class)
         (bind 'staticmethod staticmethod-class)
@@ -197,7 +191,7 @@
         (bind 'isinstance (assign 'isinstance isinstance-lambda))
         (bind 'print (assign 'print print-lambda))
         (bind 'callable (assign 'callable callable-lambda))
-        (bind 'locals locals-lambda)
+        (bind 'locals (assign 'locals locals-lambda))
 
         (bind 'Exception exception)
         (bind 'NameError (assign 'NameError (make-exception-class 'NameError)))
@@ -219,7 +213,8 @@
   (append
       (map (lambda(b) (bind (bind-left b) (CUndefined)))
            lib-functions)
-      (list (bind 'iter (CUndefined))
+      (list 
+            (bind 'iter (CUndefined))
             (bind 'FuncIter (CUndefined))
             (bind 'SeqIter (CUndefined))
             (bind 'all (CUndefined))
@@ -227,6 +222,16 @@
             (bind 'range (CUndefined))
             (bind 'filter (CUndefined))
             (bind 'dicteq (CUndefined))
+            (bind 'tuple (CUndefined))
+            (bind '%tuple (CUndefined))
+            (bind 'list (CUndefined))
+            (bind '%list (CUndefined))
+            (bind 'dict (CUndefined))
+            (bind '%dict (CUndefined))
+            (bind 'set (CUndefined))
+            (bind '%set (CUndefined))
+            (bind 'type (CUndefined))
+            (bind '%type (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))

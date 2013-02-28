@@ -2,23 +2,9 @@
 
 (require
   "python-core-syntax.rkt"
+  "util.rkt"
   "python-interp.rkt"
   (typed-in racket/base (gensym : (symbol -> symbol))))
-
-(define-syntax pylam
-  (syntax-rules ()
-    [(_ (arg ...) body)
-     (CFunc (list arg ...) (none) body (none))]))
-
-(define-syntax pyapp
-  (syntax-rules ()
-    [(_ fun arg ...)
-     (CApp fun (list arg ...) (none))]))
-
-(define (Id x)
-  (CId x (LocalId)))
-(define (gid x)
-  (CId x (GlobalId)))
 
 ;; Identifiers used in the headers of CPS-generated lambdas
 (define K (gensym 'next))
@@ -40,7 +26,6 @@
       (pylam (K R E B C) (pyapp (Id K) v)))
   ]
   (type-case CExpr expr
-    [CStr (s) (const expr)]
     [CTrue () (const expr)]
     [CFalse () (const expr)]
     [CNone () (const expr)]
@@ -74,8 +59,8 @@
 (define (cps-eval expr)
   (interp (pyapp (cps expr)
                  (pylam (V) (Id V)) ;todo - I assume this was the intention.
-                 (pylam (V) (CRaise (some (CStr "Top-level return"))))
-                 (pylam (V) (CRaise (some (CStr "Top-level exception"))))
-                 (pylam (V) (CRaise (some (CStr "Top-level break"))))
-                 (pylam (V) (CRaise (some (CStr "Top-level continue")))))))
+                 (pylam (V) (CRaise (some (make-builtin-str "Top-level return"))))
+                 (pylam (V) (CRaise (some (make-builtin-str "Top-level exception"))))
+                 (pylam (V) (CRaise (some (make-builtin-str "Top-level break"))))
+                 (pylam (V) (CRaise (some (make-builtin-str "Top-level continue")))))))
 
