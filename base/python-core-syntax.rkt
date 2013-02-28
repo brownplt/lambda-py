@@ -11,7 +11,6 @@ ParselTongue.
 (require [opaque-type-in racket/set [Set set?]])
 
 (define-type CExpr
-  [CStr (s : string)]
   [CTrue]
   [CFalse]
   [CNone]
