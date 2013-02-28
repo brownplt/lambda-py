@@ -1,4 +1,4 @@
-#lang plai-typed/untyped
+#lang plai-typed
 
 (require "python-syntax.rkt"
          "python-core-syntax.rkt"
@@ -79,6 +79,12 @@
        [else (haiku-error)]
        )))))
 
+(define (introduce-locals listof-locs expr)
+        (cond
+         [(empty? listof-locs) expr]
+         [else (LexLocalLet (first listof-locs) (LexUndefined)
+                            (introduce-locals (rest listof-locs) expr))]))
+
  (define (post-desugar [expr : LexExpr]) : LexExpr
     (local
      [
@@ -88,11 +94,6 @@
       ;one for the functions, one for everything else.
       ;alejandro's locals-in-class-definition solution.
       ;this is currently _very_ slow.
-        (define (introduce-locals listof-locs expr)
-        (cond
-         [(empty? listof-locs) expr]
-         [else (LexLocalLet (first listof-locs) (LexUndefined)
-                            (introduce-locals (rest listof-locs) expr))]))
         (define (create-bindings-helper functions ids) : (listof LexExpr)
           (cond
            [(empty? functions) empty]
@@ -186,7 +187,47 @@
                        (LexClass scope name bases (annotate-methods-with-class body name))]
              [else (haiku-error)]))))
       (define (split-instance-into-instance-locals expr)
-        expr)
+        (introduce-locals
+         (lexexpr-fold-tree expr (lambda (y)
+                                   (type-case LexExpr y
+                                     [LexInstanceId (x ctx) (list x)]
+                                     [LexClass (scope name bases body) empty]
+                                     [LexBlock (nls es) empty]
+                                     [else (haiku-error)])))
+         (split-instance-into-instance-locals-helper expr)))
+      (define (split-instance-into-instance-locals-helper expr)
+        (let ((find-var (lambda (expr) : symbol
+                          (let ((var (lexexpr-fold-tree
+                           expr
+                           (lambda (e)
+                             (type-case LexExpr e
+                               [LexInstanceId (x ctx) (list x)]
+                               [LexBlock (nls e) empty]
+                               [LexClass (scope name bases body) empty]
+                               [else (haiku-error)])))))
+                            (cond
+                             [(empty? var) (error 'split-instance-lambda "we didn't find an instance variable")]
+                             [(empty? (rest var)) (first var)]
+                             [else (error 'split-instance-lambda "can't handle multiple instance variables!")])))))
+          (lexexpr-modify-tree
+           expr
+           (lambda (e)
+             (type-case LexExpr e
+               [LexAssign (targets value)
+                          (let ((affected-var (map find-var targets)))
+                            (cond
+                             [(empty? affected-var) (error 'e "wait we should have caught that just above")]
+                             [(empty? (rest affected-var))
+                              (LexSeq
+                               (list
+                                (LexAssign (list (LexLocalId (first affected-var) 'Store)) value)
+                                (LexAssign targets (LexLocalId (first affected-var) 'Load))))
+                              ]
+                             [else (error 'e "can't handle multiple assignment yet.")]))]
+                                        ;[LexAugAssign (op target value )]
+               [LexBlock (nls es) e]
+               [LexClass (scope name bases body) e]
+               [else (haiku-error)])))))
       (define (deal-with-class expr class-expr)
         (begin 
         ;(display (string-append "deal-with-class on " (to-string expr)))
@@ -195,7 +236,7 @@
          (lambda ([y : LexExpr])
            (type-case LexExpr y
              [LexClass (scope name bases body)
-                       (let ((body (hoist-functions body)))
+                       (let ((body (hoist-functions (split-instance-into-instance-locals body))))
                        ;(let ((body (identity body)))
                            (let ((class-expr (if (Instance-scoped? scope)
                                                  (LexDotField class-expr name)
