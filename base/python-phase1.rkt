@@ -82,26 +82,6 @@
  (define (post-desugar [expr : LexExpr]) : LexExpr
     (local
      [
-      (define (replace-instance expr class-expr)
-        (lexexpr-modify-tree
-         expr
-         (lambda (y)
-           (type-case LexExpr y
-             [LexInstanceId (x ctx) (LexDotField class-expr x)]
-             [LexClass (scope name bases body) (LexClass scope name bases body)]
-             [else (haiku-error)]))))
-      (define (annotate-methods-with-class expr classname)
-        (lexexpr-modify-tree
-         expr
-         (lambda (y)
-           (type-case LexExpr y
-             [LexFunc (name args defaults body decorators class)
-                      (LexFunc name args defaults body decorators (some classname))]
-             [LexFuncVarArg (name args sarg body decorators class)
-                            (LexFuncVarArg name args sarg body decorators (some classname)) ]
-             [LexClass (scope name bases body)
-                       (LexClass scope name bases (annotate-methods-with-class body name))]
-             [else (haiku-error)]))))
       (define hoist-functions (local
        [
       ;takes a body, makes two scopes out of it -
@@ -183,6 +163,30 @@
         (gensym 'class-replacement))
       ]
        hoist-functions))
+      ;end hoist functions.
+      
+      (define (replace-instance expr class-expr)
+        (lexexpr-modify-tree
+         expr
+         (lambda (y)
+           (type-case LexExpr y
+             [LexInstanceId (x ctx) (LexDotField class-expr x)]
+             [LexClass (scope name bases body) (LexClass scope name bases body)]
+             [else (haiku-error)]))))
+      (define (annotate-methods-with-class expr classname)
+        (lexexpr-modify-tree
+         expr
+         (lambda (y)
+           (type-case LexExpr y
+             [LexFunc (name args defaults body decorators class)
+                      (LexFunc name args defaults body decorators (some classname))]
+             [LexFuncVarArg (name args sarg body decorators class)
+                            (LexFuncVarArg name args sarg body decorators (some classname)) ]
+             [LexClass (scope name bases body)
+                       (LexClass scope name bases (annotate-methods-with-class body name))]
+             [else (haiku-error)]))))
+      (define (split-instance-into-instance-locals expr)
+        expr)
       (define (deal-with-class expr class-expr)
         (begin 
         ;(display (string-append "deal-with-class on " (to-string expr)))
@@ -215,21 +219,13 @@
              (lambda ([y : LexExpr])
                (type-case LexExpr y
                  [LexClass (scope name bases body)
-                           (begin
-                             ;(display "in the LexClass branch on top-level-deal-with-class\n")
-                             (if (Instance-scoped? scope)
-                                 (begin
-                                   ;(display "error: instance is not inside class\n")
-                                   (error 'lexical "instance is not inside class"))
-                                 (begin
-                                   ;(display "calling deal-with-class\n")
-                                   (let ((result (deal-with-class y
-                                                  (if (Globally-scoped? scope)
-                                                      (LexGlobalId name 'Load)
-                                                      (LexLocalId name 'Load)))))
-                                     (begin ;(display "done with deal-with-class")
-                                     result))
-                                   )))]
+                           (if (Instance-scoped? scope)
+                                 (error 'lexical "instance is not inside class")
+                                 (deal-with-class
+                                  y
+                                  (if (Globally-scoped? scope)
+                                      (LexGlobalId name 'Load)
+                                      (LexLocalId name 'Load))))]
                  [else (haiku-error)])))))]
         (top-level-deal-with-class expr)))
 
@@ -541,14 +537,22 @@
              (type-case LexExpr x
                                         ;[LexId (e) (LexInstanceId e)]
                [LexAssign (targets value) (LexAssign (map assign-func
-                                                      targets) (assign-func value))]
-               [LexAugAssign (op target value) (LexAugAssign op (assign-func target) (assign-func value))]
+                                                      targets) value)]
+               [LexAugAssign (op target value) (LexAugAssign op (assign-func target) value)]
                [LexBlock (nls e) (LexBlock nls (toplevel e))]
                [LexClass (scope name super body) (toplevel x)]
                [else (haiku-error)]))))))
     ]
    (toplevel expr)))
       
+(define (all-replaced-instance [es : LexExpr])
+  (lexexpr-fold-tree
+   es
+   (lambda ( [e : LexExpr] )
+     (type-case LexExpr e
+       [LexInstanceId (x ctx) (list x)]
+       [LexBlock (_ __) empty]
+       [else (haiku-error)]))))
 
 (define (replace-all-locals [expr : LexExpr] [locs : (listof symbol) ] [instance : (listof symbol)])
   (let ((replace (lambda ([str : symbol] [ctx : symbol]) (if (empty? (flatten
@@ -562,14 +566,7 @@
                                                          "has dash: ~a" str))
                                                  (LexLocalId str ctx)))))
         (recur (lambda ([this-expr : LexExpr]) (replace-all-locals this-expr locs instance)))
-        (all-replaced-instance (lambda ([es : LexExpr])
-                                 (lexexpr-fold-tree
-                                  es
-                                  (lambda ( [e : LexExpr] )
-                                    (type-case LexExpr e
-                                      [LexInstanceId (x ctx) (list x)]
-                                      [LexBlock (_ __) empty]
-                                      [else (haiku-error)]))))))
+        )
     (lexexpr-modify-tree expr
      (lambda (exp)
        (type-case LexExpr exp
