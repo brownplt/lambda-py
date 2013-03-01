@@ -15,14 +15,14 @@
 
 (print-only-errors #t)
 
-(define (haiku-error) (error 'haiku "Bad error message, find and fix"))
+(define (default-recur) (error 'haiku "Bad error message, find and fix"))
 
 (define haiku (call/cc (lambda (k)
            (call-with-exception-handler
             (lambda (y)
              (k y))
             (lambda ()
-              (k (haiku-error)
+              (k (default-recur)
               ))))))
 (define (gen-recur default special-func)
   (lambda (this-expr)

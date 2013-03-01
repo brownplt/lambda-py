@@ -28,7 +28,7 @@
 
        (call/cc
         (lambda (inner)
-          (outer (lexexpr-modify-tree expr (lambda (x) (if (fun x) (haiku-error) (inner (display message))))))))
+          (outer (lexexpr-modify-tree expr (lambda (x) (if (fun x) (default-recur) (inner (display message))))))))
        (error 'assert-on-tree: message)
        ))))
 
@@ -66,7 +66,7 @@
                                                                   (cascade-nonlocal (cons sarg args) (pre-desugar body)))
                                                         (map pre-desugar decorators)
                                                         (none)))))]
-       [else (haiku-error)]
+       [else (default-recur)]
        )))))
 
 (define (introduce-locals listof-locs expr)
@@ -90,7 +90,7 @@
                         (equal? "class-replacement" (substring (symbol->string name) 0 (string-length "class-replacement"))))
                        (LexFunc name args defaults body decorators (none))
                        y)]
-             [else (haiku-error)]))))
+             [else (default-recur)]))))
       (define hoist-functions (local
        [
       ;takes a body, makes two scopes out of it -
@@ -177,7 +177,7 @@
                                    (LexLocalId (first list-of-identifiers) 'Load))]
              [LexBlock (nls es) e]
              [LexClass (scope name bases body) e]
-             [else (haiku-error)]))))
+             [else (default-recur)]))))
       (define (generate-identifier )
         (gensym 'class-replacement))
       ]
@@ -191,7 +191,7 @@
            (type-case LexExpr y
              [LexInstanceId (x ctx) (LexDotField class-expr x)]
              [LexClass (scope name bases body) (LexClass scope name bases body)]
-             [else (haiku-error)]))))
+             [else (default-recur)]))))
       (define (annotate-methods-with-class expr classname)
         (lexexpr-modify-tree
          expr
@@ -203,7 +203,7 @@
                             (LexFuncVarArg name args sarg body decorators (some classname)) ]
              [LexClass (scope name bases body)
                        (LexClass scope name bases (annotate-methods-with-class body name))]
-             [else (haiku-error)]))))
+             [else (default-recur)]))))
       (define (split-instance-into-instance-locals expr)
         (introduce-locals
          (lexexpr-fold-tree expr (lambda (y)
@@ -211,7 +211,7 @@
                                      [LexInstanceId (x ctx) (list x)]
                                      [LexClass (scope name bases body) empty]
                                      [LexBlock (nls es) empty]
-                                     [else (haiku-error)])))
+                                     [else (default-recur)])))
          (split-instance-into-instance-locals-helper expr)))
       (define (split-instance-into-instance-locals-helper expr)
         (let ((find-var (lambda (expr) : symbol
@@ -222,7 +222,7 @@
                                [LexInstanceId (x ctx) (list x)]
                                [LexBlock (nls e) empty]
                                [LexClass (scope name bases body) empty]
-                               [else (haiku-error)])))))
+                               [else (default-recur)])))))
                             (cond
                              [(empty? var) (error 'split-instance-lambda "we didn't find an instance variable")]
                              [(empty? (rest var)) (first var)]
@@ -245,7 +245,7 @@
                                         ;[LexAugAssign (op target value )]
                [LexBlock (nls es) e]
                [LexClass (scope name bases body) e]
-               [else (haiku-error)])))))
+               [else (default-recur)])))))
       (define (deal-with-class expr class-expr)
         (begin 
         ;(display (string-append "deal-with-class on " (to-string expr)))
@@ -269,7 +269,7 @@
                                              (deal-with-class
                                               (annotate-methods-with-class new-body name)
                                               class-expr))))))]
-             [else (haiku-error)])))))
+             [else (default-recur)])))))
           (define (top-level-deal-with-class expr)
             (begin
               ;(display (string-append "top-level-deal-with-class on " (string-append (to-string expr) "\n") ))
@@ -285,7 +285,7 @@
                                   (if (Globally-scoped? scope)
                                       (LexGlobalId name 'Load)
                                       (LexLocalId name 'Load)))))]
-                 [else (haiku-error)])))))]
+                 [else (default-recur)])))))]
         (top-level-deal-with-class expr)))
 
 (define (scope-phase [expr : PyExpr] ) : LexExpr
@@ -310,7 +310,7 @@
                        (lambda (y)
                          (type-case LexExpr y
                            [LexModule (es ) (LexSeq (map replace-lexmodule es))]
-                           [else (haiku-error)]))))
+                           [else (default-recur)]))))
 
 
 (define (remove-unneeded-assigns expr)
@@ -353,7 +353,7 @@
                                       )
                                     (LexSeq (map remove-unneeded-assigns es)))]
                                
-                               [else (haiku-error)]))))
+                               [else (default-recur)]))))
 (define (optimization-pass expr)
   expr)
 
@@ -387,7 +387,7 @@
                                                                     (flatten (list bindings these-locals nls)))
                                                                    e))]
                                   [LexLocalId (x ctx) (begin (set! these-locals (cons x these-locals)) e)]
-                                  [else (haiku-error)]
+                                  [else (default-recur)]
                                   )))))]
        (k (bindings-for-nonlocal empty expr))))))
 
@@ -409,14 +409,14 @@
                                                 (let ((e (collapse-pyseq y)))
                                                   (if (LexSeq? e) (LexSeq-es e) (list e))))
                                               lis)))]
-                 [else (haiku-error)]))))
+                 [else (default-recur)]))))
 (define (remove-global expr)
   (lexexpr-modify-tree
    expr
    (lambda (x)
      (type-case LexExpr x
        [PyLexGlobal(y) (LexPass)]
-       [else (haiku-error)]))))
+       [else (default-recur)]))))
 
 (define (remove-nonlocal expr)
   (lexexpr-modify-tree
@@ -424,7 +424,7 @@
    (lambda (x)
      (type-case LexExpr x
        [PyLexNonLocal(y) (LexPass)]
-       [else (haiku-error)]))))
+       [else (default-recur)]))))
 
 (define (remove-unneeded-pypass expr)
   (lexexpr-modify-tree
@@ -437,7 +437,7 @@
                 [(empty? filtered-seq) (LexPass)]
                 [(empty? (rest filtered-seq)) (remove-unneeded-pypass (first filtered-seq))]
                 [else (LexSeq (map remove-unneeded-pypass filtered-seq))]))]
-       [else (haiku-error)]))))
+       [else (default-recur)]))))
 
 (define (remove-blocks expr)
   (lexexpr-modify-tree
@@ -445,7 +445,7 @@
    (lambda (x)
      (type-case LexExpr x
        [LexBlock (nls e) (remove-blocks e)]
-       [else (haiku-error)]))))
+       [else (default-recur)]))))
 
 
 
@@ -455,7 +455,7 @@
                                              [else false]))
                                 (lambda (x) (type-case LexExpr x
                                         [LexBlock(a) (list a)]
-                                        [else (haiku-error)]))))
+                                        [else (default-recur)]))))
       (error 'assert-pyblock-exists "pyblock is missing")
       expr))
 (define (cascade-undefined-globals [globals : (listof symbol) ] [body : LexExpr] ) : LexExpr
@@ -485,7 +485,7 @@
         [LexGlobalId (x ctx) (list x)]
         #;[LexAssign (lhs rhs) (map (lambda (y) (LexGlobalId-x y))
                                     (filter (lambda (y) (LexGlobalId? y)) lhs))]
-        [else (haiku-error)])))))
+        [else (default-recur)])))))
 
 
 ;remember, (extract-globals expr true) is _shallow_ 
@@ -497,7 +497,7 @@
                         (type-case LexExpr exp
                           [LexBlock (nonlocals es) (if current-scope-only? empty (extract-globals-cls es))]
                           [PyLexGlobal(globals) globals]
-                          [else (haiku-error)])))))
+                          [else (default-recur)])))))
 (define (find-all-instance expr)
       (let [[post-remove
       (list-subtract
@@ -512,7 +512,7 @@
                                           [else (error 'find-all-instance "can't handle non-pyid")])) lhs)]
              [LexAugAssign (op lhs rhs) (list (PyLexId-x lhs))]
              [LexBlock (_ __) empty]
-             [else (haiku-error)])))
+             [else (default-recur)])))
         (extract-globals expr true))
          (extract-nonlocals expr))]]
         post-remove))
@@ -545,7 +545,7 @@
            (type-case LexExpr exp
              [PyLexId (sym ctx) (list sym)]
              [LexInstanceId (_ __) empty]
-             [else (haiku-error)])))
+             [else (default-recur)])))
         (spec (lambda (exp)
                 (type-case LexExpr exp
                   [LexAssign (targets value)
@@ -557,7 +557,7 @@
                   [PyLexNonLocal (ids) ids]
                   [LexBlock (nls es) empty]
                   [LexExceptAs (types name body) (list name)]
-                  [else (haiku-error)]))))
+                  [else (default-recur)]))))
     (lexexpr-fold-tree expr spec)))
 
 (define (replace-all-instance [expr : LexExpr]) : LexExpr
@@ -580,7 +580,7 @@
                                         (second-level e))]
                               [else (begin (display "thing in class literal is not a block")
                                            (error 'e "thing in class literal is not block"))]))]
-           [else (haiku-error)]))))
+           [else (default-recur)]))))
     (define (second-level expr )
       (let
           ((locs (find-all-instance expr)))
@@ -601,7 +601,7 @@
                [LexAugAssign (op target value) (LexAugAssign op (assign-func target) value)]
                [LexBlock (nls e) (LexBlock nls (toplevel e))]
                [LexClass (scope name super body) (toplevel x)]
-               [else (haiku-error)]))))))
+               [else (default-recur)]))))))
     ]
    (toplevel expr)))
       
@@ -612,7 +612,7 @@
      (type-case LexExpr e
        [LexInstanceId (x ctx) (list x)]
        [LexBlock (_ __) empty]
-       [else (haiku-error)]))))
+       [else (default-recur)]))))
 
 (define (replace-all-locals [expr : LexExpr] [locs : (listof symbol) ] [instance : (listof symbol)])
   (let ((replace (lambda ([str : symbol] [ctx : symbol]) (if (empty? (flatten
@@ -641,7 +641,7 @@
                                                  ;all (replaced) instance variables in this scope.
                                                  (all-replaced-instance es)
                                                       ))]         
-         [else (haiku-error)])))))
+         [else (default-recur)])))))
 
 (define (make-all-global [expr : LexExpr]) : LexExpr
 ;  (lexexpr-modify-tree
@@ -655,7 +655,7 @@
         (type-case LexExpr x
           [PyLexId (x ctx) (begin #;(display "it's an ID\n") (LexGlobalId x ctx))]
                                         ;[LexReturn (r) (LexReturn (make-all-global r))]
-          [else (begin #;(display "executing default\n") (haiku-error))]))))
+          [else (begin #;(display "executing default\n") (default-recur))]))))
       ))
 
 ;finds all PyLexNonLocal designators in this block
@@ -665,7 +665,7 @@
                       (type-case LexExpr x
                         [LexBlock (nls e) empty]
                         [PyLexNonLocal (l) l]
-                        [else (haiku-error)]))))
+                        [else (default-recur)]))))
 
 
 ;only binds renamed locals in this scope.
@@ -693,7 +693,7 @@
                  [LexLocalId (sym ctx) (list sym)]
                  [LexGlobalId (_ __) empty]
                  [LexInstanceId (_ __) empty]
-                 [else (haiku-error)]
+                 [else (default-recur)]
                  )))
             (spec (lambda (exp) (type-case LexExpr exp
                  [LexAssign (targets value)
@@ -703,7 +703,7 @@
                              (flatten (list (extract-locals-helper value) target-ids)))]
                  [LexAugAssign (op l r) (flatten (list (extract-locals-helper r) (targ-fun l)))]
                  [LexBlock (nls es) empty]
-                 [else (haiku-error)]))))
+                 [else (default-recur)]))))
         (lexexpr-fold-tree expr spec)))]
    
    (lexexpr-modify-tree
@@ -714,7 +714,7 @@
                                 (let ((found-locals (extract-locals es)))
                                   (remove-duplicates found-locals))
                                 (bind-locals es )))]
-        [else (haiku-error)])))))
+        [else (default-recur)])))))
 
 ]
 (scope-phase expr)))

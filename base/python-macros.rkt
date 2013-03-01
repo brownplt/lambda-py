@@ -30,5 +30,5 @@
                      (string->symbol (LexStr-s (first args)))
                      (third args))]
           [else expr])]
-        [else (haiku-error)]))))
+        [else (default-recur)]))))
 
