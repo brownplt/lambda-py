@@ -1,4 +1,4 @@
-#lang plai-typed
+#lang plai-typed/untyped
 
 (define-type LocalOrGlobal
   [Locally-scoped]

@@ -1,4 +1,4 @@
-#lang plai-typed
+#lang plai-typed/untyped
 
 (require "python-lexical-syntax.rkt"
          "python-core-syntax.rkt"
