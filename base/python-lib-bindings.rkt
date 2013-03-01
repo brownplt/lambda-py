@@ -37,17 +37,11 @@
                  (CNone)))
       (def 'Exception '__init__
            (CFunc (list 'self) (some 'args)
-                  (CSeq 
-                    (CAssign 
-                      (CGetField
-                        (CId 'self (LocalId))
-                        'args)
-                      (CId 'args (LocalId)))
-                    (CAssign
-                      (CGetField
-                        (CId 'self (LocalId))
-                        '__class__)
-                      (CId 'Exception (LocalId))))
+                  (CAssign
+                   (CGetField
+                    (CId 'self (LocalId))
+                    'args)
+                   (CId 'args (LocalId)))
                   (some 'Exception)))
       (def 'Exception '__str__
            (CFunc (list 'self) (none)

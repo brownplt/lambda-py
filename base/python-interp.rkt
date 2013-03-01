@@ -405,8 +405,6 @@
             ;; the tuple of bases is evaluated assuming global scope for class names,
             ;; should be changed for a more general lookup with the new scope implementation
             (begin ;(display "BEGIN CLASS\n") (display bases)
-            ;; NOTE(joe): weird CTuple of none, probably should be constructed
-            ;; in desugaring.
             (handle-result (interp-env (CTuple (CNone)
                                                (map (lambda (id) (CId id (GlobalId)))
                                                        bases))
@@ -690,6 +688,9 @@
                       (string-append (pretty c) " object has no attribute ")
                       (symbol->string n))
                      s)]
+       ;; special attribute __class__
+      [(eq? n '__class__)
+       (v*s (get-class c e s) s (none))]
       [(is-special-method? n)
        ;; special methods are looked for in the class
        (get-field-from-obj n c w_c (none) e s)]
@@ -892,7 +893,6 @@
 ;; may return an exception if linearization is not possible
 ;; builtins/type.rkt would be a good place for this stuff,
 ;; it should handle type(name, bases, dict)
-;; but it needs access to mk-exception...
 (define (mk-type [name : symbol]
                  [bases : CVal]
                  [h-dict : (hashof symbol Address)]
@@ -901,25 +901,16 @@
   (local [(define bases-list (MetaTuple-v (some-v (VObjectClass-mval bases))))
           (define w (new-loc))
           (define bases_w (new-loc))
-          (define mro_w (new-loc))
-          (define class_loc (lookup name env))
-          (define class_w (if (some? class_loc)
-                              (some-v class_loc)
-                              (error 'mk-type
-                                     (string-append "Class '"
-                                       (string-append (symbol->string name)
-                                         "' does not have a location in the store")))))]
+          (define mro_w (new-loc))]
     (handle-result (build-mro name bases-list env sto)
       (lambda (vmro smro amro) 
              (v*s (VObjectClass 'type
                            (some (MetaClass name)) 
                            (hash-set
-                             (hash-set 
-                               (hash-set 
-                                 (hash-set h-dict '__dict__ w)
-                                 '__bases__ bases_w)
-                               '__mro__ mro_w)
-                             '__class__ class_w)
+                            (hash-set
+                             (hash-set h-dict '__dict__ w)
+                             '__bases__ bases_w)
+                            '__mro__ mro_w)
                            (none))
                   (hash-set 
                     (hash-set 
