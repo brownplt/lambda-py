@@ -502,7 +502,7 @@
             [v*s (vtry stry atry)
                    (type-case Result (interp-env orelse env stry stk)
                       [v*s (velse selse aelse) (v*s velse selse aelse)]
-                      [Return (velse selse aelse) (return-exception selse)]
+                      [Return (velse selse aelse) (Return velse selse aelse)]
                       [Break (selse) (Break selse)]
                       [Continue (selse) (Continue selse)]
                       [Exception (velse selse) (Exception velse selse)])]
