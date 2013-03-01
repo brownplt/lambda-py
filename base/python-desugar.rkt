@@ -419,29 +419,18 @@
                      (CFunc args (none) body-r opt-class))]
 
                  [else
-                  (rec-desugar (LexSeq
-                                (list
-                                 (LexFunc name args (list) body (list) opt-class)
-                                 ;; apply decorators to the function
-                                 (LexAssign (list (LexLocalId name 'Load))
-                                           (foldr (lambda (decorator func)
-                                                    (LexApp decorator (list func)))
-                                                  (LexLocalId name 'Load)
-                                                  decorators)))))])]
-      
-      
+                  (rec-desugar ;; apply decorators to the function
+                   (foldr (lambda (decorator func) (LexApp decorator (list func)))
+                          (LexFunc name args (list) body (list) opt-class)
+                          decorators))])]
+
       [LexFuncVarArg (name args sarg body decorators opt-class)
                      (if (empty? decorators)
                          (CFunc args (some sarg) (rec-desugar body) opt-class)
-                         (rec-desugar (LexSeq
-                                       (list
-                                        (LexFuncVarArg name args sarg body (list) opt-class)
-                                        ;; apply decorators to the function
-                                        (LexAssign (list (LexLocalId name 'Load))
-                                                  (foldr (lambda (decorator func)
-                                                           (LexApp decorator (list func)))
-                                                         (LexLocalId name 'Load)
-                                                         decorators))))))]
+                         (rec-desugar ;; apply decorators to the function
+                          (foldr (lambda (decorator func) (LexApp decorator (list func)))
+                                 (LexFuncVarArg name args sarg body (list) opt-class)
+                                 decorators)))]
 
       [LexReturn (value) (CReturn (rec-desugar value))]
       
