@@ -126,22 +126,27 @@
               [(empty? es) (CId exn-id (LocalId))]
               [else
                 (local [(define except (first es))
-                        (define desugared (rec-desugar except))
-                        (define body (CExcept-body desugared))
-                        (define as (CExcept-name desugared))
-                        (define types (if (LexExcept? except)
-                                          (LexExcept-types except)
-                                          (LexExceptAs-types except)))
+                        (define-values (body as types)
+                          (if (LexExcept? except)
+                              (values
+                                (rec-desugar (LexExcept-body except))
+                                (none)
+                                (LexExcept-types except))
+                              (values
+                                (rec-desugar (LexExceptAs-body except))
+                                (some (LexExceptAs-name except))
+                                (LexExceptAs-types except))))
                         (define checks 
                           (cond
-                            [(empty? types) (list
-                                              (LexApp (LexGlobalId 'isinstance 'Load)
-                                                      (list (LexLocalId exn-id 'Load)
-                                                            (LexGlobalId 'Exception 'Load))))]
+                            [(empty? types)
+                             (list
+                               (LexApp (LexGlobalId 'isinstance 'Load)
+                                       (list (LexLocalId exn-id 'Load)
+                                             (LexGlobalId 'BaseException 'Load))))]
                             [else (map (lambda (t)
-                                              (LexApp (LexGlobalId 'isinstance 'Load)
-                                                      (list (LexLocalId exn-id 'Load) t)))
-                                            types)]))
+                                         (LexApp (LexGlobalId 'isinstance 'Load)
+                                                 (list (LexLocalId exn-id 'Load) t)))
+                                       types)]))
                         (define condition (desugar-boolop 'Or checks))]
                   (CIf condition
                        (if (some? as)
@@ -466,7 +471,8 @@
                                            (list slice-low
                                                  slice-up slice-step)
                                            (none))))
-                             (local [(define slice-r (rec-desugar slice))] 
+                             (local [(define slice-r (rec-desugar slice))
+                                     (define exn-id (new-id))] 
                                (CLet left-id
                                      (LocalId)
                                      left-r
@@ -474,11 +480,12 @@
                                       (CTryExceptElse
                                        (CGetField (CId left-id (LocalId))
                                                       '__getitem__)
-                                       (new-id)
-                                       (CExcept (list) (none) 
-                                                (CRaise (some (make-exception 
-                                                                'TypeError
-                                                                "object is not subscriptable"))))
+                                       exn-id
+                                       (default-except-handler
+                                         exn-id
+                                         (CRaise (some (make-exception 
+                                                         'TypeError
+                                                         "object is not subscriptable"))))
                                        (CNone))
                                       (CApp (CGetField (CId left-id (LocalId))
                                                        '__getitem__)
@@ -534,13 +541,8 @@
                          try-r
                          finally-r))]
 
-      [LexExcept (types body) (CExcept (map rec-desugar types)
-                                       (none)
-                                       (rec-desugar body))]
-
-      [LexExceptAs (types name body) (CExcept (map rec-desugar types)
-                                       (some name)
-                                       (rec-desugar body))]
+      [LexExcept (types body) (error 'desugar "should not encounter LexExcept!")]
+      [LexExceptAs (types name body) (error 'desugar "should not encounter LexExcept!")]
 
       [LexWhile (test body orelse) (CWhile (rec-desugar test)
                                            (rec-desugar body)

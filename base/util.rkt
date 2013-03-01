@@ -48,7 +48,7 @@
 (define (make-exception-class [name : symbol]) : CExpr
   (CClass
     name
-    (list 'Exception)
+    (list 'BaseException)
     (CNone)))
 
 (define (assign [name : symbol] [expr : CExpr]) : CExpr
@@ -320,6 +320,14 @@
     (CId name (GlobalId))
     (list (make-builtin-str error))
     (none)))
+
+(define (default-except-handler [id : symbol] [body : CExpr]) : CExpr
+  (CIf (CApp (CId 'isinstance (GlobalId))
+             (list (CId id (LocalId))
+                   (CId 'BaseException (GlobalId)))
+             (none))
+       body
+       (CId id (LocalId))))
 
 ; generates a new unique variable name that isn't allowed by user code 
 (define new-id

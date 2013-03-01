@@ -37,7 +37,6 @@ ParselTongue.
   [CRaise (expr : (optionof CExpr))]
   [CTryExceptElse (try : CExpr) (exn-id : symbol) (excepts : CExpr) (orelse : CExpr)]
   [CTryFinally (try : CExpr) (finally : CExpr)]
-  [CExcept (types : (listof CExpr)) (name : (optionof symbol)) (body : CExpr)]
   [CUndefined]
   [CBreak]
   [CContinue]

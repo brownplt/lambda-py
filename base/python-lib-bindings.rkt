@@ -27,15 +27,15 @@
 (define-type LibBinding
   [bind (left : symbol) (right : CExpr)])
 
-(define exception
+(define base-exception
   (seq-ops
     (list 
-      (CAssign (CId 'Exception (GlobalId))
+      (CAssign (CId 'BaseException (GlobalId))
                (CClass
-                 'Exception
+                 'BaseException
                  (list 'object)
                  (CNone)))
-      (def 'Exception '__init__
+      (def 'BaseException '__init__
            (CFunc (list 'self) (some 'args)
                   (CSeq 
                     (CAssign 
@@ -47,14 +47,14 @@
                       (CGetField
                         (CId 'self (LocalId))
                         '__class__)
-                      (CId 'Exception (LocalId))))
-                  (some 'Exception)))
-      (def 'Exception '__str__
+                      (CId 'BaseException (LocalId))))
+                  (some 'BaseException)))
+      (def 'BaseException '__str__
            (CFunc (list 'self) (none)
                   (CReturn
                     (CBuiltinPrim 'exception-str
                                   (list (CId 'self (LocalId)))))
-                  (some 'Exception))))))
+                  (some 'BaseException))))))
 
 (define len-lambda
   (CFunc (list 'self) (none)
@@ -141,19 +141,20 @@
          (none)))
 
 (define callable-lambda
-  (CFunc (list 'to-check) (none)
-         (CSeq
-          (CTryExceptElse
-            ;; try to get __call__ attribute and return True
-            (CSeq
-              (CGetField (CId 'to-check (LocalId)) '__call__)
-              (CReturn (CTrue)))
-            (new-id)
-            (CExcept (list) (none) (CNone))
-            (CNone))
-          ;; use the primary operator
-          (CReturn (CPrim1 'callable (CId 'to-check (LocalId)))))
-         (none)))
+  (local [(define exn-id (new-id))]
+    (CFunc (list 'to-check) (none)
+           (CSeq
+             (CTryExceptElse
+               ;; try to get __call__ attribute and return True
+               (CSeq
+                 (CGetField (CId 'to-check (LocalId)) '__call__)
+                 (CReturn (CTrue)))
+               exn-id 
+               (default-except-handler exn-id (CNone))
+               (CNone))
+             ;; use the primary operator
+             (CReturn (CPrim1 'callable (CId 'to-check (LocalId)))))
+           (none))))
 
 (define locals-lambda
   (CFunc (list) (none)
@@ -195,7 +196,8 @@
         (bind 'callable (assign 'callable callable-lambda))
         (bind 'locals (assign 'locals locals-lambda))
 
-        (bind 'Exception exception)
+        (bind 'BaseException base-exception)
+        (bind 'Exception (assign 'Exception (make-exception-class 'Exception)))
         (bind 'NameError (assign 'NameError (make-exception-class 'NameError)))
         (bind 'TypeError (assign 'TypeError (make-exception-class 'TypeError)))
         (bind 'ValueError (assign 'ValueError (make-exception-class 'ValueError)))

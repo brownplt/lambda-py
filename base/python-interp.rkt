@@ -171,7 +171,11 @@
                 ;; if it results in a break, return None
                 [(Break? body-r) (v*s vnone (Break-s body-r) (none))]
                 ;; if it resulted in a value or continue, attempt to run the loop again
-                [else (interp-while test body orelse env (v*s-s body-r) stk)]))
+                [else (interp-while test body orelse env
+                                    (if (v*s? body-r)
+                                        (v*s-s body-r)
+                                        (Continue-s body-r))
+                                    stk)]))
             (interp-env orelse env (v*s-s test-r) stk)))))
 
 ;; bind-and-execute, binds the arguments in the closure's
@@ -486,7 +490,7 @@
                 (handle-result (interp-env (some-v expr) env sto stk)
                   (lambda (vexpr sexpr aexpr)
                        (cond
-                         [(and (VObjectClass? vexpr) (object-is? vexpr 'Exception env sexpr))
+                         [(and (VObjectClass? vexpr) (object-is? vexpr 'BaseException env sexpr))
                           (Exception vexpr sexpr)]
                          [else (mk-exception 'TypeError
                                              "exceptions must derive from BaseException"
@@ -528,27 +532,26 @@
                              [Break (s) s]
                              [Continue (s) s]
                              [Exception (v s) s]))
-              (define finally-r (interp-env finally env stry stk))]
-        (if (v*s? try-r)
-            finally-r
-            (type-case Result finally-r
-              [v*s (vtry stry atry) try-r]
-              [Return (vtry stry atry) finally-r]
-              [Break (stry) finally-r]
-              [Continue (stry)
-                        (mk-exception 'SyntaxError
-                                      "'continue' not supported inside 'finally' clause"
-                                      stry)]
-              [Exception (vtry stry)
-                         (if (and (VObjectClass? vtry)
-                                  (object-is? vtry '$Reraise env stry))
-                             (if (Exception? try-r)
+              (define finally-r (interp-env finally env stry stk))
+              (define to-return
+                (type-case Result finally-r
+                  [v*s (vtry stry atry) try-r]
+                  [Return (vtry stry atry) finally-r]
+                  [Break (stry) finally-r]
+                  [Continue (stry)
+                            (mk-exception 'SyntaxError
+                                          "'continue' not supported inside 'finally' clause"
+                                          stry)]
+                  [Exception (vtry stry)
+                             (if (and (VObjectClass? vtry)
+                                      (object-is? vtry '$Reraise env stry)
+                                      (Exception? try-r))
                                  try-r
-                                 finally-r)
-                             finally-r)])))]
+                                 finally-r)]))]
+        (if (v*s? try-r)
+            to-return
+            try-r))]
 
-    [CExcept (types name body) (interp-env body env sto stk)]
-    
     [CBreak () (Break sto)]
     [CContinue () (Continue sto)])))
 
@@ -745,8 +748,6 @@
   (mk-exception 'SyntaxError "'continue' outside loop" sto))
 
 (define (interp expr)
-(begin
-  (reset-loc)
   (type-case Result (interp-env expr (list (hash empty)) (hash empty) empty)
     [v*s (vexpr sexpr aexpr) (display "")]
     [Return (vexpr sexpr aexpr)
@@ -755,23 +756,23 @@
                                   (pretty-exception (Exception-v exn)
                                                     (Exception-s exn)
                                                     #t)
-                                  "\n")))]
+                                  "")))]
     [Break (sexpr)
            (local [(define exn (break-exception sexpr))]
              (raise-user-error (string-append
                                  (pretty-exception (Exception-v exn)
                                                    (Exception-s exn)
                                                    #t)
-                                 "\n")))]
+                                 "")))]
     [Continue (sexpr)
            (local [(define exn (continue-exception sexpr))]
              (raise-user-error (string-append
                                  (pretty-exception (Exception-v exn)
                                                    (Exception-s exn)
                                                    #t)
-                                 "\n")))] 
+                                 "")))] 
     [Exception (vexpr sexpr)
-               (raise-user-error (string-append (pretty-exception vexpr sexpr #t) "\n"))])))
+               (raise-user-error (string-append (pretty-exception vexpr sexpr #t) ""))]))
 
 (define (truthy? [val : CVal]) : boolean
   (type-case CVal val
