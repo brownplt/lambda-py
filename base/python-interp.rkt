@@ -525,32 +525,42 @@
                              excepts-r))])]
 
     [CTryFinally (try finally)
-      (local [(define try-r (interp-env try env sto stk))
-              (define stry (type-case Result try-r
-                             [v*s (v s a) s]
-                             [Return (v s a) s]
-                             [Break (s) s]
-                             [Continue (s) s]
-                             [Exception (v s) s]))
+      (local [(define (replace-store [res : Result] [store : Store]) : Result
+                (type-case Result res
+                  [v*s (v s a) (v*s v store a)]
+                  [Return (v s a) (Return v store a)]
+                  [Break (s) (Break store)]
+                  [Continue (s) (Continue store)]
+                  [Exception (v s) (Exception v store)]))
+              (define (get-store [expr : Result]) : Store
+                (type-case Result expr
+                  [v*s (v s a) s]
+                  [Return (v s a) s]
+                  [Break (s) s]
+                  [Continue (s) s]
+                  [Exception (v s) s]))
+              (define try-r (interp-env try env sto stk))
+              (define stry (get-store try-r))
               (define finally-r (interp-env finally env stry stk))
+              (define rev-try (replace-store try-r (get-store finally-r)))
               (define to-return
                 (type-case Result finally-r
-                  [v*s (vtry stry atry) try-r]
-                  [Return (vtry stry atry) finally-r]
-                  [Break (stry) finally-r]
-                  [Continue (stry)
+                  [v*s (vfin sfin afin) rev-try]
+                  [Return (vfin sfin afin) finally-r]
+                  [Break (sfin) finally-r]
+                  [Continue (sfin)
                             (mk-exception 'SyntaxError
                                           "'continue' not supported inside 'finally' clause"
-                                          stry)]
-                  [Exception (vtry stry)
-                             (if (and (VObjectClass? vtry)
-                                      (object-is? vtry '$Reraise env stry)
+                                          sfin)]
+                  [Exception (vfin sfin)
+                             (if (and (VObjectClass? vfin)
+                                      (object-is? vfin '$Reraise env sfin)
                                       (Exception? try-r))
-                                 try-r
+                                 rev-try
                                  finally-r)]))]
         (if (v*s? try-r)
             to-return
-            try-r))]
+            rev-try))]
 
     [CBreak () (Break sto)]
     [CContinue () (Continue sto)])))
