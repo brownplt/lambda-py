@@ -24,7 +24,7 @@
          "python-macros.rkt"
          "python-lexical-syntax.rkt"
          "python-desugar.rkt"
-         "python-phase1.rkt"
+         "python-phases.rkt"
          (typed-in racket/base (append : ((listof 'a) (listof 'a) (listof 'a) (listof 'a) (listof 'a) -> (listof 'a)))))
 
 #|

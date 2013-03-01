@@ -6,7 +6,7 @@
          "parse-python.rkt"
          "get-structured-python.rkt"
          "python-interp.rkt"
-         "python-phase1.rkt"
+         "python-phases.rkt"
          "python-desugar.rkt"
          "python-lib.rkt"
          "run-tests.rkt"
