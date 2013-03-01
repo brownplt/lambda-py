@@ -518,8 +518,8 @@
                                              env stk))]
                          (if (and (Exception? excepts-r)
                                   (VObjectClass? (Exception-v excepts-r))
-                                  (object-is? (Exception-v excepts-r) '$Reraise env stry))
-                             (Exception vtry stry)
+                                  (object-is? (Exception-v excepts-r) '$Reraise env (Exception-s excepts-r)))
+                             (Exception vtry (Exception-s excepts-r))
                              excepts-r))])]
 
     [CTryFinally (try finally)
