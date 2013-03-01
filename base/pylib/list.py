@@ -63,10 +63,10 @@ class list(object):
     return cmpresult.__eq__(0)
 
   def extend(self, other):
-    return self.__add__(other)
+    self = self.__add__(other)
 
   def append(self, other):
-    self = self.extend([other])
+    self.extend([other])
 
 ___assign("%list", list)
 

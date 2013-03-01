@@ -122,51 +122,8 @@
                 (interp-vclosure vfun arges stararg env sfun stk)]
 
       [VObjectClass (b mval d class)
-               (if (and (some? mval) (MetaClass? (some-v mval)))
-                  ; We're calling a class.
-                  ; Get its constructor
-                  (local [(define f (v*s-v (get-field '__init__ vfun (none) env sfun)))
-                          ; Create an empty object. This will be the instance of that class.
-                          (define loc (new-loc))
-                          (define nid (new-id))
-                          (define o (new-object (MetaClass-c (some-v mval)) afun))]
-                    (type-case CVal f
-                      [VClosure (cenv argxs vararg body opt-class)
-                                ; interpret the arguments to the constructor
-                         (local [(define-values (argvs-r sc) (interp-cascade arges sfun env stk))
-                                 (define exn? (filter Exception? argvs-r))]
-                           (if (< 0 (length exn?))
-                               (first exn?)
-                               (local [(define argvs argvs-r)
-                                       (define sto-with-obj (hash-set sc loc o))
-                                       (define obj (v*s o sto-with-obj (some loc)))
-                                       ; bind the interpreted arguments to the constructor
-                                       (define result (bind-and-execute
-                                                        body opt-class argxs vararg
-                                                        (cons obj argvs)
-                                                        (cons (CId (new-id) (LocalId)) arges)
-                                                        (cons (hash-set (first env) nid loc)
-                                                              (rest env))
-                                                        cenv
-                                                        sto-with-obj 
-                                                        stk))]
-                                 (type-case Result result
-                                   [v*s (vb sb ab) (v*s (fetch loc sb) sb (none))]
-                                   [Return (vb sb ab)
-                                           (if (and (VObjectClass? vb)
-                                                    (some? (VObjectClass-mval vb))
-                                                    (MetaNone? (some-v (VObjectClass-mval vb))))
-                                               (v*s (fetch loc sb) sb (none))
-                                               (mk-exception 'TypeError
-                                                             "__init__() should return None"
-                                                             sb))]
-                                   [Break (sb) (break-exception sb)]
-                                   [Continue (sb) (continue-exception sb)]
-                                   [Exception (vb sb) (Exception vb sb)]))))]
-                      [else (error 'interp "__init__ not found. THIS SHOULDN'T HAPPEN.")]))
-                   
-                  ;; This means we're calling an object,
-                  ;; so apply its __call__ method.
+                  ;; This means we're calling an object, so apply its __call__ method.
+                  ;; Class calls are now handled by type.__call__ method (Alejandro).
                   (local [(define __call__ (get-field '__call__ vfun (none) env sfun))]
                     (type-case Result __call__
                       [v*s (vc sc ac)
@@ -197,7 +154,7 @@
                                                            (string-append 
                                                              (symbol->string b)
                                                              " object is not callable")
-                                                           sto)])))]
+                                                           sto)]))]
       [else (error 'interp "Not a closure or constructor.")])))))
 
 (define (interp-while [test : CExpr] [body : CExpr] [orelse : CExpr]
@@ -448,8 +405,6 @@
             ;; the tuple of bases is evaluated assuming global scope for class names,
             ;; should be changed for a more general lookup with the new scope implementation
             (begin ;(display "BEGIN CLASS\n") (display bases)
-            ;; NOTE(joe): weird CTuple of none, probably should be constructed
-            ;; in desugaring.
             (handle-result (interp-env (CTuple (CNone)
                                                (map (lambda (id) (CId id (GlobalId)))
                                                        bases))
@@ -626,7 +581,7 @@
                 (handle-result (interp-env (some-v expr) env sto stk)
                   (lambda (vexpr sexpr aexpr)
                        (cond
-                         [(and (VObjectClass? vexpr) (object-is? vexpr 'Exception env sto))
+                         [(and (VObjectClass? vexpr) (object-is? vexpr 'Exception env sexpr))
                           (Exception vexpr sexpr)]
                          [else (mk-exception 'TypeError
                                              "exceptions must derive from BaseException"
@@ -733,6 +688,9 @@
                       (string-append (pretty c) " object has no attribute ")
                       (symbol->string n))
                      s)]
+       ;; special attribute __class__
+      [(eq? n '__class__)
+       (v*s (get-class c e s) s (none))]
       [(is-special-method? n)
        ;; special methods are looked for in the class
        (get-field-from-obj n c w_c (none) e s)]
@@ -783,9 +741,6 @@
                                    (hash-set snew w value)
                                    (none)))]))]
            [else (error 'interp "Can't assign to nonobject.")])))))
-
-(define (new-object [c-name : symbol] [c-loc : (optionof Address)]) : CVal
-  (VObjectClass c-name (none) (hash empty) (some (VPointer (some-v c-loc)))))
 
 ;; bind-args, recursively binds the provided values to the provided argument symbols.
 ;; If a stararg symbol is provided, extra arguments are packaged in a tuple and bound
@@ -938,7 +893,6 @@
 ;; may return an exception if linearization is not possible
 ;; builtins/type.rkt would be a good place for this stuff,
 ;; it should handle type(name, bases, dict)
-;; but it needs access to mk-exception...
 (define (mk-type [name : symbol]
                  [bases : CVal]
                  [h-dict : (hashof symbol Address)]
@@ -947,25 +901,16 @@
   (local [(define bases-list (MetaTuple-v (some-v (VObjectClass-mval bases))))
           (define w (new-loc))
           (define bases_w (new-loc))
-          (define mro_w (new-loc))
-          (define class_loc (lookup name env))
-          (define class_w (if (some? class_loc)
-                              (some-v class_loc)
-                              (error 'mk-type
-                                     (string-append "Class '"
-                                       (string-append (symbol->string name)
-                                         "' does not have a location in the store")))))]
+          (define mro_w (new-loc))]
     (handle-result (build-mro name bases-list env sto)
       (lambda (vmro smro amro) 
              (v*s (VObjectClass 'type
                            (some (MetaClass name)) 
                            (hash-set
-                             (hash-set 
-                               (hash-set 
-                                 (hash-set h-dict '__dict__ w)
-                                 '__bases__ bases_w)
-                               '__mro__ mro_w)
-                             '__class__ class_w)
+                            (hash-set
+                             (hash-set h-dict '__dict__ w)
+                             '__bases__ bases_w)
+                            '__mro__ mro_w)
                            (none))
                   (hash-set 
                     (hash-set 

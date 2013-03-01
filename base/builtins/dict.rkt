@@ -116,9 +116,10 @@
   (check-types args env sto 'dict
                (letrec ([contents (MetaDict-contents mval1)]
                         [items (map (lambda (pair) ; create a tuple for each (key, value)
-                                            (VObject 'tuple
+                                            (VObjectClass 'tuple
                                                      (some (MetaTuple (list (car pair) (cdr pair))))
-                                                     (hash empty)))
+                                                     (hash empty)
+                                                     (some (third args))))
                                     (hash->list contents))])
                     (some
                       (VObjectClass 'set
