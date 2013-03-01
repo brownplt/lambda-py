@@ -1,4 +1,4 @@
-#lang plai-typed/untyped
+#lang plai-typed
 
 (require "python-syntax.rkt"
          "python-core-syntax.rkt"
@@ -11,6 +11,8 @@
 (require [typed-in racket (flatten : ((listof (listof 'a) ) -> (listof 'b)))])
 (require [typed-in racket (remove-duplicates : ((listof 'a) -> (listof 'a)))])
 (require [typed-in racket (gensym : (symbol -> symbol))])
+(require [typed-in racket (substring : (string number number -> string))])
+(require [typed-in racket (string-length : (string -> number))])
  
 
 
@@ -88,6 +90,19 @@
  (define (post-desugar [expr : LexExpr]) : LexExpr
     (local
      [
+      (define (finish-hoist-functions expr)
+        (lexexpr-modify-tree
+         expr
+         (lambda (y)
+           (type-case LexExpr y
+             [LexFunc (name args defaults body decorators class)
+                      (if
+                       (and
+                        (> (string-length (symbol->string name )) (string-length "class-replacement"))
+                        (equal? "class-replacement" (substring (symbol->string name) 0 (string-length "class-replacement"))))
+                       (LexFunc name args defaults body decorators (none))
+                       y)]
+             [else (haiku-error)]))))
       (define hoist-functions (local
        [
       ;takes a body, makes two scopes out of it -
@@ -140,8 +155,15 @@
                                (map replace-functions defaults)
                                (begin
                                  (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
-                                 (set! list-of-functions (cons (LexLam args body) list-of-functions))
-                                 (LexApp (LexLocalId (first list-of-identifiers) 'Load) (make-local-ids args))
+                                 (set! list-of-functions (cons
+                                                          
+                                                          (LexFunc (first list-of-identifiers)
+                                                                   args
+                                                                   empty
+                                                                   body
+                                                                   empty
+                                                                   (none)) list-of-functions))
+                                 (LexReturn (LexApp (LexLocalId (first list-of-identifiers) 'Load) (make-local-ids args)))
                                  )
                                (map replace-functions decorators) class)
                       ]
@@ -149,8 +171,16 @@
                             (LexFuncVarArg name args sarg
                                (begin
                                  (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
-                                 (set! list-of-functions (cons (LexLam (cons sarg args) body) list-of-functions))
-                                 (LexApp (LexLocalId (first list-of-identifiers) 'Load) (make-local-ids (cons sarg args)))
+                                 (set! list-of-functions (cons
+                                                          (LexFunc (first list-of-identifiers)
+                                                                   (cons sarg args)
+                                                                   empty
+                                                                   body
+                                                                   empty
+                                                                   (none))
+                                                          list-of-functions))
+                                 (LexReturn
+                                  (LexApp (LexLocalId (first list-of-identifiers) 'Load) (make-local-ids (cons sarg args))))
                                  )
                                (map replace-functions decorators) class)]
              [LexLam (args body) (begin
@@ -260,13 +290,13 @@
              (lambda ([y : LexExpr])
                (type-case LexExpr y
                  [LexClass (scope name bases body)
-                           (if (Instance-scoped? scope)
+                           (finish-hoist-functions (if (Instance-scoped? scope)
                                  (error 'lexical "instance is not inside class")
                                  (deal-with-class
                                   y
                                   (if (Globally-scoped? scope)
                                       (LexGlobalId name 'Load)
-                                      (LexLocalId name 'Load))))]
+                                      (LexLocalId name 'Load)))))]
                  [else (haiku-error)])))))]
         (top-level-deal-with-class expr)))
 
