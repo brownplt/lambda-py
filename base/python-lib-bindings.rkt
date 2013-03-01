@@ -173,7 +173,7 @@
         (bind '%str (assign '%str (CId 'str (GlobalId))))
         (bind 'bool bool-class)
         (bind 'file file-class)
-        (bind 'open file-class)
+        (bind 'open (assign 'open (CId 'file (GlobalId))))
         (bind 'method method-class)
         (bind 'classmethod classmethod-class)
         (bind 'staticmethod staticmethod-class)
