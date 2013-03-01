@@ -30,5 +30,5 @@
                      (string->symbol (LexStr-s (first args)))
                      (third args))]
           [else expr])]
-        [else (error 'desugar-macros "This should be caught")]))))
+        [else (haiku-error)]))))
 
