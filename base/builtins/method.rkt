@@ -1,4 +1,4 @@
-#lang plai-typed/untyped
+#lang plai-typed
 
 ;; method - the bound method object, includes classmethod, staticmethod and super.
 

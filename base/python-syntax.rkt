@@ -1,4 +1,4 @@
-#lang plai-typed/untyped
+#lang plai-typed
 
 (define-type PyExpr
   ; control structures

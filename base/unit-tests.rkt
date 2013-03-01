@@ -1,4 +1,4 @@
-#lang plai-typed/untyped
+#lang plai-typed
 
 (require "util.rkt"
          "python-interp.rkt"

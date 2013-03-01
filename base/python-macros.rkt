@@ -1,4 +1,4 @@
-#lang plai-typed/untyped
+#lang plai-typed
 
 (require "python-core-syntax.rkt"
          "python-lexical-syntax.rkt"
@@ -30,5 +30,5 @@
                      (string->symbol (LexStr-s (first args)))
                      (third args))]
           [else expr])]
-        [else (error 'desugar-macros "This should be caught")]))))
+        [else (haiku-error)]))))
 

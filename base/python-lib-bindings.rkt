@@ -1,4 +1,4 @@
-#lang plai-typed/untyped
+#lang plai-typed
 
 (require "python-core-syntax.rkt"
          "builtins/num.rkt"
@@ -37,17 +37,11 @@
                  (CNone)))
       (def 'BaseException '__init__
            (CFunc (list 'self) (some 'args)
-                  (CSeq 
-                    (CAssign 
-                      (CGetField
-                        (CId 'self (LocalId))
-                        'args)
-                      (CId 'args (LocalId)))
-                    (CAssign
-                      (CGetField
-                        (CId 'self (LocalId))
-                        '__class__)
-                      (CId 'BaseException (LocalId))))
+                  (CAssign 
+                    (CGetField
+                      (CId 'self (LocalId))
+                      'args)
+                    (CId 'args (LocalId)))
                   (some 'BaseException)))
       (def 'BaseException '__str__
            (CFunc (list 'self) (none)
