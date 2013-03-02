@@ -50,7 +50,7 @@
                                         (let ((desugared-bases (map pre-desugar bases)))
                                           (if (empty? desugared-bases)
                                               (LexGlobalId 'object 'Load)
-                                              (LexSeq desugared-bases)))
+                                              (LexTuple desugared-bases)))
                                         (LexBlock empty
                                                   (pre-desugar body)))))]
        [PyLam (args body)

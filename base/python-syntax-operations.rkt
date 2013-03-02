@@ -81,7 +81,7 @@
               
                                         ; classes and objects 
               [PyClass (name bases body)
-                       (LexClass (Unknown-scope) name (LexSeq (map recur bases)) (recur body))]
+                       (LexClass (Unknown-scope) name (LexTuple (map recur bases)) (recur body))]
               [PyDotField (value attr) (LexDotField (recur value) attr)]
 
                                         ; operations
