@@ -46,8 +46,13 @@
      (type-case PyExpr y
        [PyClass (name bases body)
                 (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexUndefined))
-                              (LexClass (Unknown-scope) name bases (LexBlock empty
-                                                                             (pre-desugar body)))))]
+                              (LexClass (Unknown-scope) name
+                                        (let ((desugared-bases (map pre-desugar bases)))
+                                          (if (empty? desugared-bases)
+                                              (LexGlobalId 'object 'Load)
+                                              (LexSeq desugared-bases)))
+                                        (LexBlock empty
+                                                  (pre-desugar body)))))]
        [PyLam (args body)
               (LexLam args (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
        [PyFunc (name args defaults body decorators)
@@ -60,7 +65,7 @@
        
        [PyFuncVarArg (name args sarg body decorators)
                      (LexSeq (list
-                              (LexAssign (list (PyLexId name 'Store)) 
+                              (LexAssign (list (PyLexId name 'Store))
                                          (LexFuncVarArg name args sarg
                                                         (LexBlock (cons sarg args)
                                                                   (cascade-nonlocal (cons sarg args) (pre-desugar body)))
@@ -112,7 +117,8 @@
                                              (error 'remove-unneeded-assigns "assignment is not to ID type")])))
                                       (type-case LexExpr (second es)
                                         [LexClass (scope name bases body)
-                                                  (LexClass replace-scope name bases
+                                                  (LexClass replace-scope name
+                                                            (remove-unneeded-assigns bases)
                                                             (remove-unneeded-assigns body))]
                                         [LexFunc (name args defaults body decorators class)
                                                  (LexFunc name args
@@ -318,7 +324,7 @@
                            (LexClass
                             scope
                             name
-                            bases
+                            (toplevel bases)
                             (type-case LexExpr body
                               [LexBlock (nls e)
                                        (LexBlock

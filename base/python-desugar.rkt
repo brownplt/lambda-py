@@ -502,9 +502,14 @@
             
       [LexClass (scp name bases body)
                 (CClass name
-                        (if (empty? bases)
-                            (list 'object)
-                            bases)
+                        ;TODO: alejandro will want to change this.  Right now I'm just converting things back into a list of symbols.
+                        (lexexpr-fold-tree
+                         bases
+                         (lambda (y)
+                           (type-case LexExpr y
+                             [LexLocalId (x ctx) (list x)]
+                             [LexGlobalId (x ctx) (list x)]
+                             [else (default-recur)])))
                         (desugar body))]
 
       [LexInstanceId (x ctx)
