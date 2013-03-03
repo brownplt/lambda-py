@@ -48,9 +48,9 @@
                 (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexUndefined))
                               (LexClass (Unknown-scope) name
                                         (let ((desugared-bases (map pre-desugar bases)))
-                                          (if (empty? desugared-bases)
-                                              (LexGlobalId 'object 'Load)
-                                              (LexTuple desugared-bases)))
+                                          (LexTuple (if (empty? desugared-bases)
+                                                        (list (LexGlobalId 'object 'Load))
+                                                        desugared-bases)))
                                         (LexBlock empty
                                                   (pre-desugar body)))))]
        [PyLam (args body)
