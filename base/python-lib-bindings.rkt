@@ -31,7 +31,7 @@
   (seq-ops
     (list 
       (CAssign (CId 'BaseException (GlobalId))
-               (CClass
+               (builtin-class
                  'BaseException
                  (list 'object)
                  (CNone)))

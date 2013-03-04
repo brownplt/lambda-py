@@ -16,7 +16,7 @@
   
   (seq-ops (list
              (CAssign (CId 'int (GlobalId))
-                      (CClass
+                      (builtin-class
                         'int
                         (list 'num)
                         (CNone)))
@@ -35,7 +35,7 @@
 (define float-class
   (seq-ops (list
              (CAssign (CId 'float (GlobalId))
-                      (CClass
+                      (builtin-class
                         'float
                         (list 'num)
                         (CNone)))
@@ -50,7 +50,7 @@
 (define num-class 
   (seq-ops (list 
              (CAssign (CId 'num (GlobalId))
-                      (CClass
+                      (builtin-class
                         'num
                         (list 'object)
                         (CNone)))

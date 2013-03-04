@@ -294,13 +294,8 @@
     [CUndefined () (v*s (VUndefined) sto (none))]
 
     [CClass (name bases body)
-            ;; the tuple of bases is evaluated assuming global scope for class names,
-            ;; should be changed for a more general lookup with the new scope implementation
             (begin ;(display "BEGIN CLASS\n") (display bases)
-            (handle-result (interp-env (CTuple (CNone)
-                                               (map (lambda (id) (CId id (GlobalId)))
-                                                       bases))
-                                          env sto stk)
+            (handle-result (interp-env bases env sto stk)
               (lambda (vbases sbases abases)
                    (handle-result (interp-env body (cons (hash empty) env) sto stk)
                      (lambda (vbody sbody abody)

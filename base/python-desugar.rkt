@@ -502,14 +502,12 @@
             
       [LexClass (scp name bases body)
                 (CClass name
-                        ;TODO: alejandro will want to change this.  Right now I'm just converting things back into a list of symbols.
-                        (lexexpr-fold-tree
-                         bases
-                         (lambda (y)
-                           (type-case LexExpr y
-                             [LexLocalId (x ctx) (list x)]
-                             [LexGlobalId (x ctx) (list x)]
-                             [else (default-recur)])))
+                        ;TODO: would be better to change bases to be a (listof LexExpr)
+                        ;; and to build the tuple here (Alejandro).
+                        ;; (CNone) is because we may not have a tuple class object yet.
+                        (type-case CExpr (desugar bases)
+                          [CTuple (class tuple) (CTuple (CNone) tuple)]
+                          [else (error 'desugar "bases is not a tuple")])
                         (desugar body))]
 
       [LexInstanceId (x ctx)

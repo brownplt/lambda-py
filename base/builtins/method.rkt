@@ -11,7 +11,7 @@
 (define method-class
   (seq-ops (list
              (CAssign (CId 'method (GlobalId))
-                      (CClass 
+                      (builtin-class
                         'method
                         (list 'object)
                         (CNone)))
@@ -47,7 +47,7 @@
 (define classmethod-class
   (seq-ops (list
             (CAssign (CId 'classmethod (GlobalId))
-                     (CClass
+                     (builtin-class
                        'classmethod
                        (list 'object)
                        (CNone)))
@@ -63,7 +63,7 @@
 (define staticmethod-class
   (seq-ops (list
              (CAssign (CId 'staticmethod (GlobalId))
-                      (CClass
+                      (builtin-class
                         'staticmethod
                         (list 'object)
                         (CNone)))
@@ -80,7 +80,7 @@
 (define super-class
   (seq-ops (list
              (CAssign (CId 'super (GlobalId))
-                      (CClass
+                      (builtin-class
                         'super
                         (list 'object)
                         (CNone)))

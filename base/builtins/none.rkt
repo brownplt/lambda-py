@@ -8,7 +8,7 @@
 (define none-class
   (seq-ops (list 
              (CAssign (CId 'none (GlobalId))
-                      (CClass
+                      (builtin-class
                         'none
                         (list 'object)
                         (CNone)))
