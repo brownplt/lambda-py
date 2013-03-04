@@ -6,3 +6,6 @@ typecheck:
 
 typed:
 	for foo in `git grep -l 'lang plai-typed/untyped' | grep '\.rkt$$'`; do sed -i s/'lang plai-typed\/untyped'/'lang plai-typed'/g $$foo; done && git ls-files | grep '\.rkt$$' | xargs raco make -j 5
+
+test:
+	racket python-main.rkt --python-path `which python3.2` --test ../tests/python-reference
