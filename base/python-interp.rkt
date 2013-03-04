@@ -37,36 +37,23 @@
   (append a (append b c)))
 
 ;; interp-cascade, interprets a list of expressions with an initial store,
-;; environment and produces the list of results and the final store
+;; environment and produces a ResultList, which either contains the final
+;; store and list of results, or a single Abnormal result
 (define (interp-cascade [exprs : (listof CExpr)] 
                         [init-s : Store]
                         [env : Env]
-                        [stk : Stack]) : ((listof Result) * Store)
-  (local [(define (rec-cascade exprs e s)
-            (cond [(empty? exprs) empty]
-                  [(cons? exprs)
-                     (let ([first-r (interp-env (first exprs) e s stk)])
-                       (type-case Result first-r
-                         [v*s (vfr sfr afr) (cons first-r (rec-cascade (rest exprs) e sfr))]
-                         [Return (vfr sfr afr) (list (return-exception sfr))]
-                         [Break (sfr) (list first-r)]
-                         [Continue (sfr) (list first-r)] 
-                         [Exception (vfr sfr) (list first-r)]))]))
-          (define result-list (rec-cascade exprs env init-s))
-          (define non-results
-            (filter (lambda (r)
-                      (or (Exception? r) (Break? r)  (Continue? r)))
-                    result-list))]
-      (if (< 0 (length non-results))
-          (values non-results 
-                  (cond
-                    [(Exception? (first non-results)) (Exception-s (first non-results))]
-                    [(Break? (first non-results)) (Break-s (first non-results))]
-                    [(Continue? (first non-results)) (Continue-s (first non-results))]))
-          (values result-list
-                  (if (cons? result-list)
-                      (v*s-s (first (reverse result-list)))
-                      init-s)))))
+                        [stk : Stack]) : ResultList
+  (cond
+    [(empty? exprs) (v*s/list empty init-s)]
+    [(cons? exprs)
+     (let ([first-result (interp-env (first exprs) env init-s stk)])
+       (type-case Result first-result
+         [v*s (vfr sfr _)
+          (let ([rest-result (interp-cascade (rest exprs) sfr env stk)])
+            (type-case ResultList rest-result
+             [v*s/list (rs sf) (v*s/list (cons first-result rs) sf)]
+             [Abnormal (r) rest-result]))]
+         [else (Abnormal first-result)]))]))
 
 ;; common code to interpret function and method application, first argument must be a VClosure.
 (define (interp-vclosure [vfun : CVal] [arges : (listof CExpr)] 
@@ -74,40 +61,38 @@
                          [env : Env] [sfun : Store] [stk : Stack]) : Result
   (type-case CVal vfun
     [VClosure (cenv argxs vararg body opt-class)
-              (local [(define-values (argvs-r sc) (interp-cascade arges sfun env stk))
-                      (define exn? (filter Exception? argvs-r))]
-                  (if (< 0 (length exn?))
-                      (first exn?)
-                      (local [(define argvs argvs-r)
-                              (define result
-                                (if (some? stararg)
-                                    (local [(define sarg-r
-                                              (interp-env (some-v stararg) env sc stk))
-                                            ;; todo: support other types
-                                            ;; for star args
-                                            (define l (MetaTuple-v 
-                                                        (some-v 
-                                                          (VObjectClass-mval 
-                                                            (v*s-v sarg-r)))))]
-                                      (bind-and-execute 
-                                        body opt-class argxs vararg 
-                                        (append argvs (map (lambda (v)
-                                                             (v*s v (v*s-s sarg-r) (none)))
-                                                           l))
-                                        (append arges (map (lambda(x)
-                                                             (make-builtin-num 0))
-                                                           l))
-                                        env cenv (v*s-s sarg-r) stk)) 
-                                    (bind-and-execute
-                                      body opt-class argxs vararg
-                                      argvs arges env
-                                      cenv sc stk)))]
-                        (type-case Result result
-                          [v*s (vb sb ab) (v*s vnone sb (none))]
-                          [Return (vb sb ab) (v*s vb sb ab)]
-                          [Break (sb) (break-exception sb)]
-                          [Continue (sb) (continue-exception sb)]
-                          [Exception (vb sb) (Exception vb sb)]))))]
+              (type-case ResultList (interp-cascade arges sfun env stk)
+                [Abnormal (r) r]
+                [v*s/list (argvs-r sc)
+                 (local [(define result
+                           (if (some? stararg)
+                               (local [(define sarg-r
+                                         (interp-env (some-v stararg) env sc stk))
+                                       ;; todo: support other types
+                                       ;; for star args
+                                       (define l (MetaTuple-v 
+                                                   (some-v 
+                                                     (VObjectClass-mval 
+                                                       (v*s-v sarg-r)))))]
+                                 (bind-and-execute 
+                                   body opt-class argxs vararg 
+                                   (append argvs-r (map (lambda (v)
+                                                        (v*s v (v*s-s sarg-r) (none)))
+                                                      l))
+                                   (append arges (map (lambda(x)
+                                                        (make-builtin-num 0))
+                                                      l))
+                                   env cenv (v*s-s sarg-r) stk)) 
+                               (bind-and-execute
+                                 body opt-class argxs vararg
+                                 argvs-r arges env
+                                 cenv sc stk)))]
+                   (type-case Result result
+                     [v*s (vb sb ab) (v*s vnone sb (none))]
+                     [Return (vb sb ab) (v*s vb sb ab)]
+                     [Break (sb) (break-exception sb)]
+                     [Continue (sb) (continue-exception sb)]
+                     [Exception (vb sb) (Exception vb sb)]))])]
     [else (error 'interp (string-append "Not a closure: " (to-string vfun)))]))
 
 (define (interp-capp [fun : CExpr] [arges : (listof CExpr)] 
@@ -357,50 +342,47 @@
                       csto
                       (none))))))]
 
-    [CSet (class elts)
-     (local [(define-values (result-list new-s) (interp-cascade elts sto env stk))]
-         (let ([exn? (filter Exception? result-list)])
-             (if (< 0 (length exn?))
-                 (first exn?) 
-                 (handle-result (interp-env class env new-s stk)
-                  (lambda (cval csto cloc)
-                   (let ([val-list (map v*s-v result-list)])
-                    (v*s (VObjectClass 'set
-                                  (some (MetaSet (make-set val-list)))
-                                  (hash empty)
-                                  (some cval))
-                         csto
-                         (none))))))))]
+    [CSet (class values)
+     (type-case ResultList (interp-cascade values sto env stk)
+      [Abnormal (r) r]
+      [v*s/list (result-list new-s)
+       (handle-result (interp-env class env new-s stk)
+        (lambda (cval csto cloc)
+         (let ([val-list (map v*s-v result-list)])
+          (v*s (VObjectClass 'set
+                        (some (MetaSet (make-set val-list)))
+                        (hash empty)
+                        (some cval))
+               csto
+               (none)))))])]
     
     [CList (class values)
-     (local [(define-values (result-list new-s) (interp-cascade values sto env stk))]
-         (let ([exn? (filter Exception? result-list)])
-             (if (< 0 (length exn?))
-                 (first exn?) 
-                 (handle-result (interp-env class env new-s stk)
-                  (lambda (cval csto cloc)
-                (let ([val-list (map v*s-v result-list)])
-                 (v*s (VObjectClass 'list
-                               (some (MetaList val-list))
-                               (hash empty)
-                               (some cval))
-                      csto
-                      (none))))))))]
+     (type-case ResultList (interp-cascade values sto env stk)
+      [Abnormal (r) r]
+      [v*s/list (result-list new-s)
+       (handle-result (interp-env class env new-s stk)
+        (lambda (cval csto cloc)
+         (let ([val-list (map v*s-v result-list)])
+          (v*s (VObjectClass 'list
+                       (some (MetaList val-list))
+                       (hash empty)
+                       (some cval))
+              csto
+              (none)))))])]
 
     [CTuple (class values)
-     (local [(define-values (result-list new-s) (interp-cascade values sto env stk))]
-         (let ([exn? (filter Exception? result-list)])
-             (if (< 0 (length exn?))
-                 (first exn?) 
-                 (handle-result (interp-env class env new-s stk)
-                  (lambda (cval csto cloc)
-                (let ([val-list (map v*s-v result-list)])
-                 (v*s (VObjectClass 'tuple
-                               (some (MetaTuple val-list))
-                               (hash empty)
-                               (some cval))
-                      csto
-                      (none))))))))]
+     (type-case ResultList (interp-cascade values sto env stk)
+      [Abnormal (r) r]
+      [v*s/list (result-list new-s)
+       (handle-result (interp-env class env new-s stk)
+        (lambda (cval csto cloc)
+         (let ([val-list (map v*s-v result-list)])
+          (v*s (VObjectClass 'tuple
+                       (some (MetaTuple val-list))
+                       (hash empty)
+                       (some cval))
+              csto
+              (none)))))])]
 
     [CAssign (t v) 
              (begin ;(display "\nASSIGN: ") (display t) (display " | ") (display v) (display "\n")
@@ -471,18 +453,17 @@
     [CPrim2 (prim arg1 arg2) (interp-cprim2 prim arg1 arg2 sto env stk)]
     
     [CBuiltinPrim (op args)
-                  (local [(define-values (result-list new-s) (interp-cascade args sto env stk))
-                          (define exn? (filter Exception? result-list))]
-                    (if (< 0 (length exn?))
-                        (first exn?)
-                        (local [(define val-list (map v*s-v result-list))
-                                (define mayb-val (builtin-prim op val-list env new-s stk))] 
-                          (if (some? mayb-val)
-                              ;; BuiltinPrims should return Results, not (optionof CVal)
-                              (v*s (some-v mayb-val) new-s (none))
-                              ;; todo: more useful errors
-                              (mk-exception 'TypeError "Bad types in builtin call" 
-                                            sto)))))]
+                  (type-case ResultList (interp-cascade args sto env stk)
+                   [Abnormal (r) r]
+                   [v*s/list (result-list new-s)
+                    (local [(define val-list (map v*s-v result-list))
+                            (define mayb-val (builtin-prim op val-list env new-s stk))] 
+                      (if (some? mayb-val)
+                          ;; BuiltinPrims should return Results, not (optionof CVal)
+                          (v*s (some-v mayb-val) new-s (none))
+                          ;; todo: more useful errors
+                          (mk-exception 'TypeError "Bad types in builtin call" 
+                                        sto)))])]
     [CRaise (expr) 
             (if (some? expr)
                 (handle-result (interp-env (some-v expr) env sto stk)

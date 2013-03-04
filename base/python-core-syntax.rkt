@@ -95,6 +95,10 @@ ParselTongue.
   [Break (s : Store)]
   [Continue (s : Store)])
 
+(define-type ResultList
+  [v*s/list (vs : (listof Result)) (s : Store)]
+  [Abnormal (ab : Result)])
+
 (define-type-alias object-dict (hashof symbol Address))
 
 (define (lookup [x : symbol] [env : Env]) : (optionof Address)
