@@ -115,11 +115,13 @@
                       [v*s (vc sc)
                            (cond
                              ;; for bound methods use __func__ attribute and __self__
-                             [(and (VObjectClass? vc) (equal? (VObjectClass-antecedent vc) 'method))
+                             [(and (is-obj-ptr? vc sc) (equal? (VObjectClass-antecedent (fetch-ptr vc sc)) 'method))
                               (local 
                                 [(define func
-                                   (fetch-ptr (fetch-once (some-v (hash-ref (VObjectClass-dict vc) '__func__)) sc) sfun))
-                                 (define w_self (hash-ref (VObjectClass-dict vc) '__self__))
+                                   (fetch-ptr
+				     (fetch-once
+				       (some-v (hash-ref (VObjectClass-dict (fetch-ptr vc sc)) '__func__)) sc) sc))
+                                 (define w_self (hash-ref (VObjectClass-dict (fetch-ptr vc sc)) '__self__))
                                  (define id_self (new-id))
                                  (define m_arges (cons (CId id_self (LocalId)) arges))
                                  ;; extend the environment with self to support self aliasing
@@ -127,12 +129,12 @@
                                    (cons (hash-set (first env) id_self (some-v w_self)) 
                                          (rest env)))]
                                 (begin
-                                  (display (format "Method is: ~a\n" vc))
-                                  (display (format "Func is: ~a\n" func))
+                                  ;(display (format "Method is: ~a" vc)) (display "\n")
+                                  ;(display (format "Func is: ~a" func)) (display "\n")
                                   (interp-vclosure func m_arges stararg m_env sc stk)))]
                              [else
                                ;; for unbound methods, use function application
-                               (interp-vclosure (fetch-ptr vc sfun) arges stararg env sfun stk)])]
+                               (interp-vclosure (fetch-ptr vc sc) arges stararg env sc stk)])]
                       [Return (vfun sfun) (return-exception sfun)]
                       [Break (sfun) (break-exception sfun)]
                       [Continue (sfun) (continue-exception sfun)]
@@ -883,7 +885,7 @@
       [(and (equal? (VObjectClass-antecedent obj) 'super)
             (some? (hash-ref (VObjectClass-dict obj) '__self__)))
        (local ([define w_self (hash-ref (VObjectClass-dict obj) '__self__)]
-               [define self (fetch-ptr (fetch-once (some-v w_self) sto))]
+               [define self (fetch-ptr (fetch-once (some-v w_self) sto) sto)]
                [define thisclass (fetch-once (some-v (hash-ref (VObjectClass-dict obj)
                                                           '__thisclass__))
                                         sto)])
@@ -898,9 +900,7 @@
       [else
        (local ([define obj-cls (get-class obj env sto)])
          (type-case (optionof Address) (lookup-mro (get-mro obj-cls thisclass sto) fld)
-           [some (w) (let* ([value (fetch-once w sto)]
-                           [_ (begin (display "value from lookup-mro: ")
-                           (display value) (display (fetch-ptr value sto)))])
+           [some (w) (let ([value (fetch-once w sto)])
                        (cond
                          ;; For functions, create method object bound to the object itself
                          [(VClosure? (fetch-ptr value sto)) 
