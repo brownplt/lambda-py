@@ -12,6 +12,7 @@
          "builtins/none.rkt"
          "builtins/file.rkt"
          "builtins/method.rkt"
+         "builtins/code.rkt"
          "util.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
@@ -178,6 +179,7 @@
         (bind 'classmethod classmethod-class)
         (bind 'staticmethod staticmethod-class)
         (bind 'super super-class)
+        (bind 'code code-class)
 
         (bind 'len (assign 'len len-lambda))
         (bind 'min (assign 'min min-lambda))

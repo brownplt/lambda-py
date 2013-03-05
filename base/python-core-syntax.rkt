@@ -67,6 +67,7 @@ ParselTongue.
              [MetaList (v : (listof CVal))]
              [MetaTuple (v : (listof CVal))]
              [MetaDict (contents : (hashof CVal CVal))]
+             [MetaCode (e : CExpr) (filename : string) (globals : (listof symbol))]
              [MetaClass (c : symbol)]
              [MetaSet (elts : Set)]
              [MetaNone]

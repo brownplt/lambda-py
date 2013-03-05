@@ -13,7 +13,7 @@
               (CNone)))
     (def '$module '__str__
          (CFunc (list 'self) (none)
-                (CReturn (CStr "<module>"))
+                (CReturn (make-builtin-str "<module>"))
                 (some '$module))))))
 
 ;; the builtin primitive make-module,
