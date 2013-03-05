@@ -68,6 +68,7 @@ that calls the primitive `print`.
                      "pylib/any.py"
                      "pylib/all.py"
                      "pylib/dicteq.py"
+                     "pylib/import.py"
                      "py-prelude.py"
                     ))))
          (some-v pylib-programs))]

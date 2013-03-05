@@ -168,6 +168,12 @@
                          (CId 'mode (LocalId)))))
          (none)))
 
+(define make_module-lambda
+  (CFunc (list 'code) (none)
+         (CReturn
+          (CConstructModule (CId 'code (LocalId))))
+         (none)))
+
 (define lib-functions
   (list (bind 'True (assign 'True (CTrue)))
         (bind 'False (assign 'False (CFalse)))
@@ -194,6 +200,8 @@
         (bind '$module module-class)
 
         (bind 'compile (assign 'compile compile-lambda))
+        (bind 'make_module (assign 'make_module make_module-lambda))
+        
         (bind 'len (assign 'len len-lambda))
         (bind 'min (assign 'min min-lambda))
         (bind 'max (assign 'max max-lambda))
@@ -246,6 +254,7 @@
             (bind '%set (CUndefined))
             (bind 'type (CUndefined))
             (bind '%type (CUndefined))
+            (bind '__import__ (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))

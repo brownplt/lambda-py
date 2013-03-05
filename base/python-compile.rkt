@@ -20,7 +20,7 @@
   (compile-port
    (open-input-string str)))
 
-(define (get-global-names (es : CExpr)) : (listof string)
+(define (get-global-names (es : CExpr)) : (listof symbol)
   (type-case CExpr es
     (CModule (pre body) (get-global-names body))
     (CLet (x type bind body)

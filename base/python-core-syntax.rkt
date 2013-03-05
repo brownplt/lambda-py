@@ -40,7 +40,8 @@ ParselTongue.
   [CUndefined]
   [CBreak]
   [CContinue]
-  [CModule (prelude : CExpr) (body : CExpr)])
+  [CModule (prelude : CExpr) (body : CExpr)]
+  [CConstructModule (source : CExpr)])
 
 (define-type IdType
     [GlobalId]

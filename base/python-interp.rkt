@@ -560,6 +560,37 @@
             to-return
             rev-try))]
 
+    [CConstructModule (source)
+           ; TODO: check source types
+           (let* ((code-CVal (v*s-v (interp-env source env sto stk))) ; get code object
+                  (metacode (some-v (VObjectClass-mval code-CVal)))
+                  (global-var (MetaCode-globals metacode)) ; get global vars in code
+                  (xcode (get-module-body (MetaCode-e metacode))) ; get code that needs to interp
+                  (new-env (last env)) ; prepare for the env
+                  (new-sto sto) ; and the store
+                  (module-attr (hash empty)) ; and the attribute in module object
+                  )
+             (begin
+               ;; construct env and store, using the global variables in code
+               (map (lambda (sym)
+                      (let ((loc (new-loc)))
+                        (begin
+                          (set! new-env
+                                (hash-set new-env sym loc))
+                          (set! module-attr
+                                (hash-set module-attr sym loc))
+                          (set! new-sto
+                                (hash-set new-sto loc vnone)))))
+                    global-var)
+               ;(pprint new-env)
+               ;; interp the xcode with the new environment and new store
+               (type-case Result (interp-env xcode (list new-env) new-sto stk)
+                 (v*s (v s a)
+                      (begin (pprint s)
+                        (v*s (VObject '$module (none) module-attr) s (none))))
+                 (else
+                  (error 'interp-env "should raise ImportError")))
+               ))]
     [CBreak () (Break sto)]
     [CContinue () (Continue sto)])))
 

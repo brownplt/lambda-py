@@ -445,4 +445,12 @@
 (test (Prim 'num< (make-builtin-str "foo") (make-builtin-str "bar"))
       (CBuiltinPrim 'num< (list (make-builtin-str "foo") (make-builtin-str "bar"))))
 
+;; strip the CLet in CModule
+(define (get-module-body (es : CExpr)) : CExpr
+  (type-case CExpr es
+    (CModule (pre body) (get-module-body body))
+    (CLet (x type bind body)
+          (get-module-body body))
+    (else es)))
+
 
