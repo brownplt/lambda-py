@@ -89,8 +89,8 @@ ParselTongue.
         (set-box! n 0)))))
 
 (define-type Result
-  [v*s (v : CVal) (s : Store) (a : (optionof Address))]
-  [Return (v : CVal) (s : Store) (a : (optionof Address))]
+  [v*s (v : CVal) (s : Store)]
+  [Return (v : CVal) (s : Store)]
   [Exception (v : CVal) (s : Store)]
   [Break (s : Store)]
   [Continue (s : Store)])
@@ -117,6 +117,11 @@ ParselTongue.
     [(empty? (rest env)) (hash-ref (first env) x)]
     [else (lookup-global x (rest env))]))
 
+(define (is-obj-ptr? val sto)
+  (type-case CVal val
+    [VPointer (a) (VObjectClass? (fetch-once a sto))]
+    [else false]))
+
 (define (fetch [w : Address] [sto : Store]) : CVal
   (local [(define val 
             (type-case (optionof CVal) (hash-ref sto w)
@@ -134,6 +139,11 @@ ParselTongue.
              [some (v) v]
              [none () (error 'interp
                              (string-append "No value at address " (Address->string w)))]))
+
+(define (fetch-ptr val sto)
+  (type-case CVal val
+    [VPointer (a) (fetch-once a sto)]
+    [else (error 'interp (string-append "fetch-ptr got a non-VPointer: " (to-string val)))]))
 
 ;; lookup in the env and sto, in order to get the final address through the aliasing address.
 (define (deep-lookup [x : symbol] [env : Env] [sto : Store]) : (optionof Address)
