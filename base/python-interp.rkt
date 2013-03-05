@@ -191,12 +191,6 @@
         (interp-env body env_new sto_new 
                     ;; push new activation record on the stack
                     ;; used the dynamic environment for compatibility with base code.
-                    ;; TODO(joe): env_new vs env in the Frame?  We lost dyn in
-                    ;; the update for scope
-                    ;;
-                    ;; As far as I could tell, dyn was a copy of env, so I got rid of it.
-                    ;; I think env is right here.
-                    ;; - Sumner
                     (cons (Frame env class self) stk))))))
 
 (define (interp-let [name : symbol] [type : IdType] [value : Result]
@@ -210,17 +204,7 @@
               [Exception (v s) (values v s)]))
           (define loc (new-loc))
           (define newenv (cons (hash-set (first env) name loc) (rest env)))]
-    (interp-env body
-                ; Needed still?
-                ; From Anand:
-                #|(if (global-scope? env)
-                    ; Creating a new localscope for handling CLet in global scope.
-                    ; Assuming that there won't be any local bindings in the let body.
-                    (cons (hash-set (hash (list)) name loc) env) 
-                    (cons (hash-set (first env) name loc) (rest env)))|#
-                newenv 
-                (hash-set sto loc val)
-                stk)))
+    (interp-env body newenv (hash-set sto loc val) stk)))
 
 ;; interp-id will first lookup id in env, then fetch the value of the id in the sto.
 ;; At the same time, interp-id will return the address of the id for aliasing.
@@ -378,15 +362,14 @@
 
     [CAssign (t v) 
              (begin ;(display "\nASSIGN: ") (display t) (display " | ") (display v) (display "\n")
-             (local [(define val (interp-env v env sto stk))]
-               (handle-result val
+               (handle-result (interp-env v env sto stk)
                  (lambda (vv sv)
                       (type-case CExpr t
-                        [CId (x type) (assign-to-id t val env sv)]
+                        [CId (x type) (assign-to-id t vv env sv)]
                         [CGetField (o a) (assign-to-field o a vv env sv stk)]
                         [else (mk-exception 'SyntaxError
                                             "can't assign to literals"
-                                            sv)])))))]
+                                            sv)]))))]
     
     [CIf (i t e) (handle-result (interp-env i env sto stk)
                    (lambda (vi si) (if (truthy? vi sto)
@@ -537,13 +520,11 @@
     [CBreak () (Break sto)]
     [CContinue () (Continue sto)])))
 
-(define (assign-to-id [id : CExpr] [val : Result] [env : Env]
-                      [sto : Store]) : Result
+(define (assign-to-id [id : CExpr] [value : CVal] [env : Env] [sto : Store]) : Result
   (local [(define mayb-loc 
             (type-case IdType (CId-type id)
               [LocalId () (lookup (CId-x id) env)]
-              [GlobalId () (lookup-global (CId-x id) env)]))
-          (define value (handle-result val (lambda (x s) x)))]
+              [GlobalId () (lookup-global (CId-x id) env)]))]
 (begin ;(display "mayb-loc:") (display  mayb-loc) (display "\n")
        ;(display "before assign, the store:")
        ;(if (some? mayb-loc) (pprint (fetch-once (some-v mayb-loc) sto)) (pprint "OH NO"))
@@ -551,7 +532,7 @@
        ;(if (some? mayb-loc) (pprint value) (pprint "OLD STO"))
        ;(display "\n")
   (if (some? mayb-loc)
-      (v*s vnone (hash-set sto (some-v mayb-loc) value))        
+      (v*s vnone (hash-set sto (some-v mayb-loc) value))
       (type-case IdType (CId-type id)
                  [LocalId () (mk-exception 'NameError
                                            (string-append "name '"
@@ -654,28 +635,26 @@
   (cond [(and (empty? args) (empty? vals))
          ;; This means we've bound all of the values to the argument symbols,
          ;; so we want to bind an empty tuple to the stararg symbol if there is one.
-         (handle-result (alloc-result (make-builtin-tuple empty) sto)
-          (lambda (vtuple sto-with-tuple)
+         (let ([vtuple (alloc-result (make-builtin-tuple empty) sto)])
            (if (some? sarg)
              (bind-args (list (some-v sarg))
                         (none)
-                        (list (v*s vtuple sto-with-tuple))
+                        (list vtuple)
                         (list (make-builtin-num 0))
-                        env ext sto-with-tuple)
-             (values ext sto-with-tuple (none)))))]
+                        env ext (v*s-s vtuple))
+             (values ext (v*s-s vtuple) (none))))]
         ;need to bind star args!
         [(and (empty? args) (some? sarg)) 
          ;; This means we have a stararg symbol and extra arguments, so we'll
          ;; place them in a tuple and bind it to the stararg symbol.
-         (handle-result (alloc-result (make-builtin-tuple (map v*s-v vals)) sto)
-          (lambda (vtuple sto-with-tuple)
-             (bind-args (list (some-v sarg))
-                        (none) 
-                        ;; NOTE(joe): this alloc-result feels dirty, but works
-                        ;; because we need star-tuple to be a pointer to a tuple
-                        (list (v*s vtuple sto-with-tuple))
-                        (list (make-builtin-num 0))
-                        env ext sto-with-tuple)))]
+         (let ([vtuple (alloc-result (make-builtin-tuple (map v*s-v vals)) sto)])
+           (bind-args (list (some-v sarg))
+                      (none) 
+                      ;; NOTE(joe): this alloc-result feels dirty, but works
+                      ;; because we need star-tuple to be a pointer to a tuple
+                      (list vtuple)
+                      (list (make-builtin-num 0))
+                      env ext (v*s-s vtuple)))]
         [(or (empty? args) (empty? vals))
          ;; This means we have an arity mismatch.
          (values ext sto
@@ -836,7 +815,6 @@
        (begin 
          ;(display "class: ") (display name) (display " mro: ") 
          ;(display (map pretty (some-v maybe-mro))) (display "\n")
-
          (alloc-result (VObjectClass 'tuple (some (MetaTuple (some-v maybe-mro))) (hash empty) (none))
               sto))])))
  
