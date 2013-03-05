@@ -116,14 +116,6 @@
         (none)))
     (none)))
 
-(define isinstance-lambda
-  (CFunc (list 'self 'type) (none)
-    (CReturn
-      (CBuiltinPrim 'isinstance
-                    (list (CId 'self (LocalId))
-                          (CId 'type (LocalId)))))
-    (none)))
-
 (define print-lambda
   (CFunc (list 'to-print) (none) 
          (CSeq 
@@ -185,7 +177,6 @@
         (bind 'next (assign 'next next-lambda))
         (bind 'abs (assign 'abs abs-lambda))
 
-        (bind 'isinstance (assign 'isinstance isinstance-lambda))
         (bind 'print (assign 'print print-lambda))
         (bind 'callable (assign 'callable callable-lambda))
         (bind 'locals (assign 'locals locals-lambda))
@@ -214,6 +205,7 @@
            lib-functions)
       (list 
             (bind 'iter (CUndefined))
+            (bind '%iter (CUndefined))
             (bind 'FuncIter (CUndefined))
             (bind 'SeqIter (CUndefined))
             (bind 'all (CUndefined))
@@ -221,6 +213,8 @@
             (bind 'range (CUndefined))
             (bind 'filter (CUndefined))
             (bind 'dicteq (CUndefined))
+            (bind 'isinstance (CUndefined))
+            (bind '%isinstance (CUndefined))
             (bind 'tuple (CUndefined))
             (bind '%tuple (CUndefined))
             (bind 'list (CUndefined))

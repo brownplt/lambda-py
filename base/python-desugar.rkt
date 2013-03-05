@@ -71,7 +71,7 @@
                      [body : LexExpr]) : CExpr
   (local [(define iter-id (new-id))]
     (rec-desugar
-     (LexLocalLet iter-id (LexApp (LexGlobalId 'iter 'Load) (list iter))
+     (LexLocalLet iter-id (LexApp (LexGlobalId '%iter 'Load) (list iter))
                   (LexWhile (LexBool true)
                             (LexSeq
                              (list
@@ -140,11 +140,11 @@
                           (cond
                             [(empty? types)
                              (list
-                               (LexApp (LexGlobalId 'isinstance 'Load)
+                               (LexApp (LexGlobalId '%isinstance 'Load)
                                        (list (LexLocalId exn-id 'Load)
                                              (LexGlobalId 'BaseException 'Load))))]
                             [else (map (lambda (t)
-                                         (LexApp (LexGlobalId 'isinstance 'Load)
+                                         (LexApp (LexGlobalId '%isinstance 'Load)
                                                  (list (LexLocalId exn-id 'Load) t)))
                                        types)]))
                         (define condition (desugar-boolop 'Or checks))]
