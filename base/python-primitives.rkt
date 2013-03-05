@@ -52,8 +52,9 @@ primitives here.
     [(print) (begin (print arg) arg)]
     [(callable) (callable arg)]))
 
-(define (builtin-prim [op : symbol] [args : (listof CVal)] 
+(define (builtin-prim [op : symbol] [argsptrs : (listof CVal)] 
                       [env : Env] [sto : Store] [stk : Stack]) : (optionof CVal)
+  (let ([args (map (lambda (a) (fetch-ptr a sto)) argsptrs)])
   (case op
     ['num+ (check-types args env sto 'num 'num 
                         (some (make-builtin-numv (+ (MetaNum-n mval1) 
@@ -252,4 +253,4 @@ primitives here.
                  [else (fetch-class (rest st))]))]
        (fetch-class stk))]
     [else (error 'prim (format "Missed primitive: ~a" op))]
-))
+)))

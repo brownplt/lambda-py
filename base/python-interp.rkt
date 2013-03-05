@@ -243,13 +243,15 @@
     (type-case IdType type
       [LocalId () 
                (local [(define local-w (lookup-local id env))]
+                 (begin (display "Local ") (display id) (display " = ") (display local-w)
                  (if (some? local-w)
                      (local [(define full-val (fetch-once (some-v local-w) sto))]
+                      (begin (display "\nValue is: ") (display full-val) (display "\n\n")
                        (type-case CVal full-val
                          [VUndefined () (mk-exception 'UnboundLocalError
                                                       unboundlocal-error-str
                                                       sto)]
-                         [else (v*s full-val sto)]))
+                         [else (v*s full-val sto)])))
                      (local [(define full-w (lookup id env))]
                        (if (some? full-w)
                            (local [(define full-val (fetch-once (some-v full-w) sto))]
@@ -258,7 +260,7 @@
                                [else (v*s full-val sto)]))
                            (mk-exception 'NameError
                                          (string-append "global " name-error-str)
-                                         sto)))))]
+                                         sto))))))]
       [GlobalId ()
                 (local [(define full-w (lookup-global id env))]
                   (if (some? full-w)
@@ -379,7 +381,7 @@
                  (lambda (vv sv)
                       (type-case CExpr t
                         [CId (x type) (assign-to-id t val env sv)]
-                        [CGetField (o a) (assign-to-field o a val env sv stk)]
+                        [CGetField (o a) (assign-to-field o a vv env sv stk)]
                         [else (mk-exception 'SyntaxError
                                             "can't assign to literals"
                                             sv)])))))]
@@ -609,14 +611,13 @@
         [else (non-obj v)]))]
     [else (non-ptr obj)]))
 
-(define (assign-to-field o f [v : Result] [env : Env] [sto : Store] [stk : Stack]) : Result
+(define (assign-to-field o f [value : CVal] [env : Env] [sto : Store] [stk : Stack]) : Result
   (begin ;(display o) (display "---") (display f) (display "\n")
   (handle-result (interp-env o env sto stk)
     (lambda (vo so)
          (obj-ptr-match vo so
             (lambda (address antecedent mval d class)
-             (local [(define loc (hash-ref d f))
-                     (define value (handle-result v (lambda (x s) x)))]
+             (local [(define loc (hash-ref d f))]
               (type-case (optionof Address) loc
                  [some (w) (v*s vnone (hash-set so w value))]
                  [none () (local [(define w (new-loc))
@@ -897,12 +898,14 @@
       [else
        (local ([define obj-cls (get-class obj env sto)])
          (type-case (optionof Address) (lookup-mro (get-mro obj-cls thisclass sto) fld)
-           [some (w) (let ([value (fetch-once w sto)])
+           [some (w) (let* ([value (fetch-once w sto)]
+                           [_ (begin (display "value from lookup-mro: ")
+                           (display value) (display (fetch-ptr value sto)))])
                        (cond
                          ;; For functions, create method object bound to the object itself
                          [(VClosure? (fetch-ptr value sto)) 
                           (local [(define-values (meth sto-m) (mk-method w objptr (none) sto))]
-                            (v*s meth sto-m))]
+                            (alloc-result meth sto-m))]
                          ;; for classmethod objects create method object bound to the object's class
                          [(and (is-obj-ptr? value sto) 
                                (equal? (VObjectClass-antecedent (fetch-ptr value sto)) 'classmethod))
@@ -961,7 +964,9 @@
                     (get-field '__func__ value env sto)]
                    ;; otherwise return the value of the attribute
                    [else
-                    (v*s value sto)]))]
+                    (begin (display "Else of get-cls\n") (display value)
+                    (display "\n") (display (fetch-ptr value sto)) (display "\n")
+                    (v*s value sto))]))]
          [none () (mk-exception 'AttributeError
                                 (string-append 
                                  (string-append "class " 
