@@ -13,6 +13,7 @@
          "builtins/file.rkt"
          "builtins/method.rkt"
          "builtins/code.rkt"
+         "builtins/module.rkt"
          "util.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
@@ -156,7 +157,17 @@
          (CReturn
           (CBuiltinPrim '$locals empty))
          (none)))
-  
+
+(define compile-lambda
+  (CFunc (list 'source 'filename 'mode) (none)
+         (CReturn
+          (CBuiltinPrim 'compile
+                        (list
+                         (CId 'source (LocalId))
+                         (CId 'filename (LocalId))
+                         (CId 'mode (LocalId)))))
+         (none)))
+
 (define lib-functions
   (list (bind 'True (assign 'True (CTrue)))
         (bind 'False (assign 'False (CFalse)))
@@ -180,7 +191,9 @@
         (bind 'staticmethod staticmethod-class)
         (bind 'super super-class)
         (bind 'code code-class)
+        (bind '$module module-class)
 
+        (bind 'compile (assign 'compile compile-lambda))
         (bind 'len (assign 'len len-lambda))
         (bind 'min (assign 'min min-lambda))
         (bind 'max (assign 'max max-lambda))
