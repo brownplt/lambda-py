@@ -73,7 +73,7 @@
                                        (define l (MetaTuple-v 
                                                    (some-v 
                                                      (VObjectClass-mval 
-                                                       (v*s-v sarg-r)))))]
+                                                       (fetch-ptr (v*s-v sarg-r) (v*s-s sarg-r))))))]
                                  (bind-and-execute 
                                    body opt-class argxs vararg 
                                    (append argvs-r (map (lambda (v)
@@ -101,7 +101,8 @@
   (begin ;(display "APP: ") (display fun) (display "\n") (display arges) (display "\n\n\n")
          ;(display env) (display "\n\n")
  (handle-result (interp-env fun env sto stk)
-  (lambda (vfun sfun)
+  (lambda (vfun-ptr sfun)
+    (let ([vfun (fetch-ptr vfun-ptr sfun)])
     (type-case CVal vfun
       [VClosure (cenv argxs vararg body opt-class)
                 (interp-vclosure vfun arges stararg env sfun stk)]
@@ -109,7 +110,7 @@
       [VObjectClass (b mval d class)
                   ;; This means we're calling an object, so apply its __call__ method.
                   ;; Class calls are now handled by type.__call__ method (Alejandro).
-                  (local [(define __call__ (get-field '__call__ vfun (none) env sfun))]
+                  (local [(define __call__ (get-field '__call__ vfun-ptr env sfun))]
                     (type-case Result __call__
                       [v*s (vc sc)
                            (cond
@@ -117,7 +118,7 @@
                              [(and (VObjectClass? vc) (equal? (VObjectClass-antecedent vc) 'method))
                               (local 
                                 [(define func
-                                   (fetch-once (some-v (hash-ref (VObjectClass-dict vc) '__func__)) sc))
+                                   (fetch-ptr (fetch-once (some-v (hash-ref (VObjectClass-dict vc) '__func__)) sc) sfun))
                                  (define w_self (hash-ref (VObjectClass-dict vc) '__self__))
                                  (define id_self (new-id))
                                  (define m_arges (cons (CId id_self (LocalId)) arges))
@@ -126,12 +127,12 @@
                                    (cons (hash-set (first env) id_self (some-v w_self)) 
                                          (rest env)))]
                                 (begin
-                                  ;(display (format "Method is: ~a\n" vc))
-                                  ;(display (format "Func is: ~a\n" func))
+                                  (display (format "Method is: ~a\n" vc))
+                                  (display (format "Func is: ~a\n" func))
                                   (interp-vclosure func m_arges stararg m_env sc stk)))]
                              [else
                                ;; for unbound methods, use function application
-                               (interp-vclosure vc arges stararg env sfun stk)])]
+                               (interp-vclosure (fetch-ptr vc sfun) arges stararg env sfun stk)])]
                       [Return (vfun sfun) (return-exception sfun)]
                       [Break (sfun) (break-exception sfun)]
                       [Continue (sfun) (continue-exception sfun)]
@@ -140,7 +141,7 @@
                                                              (symbol->string b)
                                                              " object is not callable")
                                                            sto)]))]
-      [else (error 'interp "Not a closure or constructor.")])))))
+      [else (error 'interp "Not a closure or constructor.")]))))))
 
 (define (interp-while [test : CExpr] [body : CExpr] [orelse : CExpr]
                       [env : Env] [sto : Store] [stk : Stack]) : Result
@@ -241,7 +242,7 @@
                                           "' referenced before assignment")))]
     (type-case IdType type
       [LocalId () 
-               (local [(define local-w (lookup-local id env sto))]
+               (local [(define local-w (lookup-local id env))]
                  (if (some? local-w)
                      (local [(define full-val (fetch-once (some-v local-w) sto))]
                        (type-case CVal full-val
@@ -249,7 +250,7 @@
                                                       unboundlocal-error-str
                                                       sto)]
                          [else (v*s full-val sto)]))
-                     (local [(define full-w (lookup id env sto))]
+                     (local [(define full-w (lookup id env))]
                        (if (some? full-w)
                            (local [(define full-val (fetch-once (some-v full-w) sto))]
                              (type-case CVal full-val
@@ -259,7 +260,7 @@
                                          (string-append "global " name-error-str)
                                          sto)))))]
       [GlobalId ()
-                (local [(define full-w (lookup-global id env sto))]
+                (local [(define full-w (lookup-global id env))]
                   (if (some? full-w)
                       (local [(define full-val (fetch-once (some-v full-w) sto))]
                         (type-case CVal full-val
@@ -293,7 +294,7 @@
             (begin ;(display "BEGIN CLASS\n") (display bases)
             (handle-result (interp-env bases env sto stk)
               (lambda (vbases sbases)
-                   (handle-result (interp-env body (cons (hash empty) env) sto stk)
+                   (handle-result (interp-env body (cons (hash empty) env) sbases stk)
                      (lambda (vbody sbody)
                           (begin ;(display name) (display "\n")
                                  ;(display env) (display "\n")
@@ -393,11 +394,14 @@
     [CObject (class mval)
              (handle-result (interp-env class env sto stk)
                (lambda (cval csto)
-                 (alloc-result (VObjectClass (MetaClass-c (some-v (VObjectClass-mval cval)))
+                (begin
+                 (display cval)
+                 (display "\n")
+                 (alloc-result (VObjectClass (MetaClass-c (some-v (VObjectClass-mval (fetch-ptr cval csto))))
                                     mval
                                     (hash empty)
                                     (some cval))
-                      csto)))]
+                      csto))))]
 
     [CLet (x type bind body)
           (begin ;(display "LET: ") (display x) (display " ")
@@ -483,8 +487,8 @@
                                              excepts
                                              env stk))]
                          (if (and (Exception? excepts-r)
-                                  (is-obj-ptr? (Exception-v excepts-r))
-                                  (object-is? (fetch-ptr (Exception-v excepts-r)) '$Reraise env (Exception-s excepts-r)))
+                                  (is-obj-ptr? (Exception-v excepts-r) stry)
+                                  (object-is? (fetch-ptr (Exception-v excepts-r) stry) '$Reraise env (Exception-s excepts-r)))
                              (Exception vtry (Exception-s excepts-r))
                              excepts-r))])]
 
@@ -517,8 +521,8 @@
                                           "'continue' not supported inside 'finally' clause"
                                           sfin)]
                   [Exception (vfin sfin)
-                             (if (and (is-obj-ptr? vfin)
-                                      (object-is? (fetch-ptr vfin) '$Reraise env sfin)
+                             (if (and (is-obj-ptr? vfin sfin)
+                                      (object-is? (fetch-ptr vfin sfin) '$Reraise env sfin)
                                       (Exception? try-r))
                                  rev-try
                                  finally-r)]))]
@@ -533,8 +537,8 @@
                       [sto : Store]) : Result
   (local [(define mayb-loc 
             (type-case IdType (CId-type id)
-              [LocalId () (lookup (CId-x id) env sto)]
-              [GlobalId () (lookup-global (CId-x id) env sto)]))
+              [LocalId () (lookup (CId-x id) env)]
+              [GlobalId () (lookup-global (CId-x id) env)]))
           (define value (handle-result val (lambda (x s) x)))]
 (begin ;(display "mayb-loc:") (display  mayb-loc) (display "\n")
        ;(display "before assign, the store:")
@@ -562,37 +566,39 @@
 ;; handles lookup chain for function calls on objects
 ;; multiple inheritance modification : for class lookup call get-field-from-class
 ;; optional address field added to support self aliasing in bound methods calls.
-(define (get-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : Result
-  (begin ;(display "GET: ") (display n) (display " ") (display c)
+(define (get-field [n : symbol] [cptr : CVal] [e : Env] [s : Store]) : Result
+  (begin (display "GET: ") (display n) (display " ") (display cptr) (display "\n\n")
+         (display (fetch-ptr cptr s)) (display "\n\n")
          ;(display " ") (display w_c) (display "\n\n")
          ;(display e) (display "\n\n")
-    (cond
-      [(not (VObjectClass? c))
-       (mk-exception 'AttributeError
-                     (string-append 
-                      (string-append (pretty c) " object has no attribute ")
-                      (symbol->string n))
-                     s)]
-       ;; special attribute __class__
-      [(eq? n '__class__)
-       (v*s (get-class c e s) s)]
-      [(is-special-method? n)
-       ;; special methods are looked for in the class
-       (get-field-from-obj n c (none) e s)]
-      [(and (some? (VObjectClass-mval c)) (MetaClass? (some-v (VObjectClass-mval c))))
-       ;; class lookup
-       (get-field-from-cls n c (none) e s)]
-      [else
-        ;; instance lookup
-        (type-case CVal c
-          [VObjectClass (antecedent mval d class) 
-                   (let ([w (hash-ref (VObjectClass-dict c) n)])
-                     (begin ;(display "loc: ") (display w) (display "\n\n")
-                       (type-case (optionof Address) w
-                         [some (w) 
-                               (v*s (fetch-once w s) s)]
-                         [none () (get-field-from-obj n c (none) e s)])))]
-          [else (error 'interp "Not an object with fiedls.")])])))
+  (cond
+    [(not (is-obj-ptr? cptr s))
+     (mk-exception 'AttributeError
+                   (string-append 
+                    (string-append (pretty cptr) " object has no attribute ")
+                    (symbol->string n))
+                   s)]
+     ;; special attribute __class__
+    [(eq? n '__class__)
+     (v*s (get-class (fetch-ptr cptr s) e s) s)]
+    [(is-special-method? n)
+     ;; special methods are looked for in the class
+     (get-field-from-obj n cptr (none) e s)]
+    [(and (some? (VObjectClass-mval (fetch-ptr cptr s)))
+          (MetaClass? (some-v (VObjectClass-mval (fetch-ptr cptr s)))))
+     ;; class lookup
+     (get-field-from-cls n cptr (none) e s)]
+    [else
+      ;; instance lookup
+      (type-case CVal (fetch-ptr cptr s)
+        [VObjectClass (antecedent mval d class) 
+                 (let ([w (hash-ref (VObjectClass-dict (fetch-ptr cptr s)) n)])
+                   (begin ;(display "loc: ") (display w) (display "\n\n")
+                     (type-case (optionof Address) w
+                       [some (w) 
+                             (v*s (fetch-once w s) s)]
+                       [none () (get-field-from-obj n cptr (none) e s)])))]
+        [else (error 'interp "Not an object with fields.")])])))
 
 (define (obj-ptr-match obj sto if-obj non-obj non-ptr)
   (type-case CVal obj
@@ -603,13 +609,13 @@
         [else (non-obj v)]))]
     [else (non-ptr obj)]))
 
-(define (assign-to-field o f v [env : Env] [sto : Store] [stk : Stack]) : Result
+(define (assign-to-field o f [v : Result] [env : Env] [sto : Store] [stk : Stack]) : Result
   (begin ;(display o) (display "---") (display f) (display "\n")
   (handle-result (interp-env o env sto stk)
     (lambda (vo so)
          (obj-ptr-match vo so
             (lambda (address antecedent mval d class)
-             (local [(define loc (hash-ref (VObjectClass-dict vo) f))
+             (local [(define loc (hash-ref d f))
                      (define value (handle-result v (lambda (x s) x)))]
               (type-case (optionof Address) loc
                  [some (w) (v*s vnone (hash-set so w value))]
@@ -620,11 +626,11 @@
                                     (hash-set so address 
                                               (VObjectClass antecedent
                                                        mval
-                                                       (hash-set (VObjectClass-dict vo) f w)
+                                                       (hash-set d f w)
                                                        class))))] ;; NOTE(joe) ensuring same class as above
                               (v*s vnone (hash-set snew w value)))])))
-            (lambda (v) (error 'interp (format "Can't assign to nonobject ~a." v))
-            (lambda (vo) (error 'interp (format "Expected pointer, got ~a in assign-to-field" vo)))))))
+            (lambda (v) (error 'interp (format "Can't assign to nonobject ~a." v)))
+            (lambda (vo) (error 'interp (format "Expected pointer, got ~a in assign-to-field" vo))))))))
 
 ;; bind-args, recursively binds the provided values to the provided argument symbols.
 ;; If a stararg symbol is provided, extra arguments are packaged in a tuple and bound
@@ -645,25 +651,28 @@
   (cond [(and (empty? args) (empty? vals))
          ;; This means we've bound all of the values to the argument symbols,
          ;; so we want to bind an empty tuple to the stararg symbol if there is one.
-         (if (some? sarg)
-           (bind-args (list (some-v sarg))
-                      (none)
-                      (list (v*s (make-builtin-tuple empty) sto))
-                      (list (make-builtin-num 0))
-                      env ext sto)
-           (values ext sto (none)))]
+         (handle-result (alloc-result (make-builtin-tuple empty) sto)
+          (lambda (vtuple sto-with-tuple)
+           (if (some? sarg)
+             (bind-args (list (some-v sarg))
+                        (none)
+                        (list (v*s vtuple sto-with-tuple))
+                        (list (make-builtin-num 0))
+                        env ext sto-with-tuple)
+             (values ext sto-with-tuple (none)))))]
         ;need to bind star args!
         [(and (empty? args) (some? sarg)) 
          ;; This means we have a stararg symbol and extra arguments, so we'll
          ;; place them in a tuple and bind it to the stararg symbol.
-         (let ([star-tuple (make-builtin-tuple (map v*s-v vals))])
-           (bind-args (list (some-v sarg))
-                      (none) 
-                      ;; NOTE(joe): this alloc-result feels dirty, but works
-                      ;; because we need star-tuple to be a pointer to a tuple
-                      (list (alloc-result star-tuple sto))
-                      (list (make-builtin-num 0))
-                      env ext sto))]
+         (handle-result (alloc-result (make-builtin-tuple (map v*s-v vals)) sto)
+          (lambda (vtuple sto-with-tuple)
+             (bind-args (list (some-v sarg))
+                        (none) 
+                        ;; NOTE(joe): this alloc-result feels dirty, but works
+                        ;; because we need star-tuple to be a pointer to a tuple
+                        (list (v*s vtuple sto-with-tuple))
+                        (list (make-builtin-num 0))
+                        env ext sto-with-tuple)))]
         [(or (empty? args) (empty? vals))
          ;; This means we have an arity mismatch.
          (values ext sto
@@ -737,7 +746,7 @@
     [VClosure (e a s b o) true]
     [VObjectClass (a mval d class) (truthy-object? (VObjectClass a mval d class))]
     [VUndefined () false]
-    [VPointer (a) (truthy? (fetch-once a sto))]))
+    [VPointer (a) (truthy? (fetch-once a sto) sto)]))
 
 (define (interp-cprim2 [prim : symbol] 
                        [arg1 : CExpr]
@@ -769,11 +778,14 @@
 ;; builtins/type.rkt would be a good place for this stuff,
 ;; it should handle type(name, bases, dict)
 (define (mk-type [name : symbol]
-                 [bases : CVal]
+                 [bases-ptr : CVal]
                  [h-dict : (hashof symbol Address)]
                  [sto : Store]
                  [env : Env]) : Result
-  (local [(define bases-list (MetaTuple-v (some-v (VObjectClass-mval bases))))
+  (begin ;(display "mk-type") (display name) (display "\n")
+         ;(display bases-ptr) (display "\n") (display h-dict) (display "\n")
+  (local [(define bases (fetch-ptr bases-ptr sto))
+          (define bases-list (MetaTuple-v (some-v (VObjectClass-mval bases))))
           (define w (new-loc))
           (define bases_w (new-loc))
           (define mro_w (new-loc))]
@@ -789,9 +801,9 @@
                            (none))
                   (hash-set 
                     (hash-set 
-                      (hash-set sto w (make-under-dict h-dict sto))
+                      (hash-set smro w (make-under-dict h-dict sto))
                       bases_w bases)
-                    mro_w vmro))))))
+                    mro_w vmro)))))))
 
 ;; build-mro: merge the __mro__ of the bases using the C3 algorithm
 ;; Raises TypeError if there are duplicated bases or linearization is not possible.
@@ -802,7 +814,7 @@
                    [env : Env] 
                    [sto : Store]) : Result
   ;; The mro is the c3-merge of the mro of the bases plus the list of bases
-  (let ([maybe-mro (c3-merge (append (map (lambda (base) (get-mro base (none) sto)) bases)
+  (let ([maybe-mro (c3-merge (append (map (lambda (base) (get-mro (fetch-ptr base sto) (none) sto)) bases)
                                      (list bases)) empty)])
     (cond
       [(< (length (remove-duplicates bases)) (length bases))
@@ -859,9 +871,9 @@
                             [thisclass : (optionof CVal)]
                             [env : Env] 
                             [sto : Store]) : Result
-  (begin ;(display "GET-OBJ: ") (display fld) (display " ") (display obj)
-         ;(display " ") (display w_obj) (display "\n")
-  (let ([obj (fetch-ptr objptr)])
+  (begin (display "GET-OBJ: ") (display fld) (display "\n\n"); (display " ") (display obj)
+         ;(display " ") (display objptr) (display "\n")
+  (let ([obj (fetch-ptr objptr sto)])
     (cond
       ;; for method objects, __call__ attribute is the object itself
       [(and (equal? (VObjectClass-antecedent obj) 'method) (equal? fld '__call__))
@@ -870,17 +882,17 @@
       [(and (equal? (VObjectClass-antecedent obj) 'super)
             (some? (hash-ref (VObjectClass-dict obj) '__self__)))
        (local ([define w_self (hash-ref (VObjectClass-dict obj) '__self__)]
-               [define self (fetch-once (some-v w_self) sto)]
+               [define self (fetch-ptr (fetch-once (some-v w_self) sto))]
                [define thisclass (fetch-once (some-v (hash-ref (VObjectClass-dict obj)
                                                           '__thisclass__))
                                         sto)])
          (cond
            [(and (VObjectClass? self) (equal? (VObjectClass-antecedent self) 'type))
             ;; obj.self is a class
-            (get-field-from-cls fld self w_self (some thisclass) env sto)]
+            (get-field-from-cls fld self (some thisclass) env sto)]
            [else
             ;; obj.self is an instance
-            (get-field-from-obj fld self w_self (some thisclass) env sto)]))]
+            (get-field-from-obj fld self (some thisclass) env sto)]))]
       ;; normal instance lookup
       [else
        (local ([define obj-cls (get-class obj env sto)])
@@ -888,22 +900,23 @@
            [some (w) (let ([value (fetch-once w sto)])
                        (cond
                          ;; For functions, create method object bound to the object itself
-                         [(VClosure? value) 
-                          (local [(define-values (meth sto-m) (mk-method w obj (VPointer-a objptr) sto))]
+                         [(VClosure? (fetch-ptr value sto)) 
+                          (local [(define-values (meth sto-m) (mk-method w objptr (none) sto))]
                             (v*s meth sto-m))]
                          ;; for classmethod objects create method object bound to the object's class
-                         [(and (is-obj-ptr? value) 
-                               (equal? (VObjectClass-antecedent (fetch-ptr value)) 'classmethod))
+                         [(and (is-obj-ptr? value sto) 
+                               (equal? (VObjectClass-antecedent (fetch-ptr value sto)) 'classmethod))
                           (local [(define w_func 
-                                    (some-v (hash-ref (VObjectClass-dict (fetch-ptr value)) '__func__)))
+                                    (some-v (hash-ref (VObjectClass-dict (fetch-ptr value sto)) '__func__)))
                                   (define-values (meth sto-m)
+                                    ;; NOTE(joe): obj-cls needs to be a pointer
                                     (mk-method w_func obj-cls (none) sto))]
                             ;; NOTE(joe): does this alloc-result break is-equality of class methods?
                             (alloc-result meth sto-m))]
                          ;; for staticmethod obj. return func attribute
-                         [(and (is-obj-ptr? value) 
-                               (equal? (VObjectClass-antecedent (fetch-ptr value)) 'staticmethod))
-                                    (get-field '__func__ value (none) env sto)]
+                         [(and (is-obj-ptr? value sto) 
+                               (equal? (VObjectClass-antecedent (fetch-ptr value sto)) 'staticmethod))
+                                    (get-field '__func__ value env sto)]
                          ;; otherwise return the value of the attribute
                          [else 
                           (v*s value sto)]))]
@@ -923,9 +936,9 @@
                             [thisclass : (optionof CVal)]
                             [env : Env] 
                             [sto : Store]) : Result
-  (begin ;(display "GET-CLS: ") (display fld) (display " ") (display cls)
-         ;(display " ") (display w_cls) (display "\n")
-  (let ([cls (fetch-ptr clsptr)])
+  (begin (display "GET-CLS: ") (display fld) ;(display " ") (display clsptr)
+         (display " ") (display clsptr) (display "\n")
+  (let ([cls (fetch-ptr clsptr sto)])
     (cond
       [(equal? fld '__mro__) 
        ;; temporary hack to avoid self-reference in __mro__
@@ -937,15 +950,15 @@
                (let ([value (fetch-once w sto)])
                  (cond
                    ;; for classmethod obj. create method obj. bound to the class
-                   [(and (is-obj-ptr? value) 
-                         (equal? (VObjectClass-antecedent (fetch-ptr value)) 'classmethod))
-                    (local [(define w_func (some-v (hash-ref (VObjectClass-dict (fetch-ptr value)) '__func__)))
-                            (define-values (meth sto-m) (mk-method w_func cls (VPointer-a clsptr) sto))]
+                   [(and (is-obj-ptr? value sto) 
+                         (equal? (VObjectClass-antecedent (fetch-ptr value sto)) 'classmethod))
+                    (local [(define w_func (some-v (hash-ref (VObjectClass-dict (fetch-ptr value sto)) '__func__)))
+                            (define-values (meth sto-m) (mk-method w_func clsptr (none) sto))]
                       (alloc-result meth sto-m))]
                    ;; for staticmethod obj. return func attribute
-                   [(and (is-obj-ptr? value)
-                         (equal? (VObjectClass-antecedent (fetch-ptr value)) 'staticmethod))
-                    (get-field '__func__ value (none) env sto)]
+                   [(and (is-obj-ptr? value sto)
+                         (equal? (VObjectClass-antecedent (fetch-ptr value sto)) 'staticmethod))
+                    (get-field '__func__ value env sto)]
                    ;; otherwise return the value of the attribute
                    [else
                     (v*s value sto)]))]
