@@ -586,7 +586,7 @@
                ;; interp the xcode with the new environment and new store
                (type-case Result (interp-env xcode (list new-env) new-sto stk)
                  (v*s (v s a)
-                      (begin (pprint s)
+                      (begin ;(pprint s)
                         (v*s (VObject '$module (none) module-attr) s (none))))
                  (else
                   (error 'interp-env "should raise ImportError")))
