@@ -46,7 +46,7 @@
       h)))
 
 (define (make-exception-class [name : symbol]) : CExpr
-  (CClass
+  (builtin-class
     name
     (list 'BaseException)
     (CNone)))
@@ -443,4 +443,10 @@
 (test (Prim 'num< (make-builtin-str "foo") (make-builtin-str "bar"))
       (CBuiltinPrim 'num< (list (make-builtin-str "foo") (make-builtin-str "bar"))))
 
-
+;; builtin-class: used construct builtin classes in the core language
+(define (builtin-class [name : symbol] [bases : (listof symbol)] [body : CExpr]) : CExpr
+  (CClass name
+          ;; builtin classes are bound to ids in the global scope
+          (CTuple (CNone) ;; we may not have a tuple class object yet
+                  (map (lambda (id) (CId id (GlobalId))) bases))
+          body))
