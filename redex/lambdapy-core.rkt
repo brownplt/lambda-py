@@ -16,39 +16,24 @@
   
   ;; value types
   (val
-   #|
-   ;; core string type, not string class
-   (str-val string)
-   ;; built in bool types
-   (true-val)
-   (false-val)
-   ;; none type
-   (none-val)
-   ;; list and tuple types, just reference heap values
-   (list-val (ref ...))
-   (tuple-val (ref ...))
-   ;; dict has key/value pairs (all on heap)
-   (dict-val ((ref ref) ...))
-   ;; set is like a list in representation, lack of order has
-   ;; to be accounted for in semantics
-   (set-val (ref ...))
-   ;; class has name, base, and body
-   (class-val string string e)
-   |#
-   ;; object has class and body-val, with/without meta-val - not sure how to do meta-vals yet
+   ;; NOTE(dbp): obj has optional metaval and optional class val, hence 4 variants
    (obj-val x mval ((string ref) ...))
    (obj-val x ((string ref) ...))
-   ;; closure, with/without vararg
+   (obj-val x mval ((string ref) ...) val)
+   (obj-val x ((string ref) ...) val)
+   ;; NOTE(dbp): closure, with/without vararg, with/without class name
    (fun-val εs (λ (x ...) e))
-   (fun-val εs (λ (x ...) (x) e))
-   ;; undefined
+   (fun-val εs (λ (x ...) x e))
+   (fun-val εs (λ (x ...) e) x)
+   (fun-val εs (λ (x ...) x e) x)
+   (pointer-val ref)
    undefined-val)
   
   ;; primitive operators
   (op string)
   
   ;; id-type
-  (t global nonlocal local)
+  (t global local)
   
   ;; types of meta-val
   (mval (meta-num number)
@@ -59,47 +44,45 @@
         ;; set is like a list in representation, lack of order has to be accounted for in semantics
         (meta-set (val ...))
         (meta-class x)
-        (meta-none))
+        (meta-none)
+        (meta-port)) ;; TODO(dbp): figure out how to represent port
   
   ;; types of expressions
-  (e (str string)
-     true
+  (e true
      false
      none
-     (class x x e)
-     ;; with/without meta-val - how to do metavals?
+     (class x e e)
      (object x)
      (object x mval)
      (get-field e string)
      (seq e e)
      (assign e e)
-     (error e)
      (if e e e)
      (id x t)
-     (let (x e) e)
-     ;; we have two variants of app, with and without stararg
+     (let (x t e) e)
+     ;; NOTE(dbp): app with/without stararg
      (app e (e ...))
-     (app-star e (e ...) e)
+     (app e (e ...) e)
+     ;; NOTE(dbp): 4 variants for presence/absence of stararg, symbol for class
      (fun (x ...) e)
      (fun (x ...) x e)
-     ;; put method as a separate construct for now
-     (method (x ...) e)
-     (method (x ...) x e)
+     (fun (x ...) e x)
+     (fun (x ...) x e x)
      (while e e e)
      (loop e) ;; helper syntax for while
      (return e)
      (prim1 op e)
      (prim2 op e e)
      (builtin-prim op (e ...))
-     (list (e ...))
-     (tuple (e ...))
-     (dict ((e e) ...))
-     (set (e ...))
-     (reraise)
+     (list e (e ...))
+     (tuple e (e ...))
+     (dict e ((e e) ...))
+     (set e (e ...))
+     ;; NOTE(dbp): empty raise is "reraise"
+     (raise)
      (raise e)
-     (try e (e ...) e e)
-     (except (e ...) e)
-     (except (e ...) (x) e)
+     (tryexcept e x e e)
+     (tryfinally e e)
      undefined
      break
      (module e e)
@@ -108,8 +91,9 @@
   ;; types for result
   (r val
      (return-r val)
+     (exception-r val)
      break-r
-     (exception-r val))
+     continue-r)
   
   ;; evaluation context
   (E hole
@@ -117,12 +101,16 @@
      (assign e E)
      (seq E e)
      (if E e e)
-     (let (x E) e)
-     (list E)
-     (tuple E)
-     (set E)
-     (dict ((val val) ... (e E) (e e) ...))
-     (dict ((val val) ... (E val) (e e) ...)) ;; Python's dict has this evaluation order
+     (let (x t E) e)
+     (list E (e ...))
+     (list val E)
+     (tuple E (e ...))
+     (tuple val E)
+     (set E (e ...))
+     (set val E)
+     (dict E ((e e) ...))
+     (dict val ((val val) ... (e E) (e e) ...))
+     (dict val ((val val) ... (E val) (e e) ...)) ;; Python's dict has this evaluation order
      (get-field E string)
      (prim1 op E)
      (prim2 op E e)
@@ -130,14 +118,14 @@
      (builtin-prim op E)
      (raise E)
      (return E)
-     (try E (e ...) e e)
-     ;(try val (e ...) E e)
+     (tryexcept E x e e)
+     (tryfinally E e)
      (loop E)
      (app E (e ...))
      (app val E)
-     (app-star E (e ...) e)
-     (app-star val E e)
-     (app-star val (val ...) E)
+     (app E (e ...) e)
+     (app val E e)
+     (app val (val ...) E)
      (val ... E e ...) ;; for list, tuple, app, etc.
      ;; todo - may need more
      )
@@ -147,12 +135,16 @@
      (assign e T)
      (seq T e)
      (if T e e)
-     (let (x T) e)
-     (list T)
-     (tuple T)
-     (set T)
-     (dict ((val val) ... (e T) (e e) ...))
-     (dict ((val val) ... (T val) (e e) ...)) ;; Python's dict has this evaluation order
+     (let (x t T) e)
+     (list T e)
+     (list val T)
+     (tuple T e)
+     (tuple val T)
+     (set T e)
+     (set val T)
+     (dict T e)
+     (dict val ((val val) ... (e T) (e e) ...))
+     (dict val ((val val) ... (T val) (e e) ...)) ;; Python's dict has this evaluation order
      (get-field T string)
      (prim1 op T)
      (prim2 op T e)
@@ -162,9 +154,9 @@
      (loop T)
      (app T (e ...))
      (app val T)
-     (app-star T (e ...) e)
-     (app-star val T e)
-     (app-star val (val ...) T)
+     (app T (e ...) e)
+     (app val T e)
+     (app val (val ...) T)
      (val ... T e ...) ;; for list, tuple, app, etc.
      ;; todo - may need more
      )
@@ -174,24 +166,29 @@
      (assign e H)
      (seq H e)
      (if H e e)
-     (let (x H) e)
-     (list H)
-     (tuple H)
-     (set H)
-     (dict ((val val) ... (e H) (e e) ...))
-     (dict ((val val) ... (H val) (e e) ...)) ;; Python's dict has this evaluation order
+     (let (x t H) e)
+     (list H e)
+     (list val H)
+     (tuple H e)
+     (tuple val H)
+     (set H e)
+     (set val H)
+     (dict H e)
+     (dict val ((val val) ... (e H) (e e) ...))
+     (dict val ((val val) ... (H val) (e e) ...)) ;; Python's dict has this evaluation order
      (get-field H string)
      (prim1 op H)
      (prim2 op H e)
      (prim2 op val H)
      (builtin-prim op H)
      (raise H)
-     (try H (e ...) e e)
+     (tryexcept H x e e)
+     (tryfinally H e)
      (app H (e ...))
      (app val H)
-     (app-star H (e ...) e)
-     (app-star val H e)
-     (app-star val (val ...) H)
+     (app H (e ...) e)
+     (app val H e)
+     (app val (val ...) H)
      (val ... H e ...) ;; for list, tuple, app, etc.
      ;; todo - may need more
      )
