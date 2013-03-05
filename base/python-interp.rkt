@@ -550,13 +550,11 @@
             (type-case IdType (CId-type id)
               [LocalId () (deep-lookup (CId-x id) env sto)]
               [GlobalId () (deep-lookup-global (CId-x id) env sto)]))
-          (define value (if (v*s? val)
-                            (if (some? (v*s-a val))
-                                (VPointer (some-v (v*s-a val)))
-                                (v*s-v val))
-                            (if (some? (Return-a val))
-                                (VPointer (some-v (Return-a val)))
-                                (Return-v val))))]
+          (define value (handle-result val
+           (lambda (v s a)
+            (if (some? a)
+                (VPointer (some-v a))
+                v))))]
 (begin ;(display "mayb-loc:") (display  mayb-loc) (display "\n")
        ;(display "before assign, the store:")
        ;(if (some? mayb-loc) (pprint (fetch-once (some-v mayb-loc) sto)) (pprint "OH NO"))
