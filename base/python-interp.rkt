@@ -117,7 +117,7 @@
                              [(and (VObjectClass? vc) (equal? (VObjectClass-antecedent vc) 'method))
                               (local 
                                 [(define func
-                                   (fetch (some-v (hash-ref (VObjectClass-dict vc) '__func__)) sc))
+                                   (fetch-once (some-v (hash-ref (VObjectClass-dict vc) '__func__)) sc))
                                  (define w_self (hash-ref (VObjectClass-dict vc) '__self__))
                                  (define id_self (new-id))
                                  (define m_arges (cons (CId id_self (LocalId)) arges))
@@ -178,7 +178,7 @@
         (local [(define class 
                   (if (some? opt-class)
                       ;; fetch class using the closure's environment
-                      (some (fetch (some-v (lookup (some-v opt-class) ext)) sto))
+                      (some (fetch-once (some-v (lookup (some-v opt-class) ext)) sto))
                       (none)))
                 (define self 
                   (if (and (some? opt-class) (> (length argvs) 0))
@@ -243,14 +243,14 @@
       [LocalId () 
                (local [(define local-w (deep-lookup-local id env sto))]
                  (if (some? local-w)
-                     (type-case CVal (fetch (some-v local-w) sto)
+                     (type-case CVal (fetch-once (some-v local-w) sto)
                        [VUndefined () (mk-exception 'UnboundLocalError
                                                     unboundlocal-error-str
                                                     sto)]
-                       [else (v*s (fetch (some-v local-w) sto) sto local-w)])
+                       [else (v*s (fetch-once (some-v local-w) sto) sto local-w)])
                      (local [(define full-w (deep-lookup id env sto))]
                        (if (some? full-w)
-                           (local [(define full-val (fetch (some-v full-w) sto))]
+                           (local [(define full-val (fetch-once (some-v full-w) sto))]
                              (type-case CVal full-val
                                [VUndefined () (mk-exception 'NameError freevar-error-str sto)]
                                [else
@@ -264,7 +264,7 @@
       [GlobalId ()
                 (local [(define full-w (deep-lookup-global id env sto))]
                   (if (some? full-w)
-                      (local [(define full-val (fetch (some-v full-w) sto))]
+                      (local [(define full-val (fetch-once (some-v full-w) sto))]
                         (type-case CVal full-val
                           [VUndefined () (mk-exception 'NameError name-error-str sto)]
                           [else
@@ -607,7 +607,7 @@
                      (begin ;(display "loc: ") (display w) (display "\n\n")
                        (type-case (optionof Address) w
                          [some (w) 
-                               (v*s (fetch w s) s (some w))]
+                               (v*s (fetch-once w s) s (some w))]
                          [none () (get-field-from-obj n c w_c (none) e s)])))]
           [else (error 'interp "Not an object with fiedls.")])])))
 
@@ -911,8 +911,8 @@
     [(and (equal? (VObjectClass-antecedent obj) 'super)
           (some? (hash-ref (VObjectClass-dict obj) '__self__)))
      (local ([define w_self (hash-ref (VObjectClass-dict obj) '__self__)]
-             [define self (fetch (some-v w_self) sto)]
-             [define thisclass (fetch (some-v (hash-ref (VObjectClass-dict obj)
+             [define self (fetch-once (some-v w_self) sto)]
+             [define thisclass (fetch-once (some-v (hash-ref (VObjectClass-dict obj)
                                                         '__thisclass__))
                                       sto)])
        (cond
@@ -926,7 +926,7 @@
     [else
      (local ([define obj-cls (get-class obj env sto)])
        (type-case (optionof Address) (lookup-mro (get-mro obj-cls thisclass sto) fld)
-         [some (w) (let ([value (fetch w sto)])
+         [some (w) (let ([value (fetch-once w sto)])
                      (cond
                        ;; For functions, create method object bound to the object itself
                        [(VClosure? value) 
@@ -975,7 +975,7 @@
     [else
      (type-case (optionof Address) (lookup-mro (get-mro cls thisclass sto) fld)
        [some (w)
-             (let ([value (fetch w sto)])
+             (let ([value (fetch-once w sto)])
                (cond
                  ;; for classmethod obj. create method obj. bound to the class
                  [(and (VObjectClass? value) 
