@@ -169,5 +169,8 @@
      (VObjectClass (VObjectClass-antecedent obj)
               (some (MetaDict (make-hash empty)))
               (VObjectClass-dict obj)
-              (some (second args))))))
+              ;; preserve obj class pointer when set to support inheritance
+              (if (some? (VObjectClass-class obj))
+                  (VObjectClass-class obj)
+                  (some (second args)))))))
 

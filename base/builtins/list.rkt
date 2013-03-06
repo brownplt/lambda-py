@@ -85,3 +85,13 @@
                                      (MetaList-v mval1))
                        (fourth args)))))
 
+(define (list-init [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
+  (let ([obj (first args)])
+    (some
+     (VObjectClass (VObjectClass-antecedent obj)
+              (some (MetaList empty))
+              (VObjectClass-dict obj)
+              ;; preserve obj class pointer when set to support inheritance
+              (if (some? (VObjectClass-class obj))
+                  (VObjectClass-class obj)
+                  (some (second args)))))))
