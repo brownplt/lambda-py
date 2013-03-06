@@ -11,7 +11,6 @@
          "builtins/set.rkt"
          "builtins/none.rkt"
          "builtins/file.rkt"
-         "builtins/method.rkt"
          "builtins/code.rkt"
          "builtins/module.rkt"
          "util.rkt"
@@ -163,9 +162,6 @@
         (bind 'bool bool-class)
         (bind 'file file-class)
         (bind 'open (assign 'open (CId 'file (GlobalId))))
-        (bind 'method method-class)
-        (bind 'classmethod classmethod-class)
-        (bind 'staticmethod staticmethod-class)
         (bind 'code code-class)
         (bind '$module module-class)
 
@@ -227,6 +223,9 @@
             (bind 'type (CUndefined))
             (bind '%type (CUndefined))
             (bind 'super (CUndefined))
+            (bind 'method (CUndefined))
+            (bind 'classmethod (CUndefined))
+            (bind 'staticmethod (CUndefined))
             (bind '__import__ (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
