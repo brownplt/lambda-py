@@ -152,7 +152,7 @@
     ;; if test results in an exception, pass it along
     (if (Exception? test-r)
         test-r
-        (if (truthy? (v*s-v test-r) sto)
+        (if (truthy? (v*s-v test-r) (v*s-s test-r))
             (local [(define body-r (interp-env body env (v*s-s test-r) stk))]
               (cond
                 ;; if the body results in an exception of return, pass it along
@@ -201,7 +201,7 @@
               [v*s (v s) (values v s)]
               [Return (v s) (values v s)]
               [Break (s) (values vnone s)]
-              [Continue (s) (values vnone s)] 
+              [Continue (s) (values vnone s)]
               [Exception (v s) (values v s)]))
           (define loc (new-loc))
           (define newenv (cons (hash-set (first env) name loc) (rest env)))]
@@ -253,11 +253,6 @@
                           [else (v*s full-val sto)]))
                       (mk-exception 'NameError name-error-str sto)))])))
 
-(define (alloc-result val sto)
-  (local ([define l (new-loc)]
-          [define new-sto (hash-set sto l val)])
-   (v*s (VPointer l) new-sto)))
-
 ;; interp-env : CExpr * Env * Store * Stack -> Result
 (define (interp-env [expr : CExpr] [env : Env] [sto : Store] [stk : Stack]) : Result
   (begin ;(display expr) (display "\n")
@@ -288,8 +283,11 @@
                                    res)))))))]
    
     [CGetField (value attr)
+    (begin
+      (display "Getting field ") (display attr) (display "from: \n") (display value)
+      (display "\n\n")
                (handle-result (interp-env value env sto stk)
-                          (lambda (vval sval) (get-field attr vval env sval)))]
+                          (lambda (vval sval) (get-field attr vval env sval))))]
 			
     [CSeq (e1 e2) (type-case Result (interp-env e1 env sto stk)
                     [v*s (v1 s1) (interp-env e2 env s1 stk)]
@@ -429,14 +427,8 @@
                   (type-case ResultList (interp-cascade args sto env stk)
                    [Abnormal (r) r]
                    [v*s/list (result-list new-s)
-                    (local [(define val-list (map v*s-v result-list))
-                            (define mayb-val (builtin-prim op val-list env new-s stk))] 
-                      (if (some? mayb-val)
-                          ;; BuiltinPrims should return Results, not (optionof CVal)
-                          (v*s (some-v mayb-val) new-s)
-                          ;; todo: more useful errors
-                          (mk-exception 'TypeError "Bad types in builtin call" 
-                                        sto)))])]
+                    (local [(define val-list (map v*s-v result-list))]
+                            (builtin-prim op val-list env new-s stk))])]
     [CRaise (expr) 
             (if (some? expr)
                 (handle-result (interp-env (some-v expr) env sto stk)
@@ -557,12 +549,7 @@
   (local [(define mayb-loc 
             (type-case IdType (CId-type id)
               [LocalId () (lookup (CId-x id) env)]
-              [GlobalId () (lookup-global (CId-x id) env)]))
-          (define value (handle-result val
-           (lambda (v s a)
-            (if (some? a)
-                (VPointer (some-v a))
-                v))))]
+              [GlobalId () (lookup-global (CId-x id) env)]))]
 (begin ;(display "mayb-loc:") (display  mayb-loc) (display "\n")
        ;(display "before assign, the store:")
        ;(if (some? mayb-loc) (pprint (fetch-once (some-v mayb-loc) sto)) (pprint "OH NO"))
@@ -591,7 +578,7 @@
 ;; optional address field added to support self aliasing in bound methods calls.
 (define (get-field [n : symbol] [cptr : CVal] [e : Env] [s : Store]) : Result
   (begin (display "GET: ") (display n) (display " ") (display cptr) (display "\n\n")
-         (display (fetch-ptr cptr s)) (display "\n\n")
+         ;(display (fetch-ptr cptr s)) (display "\n\n")
          ;(display " ") (display w_c) (display "\n\n")
          ;(display e) (display "\n\n")
   (cond
@@ -851,8 +838,8 @@
                      sto)]
       [(some? maybe-mro)
        (begin 
-         ;(display "class: ") (display name) (display " mro: ") 
-         ;(display (map pretty (some-v maybe-mro))) (display "\n")
+         (display "class: ") (display name) (display " mro: ") 
+         (display (map pretty (some-v maybe-mro))) (display "\n")
          (alloc-result (VObjectClass 'tuple (some (MetaTuple (some-v maybe-mro))) (hash empty) (none))
               sto))])))
  

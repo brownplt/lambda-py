@@ -24,6 +24,7 @@ class tuple(object):
   def __in__(self, other):
     c = 0
     while c < self.__len__():
+      print(self.__getitem__(c))
       if self.__getitem__(c).__eq__(other):
         return True
       c = c.__add__(1)

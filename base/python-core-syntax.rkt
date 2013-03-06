@@ -97,6 +97,11 @@ ParselTongue.
   [Break (s : Store)]
   [Continue (s : Store)])
 
+(define (alloc-result val sto)
+  (local ([define l (new-loc)]
+          [define new-sto (hash-set sto l val)])
+   (v*s (VPointer l) new-sto)))
+
 (define-type ResultList
   [v*s/list (vs : (listof Result)) (s : Store)]
   [Abnormal (ab : Result)])
