@@ -10,6 +10,7 @@
          "builtins/dict.rkt"
          "builtins/method.rkt"
          "util.rkt"
+         (typed-in "python-lib.rkt" (python-lib : ('a -> 'b)))
          (typed-in racket/base (hash-copy : ((hashof 'a 'b) -> (hashof 'a 'b))))
          (typed-in racket/base (hash-map : ((hashof 'a 'b) ('a 'b -> 'c) -> (listof 'c))))
          (typed-in racket/base (hash-count : ((hashof 'a 'b) -> number)))
@@ -537,36 +538,41 @@
             rev-try))]
 
     [CConstructModule (source)
-           ; TODO: check source types
-           (let* ((code-CVal (v*s-v (interp-env source env sto stk))) ; get code object
-                  (metacode (some-v (VObjectClass-mval code-CVal)))
-                  (global-var (MetaCode-globals metacode)) ; get global vars in code
-                  (xcode (get-module-body (MetaCode-e metacode))) ; get code that needs to interp
-                  (new-env (last env)) ; prepare for the env
-                  (new-sto sto) ; and the store
-                  (module-attr (hash empty)) ; and the attribute in module object
-                  )
-             (begin
-               ;; construct env and store, using the global variables in code
-               (map (lambda (sym)
-                      (let ((loc (new-loc)))
-                        (begin
-                          (set! new-env
-                                (hash-set new-env sym loc))
-                          (set! module-attr
-                                (hash-set module-attr sym loc))
-                          (set! new-sto
-                                (hash-set new-sto loc vnone)))))
-                    global-var)
-               ;(pprint new-env)
-               ;; interp the xcode with the new environment and new store
-               (type-case Result (interp-env xcode (list new-env) new-sto stk)
-                 (v*s (v s a)
-                      (begin ;(pprint s)
-                        (v*s (VObject '$module (none) module-attr) s (none))))
-                 (else
-                  (error 'interp-env "should raise ImportError")))
-               ))]
+       (handle-result (interp-env source env sto stk)
+         (lambda (v-code s-code a)
+           (cond
+             ;; [(not (and (VObjectClass? v-code)
+             ;;            (object-is? v-code 'code env s)))
+             ;;  (error 'interp "a non-code object is passed to make module object")]
+             [else
+              (local [(define metacode (some-v (VObjectClass-mval v-code)))
+                      (define global-var (MetaCode-globals metacode))
+                      (define xcode (get-module-body (MetaCode-e metacode)))
+                      
+                      (define (inject-vars vars e s attr)
+                        (cond [(empty? vars)
+                               (values e s attr)]
+                              [else
+                               (let ((loc (new-loc))
+                                     (sym (first vars)))
+                                 (inject-vars (rest vars)
+                                              (hash-set e sym loc)
+                                              (hash-set s loc vnone)
+                                              (hash-set attr sym loc)))]))
+                      (define-values (new-env new-sto module-attr)
+                        (inject-vars global-var
+                                     (hash empty) ; NOTE: passing empty hash as env
+                                     s-code
+                                     (hash empty)))]
+                 ; interpret the code in module, raise any exceptions as it is
+                 ; ImportError should be handled in __import__
+                 ; TODO: filter the built-in functions instead of interpreting python-lib again
+                 (handle-result (interp-env (python-lib (CModule (CNone) xcode))
+                                            (list new-env) new-sto stk)
+                   (lambda (v-module s-module a)
+                     (begin ;(pprint v-module)
+                       (v*s (VObject '$module (none) module-attr) s-module (none))))))])))]
+    
     [CBreak () (Break sto)]
     [CContinue () (Continue sto)])))
 

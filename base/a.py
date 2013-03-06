@@ -7,3 +7,4 @@ class F:
 
 def gets():
     return s
+

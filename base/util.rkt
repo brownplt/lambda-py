@@ -442,10 +442,10 @@
 ;; strip the CLet in CModule
 (define (get-module-body (es : CExpr)) : CExpr
   (type-case CExpr es
-    (CModule (pre body) (get-module-body body))
-    (CLet (x type bind body)
-          (get-module-body body))
-    (else es)))
+    [CModule (pre body) (get-module-body body)]
+    [CLet (x type bind body)
+          (get-module-body body)]   
+    [else es]))
 
 ;; builtin-class: used construct builtin classes in the core language
 (define (builtin-class [name : symbol] [bases : (listof symbol)] [body : CExpr]) : CExpr

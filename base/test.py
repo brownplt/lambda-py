@@ -1,8 +1,6 @@
-a = __import__('a')
+try:
+    a = __import__('a')
+    print(a.s)
+except:
+    print("exception!") # which now fails to print
 
-f = a.F()
-print(f.xxx)
-print(a.gets())
-
-t = a.gets
-print(t())
