@@ -12,6 +12,8 @@
          "builtins/none.rkt"
          "builtins/file.rkt"
          "builtins/method.rkt"
+         "builtins/code.rkt"
+         "builtins/module.rkt"
          "util.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
@@ -125,7 +127,23 @@
          (CReturn
           (CBuiltinPrim '$locals empty))
          (none)))
-  
+
+(define compile-lambda
+  (CFunc (list 'source 'filename 'mode) (none)
+         (CReturn
+          (CBuiltinPrim 'compile
+                        (list
+                         (CId 'source (LocalId))
+                         (CId 'filename (LocalId))
+                         (CId 'mode (LocalId)))))
+         (none)))
+
+(define make_module-lambda
+  (CFunc (list 'code) (none)
+         (CReturn
+          (CConstructModule (CId 'code (LocalId))))
+         (none)))
+
 (define lib-functions
   (list (bind 'True (assign 'True (CTrue)))
         (bind 'False (assign 'False (CFalse)))
@@ -148,7 +166,12 @@
         (bind 'method method-class)
         (bind 'classmethod classmethod-class)
         (bind 'staticmethod staticmethod-class)
+        (bind 'code code-class)
+        (bind '$module module-class)
 
+        (bind 'compile (assign 'compile compile-lambda))
+        (bind 'make_module (assign 'make_module make_module-lambda))
+        
         (bind 'len (assign 'len len-lambda))
         (bind 'min (assign 'min min-lambda))
         (bind 'max (assign 'max max-lambda))
@@ -204,6 +227,7 @@
             (bind 'type (CUndefined))
             (bind '%type (CUndefined))
             (bind 'super (CUndefined))
+            (bind '__import__ (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))

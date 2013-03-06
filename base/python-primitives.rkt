@@ -12,6 +12,8 @@
          "builtins/bool.rkt"
          "builtins/file.rkt"
          "builtins/super.rkt"
+         "builtins/code.rkt"
+         "python-compile.rkt"
          (typed-in racket/string (string-join : ((listof string) string -> string)))
          (typed-in racket/base (format : (string 'a -> string)))
          (typed-in racket/base (number->string : (number -> string)))
@@ -232,5 +234,10 @@ primitives here.
                            sto))
                    (none)))]
 
+    ['code-str (code-str args env sto)]
+    ['code-globals (code-globals args env sto)]
+
+    ['compile (compile args env sto)]
+    
     [else (error 'prim (format "Missed primitive: ~a" op))]
 ))
