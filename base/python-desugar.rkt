@@ -155,20 +155,24 @@
                        (rec-desugar-excepts (rest es))))]))]
     (rec-desugar-excepts excepts)))
 
-#|  
 
 ;;; desugar import name as asname to
 ;;; asname = __import__('name')
-(define (desugar-import-py names asnames) : PyExpr
-  (local [(define (helper names asnames result)
-            (cond [(empty? names) result]
+;;; desugar-import-py will 
+(define (desugar-leximport names asnames) : LexExpr
+  (local [(define (desugar-leximport/rec names asnames)
+            (cond [(empty? names) (list)]
                   [else
-                   (helper (rest names) (rest asnames)
-                           (append result
-                                   (list (PyAssign (list (PyId (first asnames) 'Store))
-                                                   (PyApp (PyId '__import__ 'Load)
-                                                          (list (PyStr (first names))))))))]))]
-         (PySeq (helper names asnames (list)))))
+                   (append
+                    (list (LexAssign
+                           (list (LexGlobalId (first asnames) 'Store))
+                           (LexApp (LexGlobalId '__import__ 'Load)
+                                  (list (LexStr (first names))))))
+                    (desugar-leximport/rec (rest names) (rest asnames))
+                    )]))]
+         (LexSeq (desugar-leximport/rec names asnames))))
+
+#|  
 
 ;;; desugar from module import name as asname
 ;;; __tmp_module = __import__(module, globals(), locals(), [id], 0)
@@ -567,8 +571,8 @@
                                                        desugared-slice)
                                                  (none))))]
                      [else (error 'desugar "We don't know how to delete identifiers yet.")]))]
-      [LexImport (names asnames) (rec-desugar (LexPass))]
-                 ;(rec-desugar (desugar-import-py names asnames))]
+      [LexImport (names asnames) 
+                 (rec-desugar (desugar-leximport names asnames))]
 
       [LexImportFrom (module names asnames level) (rec-desugar (LexPass))]
                    ;(rec-desugar (desugar-importfrom-py module names asnames level) global? env opt-class)]       
