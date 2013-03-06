@@ -49,7 +49,7 @@
                               (LexClass (Unknown-scope) name
                                         (let ((desugared-bases (map pre-desugar bases)))
                                           (LexTuple (if (empty? desugared-bases)
-                                                        (list (LexGlobalId 'object 'Load))
+                                                        (list (LexGlobalId '%object 'Load))
                                                         desugared-bases)))
                                         (LexBlock empty
                                                   (pre-desugar body)))))]

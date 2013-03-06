@@ -56,6 +56,9 @@ def iter(l, *args):
 
 ___assign("%iter", iter)
 
+def next(it):
+    return it.__next__()
+
 class FuncIter:
     def __init__(self, func, stopwhen):
         self.func = func

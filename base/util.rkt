@@ -154,8 +154,6 @@
      (with-syntax ([mval1 (datum->syntax x 'mval1)])
        #'(let ([arg1 (first args)])
            (if (and (VObjectClass? arg1)
-                ;; TODO(joe): what is going on here? t1 seems to always be a
-                ;; symbol, which doesn't jive with what object-is? expects
                 (object-is? arg1 t1 env sto))
                (let ([mayb-mval1 (VObjectClass-mval arg1)])
                  (if (some? mayb-mval1)
@@ -207,15 +205,11 @@
 ;; returns true if the given o is an object of the given class or somehow a
 ;; subclass of that one. Modified to look at __mro__ for multiple inheritance
 ;; and to use the class object instead of the class name.
-(define (object-is-cls? [o : CVal] [cls : CVal] [env : Env] [s : Store]) : boolean
-  (let ([obj-cls (get-class o env s)])
-    (member cls (get-mro obj-cls (none) s))))
-
-;; idem before, but uses class name, preseved for compatibility with check-types macro,
-;; it should be avoided for other uses.
+;; Preseved for compatibility with check-types macro, it should be avoided for other uses.
 (define (object-is? [o : CVal] [c : symbol] [env : Env] [s : Store]) : boolean
-  (let ([cls (fetch (some-v (lookup c env)) s)])
-    (object-is-cls? o cls env s)))
+  (let ([obj-cls (get-class o env s)]
+        [cls (fetch (some-v (lookup c env)) s)])
+    (member cls (get-mro obj-cls (none) s))))
 
 ;; get-mro: fetch __mro__ field as a list of classes, filtered up to thisclass if given
 ;; and prepended with cls to avoid self reference in __mro__
@@ -322,7 +316,7 @@
     (none)))
 
 (define (default-except-handler [id : symbol] [body : CExpr]) : CExpr
-  (CIf (CApp (CId 'isinstance (GlobalId))
+  (CIf (CApp (CId '%isinstance (GlobalId))
              (list (CId id (LocalId))
                    (CId 'BaseException (GlobalId)))
              (none))
