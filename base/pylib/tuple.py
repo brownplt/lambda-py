@@ -29,6 +29,9 @@ class tuple(object):
       c = c.__add__(1)
     return False
 
+  def __str__(self):
+    return ___delta("tuple-str", self, str)
+
   def __iter__(self):
     return SeqIter(self)
 
