@@ -15,6 +15,7 @@
          "builtins/code.rkt"
          "builtins/module.rkt"
          "util.rkt"
+         "modules/builtin-modules.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
          (typed-in "parse-python.rkt"
@@ -238,5 +239,8 @@
             (bind '___assertNotIn (CUndefined))
             (bind '___fail (CUndefined))
             (bind '___assertRaises (CUndefined)))
-      empty empty empty))
+      ;; dummies of built-in modules
+      (map (lambda (name) (bind name (CUndefined)))
+           (get-builtin-module-names))
+      empty empty))
 
