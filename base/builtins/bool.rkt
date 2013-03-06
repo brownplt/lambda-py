@@ -9,7 +9,7 @@
 (define bool-class 
   (seq-ops (list
              (CAssign (CId 'bool (GlobalId))
-                      (CClass 
+                      (builtin-class
                         'bool
                         (list 'int)
                         (CNone)))

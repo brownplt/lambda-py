@@ -14,7 +14,7 @@ ParselTongue.
   [CTrue]
   [CFalse]
   [CNone]
-  [CClass (name : symbol) (bases : (listof symbol)) (body : CExpr)]
+  [CClass (name : symbol) (bases : CExpr) (body : CExpr)]
   [CObject (class : CExpr) (bval : (optionof MetaVal))]
   [CGetField (value : CExpr) (attr : symbol)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
@@ -96,6 +96,10 @@ ParselTongue.
   [Exception (v : CVal) (s : Store)]
   [Break (s : Store)]
   [Continue (s : Store)])
+
+(define-type ResultList
+  [v*s/list (vs : (listof Result)) (s : Store)]
+  [Abnormal (ab : Result)])
 
 (define-type-alias object-dict (hashof symbol Address))
 

@@ -17,7 +17,7 @@
 (define file-class : CExpr
   (seq-ops (list
              (CAssign (CId 'file (GlobalId))
-                      (CClass
+                      (builtin-class
                         'file
                         (list 'object)
                         (CNone)))

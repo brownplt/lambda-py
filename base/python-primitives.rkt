@@ -212,15 +212,6 @@ primitives here.
     ['file-write (file-write args env sto)]
     ['file-close (file-close args env sto)]
 
-    ;isinstance
-    ['isinstance 
-     (if (or (none? (VObjectClass-mval (second args)))
-             (not (MetaClass? (some-v (VObjectClass-mval (second args))))))
-         (none)
-         (if (object-is-cls? (first args) (second args) env sto)
-             (some true-val)
-             (some false-val)))]
-
     ; Returns the class of the given object
     ['$class
      (some (get-class (first args) env sto))]

@@ -20,7 +20,7 @@
 (define str-class : CExpr
   (seq-ops (list 
              (CAssign (CId 'str  (GlobalId))
-                      (CClass
+                      (builtin-class
                         'str 
                         (list 'object)
                         (CNone)))

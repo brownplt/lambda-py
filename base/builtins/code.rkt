@@ -9,9 +9,10 @@
   (seq-ops
    (list
     (CAssign (CId 'code (GlobalId))
-             (CClass 'code
-                     (list 'object)
-                     (CNone)))
+             (builtin-class
+              'code
+              (list 'object)
+              (CNone)))
     (def 'code 'get_globals
          (CFunc (list 'self) (none)
                 (CReturn

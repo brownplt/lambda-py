@@ -33,7 +33,7 @@
   (seq-ops
     (list 
       (CAssign (CId 'BaseException (GlobalId))
-               (CClass
+               (builtin-class
                  'BaseException
                  (list 'object)
                  (CNone)))
@@ -96,36 +96,6 @@
         (none)))
     (none)))
 
-(define iter-lambda
-  (CFunc (list 'self) (none)
-    (CReturn
-      (CApp
-        (CGetField
-          (CId 'self (LocalId))
-          '__iter__)
-        (list)
-        (none)))
-    (none)))
-
-(define next-lambda
-  (CFunc (list 'self) (none)
-    (CReturn
-      (CApp
-        (CGetField
-          (CId 'self (LocalId))
-          '__next__)
-        (list)
-        (none)))
-    (none)))
-
-(define isinstance-lambda
-  (CFunc (list 'self 'type) (none)
-    (CReturn
-      (CBuiltinPrim 'isinstance
-                    (list (CId 'self (LocalId))
-                          (CId 'type (LocalId)))))
-    (none)))
-
 (define print-lambda
   (CFunc (list 'to-print) (none) 
          (CSeq 
@@ -180,6 +150,7 @@
         (bind 'None (assign 'None (CNone)))
 
         (bind 'object object-class)
+        (bind '%object (assign '%object (CId 'object (GlobalId))))
         (bind 'none none-class)
         (bind 'num num-class)
         (bind '%num (assign '%num (CId 'num (GlobalId))))
@@ -205,10 +176,8 @@
         (bind 'len (assign 'len len-lambda))
         (bind 'min (assign 'min min-lambda))
         (bind 'max (assign 'max max-lambda))
-        (bind 'next (assign 'next next-lambda))
         (bind 'abs (assign 'abs abs-lambda))
 
-        (bind 'isinstance (assign 'isinstance isinstance-lambda))
         (bind 'print (assign 'print print-lambda))
         (bind 'callable (assign 'callable callable-lambda))
         (bind 'locals (assign 'locals locals-lambda))
@@ -237,6 +206,8 @@
            lib-functions)
       (list 
             (bind 'iter (CUndefined))
+            (bind '%iter (CUndefined))
+            (bind 'next (CUndefined))
             (bind 'FuncIter (CUndefined))
             (bind 'SeqIter (CUndefined))
             (bind 'all (CUndefined))
@@ -244,6 +215,8 @@
             (bind 'range (CUndefined))
             (bind 'filter (CUndefined))
             (bind 'dicteq (CUndefined))
+            (bind 'isinstance (CUndefined))
+            (bind '%isinstance (CUndefined))
             (bind 'tuple (CUndefined))
             (bind '%tuple (CUndefined))
             (bind 'list (CUndefined))

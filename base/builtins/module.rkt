@@ -7,7 +7,7 @@
   (seq-ops
    (list
     (CAssign (CId '$module (GlobalId))
-             (CClass
+             (builtin-class
               '$module
               (list 'object)
               (CNone)))

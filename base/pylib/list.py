@@ -34,7 +34,7 @@ class list(object):
     return ___delta("list-getitem", self, idx)
 
   def __setitem__(self, idx, val):
-    return ___delta("list-setitem", self, idx, val, list)
+    self = ___delta("list-setitem", self, idx, val, list)
 
   # NOTE(joe): copied code (tuple.py)
   def __cmp__(self, other):

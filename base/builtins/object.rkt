@@ -10,7 +10,7 @@
 (define object-class
   (seq-ops (list
              (CAssign (CId 'object (GlobalId))
-                      (CClass 
+                      (builtin-class
                         'object
                         (list)
                         (CNone)))
