@@ -585,7 +585,7 @@
     [(not (is-obj-ptr? cptr s))
      (mk-exception 'AttributeError
                    (string-append 
-                    (string-append (pretty cptr) " object has no attribute ")
+                    (string-append (pretty (fetch (VPointer-a cptr) s)) " object has no attribute ")
                     (symbol->string n))
                    s)]
      ;; special attribute __class__
@@ -705,13 +705,6 @@
                  (define s (hash-set sto loc vv))]
                 (bind-args (rest args) sarg (rest vals) (rest arges) env e s))]))
 
-(define (mk-exception [type : symbol] [arg : string] [sto : Store]) : Result
-  (local [(define loc (new-loc))
-          (define args (list (VObjectClass 'str (some (MetaStr arg)) (hash empty) (none))))]
-    (Exception
-      (VObjectClass type (none) (hash-set (hash empty) 'args loc) (none))
-      (hash-set sto loc (VObjectClass 'tuple (some (MetaTuple args)) (hash empty) (none))))))
-
 (define (return-exception [sto : Store]) : Result
   (mk-exception 'SyntaxError "'return' outside function" sto))
 
@@ -821,7 +814,7 @@
                    [env : Env] 
                    [sto : Store]) : Result
   ;; The mro is the c3-merge of the mro of the bases plus the list of bases
-  (let ([maybe-mro (c3-merge (append (map (lambda (base) (get-mro (fetch-ptr base sto) (none) sto)) bases)
+  (let ([maybe-mro (c3-merge (append (map (lambda (base) (get-mro base (none) sto)) bases)
                                      (list bases)) empty)])
     (cond
       [(< (length (remove-duplicates bases)) (length bases))
@@ -840,6 +833,10 @@
        (begin 
          (display "class: ") (display name) (display " mro: ") 
          (display (map pretty (some-v maybe-mro))) (display "\n")
+         (display "bases: ")
+         (display (map pretty bases)) (display "\n")
+         (display "stuff at bases: ")
+         (display (map (lambda (b) (pretty (fetch-ptr b sto))) bases)) (display "\n")
          (alloc-result (VObjectClass 'tuple (some (MetaTuple (some-v maybe-mro))) (hash empty) (none))
               sto))])))
  
@@ -902,7 +899,7 @@
       ;; normal instance lookup
       [else
        (local ([define obj-cls (get-class obj env sto)])
-         (type-case (optionof Address) (lookup-mro (get-mro obj-cls thisclass sto) fld)
+         (type-case (optionof Address) (lookup-mro (get-mro obj-cls thisclass sto) fld sto)
            [some (w) (let ([value (fetch-once w sto)])
                        (cond
                          ;; For functions, create method object bound to the object itself
@@ -948,10 +945,10 @@
     (cond
       [(equal? fld '__mro__) 
        ;; temporary hack to avoid self-reference in __mro__
-       (alloc-result (VObjectClass 'tuple (some (MetaTuple (get-mro cls thisclass sto))) (hash empty) (none))
+       (alloc-result (VObjectClass 'tuple (some (MetaTuple (get-mro clsptr thisclass sto))) (hash empty) (none))
             sto)]
       [else
-       (type-case (optionof Address) (lookup-mro (get-mro cls thisclass sto) fld)
+       (type-case (optionof Address) (lookup-mro (get-mro clsptr thisclass sto) fld sto)
          [some (w)
                (let ([value (fetch-once w sto)])
                  (cond
@@ -979,15 +976,18 @@
                                 sto)])]))))
 
 ;; lookup-mro: looks for field in mro list
-(define (lookup-mro [mro : (listof CVal)] [n : symbol]) : (optionof Address)
+(define (lookup-mro [mro : (listof CVal)] [n : symbol] [sto : Store]) : (optionof Address)
   (cond
     [(empty? mro) (none)]
-    [else (type-case CVal (first mro)
+    [(cons? mro)
+     (cond
+      [(is-obj-ptr? (first mro) sto)
+       (type-case CVal (fetch-ptr (first mro) sto)
             [VObjectClass (antecedent mval d class)
                      (type-case (optionof Address) (hash-ref d n)
-                       [none () (lookup-mro (rest mro) n)]
+                       [none () (lookup-mro (rest mro) n sto)]
                        [some (value) (some value)])]
-            [else (error 'lookup-mro "an entry in __mro__ list is not an object")])]))
+            [else (error 'lookup-mro "an entry in __mro__ list is not an object")])])]))
 
 ;; special methods
 (define (is-special-method? [n : symbol])

@@ -180,6 +180,14 @@ ParselTongue.
               env-addr))
         (none))))
 
+(define (mk-exception [type : symbol] [arg : string] [sto : Store]) : Result
+  (local [(define loc (new-loc))
+          (define args (list (VObjectClass 'str (some (MetaStr arg)) (hash empty) (none))))]
+    (Exception
+      (VObjectClass type (none) (hash-set (hash empty) 'args loc) (none))
+      (hash-set sto loc (VObjectClass 'tuple (some (MetaTuple args)) (hash empty) (none))))))
+
+
 (define-type ActivationRecord
   [Frame (env : Env) (class : (optionof CVal)) (self : (optionof CVal))])
 

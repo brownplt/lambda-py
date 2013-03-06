@@ -52,7 +52,7 @@
 
 (define (tuple-getitem (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   ; TODO: slicing
-  (check-types args env sto 'tuple 'num
+  (check-types-pred args env sto MetaTuple? MetaNum?
                (some
                  (try (list-ref (MetaTuple-v mval1) (MetaNum-n mval2))
                       (lambda () vnone)))))

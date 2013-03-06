@@ -96,7 +96,7 @@ primitives here.
                                         (hash empty)))))
 
 (define (num= args env sto)
-    (check-types args env sto 'num 'num 
+    (check-types-pred args env sto MetaNum? MetaNum?
                         (if (= (MetaNum-n mval1) (MetaNum-n mval2))
                           (some true-val)
                           (some false-val))))
@@ -106,7 +106,7 @@ primitives here.
                           (some true-val)
                           (some false-val))))
 (define (num< args env sto)
-    (check-types args env sto 'num 'num 
+    (check-types-pred args env sto MetaNum? MetaNum?
                         (if (< (MetaNum-n mval1) (MetaNum-n mval2))
                           (some true-val)
                           (some false-val))))
@@ -149,11 +149,15 @@ primitives here.
   (define (prim-noalloc f args)
     (type-case (optionof CVal) (f args env sto)
       [some (v) (v*s v sto)]
-      [none () (Exception (make-builtin-str "Bad prim (noalloc)") sto)]))
+      [none ()
+       (mk-exception 'TypeError
+        (format "Bad prim (noalloc): ~a" (cons op args)) sto)]))
   (define (prim-alloc f args)
     (type-case (optionof CVal) (f args env sto)
       [some (v) (alloc-result v sto)]
-      [none () (Exception (make-builtin-str "Bad prim (alloc)") sto)]))
+      [none ()
+       (mk-exception 'TypeError
+        (format "Bad prim (noalloc): ~a" (cons op args)) sto)]))
    ]
   (let ([argvs (map (lambda (a) (fetch-ptr a sto)) argsptrs)])
   (case op
@@ -265,9 +269,7 @@ primitives here.
     ['super-thisclass (alloc-result (some-v (super-thisclass stk)) sto)]
 
     ; Returns the class of the given object
-    ['$class (alloc-result
-              (get-class (first argvs) env sto)
-              sto)]
+    ['$class (v*s (get-class (first argvs) env sto) sto)]
 
     ['$locals (alloc-result 
                 (begin

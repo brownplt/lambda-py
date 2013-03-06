@@ -146,6 +146,24 @@
                     body))
         else-part)]))
 
+(define-syntax (check-types-pred x)
+  (syntax-case x ()
+    [(check-types args env sto tpred1? tpred2? body)
+     (with-syntax ([mval1 (datum->syntax x 'mval1)]
+                   [mval2 (datum->syntax x 'mval2)])
+       #'(let ([arg1 (first args)]
+               [arg2 (second args)])
+           (if (and (VObjectClass? arg1) (VObjectClass? arg2))
+               (let ([mayb-mval1 (VObjectClass-mval arg1)]
+                     [mayb-mval2 (VObjectClass-mval arg2)])
+                 (if (and (some? mayb-mval1) (some? mayb-mval2)
+                          (tpred1? (some-v (VObjectClass-mval arg1)))
+                          (tpred2? (some-v (VObjectClass-mval arg2))))
+                     (let ([mval1 (some-v mayb-mval1)]
+                           [mval2 (some-v mayb-mval2)])
+                       body)
+                     (none)))
+               (none))))]))
 
 ;; the copypasta here is bad but we aren't clever enough with macros
 (define-syntax (check-types x)
@@ -216,8 +234,9 @@
 (define (get-mro [cls : CVal] 
                  [thisclass : (optionof CVal)]
                  [sto : Store]) : (listof CVal)
-  (type-case (optionof Address) (hash-ref (VObjectClass-dict cls) '__mro__)
-    [some (w) (let ([mro (cons cls (MetaTuple-v (some-v (VObjectClass-mval (fetch w sto)))))])
+  (type-case (optionof Address) (hash-ref (VObjectClass-dict (fetch-ptr cls sto)) '__mro__)
+    [some (w) (let ([mro (cons cls (MetaTuple-v (some-v (VObjectClass-mval
+                                                  (fetch-ptr (fetch-once w sto) sto)))))])
                 (if (none? thisclass)
                     mro
                     (rest (memq (some-v thisclass) mro))))]
@@ -228,13 +247,9 @@
 (define (get-class [obj : CVal] [env : Env] [sto : Store]) : CVal
   (local ([define w_class (if (some? (VObjectClass-class obj))
                               (VObjectClass-class obj)
-                              (some (fetch (some-v (lookup (VObjectClass-antecedent obj) env)) sto)))])
+                              (some (fetch-once (some-v (lookup (VObjectClass-antecedent obj) env)) sto)))])
     (type-case (optionof CVal) w_class
-      [some (cv)
-        (type-case CVal cv
-          [VPointer (a) (fetch a sto)]
-          [VObjectClass (_ __ ___ ____) cv]
-          [else (error 'get-class (string-append "bad class value: ~a" (pretty cv)))])]
+      [some (cv) cv]
       [none () (error 'get-class (string-append "object without class " 
                                                 (pretty obj)))])))
 

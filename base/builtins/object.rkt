@@ -111,7 +111,7 @@
                  [else true]))
    true))
 
-(define (obj-str (args : (listof CVal))) : (optionof CVal)
+(define (obj-str (args : (listof CVal)) env sto) : (optionof CVal)
   (local [(define o (first args))]
          (type-case CVal o
             [VObjectClass (ante mval d class)
