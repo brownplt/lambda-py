@@ -62,12 +62,15 @@ that calls the primitive `print`.
                      "pylib/dict.py"
                      "pylib/set.py"
                      "pylib/type.py"
+                     "pylib/super.py"
                      "pylib/range.py"
                      "pylib/seq_iter.py"
                      "pylib/filter.py"
                      "pylib/any.py"
                      "pylib/all.py"
                      "pylib/dicteq.py"
+                     "pylib/import.py"
+                     "pylib/isinstance.py"
                      "py-prelude.py"
                     ))))
          (some-v pylib-programs))]

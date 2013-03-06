@@ -40,7 +40,8 @@ ParselTongue.
   [CUndefined]
   [CBreak]
   [CContinue]
-  [CModule (prelude : CExpr) (body : CExpr)])
+  [CModule (prelude : CExpr) (body : CExpr)]
+  [CConstructModule (source : CExpr)])
 
 (define-type IdType
     [GlobalId]
@@ -67,6 +68,7 @@ ParselTongue.
              [MetaList (v : (listof CVal))]
              [MetaTuple (v : (listof CVal))]
              [MetaDict (contents : (hashof CVal CVal))]
+             [MetaCode (e : CExpr) (filename : string) (globals : (listof symbol))]
              [MetaClass (c : symbol)]
              [MetaSet (elts : Set)]
              [MetaNone]

@@ -54,6 +54,11 @@ def iter(l, *args):
         except:
             raise TypeError()
 
+___assign("%iter", iter)
+
+def next(it):
+    return it.__next__()
+
 class FuncIter:
     def __init__(self, func, stopwhen):
         self.func = func
@@ -79,6 +84,3 @@ class FuncIter:
             raise StopIteration()
         else:
             return v
-
-
-

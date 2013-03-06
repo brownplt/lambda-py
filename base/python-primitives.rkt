@@ -11,6 +11,9 @@
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/file.rkt"
+         "builtins/super.rkt"
+         "builtins/code.rkt"
+         "python-compile.rkt"
          (typed-in racket/string (string-join : ((listof string) string -> string)))
          (typed-in racket/base (format : (string 'a -> string)))
          (typed-in racket/base (number->string : (number -> string)))
@@ -211,14 +214,9 @@ primitives here.
     ['file-write (file-write args env sto)]
     ['file-close (file-close args env sto)]
 
-    ;isinstance
-    ['isinstance 
-     (if (or (none? (VObjectClass-mval (second args)))
-             (not (MetaClass? (some-v (VObjectClass-mval (second args))))))
-         (none)
-         (if (object-is-cls? (first args) (second args) env sto)
-             (some true-val)
-             (some false-val)))]
+    ; super
+    ['super-self (super-self stk)]
+    ['super-thisclass (super-thisclass stk)]
 
     ; Returns the class of the given object
     ['$class
@@ -237,20 +235,10 @@ primitives here.
                            sto))
                    (none)))]
 
-    ['$self ;; returns the active self, if any, from the stack
-     (local [(define (fetch-self [st : Stack]) : (optionof CVal)
-               (cond
-                 [(empty? st) (none)]
-                 [(some? (Frame-self (first st))) (Frame-self (first st))]
-                 [else (fetch-self (rest st))]))]
-       (fetch-self stk))]
+    ['code-str (code-str args env sto)]
+    ['code-globals (code-globals args env sto)]
 
-    ['$thisclass ;; returns the embodying class, if any, from the stack
-     (local [(define (fetch-class [st : Stack]) : (optionof CVal)
-               (cond
-                 [(empty? st) (none)]
-                 [(some? (Frame-class (first st))) (Frame-class (first st))]
-                 [else (fetch-class (rest st))]))]
-       (fetch-class stk))]
+    ['compile (compile args env sto)]
+    
     [else (error 'prim (format "Missed primitive: ~a" op))]
 )))
