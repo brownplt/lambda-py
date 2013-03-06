@@ -209,10 +209,6 @@
 
 ;; interp-id will first lookup id in env, then fetch the value of the id in the sto.
 ;; At the same time, interp-id will return the address of the id for aliasing.
-;; NOTE: for aliasing id, which has the value of (VPointer original-addr), the
-;; returned address will be the original one, not the address of the VPointer. The
-;; deep-lookup-* will obtain the original address of an identifier.
-;; --Junsong
 (define (interp-id [id : symbol] [type : IdType]
                    [env : Env] [sto : Store]) : Result
   (local [(define name-error-str
@@ -560,8 +556,8 @@
 (define (assign-to-id [id : CExpr] [value : CVal] [env : Env] [sto : Store]) : Result
   (local [(define mayb-loc 
             (type-case IdType (CId-type id)
-              [LocalId () (deep-lookup (CId-x id) env sto)]
-              [GlobalId () (deep-lookup-global (CId-x id) env sto)]))
+              [LocalId () (lookup (CId-x id) env)]
+              [GlobalId () (lookup-global (CId-x id) env)]))
           (define value (handle-result val
            (lambda (v s a)
             (if (some? a)
