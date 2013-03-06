@@ -1,6 +1,6 @@
 #lang plai-typed/untyped
 
-;; method - the bound method object, includes classmethod, staticmethod and super.
+;; method - the bound method object, includes classmethod and staticmethod.
 
 (require "../python-core-syntax.rkt" 
          "../util.rkt")
@@ -72,26 +72,3 @@
                          (CAssign (CGetField (CId 'self (LocalId)) '__func__)
                                   (CId 'func (LocalId)))
                          (some 'staticmethod))))))
-
-;; super type
-;; super proxy object, implemented only in the zero arguments version
-;; whick depends on local variables current-class and current-self
-;; to be set in methods bodies to class and first argument respectively.
-(define super-class
-  (seq-ops (list
-             (CAssign (CId 'super (GlobalId))
-                      (builtin-class
-                        'super
-                        (list 'object)
-                        (CNone)))
-             ;; for the 1/2 argument version __init__ needs some changes
-             (def 'super '__init__
-                  (CFunc (list 'self) (none)
-                         (CSeq
-                           (CAssign (CGetField (CId 'self (LocalId)) '__thisclass__)
-                                    (CBuiltinPrim '$thisclass (list)))
-                           (CAssign (CGetField (CId 'self (LocalId)) '__self__)
-                                    (CBuiltinPrim '$self (list))))
-                         ;; self and thisclass must be from the calling environment,
-                         ;; so mark this method as a function.
-                         (none))))))

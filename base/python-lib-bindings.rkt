@@ -148,7 +148,6 @@
         (bind 'method method-class)
         (bind 'classmethod classmethod-class)
         (bind 'staticmethod staticmethod-class)
-        (bind 'super super-class)
 
         (bind 'len (assign 'len len-lambda))
         (bind 'min (assign 'min min-lambda))
@@ -204,6 +203,7 @@
             (bind '%set (CUndefined))
             (bind 'type (CUndefined))
             (bind '%type (CUndefined))
+            (bind 'super (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))

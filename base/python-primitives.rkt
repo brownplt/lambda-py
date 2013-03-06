@@ -11,6 +11,7 @@
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/file.rkt"
+         "builtins/super.rkt"
          (typed-in racket/string (string-join : ((listof string) string -> string)))
          (typed-in racket/base (format : (string 'a -> string)))
          (typed-in racket/base (number->string : (number -> string)))
@@ -210,6 +211,10 @@ primitives here.
     ['file-write (file-write args env sto)]
     ['file-close (file-close args env sto)]
 
+    ; super
+    ['super-self (super-self stk)]
+    ['super-thisclass (super-thisclass stk)]
+
     ; Returns the class of the given object
     ['$class
      (some (get-class (first args) env sto))]
@@ -227,20 +232,5 @@ primitives here.
                            sto))
                    (none)))]
 
-    ['$self ;; returns the active self, if any, from the stack
-     (local [(define (fetch-self [st : Stack]) : (optionof CVal)
-               (cond
-                 [(empty? st) (none)]
-                 [(some? (Frame-self (first st))) (Frame-self (first st))]
-                 [else (fetch-self (rest st))]))]
-       (fetch-self stk))]
-
-    ['$thisclass ;; returns the embodying class, if any, from the stack
-     (local [(define (fetch-class [st : Stack]) : (optionof CVal)
-               (cond
-                 [(empty? st) (none)]
-                 [(some? (Frame-class (first st))) (Frame-class (first st))]
-                 [else (fetch-class (rest st))]))]
-       (fetch-class stk))]
     [else (error 'prim (format "Missed primitive: ~a" op))]
 ))
