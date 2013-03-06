@@ -191,6 +191,7 @@ primitives here.
     ['list+ (prim-alloc list+ (fetch-heads argvs argsptrs))]
     ['list-len (prim-alloc list-len (fetch-heads argvs argsptrs))]
     ['list-in (prim-noalloc list-in argvs)]
+    ['list-init (prim-alloc list-in (fetch-heads argvs argsptrs))]
     ['list-getitem (prim-noalloc list-getitem argvs)]
     ['list-setitem (prim-noalloc list-setitem (fetch-heads argvs argsptrs))]
     ['list-str (prim-alloc list-str (fetch-heads argvs argsptrs))]
