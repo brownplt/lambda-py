@@ -435,12 +435,16 @@
             (if (some? expr)
                 (handle-result (interp-env (some-v expr) env sto stk)
                   (lambda (vexpr sexpr)
+                     (begin
+                       ;(display "Raising: ") (display vexpr)
+                       ;(display "\nValue is: ") (display (fetch-ptr vexpr sexpr))
+                       ;(display "\n\n")
                        (cond
                          [(and (is-obj-ptr? vexpr sexpr) (object-is? (fetch-ptr vexpr sexpr) 'BaseException env sexpr))
                           (Exception vexpr sexpr)]
                          [else (mk-exception 'TypeError
                                              "exceptions must derive from BaseException"
-                                             sexpr)])))
+                                             sexpr)]))))
                 (mk-exception '$Reraise
                               "reraise previous exception if possible"
                               sto))]
@@ -465,8 +469,11 @@
                                              excepts
                                              env stk))]
                          (if (and (Exception? excepts-r)
-                                  (is-obj-ptr? (Exception-v excepts-r) stry)
-                                  (object-is? (fetch-ptr (Exception-v excepts-r) stry) '$Reraise env (Exception-s excepts-r)))
+                                  (is-obj-ptr? (Exception-v excepts-r)
+                                               (Exception-s excepts-r))
+                                  (object-is? (fetch-ptr (Exception-v excepts-r)
+                                                         (Exception-s excepts-r))
+                                              '$Reraise env (Exception-s excepts-r)))
                              (Exception vtry (Exception-s excepts-r))
                              excepts-r))])]
 
