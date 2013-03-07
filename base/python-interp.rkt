@@ -230,10 +230,10 @@
     (type-case IdType type
       [LocalId () 
                (local [(define local-w (lookup-local id env))]
-                 (begin (display "Local ") (display id) (display " = ") (display local-w)
+                 (begin ;(display "Local ") (display id) (display " = ") (display local-w)
                  (if (some? local-w)
                      (local [(define full-val (fetch-once (some-v local-w) sto))]
-                      (begin (display "\nValue is: ") (display full-val) (display "\n\n")
+                      (begin ;(display "\nValue is: ") (display full-val) (display "\n\n")
                        (type-case CVal full-val
                          [VUndefined () (mk-exception 'UnboundLocalError
                                                       unboundlocal-error-str
@@ -250,7 +250,7 @@
                                          sto))))))]
       [GlobalId ()
                 (local [(define full-w (lookup-global id env))]
-                 (begin (display "Global ") (display id) (display " = ") (display full-w)
+                 (begin ;(display "Global ") (display id) (display " = ") (display full-w)
                   (if (some? full-w)
                       (local [(define full-val (fetch-once (some-v full-w) sto))]
                         (type-case CVal full-val
@@ -260,12 +260,8 @@
 
 ;; interp-env : CExpr * Env * Store * Stack -> Result
 (define (interp-env [expr : CExpr] [env : Env] [sto : Store] [stk : Stack]) : Result
-  (begin (display "Interping...")
-         (display (truncate (to-string expr) 50))
-         (display "\n")
-         ;(display expr) (display "\n")
+  (begin ;(display expr) (display "\n")
          ;(display env) (display "\n\n")
-  (let ([result
   (type-case CExpr expr
     [CModule (prelude body)
              (local [(define prelude-r (interp-env prelude env sto stk))]
@@ -293,8 +289,8 @@
    
     [CGetField (value attr)
     (begin
-      (display "Getting field ") (display attr) (display "from: \n") (display value)
-      (display "\n\n")
+      ;(display "Getting field ") (display attr) (display "from: \n") (display value)
+      ;(display "\n\n")
                (handle-result (interp-env value env sto stk)
                           (lambda (vval sval) (get-field attr vval env sval))))]
 			
@@ -385,14 +381,11 @@
     [CObject (class mval)
              (handle-result (interp-env class env sto stk)
                (lambda (cval csto)
-                (begin
-                 (display cval)
-                 (display "\n")
                  (alloc-result (VObjectClass (MetaClass-c (some-v (VObjectClass-mval (fetch-ptr cval csto))))
                                     mval
                                     (hash empty)
                                     (some cval))
-                      csto))))]
+                      csto)))]
 
     [CLet (x type bind body)
           (begin ;(display "LET: ") (display x) (display " ")
@@ -552,15 +545,7 @@
                        (v*s (VObject '$module (none) module-attr) s-module (none))))))])))]
     
     [CBreak () (Break sto)]
-    [CContinue () (Continue sto)])])
-    (begin
-      (display "Interp finished, got ")
-      (display (truncate (to-string result) 50))
-      (display "\n\n")
-      result))))
-
-(define (truncate str len)
-  (substring str 0 (min (string-length str) len)))
+    [CContinue () (Continue sto)])))
 
 (define (assign-to-id [id : CExpr] [value : CVal] [env : Env] [sto : Store]) : Result
   (local [(define mayb-loc 
@@ -594,7 +579,7 @@
 ;; multiple inheritance modification : for class lookup call get-field-from-class
 ;; optional address field added to support self aliasing in bound methods calls.
 (define (get-field [n : symbol] [cptr : CVal] [e : Env] [s : Store]) : Result
-  (begin (display "GET: ") (display n) (display " ") (display cptr) (display "\n\n")
+  (begin ;(display "GET: ") (display n) (display " ") (display cptr) (display "\n\n")
          ;(display (fetch-ptr cptr s)) (display "\n\n")
          ;(display " ") (display w_c) (display "\n\n")
          ;(display e) (display "\n\n")
@@ -848,12 +833,12 @@
                      sto)]
       [(some? maybe-mro)
        (begin 
-         (display "class: ") (display name) (display " mro: ") 
-         (display (map pretty (some-v maybe-mro))) (display "\n")
-         (display "bases: ")
-         (display (map pretty bases)) (display "\n")
-         (display "stuff at bases: ")
-         (display (map (lambda (b) (pretty (fetch-ptr b sto))) bases)) (display "\n")
+         ;(display "class: ") (display name) (display " mro: ") 
+         ;(display (map pretty (some-v maybe-mro))) (display "\n")
+         ;(display "bases: ")
+         ;(display (map pretty bases)) (display "\n")
+         ;(display "stuff at bases: ")
+         ;(display (map (lambda (b) (pretty (fetch-ptr b sto))) bases)) (display "\n")
          (alloc-result (VObjectClass 'tuple (some (MetaTuple (some-v maybe-mro))) (hash empty) (none))
               sto))])))
  
@@ -891,7 +876,7 @@
                             [thisclass : (optionof CVal)]
                             [env : Env] 
                             [sto : Store]) : Result
-  (begin (display "GET-OBJ: ") (display fld) (display "\n\n"); (display " ") (display obj)
+  (begin ;(display "GET-OBJ: ") (display fld) (display "\n\n"); (display " ") (display obj)
          ;(display " ") (display objptr) (display "\n")
   (let ([obj (fetch-ptr objptr sto)])
     (cond
@@ -956,8 +941,8 @@
                             [thisclass : (optionof CVal)]
                             [env : Env] 
                             [sto : Store]) : Result
-  (begin (display "GET-CLS: ") (display fld) ;(display " ") (display clsptr)
-         (display " ") (display clsptr) (display "\n")
+  (begin ;(display "GET-CLS: ") (display fld) ;(display " ") (display clsptr)
+         ;(display " ") (display clsptr) (display "\n")
   (let ([cls (fetch-ptr clsptr sto)])
     (cond
       [(equal? fld '__mro__) 
@@ -981,8 +966,8 @@
                     (get-field '__func__ value env sto)]
                    ;; otherwise return the value of the attribute
                    [else
-                    (begin (display "Else of get-cls\n") (display value)
-                    (display "\n") (display (fetch-ptr value sto)) (display "\n")
+                    (begin ;(display "Else of get-cls\n") (display value)
+                    ;(display "\n") (display (fetch-ptr value sto)) (display "\n")
                     (v*s value sto))]))]
          [none () (mk-exception 'AttributeError
                                 (string-append 

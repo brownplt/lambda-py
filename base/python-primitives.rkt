@@ -214,8 +214,8 @@ primitives here.
               [some (v) (v*s v sto)]
               [none () (alloc-result vnone sto)])])
       (begin
-        (display "Getitem args: ") (display argvs) (display "\n\n")
-        (display "Getitem res: ") (display (v*s-v result)) (display "\n\n")
+;        (display "Getitem args: ") (display argvs) (display "\n\n")
+;        (display "Getitem res: ") (display (v*s-v result)) (display "\n\n")
         result))]
     ['tuple-str (prim-alloc tuple-str (fetch-heads argvs argsptrs))]
 

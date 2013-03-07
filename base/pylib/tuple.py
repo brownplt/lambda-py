@@ -11,8 +11,6 @@ class tuple(object):
     pass
 
   def __len__(self):
-    print("GETTING LEN:")
-    print(self)
     return ___delta("tuple-len", self, int)
 
   def __getitem__(self, f):
@@ -27,14 +25,10 @@ class tuple(object):
     return ___delta("tuple*", self, other, tuple)
 
   def __in__(self, other):
-    print("IN:")
     c = 0
     while c < self.__len__():
-      print("GETITEM:")
-      print(self.__getitem__(c))
       if self.__getitem__(c).__eq__(other):
         return True
-      print("ADDING")
       c = c.__add__(1)
     return False
 
