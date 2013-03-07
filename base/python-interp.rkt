@@ -436,7 +436,7 @@
                 (handle-result (interp-env (some-v expr) env sto stk)
                   (lambda (vexpr sexpr)
                        (cond
-                         [(and (VObjectClass? vexpr) (object-is? vexpr 'BaseException env sexpr))
+                         [(and (is-obj-ptr? vexpr sexpr) (object-is? (fetch-ptr vexpr sexpr) 'BaseException env sexpr))
                           (Exception vexpr sexpr)]
                          [else (mk-exception 'TypeError
                                              "exceptions must derive from BaseException"
@@ -587,7 +587,7 @@
     [(not (is-obj-ptr? cptr s))
      (mk-exception 'AttributeError
                    (string-append 
-                    (string-append (pretty (fetch (VPointer-a cptr) s)) " object has no attribute ")
+                    (string-append (pretty cptr) " object has no attribute ")
                     (symbol->string n))
                    s)]
      ;; special attribute __class__

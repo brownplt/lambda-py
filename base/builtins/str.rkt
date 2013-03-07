@@ -160,19 +160,19 @@
 
 (define (strlist [args : (listof CVal)] [env : Env] [sto : Store])
   : (optionof CVal)
-  (check-types args env sto 'str
+  (check-types-pred args env sto MetaStr?
                (some (VObject 'list
                               (some (MetaList (string->charlist (MetaStr-s mval1))))
                               (hash empty)))))
 
 (define (str-tuple [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'str
+  (check-types-pred args env sto MetaStr?
                (some (VObject 'tuple
                               (some (MetaTuple (string->charlist (MetaStr-s mval1))))
                               (hash empty)))))
 
 (define (str+ (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'str 'str
+  (check-types-pred args env sto MetaStr? MetaStr?
                (some (VObject 'str 
                               (some (MetaStr
                                       (string-append (MetaStr-s mval1)
@@ -180,21 +180,21 @@
                               (hash empty)))))
 
 (define (str (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'str
+  (check-types-pred args env sto MetaStr?
                (some (VObject 'str
                               (some (MetaStr (MetaStr-s mval1)))
                               (hash empty)))))
 
 (define (str* (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   ;(let ([str*l 
-  (check-types args env sto 'str 'num
+  (check-types-pred args env sto MetaStr? MetaNum?
                (some (VObject 'str
                               (some (MetaStr 
                                       (str*-rec (MetaStr-s mval1)
                                                 (MetaNum-n mval2))))
                               (hash empty)))))
 #|(if (none? str*l)
-      (check-types args env sto 'num 'str
+      (check-types-pred args env sto 'num 'str
                    (some (VObject 'str
                                   (some (MetaStr 
                                           (str*-rec (MetaStr-s mval2)
@@ -208,7 +208,7 @@
     [else (string-append str (str*-rec str (sub1 num)))]))
 
 (define (strcmp [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'str 'str
+  (check-types-pred args env sto MetaStr? MetaStr?
                (some (VObject 'num
                               (some (MetaNum
                                       (let ([str1 (MetaStr-s mval1)]
@@ -219,7 +219,7 @@
                                           [(string=? str1 str2) 0]))))
                               (hash empty)))))
 (define (streq [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'str 'str 
+  (check-types-pred args env sto MetaStr? MetaStr? 
                (let ([str1 (MetaStr-s mval1)] 
                      [str2 (MetaStr-s mval2)]) 
                  (if (string=? str1 str2) 
@@ -227,7 +227,7 @@
                      (some false-val)))))
 
 (define (strin [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'str 'str
+  (check-types-pred args env sto MetaStr? MetaStr?
                (let ([self (MetaStr-s mval1)]
                      [test (MetaStr-s mval2)])
                  (some (if (or (< (string-length (string-replace self test ""))
@@ -237,27 +237,27 @@
                  false-val)))))
 
 (define (strlen [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'str
+  (check-types-pred args env sto MetaStr?
      (some (VObject 'num
                     (some (MetaNum
                             (string-length (MetaStr-s mval1))))
                     (hash empty)))))
 
 (define (strbool [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'str
+  (check-types-pred args env sto MetaStr?
      (some (if (string=? (MetaStr-s mval1) "")
                false-val
                true-val))))
 
 (define (strint [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'str
+  (check-types-pred args env sto MetaStr?
      (let ([n  (string->number (MetaStr-s mval1) 10)])
        (if (integer? n)
            (some (make-builtin-numv n))
            (none)))))
 
 (define (strmin [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'str
+  (check-types-pred args env sto MetaStr?
      (some (VObject 'str
                     (some (MetaStr
                             (make-string 1
@@ -272,7 +272,7 @@
                     (hash empty)))))
 
 (define (strmax [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'str
+  (check-types-pred args env sto MetaStr?
      (some (VObject 'str
                     (some (MetaStr
                             (make-string 1
@@ -286,7 +286,7 @@
 
 (define (str-getitem [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   ; handle slicing here?  
-  (check-types args env sto 'str 'num
+  (check-types-pred args env sto MetaStr? MetaNum?
      (some (VObject 'str
                     (some (MetaStr
                             (make-string 1

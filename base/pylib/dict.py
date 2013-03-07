@@ -1,7 +1,10 @@
 
 class dict(object):
+  def __new__(self):
+    return ___delta("dict-init", self, dict)
+
   def __init__(self):
-    self = ___delta("dict-init", self, dict)
+    pass
 
   def __len__(self):
     return ___delta("dict-len", self, int)

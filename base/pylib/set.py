@@ -1,10 +1,13 @@
 
 class set(object):
-  def __init__(self, *args):
+  def __new__(self, *args):
     if ___delta("num=", args.__len__(), 0):
-      self = ___emptyset()
+      return ___emptyset()
     else:
-      self = args.__getitem__(0).__set__()
+      return args.__getitem__(0).__set__()
+
+  def __init__(self, *args):
+    pass
 
   def __len__(self):
     return ___delta("set-len", self, int)

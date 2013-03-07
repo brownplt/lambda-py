@@ -182,8 +182,8 @@
     [(check-types args env sto t1 body)
      (with-syntax ([mval1 (datum->syntax x 'mval1)])
        #'(let ([arg1 (first args)])
-           (if (and (VObjectClass? arg1))
-                ;(object-is? arg1 t1 env sto))
+           (if (and (VObjectClass? arg1)
+                    (object-is? arg1 t1 env sto))
                (let ([mayb-mval1 (VObjectClass-mval arg1)])
                  (if (some? mayb-mval1)
                      (let ([mval1 (some-v mayb-mval1)])
@@ -237,7 +237,7 @@
 ;; Preseved for compatibility with check-types macro, it should be avoided for other uses.
 (define (object-is? [o : CVal] [c : symbol] [env : Env] [s : Store]) : boolean
   (let ([obj-cls (get-class o env s)]
-        [cls (fetch (some-v (lookup c env)) s)])
+        [cls (fetch-once (some-v (lookup c env)) s)])
     (member cls (get-mro obj-cls (none) s))))
 
 ;; get-mro: fetch __mro__ field as a list of classes, filtered up to thisclass if given
@@ -320,8 +320,9 @@
     [else "builtin-value"]
     ))
 
-(define (pretty-exception [exn : CVal] [sto : Store] [print-name : boolean]) : string
-  (local [(define name (symbol->string (VObjectClass-antecedent exn)))
+(define (pretty-exception [exnptr : CVal] [sto : Store] [print-name : boolean]) : string
+  (local [(define exn (fetch-ptr exnptr sto))
+          (define name (symbol->string (VObjectClass-antecedent exn)))
           (define args-loc (hash-ref (VObjectClass-dict exn) 'args))
           (define pretty-args (if (some? args-loc)
                                   (string-join 

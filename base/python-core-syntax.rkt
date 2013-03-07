@@ -152,41 +152,19 @@ ParselTongue.
     [VPointer (a) (fetch-once a sto)]
     [else (error 'interp (string-append "fetch-ptr got a non-VPointer: " (to-string val)))]))
 
-;; lookup in the env and sto, in order to get the final address through the aliasing address.
-(define (deep-lookup [x : symbol] [env : Env] [sto : Store]) : (optionof Address)
-  (let ((env-addr (lookup x env)))
-    (if (some? env-addr)
-        (let ((mayb-pointer (fetch-once (some-v env-addr) sto)))
-          (if (VPointer? mayb-pointer)
-              (some (VPointer-a mayb-pointer))
-              env-addr))               
-        (none))))
-
-(define (deep-lookup-global [x : symbol] [env : Env] [sto : Store]) : (optionof Address)
-  (let ((env-addr (lookup-global x env)))
-    (if (some? env-addr)
-        (let ((mayb-pointer (fetch-once (some-v env-addr) sto)))
-          (if (VPointer? mayb-pointer)
-              (some (VPointer-a mayb-pointer))
-              env-addr))
-        (none))))
-
-(define (deep-lookup-local [x : symbol] [env : Env] [sto : Store]) : (optionof Address)
-  (let ((env-addr (lookup-local x env)))
-    (if (some? env-addr)
-        (let ((mayb-pointer (fetch-once (some-v env-addr) sto)))
-          (if (VPointer? mayb-pointer)
-              (some (VPointer-a mayb-pointer))
-              env-addr))
-        (none))))
-
 (define (mk-exception [type : symbol] [arg : string] [sto : Store]) : Result
-  (local [(define loc (new-loc))
+  (local [(define exn-loc (new-loc))
+          (define args-loc (new-loc))
+          (define args-field-loc (new-loc))
           (define args (list (VObjectClass 'str (some (MetaStr arg)) (hash empty) (none))))]
     (Exception
-      (VObjectClass type (none) (hash-set (hash empty) 'args loc) (none))
-      (hash-set sto loc (VObjectClass 'tuple (some (MetaTuple args)) (hash empty) (none))))))
-
+      (VPointer exn-loc)
+      (hash-set
+        (hash-set
+          (hash-set sto args-loc (VObjectClass 'tuple (some (MetaTuple args)) (hash empty) (none)))
+          args-field-loc (VPointer args-loc))
+        exn-loc
+        (VObjectClass type (none) (hash-set (hash empty) 'args args-field-loc) (none))))))
 
 (define-type ActivationRecord
   [Frame (env : Env) (class : (optionof CVal)) (self : (optionof CVal))])

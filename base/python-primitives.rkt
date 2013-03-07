@@ -151,6 +151,17 @@ primitives here.
     (type-case (optionof CVal) (f args env sto)
       [some (v) (v*s v sto)]
       [none () (alloc-result vnone sto)]))
+  (define (prim-update f to-update args)
+    (type-case (optionof CVal) (f args env sto)
+      [some (v)
+        (type-case CVal to-update
+          [VPointer (a) (v*s v (hash-set sto a v))]
+          [else
+           (mk-exception 'TypeError
+            (format "Non-ptr (update): ~a" (cons op args)) sto)])]
+      [none ()
+       (mk-exception 'TypeError
+        (format "Bad prim (update): ~a" (cons op args)) sto)]))
   (define (prim-noalloc f args)
     (type-case (optionof CVal) (f args env sto)
       [some (v) (v*s v sto)]
@@ -202,7 +213,8 @@ primitives here.
     ['list-in (prim-noalloc list-in argvs)]
     ['list-init (prim-alloc list-in (fetch-heads argvs argsptrs))]
     ['list-getitem (prim-or-none list-getitem argvs)]
-    ['list-setitem (prim-noalloc list-setitem (fetch-heads argvs argsptrs))]
+    ['list-setitem
+      (prim-update list-setitem (first argsptrs) (list (first argvs) (second argvs) (third argsptrs) (fourth argsptrs)))]
     ['list-str (prim-alloc list-str (fetch-heads argvs argsptrs))]
     ['list-set (prim-alloc list-set (fetch-heads argvs argsptrs))]
     ['list-tuple (prim-alloc list-tuple (fetch-heads argvs argsptrs))]

@@ -28,14 +28,14 @@
 
 
 (define (dict-len (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'dict
+  (check-types-pred args env sto MetaDict?
                (some (VObjectClass 'num
                               (some (MetaNum (length (hash-keys (MetaDict-contents mval1)))))
                               (hash empty)
                               (some (second args))))))
 
 (define (dict-str (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'dict
+  (check-types-pred args env sto MetaDict?
                (some (VObjectClass 'str 
                         (some (MetaStr
                                 (pretty-metaval mval1)))
@@ -43,7 +43,7 @@
                         (some (second args))))))
 
 (define (dict-clear (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'dict
+  (check-types-pred args env sto MetaDict?
                (let ([contents (MetaDict-contents mval1)])
                  (begin
                    ; remove all key-value pairs from hash
@@ -52,14 +52,14 @@
                    (some vnone)))))
 
 (define (dict-in [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'dict
+  (check-types-pred args env sto MetaDict?
                (let ([contents (MetaDict-contents mval1)])
                  (if (hash-has-key? contents (second args)) ; FIXME: what if (second args) DNE?
                      (some true-val)
                      (some false-val)))))
 
 (define (dict-get [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'dict
+  (check-types-pred args env sto MetaDict?
       (local [(define d (first args))
               (define meta-d (MetaDict-contents (some-v (VObjectClass-mval d))))
               (define key (second args))
@@ -74,7 +74,7 @@
                  (none))))))
 
 (define (dict-update (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'dict
+  (check-types-pred args env sto MetaDict?
                (let ([starargs (MetaTuple-v (some-v (VObjectClass-mval (second args))))])
                  (cond
                   ;; only work when the argument is a dict, it should handle pair iterators.
@@ -95,7 +95,7 @@
                    (none)]))))
 
 (define (dict-keys (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'dict
+  (check-types-pred args env sto MetaDict?
                (let ([contents (MetaDict-contents mval1)])
                     (some
                       (VObjectClass 'set
@@ -104,7 +104,7 @@
                                (some (second args)))))))
 
 (define (dict-values (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'dict
+  (check-types-pred args env sto MetaDict?
                (let ([contents (MetaDict-contents mval1)])
                     (some
                       (VObjectClass 'set
@@ -113,7 +113,7 @@
                                (some (second args)))))))
 
 (define (dict-items (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'dict
+  (check-types-pred args env sto MetaDict?
                (letrec ([contents (MetaDict-contents mval1)]
                         [items (map (lambda (pair) ; create a tuple for each (key, value)
                                             (VObjectClass 'tuple
@@ -129,13 +129,13 @@
 
 
 (define (dict-getitem [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'dict
+  (check-types-pred args env sto MetaDict?
                (letrec ([contents (MetaDict-contents mval1)]
                         [target (second args)])
                  (hash-ref contents target))))
 
 (define (dict-setitem [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'dict
+  (check-types-pred args env sto MetaDict?
                (letrec ([contents (MetaDict-contents mval1)]
                         [target (second args)]
                         [value (third args)])
@@ -144,7 +144,7 @@
                    (some vnone)))))
 
 (define (dict-delitem [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'dict
+  (check-types-pred args env sto MetaDict?
                (letrec ([contents (MetaDict-contents mval1)]
                         [target (second args)])
                  (begin
@@ -152,7 +152,7 @@
                    (some vnone)))))
 
 (define (dict->list [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'dict
+  (check-types-pred args env sto MetaDict?
                (local [(define contents (MetaDict-contents mval1))]
                  (some
                    (VObjectClass 'list
