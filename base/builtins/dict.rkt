@@ -71,7 +71,7 @@
                mayb-val
                (if (not (= 0 (length meta-startuple)))
                  (some (first meta-startuple))
-                 (some vnone))))))
+                 (none))))))
 
 (define (dict-update (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'dict
@@ -131,11 +131,8 @@
 (define (dict-getitem [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'dict
                (letrec ([contents (MetaDict-contents mval1)]
-                        [target (second args)]
-                        [mayb-val (hash-ref contents target)])
-                 (if (some? mayb-val)
-                   mayb-val
-                   (some vnone)))))
+                        [target (second args)])
+                 (hash-ref contents target))))
 
 (define (dict-setitem [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'dict

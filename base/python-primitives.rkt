@@ -59,38 +59,38 @@ primitives here.
     [(callable) (callable arg)]))
 
 (define (num+ args env sto)
-  (check-types args env sto 'num 'num 
+  (check-types-pred args env sto MetaNum? MetaNum? 
                         (some (make-builtin-numv (+ (MetaNum-n mval1) 
                                                     (MetaNum-n mval2))))))
 
 (define (num- args env sto)
-  (check-types args env sto 'num 'num 
+  (check-types-pred args env sto MetaNum? MetaNum? 
                         (some (make-builtin-numv (- (MetaNum-n mval1) 
                                                    (MetaNum-n mval2))))))
 (define (num* args env sto)
         (if (and (some? (VObjectClass-mval (second args)))
                  (MetaStr? (some-v (VObjectClass-mval (second args)))))
             (some-v (str* (reverse args) env sto))
-            (check-types args env sto 'num 'num 
+            (check-types-pred args env sto MetaNum? MetaNum? 
                          (some (VObject 'num (some (MetaNum 
                                                     (* (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
                                        (hash empty))))))
 (define (num/ args env sto)
-    (check-types args env sto 'num 'num 
+    (check-types-pred args env sto MetaNum? MetaNum? 
                         (some (VObject 'num (some (MetaNum 
                                                     (/ (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
                                         (hash empty)))))
 
 (define (num// args env sto)
-    (check-types args env sto 'num 'num 
+    (check-types-pred args env sto MetaNum? MetaNum? 
                         (some (VObject 'num (some (MetaNum 
                                                     (quotient (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
                                         (hash empty)))))
 (define (num% args env sto)
-    (check-types args env sto 'num 'num 
+    (check-types-pred args env sto MetaNum? MetaNum? 
                         (some (VObject 'num (some (MetaNum 
                                                     (quotient (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
@@ -102,7 +102,7 @@ primitives here.
                           (some true-val)
                           (some false-val))))
 (define (num> args env sto)
-    (check-types args env sto 'num 'num 
+    (check-types-pred args env sto MetaNum? MetaNum? 
                         (if (> (MetaNum-n mval1) (MetaNum-n mval2))
                           (some true-val)
                           (some false-val))))
@@ -112,17 +112,17 @@ primitives here.
                           (some true-val)
                           (some false-val))))
 (define (num>= args env sto)
-    (check-types args env sto 'num 'num 
+    (check-types-pred args env sto MetaNum? MetaNum? 
                         (if (>= (MetaNum-n mval1) (MetaNum-n mval2))
                           (some true-val)
                           (some false-val))))
 (define (num<= args env sto)
-    (check-types args env sto 'num 'num 
+    (check-types-pred args env sto MetaNum? MetaNum? 
                         (if (<= (MetaNum-n mval1) (MetaNum-n mval2))
                          (some true-val)
                           (some false-val))))
 (define (numcmp args env sto)
-    (check-types args env sto 'num 'num
+    (check-types-pred args env sto MetaNum? MetaNum?
                         (if (< (MetaNum-n mval1) (MetaNum-n mval2))
                             (some (VObject 'num
                                            (some (MetaNum -1))
@@ -147,6 +147,10 @@ primitives here.
   (local [
   (define (fetch-heads l1 l2)
     (append (take l1 (- (length l1) 1)) (list (last l2))))
+  (define (prim-or-none f args)
+    (type-case (optionof CVal) (f args env sto)
+      [some (v) (v*s v sto)]
+      [none () (alloc-result vnone sto)]))
   (define (prim-noalloc f args)
     (type-case (optionof CVal) (f args env sto)
       [some (v) (v*s v sto)]
@@ -197,7 +201,7 @@ primitives here.
     ['list-len (prim-alloc list-len (fetch-heads argvs argsptrs))]
     ['list-in (prim-noalloc list-in argvs)]
     ['list-init (prim-alloc list-in (fetch-heads argvs argsptrs))]
-    ['list-getitem (prim-noalloc list-getitem argvs)]
+    ['list-getitem (prim-or-none list-getitem argvs)]
     ['list-setitem (prim-noalloc list-setitem (fetch-heads argvs argsptrs))]
     ['list-str (prim-alloc list-str (fetch-heads argvs argsptrs))]
     ['list-set (prim-alloc list-set (fetch-heads argvs argsptrs))]
@@ -208,15 +212,7 @@ primitives here.
     ['tuple+ (prim-alloc tuple+ (fetch-heads argvs argsptrs))]
     ['tuple* (prim-alloc tuple* (fetch-heads argvs argsptrs))]
     ['tuple-len (prim-alloc tuple-len (fetch-heads argvs argsptrs))]
-    ['tuple-getitem
-     (let ([result
-            (type-case (optionof CVal) (tuple-getitem argvs env sto)
-              [some (v) (v*s v sto)]
-              [none () (alloc-result vnone sto)])])
-      (begin
-;        (display "Getitem args: ") (display argvs) (display "\n\n")
-;        (display "Getitem res: ") (display (v*s-v result)) (display "\n\n")
-        result))]
+    ['tuple-getitem (prim-or-none tuple-getitem argvs)]
     ['tuple-str (prim-alloc tuple-str (fetch-heads argvs argsptrs))]
 
     ;dict
@@ -227,13 +223,13 @@ primitives here.
     ['dict-items (prim-alloc dict-items (fetch-heads argvs argsptrs))]
     ['dict->list (prim-alloc dict->list (fetch-heads argvs argsptrs))]
     ['dict-init (prim-alloc dict-init (fetch-heads argvs argsptrs))]
-    ['dict-getitem (prim-noalloc dict-getitem argvs)]
+    ['dict-getitem (prim-or-none dict-getitem argvs)]
     ['dict-setitem (prim-noalloc dict-setitem (fetch-heads argvs argsptrs))]
     ['dict-delitem (prim-noalloc dict-delitem argvs)]
     ['dict-clear (prim-noalloc dict-clear argvs)]
     ['dict-in (prim-noalloc dict-in argvs)]
     ['dict-update (prim-noalloc dict-update argvs)]
-    ['dict-get (prim-noalloc dict-get argvs)]
+    ['dict-get (prim-or-none dict-get argvs)]
 
     ;set
     ['set-len (prim-alloc set-len (fetch-heads argvs argsptrs))]

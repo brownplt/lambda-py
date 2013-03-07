@@ -93,7 +93,7 @@
                                  argvs-r arges env
                                  cenv sc stk)))]
                    (type-case Result result
-                     [v*s (vb sb) (v*s vnone sb)]
+                     [v*s (vb sb) (alloc-result vnone sb)]
                      [Return (vb sb) (v*s vb sb)]
                      [Break (sb) (break-exception sb)]
                      [Continue (sb) (continue-exception sb)]
@@ -162,7 +162,7 @@
                 ;; if the body results in an exception of return, pass it along
                 [(or (Exception? body-r) (Return? body-r)) body-r]
                 ;; if it results in a break, return None
-                [(Break? body-r) (v*s vnone (Break-s body-r))]
+                [(Break? body-r) (alloc-result vnone (Break-s body-r))]
                 ;; if it resulted in a value or continue, attempt to run the loop again
                 [else (interp-while test body orelse env
                                     (if (v*s? body-r)
@@ -559,7 +559,7 @@
        ;(if (some? mayb-loc) (pprint value) (pprint "OLD STO"))
        ;(display "\n")
   (if (some? mayb-loc)
-      (v*s vnone (hash-set sto (some-v mayb-loc) value))
+      (alloc-result vnone (hash-set sto (some-v mayb-loc) value))
       (type-case IdType (CId-type id)
                  [LocalId () (mk-exception 'NameError
                                            (string-append "name '"
@@ -629,7 +629,7 @@
             (lambda (address antecedent mval d class)
              (local [(define loc (hash-ref d f))]
               (type-case (optionof Address) loc
-                 [some (w) (v*s vnone (hash-set so w value))]
+                 [some (w) (alloc-result vnone (hash-set so w value))]
                  [none () (local [(define w (new-loc))
                                   (define snew
                                     (begin ;(display vo) (display "\n")
@@ -639,7 +639,7 @@
                                                        mval
                                                        (hash-set d f w)
                                                        class))))] ;; NOTE(joe) ensuring same class as above
-                              (v*s vnone (hash-set snew w value)))])))
+                              (alloc-result vnone (hash-set snew w value)))])))
             (lambda (v) (error 'interp (format "Can't assign to nonobject ~a." v)))
             (lambda (vo) (error 'interp (format "Expected pointer, got ~a in assign-to-field" vo))))))))
 

@@ -148,6 +148,17 @@
 
 (define-syntax (check-types-pred x)
   (syntax-case x ()
+    [(check-types args env sto tpred1? body)
+     (with-syntax ([mval1 (datum->syntax x 'mval1)])
+       #'(let ([arg1 (first args)])
+           (if (VObjectClass? arg1)
+               (let ([mayb-mval1 (VObjectClass-mval arg1)])
+                 (if (and (some? mayb-mval1)
+                          (tpred1? (some-v (VObjectClass-mval arg1))))
+                     (let ([mval1 (some-v mayb-mval1)])
+                       body)
+                     (none)))
+               (none))))]
     [(check-types args env sto tpred1? tpred2? body)
      (with-syntax ([mval1 (datum->syntax x 'mval1)]
                    [mval2 (datum->syntax x 'mval2)])

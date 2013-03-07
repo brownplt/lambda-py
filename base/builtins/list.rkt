@@ -55,11 +55,10 @@
 (define (list-getitem (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   ; here we'll eventually need to support slicin' and dicin' bro
   (check-types args env sto 'list 'num
-               (some 
                  (try
-                   (list-ref (MetaList-v mval1) (MetaNum-n mval2))
+                   (some (list-ref (MetaList-v mval1) (MetaNum-n mval2)))
                    (lambda ()
-                     vnone)))))
+                     (none)))))
 
 (define (list-str (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'list

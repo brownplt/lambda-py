@@ -13,7 +13,7 @@
            (hash empty)))
 
 (define (tuple+ (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'tuple 'tuple
+  (check-types-pred args env sto MetaTuple? MetaTuple?
                (some (VObjectClass
                               'tuple
                               (some (MetaTuple
@@ -23,7 +23,7 @@
                               (some (third args))))))
 
 (define (tuple* (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'tuple 'num
+  (check-types-pred args env sto MetaTuple? MetaNum?
                (letrec ([tuple-list (MetaTuple-v mval1)]
                         [repetitions (MetaNum-n mval2)]
                         [repeat (lambda ([lst : (listof CVal)] [reps : number]) : (listof CVal)
@@ -57,7 +57,7 @@
                       (lambda () (none)))))
 
 (define (tuple-str (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'tuple
+  (check-types-pred args env sto MetaTuple?
                (some (VObjectClass 'str
                         (some (MetaStr
                                 (pretty-metaval mval1)))
