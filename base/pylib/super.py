@@ -4,8 +4,14 @@ class super(object):
     if ___delta("num=", args.__len__(), 0):
       self.__thisclass__ = ___delta("super-thisclass")
       self.__self__ = ___delta("super-self")
+    elif ___delta("num=", args.__len__(), 1):
+      self.__thisclass__ = ___delta("tuple-getitem", args, 0)
+      self.__self__ = ___delta("super-self")
+    elif ___delta("num=", args.__len__(), 2):
+      self.__thisclass__ = ___delta("tuple-getitem", args, 0)
+      self.__self__ = ___delta("tuple-getitem", args, 1)
+      if not (isinstance(self.__self__, self.__thisclass__) or
+              issubclass(self.__self__, self.__thisclass__)):
+        raise TypeError("super(type, obj): obj must be an instance or subtype of type")
     else:
-      raise TypeError("super() only the no arguments version is supported")
-
-  def __str__(self):
-    return "(super: " + str(self.__thisclass__) + ", " + str(self.__self__) + ")"
+      raise TypeError("super() takes at most 2 arguments")
