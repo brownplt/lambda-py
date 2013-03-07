@@ -63,6 +63,8 @@ that calls the primitive `print`.
                      "pylib/dict.py"
                      "pylib/set.py"
                      "pylib/type.py"
+                     "pylib/method.py"
+                     "pylib/super.py"
                      "pylib/range.py"
                      "pylib/seq_iter.py"
                      "pylib/filter.py"

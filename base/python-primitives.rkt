@@ -11,6 +11,7 @@
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/file.rkt"
+         "builtins/super.rkt"
          "builtins/code.rkt"
          "python-compile.rkt"
          (typed-in racket/string (string-join : ((listof string) string -> string)))
@@ -156,6 +157,7 @@ primitives here.
     ['list-set (list-set args env sto)]
     ['list-tuple (list-tuple args env sto)]
     ['list-copy (list-copy args env sto)]
+    ['list-init (list-init args env sto)]
 
     ;tuple
     ['tuple+ (tuple+ args env sto)]
@@ -212,6 +214,10 @@ primitives here.
     ['file-write (file-write args env sto)]
     ['file-close (file-close args env sto)]
 
+    ; super
+    ['super-self (super-self stk)]
+    ['super-thisclass (super-thisclass stk)]
+
     ; Returns the class of the given object
     ['$class
      (some (get-class (first args) env sto))]
@@ -228,22 +234,6 @@ primitives here.
                                           (hash->list (first (Frame-env (first stk)))))))
                            sto))
                    (none)))]
-
-    ['$self ;; returns the active self, if any, from the stack
-     (local [(define (fetch-self [st : Stack]) : (optionof CVal)
-               (cond
-                 [(empty? st) (none)]
-                 [(some? (Frame-self (first st))) (Frame-self (first st))]
-                 [else (fetch-self (rest st))]))]
-       (fetch-self stk))]
-
-    ['$thisclass ;; returns the embodying class, if any, from the stack
-     (local [(define (fetch-class [st : Stack]) : (optionof CVal)
-               (cond
-                 [(empty? st) (none)]
-                 [(some? (Frame-class (first st))) (Frame-class (first st))]
-                 [else (fetch-class (rest st))]))]
-       (fetch-class stk))]
 
     ['code-str (code-str args env sto)]
     ['code-globals (code-globals args env sto)]
