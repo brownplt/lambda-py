@@ -9,3 +9,4 @@
 [] Change Is/IsNot to deal with true/false/none allocations
 [] What's going on with method is-equals and allocation in get-field-from-obj
    (and get-field-from-cls)
+[] mk-exception and pretty-exception are not pointerized

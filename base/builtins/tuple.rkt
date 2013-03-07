@@ -59,8 +59,9 @@
 
 (define (tuple-str (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'tuple
-               (some (VObject 'str
+               (some (VObjectClass 'str
                         (some (MetaStr
                                 (pretty-metaval mval1)))
-                        (hash empty)))))
+                        (hash empty)
+                        (second args)))))
 

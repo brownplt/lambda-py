@@ -24,6 +24,10 @@
          (typed-in racket/list (remove-duplicates : ((listof 'a) -> (listof 'a))))
          (typed-in racket/base (immutable? : ((hashof 'a 'b) -> boolean)))
          (typed-in racket/base (format : (string 'a -> string)))
+         (typed-in racket/base (substring : (string number number -> string)))
+         (typed-in racket/base (min : (number number -> number)))
+         (typed-in racket/base (string-length : (string -> number)))
+
          )
 
 (define (handle-result result fun)
@@ -246,17 +250,22 @@
                                          sto))))))]
       [GlobalId ()
                 (local [(define full-w (lookup-global id env))]
+                 (begin (display "Global ") (display id) (display " = ") (display full-w)
                   (if (some? full-w)
                       (local [(define full-val (fetch-once (some-v full-w) sto))]
                         (type-case CVal full-val
                           [VUndefined () (mk-exception 'NameError name-error-str sto)]
                           [else (v*s full-val sto)]))
-                      (mk-exception 'NameError name-error-str sto)))])))
+                      (mk-exception 'NameError name-error-str sto))))])))
 
 ;; interp-env : CExpr * Env * Store * Stack -> Result
 (define (interp-env [expr : CExpr] [env : Env] [sto : Store] [stk : Stack]) : Result
-  (begin ;(display expr) (display "\n")
+  (begin (display "Interping...")
+         (display (truncate (to-string expr) 50))
+         (display "\n")
+         ;(display expr) (display "\n")
          ;(display env) (display "\n\n")
+  (let ([result
   (type-case CExpr expr
     [CModule (prelude body)
              (local [(define prelude-r (interp-env prelude env sto stk))]
@@ -367,7 +376,7 @@
                                             sv)]))))]
     
     [CIf (i t e) (handle-result (interp-env i env sto stk)
-                   (lambda (vi si) (if (truthy? vi sto)
+                   (lambda (vi si) (if (truthy? vi si)
                                        (interp-env t env si stk)
                                        (interp-env e env si stk))))]
     
@@ -414,10 +423,10 @@
             (handle-result (interp-env arg env sto stk)
               (lambda (varg sarg) 
                    (case prim
-                     ['Not (if (truthy? varg sto)
+                     ['Not (if (truthy? varg sarg)
                              (v*s false-val sarg)
                              (v*s true-val sarg))]
-                     [else (v*s (python-prim1 prim varg) sarg)])))]
+                     [else (v*s (python-prim1 prim (fetch-ptr varg sarg)) sarg)])))]
 
     [CWhile (body test orelse) (interp-while body test orelse env sto stk)]
 
@@ -543,7 +552,15 @@
                        (v*s (VObject '$module (none) module-attr) s-module (none))))))])))]
     
     [CBreak () (Break sto)]
-    [CContinue () (Continue sto)])))
+    [CContinue () (Continue sto)])])
+    (begin
+      (display "Interp finished, got ")
+      (display (truncate (to-string result) 50))
+      (display "\n\n")
+      result))))
+
+(define (truncate str len)
+  (substring str 0 (min (string-length str) len)))
 
 (define (assign-to-id [id : CExpr] [value : CVal] [env : Env] [sto : Store]) : Result
   (local [(define mayb-loc 

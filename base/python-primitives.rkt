@@ -157,7 +157,7 @@ primitives here.
       [some (v) (alloc-result v sto)]
       [none ()
        (mk-exception 'TypeError
-        (format "Bad prim (noalloc): ~a" (cons op args)) sto)]))
+        (format "Bad prim (alloc): ~a" (cons op args)) sto)]))
    ]
   (let ([argvs (map (lambda (a) (fetch-ptr a sto)) argsptrs)])
   (case op
