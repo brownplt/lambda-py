@@ -213,6 +213,7 @@
             (bind 'isinstance (CUndefined))
             (bind '%isinstance (CUndefined))
             (bind 'tuple (CUndefined))
+            (bind 'issubclass (CUndefined))
             (bind '%tuple (CUndefined))
             (bind 'list (CUndefined))
             (bind '%list (CUndefined))
