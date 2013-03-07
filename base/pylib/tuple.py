@@ -1,12 +1,14 @@
 
 class tuple(object):
-  def __init__(self, *args):
-    print("INIT:")
+  def __new__(self, *args):
     if ___delta("num=", args.__len__(), 0):
-      self = ()
+      return ()
     else:
       first_arg = ___delta("tuple-getitem", args, 0)
-      self = first_arg.__tuple__()
+      return first_arg.__tuple__()
+
+  def __init__(self, *args):
+    pass
 
   def __len__(self):
     print("GETTING LEN:")

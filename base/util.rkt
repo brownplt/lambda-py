@@ -255,10 +255,13 @@
 
 
 (define (is? [v1 : CVal]
-             [v2 : CVal]) : boolean
+             [v2 : CVal]
+             [s : Store]) : boolean
   (begin
     ;(display v1) (display " ") (display v2) (display " ") (display (eq? v1 v2)) (display "\n")
-    (eq? v1 v2)))
+    (or (eq? v1 v2)
+        (and (is-obj-ptr? v1 s) (is-obj-ptr? v2 s)
+             (eq? (fetch-ptr v1 s) (fetch-ptr v2 s))))))
 
 (define (pretty arg)
   (type-case CVal arg

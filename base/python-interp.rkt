@@ -778,10 +778,10 @@
                   (case prim
                     ;; Handle Is, IsNot, In, NotIn
                     ;; NOTE(joe): true/false/none will fail here, fix
-                    ['Is (if (is? varg1 varg2)
+                    ['Is (if (is? varg1 varg2 sarg2)
                           (v*s true-val sarg2)
                           (v*s false-val sarg2))]
-                    ['IsNot (if (not (is? varg1 varg2))
+                    ['IsNot (if (not (is? varg1 varg2 sarg2))
                            (v*s true-val sarg2)
                            (v*s false-val sarg2))]
                     [else (error 'interp (string-append "Haven't implemented a case yet: "

@@ -2,6 +2,7 @@
 
 (require "python-core-syntax.rkt"
          "util.rkt"
+         "builtins/none.rkt"
          "builtins/str.rkt"
          "builtins/list.rkt"
          "builtins/tuple.rkt"
@@ -207,11 +208,15 @@ primitives here.
     ['tuple+ (prim-alloc tuple+ (fetch-heads argvs argsptrs))]
     ['tuple* (prim-alloc tuple* (fetch-heads argvs argsptrs))]
     ['tuple-len (prim-alloc tuple-len (fetch-heads argvs argsptrs))]
-    ['tuple-getitem (let [(res (prim-noalloc tuple-getitem argvs))]
-                      (begin
-                        (display "Getitem args: ") (display argvs) (display "\n\n")
-                        (display "Getitem res: ") (display (v*s-v res)) (display "\n\n")
-                        res))]
+    ['tuple-getitem
+     (let ([result
+            (type-case (optionof CVal) (tuple-getitem argvs env sto)
+              [some (v) (v*s v sto)]
+              [none () (alloc-result vnone sto)])])
+      (begin
+        (display "Getitem args: ") (display argvs) (display "\n\n")
+        (display "Getitem res: ") (display (v*s-v result)) (display "\n\n")
+        result))]
     ['tuple-str (prim-alloc tuple-str (fetch-heads argvs argsptrs))]
 
     ;dict
