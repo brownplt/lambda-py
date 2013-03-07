@@ -180,6 +180,7 @@
 
         (bind 'BaseException base-exception)
         (bind 'Exception (assign 'Exception (make-exception-class 'Exception)))
+        (bind 'ImportError (assign 'ImportError (make-exception-class 'ImportError)))
         (bind 'NameError (assign 'NameError (make-exception-class 'NameError)))
         (bind 'TypeError (assign 'TypeError (make-exception-class 'TypeError)))
         (bind 'ValueError (assign 'ValueError (make-exception-class 'ValueError)))
