@@ -20,16 +20,19 @@
                         'int
                         (list 'num)
                         (CNone)))
+
+             (def 'int '__new__
+                  (CFunc (list 'self) (some 'args)
+                        (CIf (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
+                             (CReturn (py-num 0))
+                             (CReturn (CApp (CGetField (py-getitem 'args 0) '__int__)
+                                            (list)
+                                            (none))))
+                        (some 'int)))
              
              (def 'int '__init__
                   (CFunc (list 'self) (some 'args)
-                        (CIf (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
-                             (CAssign (CId 'self (LocalId))
-                                      (py-num 0))
-                             (CAssign (CId 'self (LocalId))
-                                      (CApp (CGetField (py-getitem 'args 0) '__int__)
-                                            (list)
-                                            (none))))
+                        (CNone)
                         (some 'int))))))
 
 (define float-class
@@ -39,12 +42,17 @@
                         'float
                         (list 'num)
                         (CNone)))
+             (def 'float '__new__
+                  (CFunc (list 'self) (some 'args)
+                        (CIf (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
+                             (CReturn (py-num 0))
+                             (CReturn (CApp (CGetField (py-getitem 'args 0) '__float__)
+                                            (list)
+                                            (none))))
+                         (some 'float)))
              (def 'float '__init__
                   (CFunc (list 'self 'other) (none)
-                         (CAssign (CId 'self (LocalId))
-                                  (CApp (CGetField (CId 'other (LocalId)) '__float__)
-                                        (list)
-                                        (none)))
+                         (CNone)
                          (some 'float))))))
 
 (define num-class 
