@@ -399,10 +399,10 @@
                    (local [(define last-arg (first (reverse args)))]
                      (rec-desugar
                        ; assuming 1 defarg for now, generalize later
-                       (LexSeq 
-                         (list
-                           (LexAssign (list (LexLocalId last-arg 'DesugarVar))
-                                      (first (reverse defargs)))
+                       ; NB: it also assumes no other arguments are present (fixed position
+                       ; or stararg), otherwise they are silently discarded. (Alejandro).
+                       (LexLocalLet last-arg
+                                    (first (reverse defargs))
                            (LexFuncVarArg name empty
                                           'stararg 
                                           (LexSeq
@@ -422,7 +422,7 @@
                                                                   (LexNum 0)))
                                                      (LexPass))
                                               body))
-                                          decorators opt-class)))))]
+                                          decorators opt-class))))]
                  [(empty? decorators)
                    (local [(define body-r (rec-desugar body))]
                      (CFunc args (none) body-r opt-class))]
