@@ -7,6 +7,8 @@ class file:
                 raise IOError("No such file: " + path)
         else:
             self = ___delta("file-open", path, mode)
+        self.path = path
+        self.mode = mode
 
     def read(self, *args):
         if ___delta("num=", args.__len__(), 0):
@@ -23,5 +25,8 @@ class file:
 
     def close(self):
         return ___delta("file-close", self)
+
+    def __str__(self):
+        return "<file '" + self.path + "', mode '" + self.mode + "'>"
 
 ___assign('open', file)
