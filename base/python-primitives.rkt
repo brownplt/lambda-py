@@ -282,8 +282,7 @@ primitives here.
     ; Returns the class of the given object
     ['$class (v*s (get-class (first argvs) env sto) sto)]
 
-    ['$locals (alloc-result 
-                (begin
+    ['$locals (begin
                ; (display env) (display "\n\n")
                (if (> (length stk) 0) ;; it must be used inside a function
                    (make-under-dict 
@@ -294,8 +293,7 @@ primitives here.
                                             (not (VUndefined? (fetch (cdr p) sto))))
                                           (hash->list (first (Frame-env (first stk)))))))
                            env sto)
-                   (error 'locals "Empty stack in locals")))
-                   sto)]
+                   (error 'locals "Empty stack in locals")))]
 
     ['code-str (prim-alloc code-str argvs)]
     ['code-globals (prim-alloc code-globals argvs)]

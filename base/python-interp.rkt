@@ -590,7 +590,7 @@
 ;; multiple inheritance modification : for class lookup call get-field-from-class
 ;; optional address field added to support self aliasing in bound methods calls.
 (define (get-field [n : symbol] [cptr : CVal] [e : Env] [s : Store]) : Result
-  (begin ;(display "GET: ") (display n) (display " ") (display cptr) (display "\n\n")
+  (begin ;(display "GET: ") (display n) (display " ") (display cptr) (display "\n")
          ;(display (fetch-ptr cptr s)) (display "\n\n")
          ;(display " ") (display w_c) (display "\n\n")
          ;(display e) (display "\n\n")
@@ -812,7 +812,7 @@
                              '__bases__ bases_w)
                             '__mro__ mro_w)
                            (none))
-                (let ([udict (alloc-result (make-under-dict h-dict env smro) smro)])
+                (let ([udict (make-under-dict h-dict env smro)])
                   (hash-set 
                     (hash-set 
                       (hash-set (v*s-s udict) w (v*s-v udict))

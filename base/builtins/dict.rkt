@@ -17,15 +17,25 @@
 
 (define (make-under-dict [h : (hashof symbol Address)] [env : Env] [sto : Store]) : CVal
   (local [(define filledhash (make-hash empty))
-          (define dicthash (map (λ (pair)
-                                   (hash-set! filledhash
-                                              (make-str-value (symbol->string (car pair)))
-                                              (fetch (cdr pair) sto)))
-                                (hash->list h)))]
-  (VObjectClass 'dict
-           (some (MetaDict filledhash))
-           (hash empty)
-           (some (fetch-once (some-v (lookup '%dict env)) sto)))))
+          (define new-sto sto)
+          (define dicthash
+            (map (λ (pair)
+                    (let ([res (alloc-result
+                                 (make-str-value (symbol->string (car pair)))
+                                 new-sto)])
+                      (begin
+                        (hash-set! filledhash
+                                   (v*s-v res)
+                                   (fetch-once (cdr pair) (v*s-s res)))
+                        (set! new-sto (v*s-s res)))))
+                    (hash->list h)))]
+    (alloc-result
+      (VObjectClass 'dict
+                    (some (MetaDict filledhash))
+                    (hash empty)
+                    (some (fetch-once (some-v (lookup '%dict env)) new-sto)))
+      new-sto)))
+  
 
 
 (define (dict-len (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
