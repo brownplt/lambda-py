@@ -128,6 +128,7 @@
           (CBuiltinPrim '$locals empty))
          (none)))
 
+;; TODO: if source contains null bytes, it should raise TypeError
 (define compile-lambda
   (CFunc (list 'source 'filename 'mode) (none)
          (CReturn

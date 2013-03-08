@@ -24,7 +24,7 @@
 
 (require (typed-in racket/pretty (pretty-print : ('a -> 'b))))
 
-(require (typed-in racket (current-directory : ('a -> 'b))))
+(require (typed-in racket (current-directory : (-> 'b))))
 (require (typed-in racket (path->string : ('a -> 'b))))
 
 (print-only-errors #t)
