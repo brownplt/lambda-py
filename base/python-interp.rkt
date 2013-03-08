@@ -198,16 +198,10 @@
                     ;; used the dynamic environment for compatibility with base code.
                     (cons (Frame env class self) stk))))))
 
-(define (interp-let [name : symbol] [type : IdType] [value : Result]
+(define (interp-let [name : symbol] [type : IdType]
+                    [val : Result] [sto : Store]
                     [body : CExpr] [env : Env] [stk : Stack]) : Result
-  (local [(define-values (val sto)
-            (type-case Result value
-              [v*s (v s) (values v s)]
-              [Return (v s) (values v s)]
-              [Break (s) (values vnone s)]
-              [Continue (s) (values vnone s)]
-              [Exception (v s) (values v s)]))
-          (define loc (new-loc))
+  (local [(define loc (new-loc))
           (define newenv (cons (hash-set (first env) name loc) (rest env)))]
     (interp-env body newenv (hash-set sto loc val) stk)))
 
@@ -390,7 +384,9 @@
     [CLet (x type bind body)
           (begin ;(display "LET: ") (display x) (display " ")
                  ;(display type) (display bind) (display "\n")
-          (interp-let x type (interp-env bind env sto stk) body env stk))]
+          (handle-result (interp-env bind env sto stk)
+            (lambda (val sto)
+              (interp-let x type val sto body env stk))))]
 
     [CApp (fun arges sarg)
           (begin ;(display "CApp") (display fun) (display arges) (display "\n")
@@ -465,7 +461,7 @@
             [Exception (vtry stry)
                        (local [(define excepts-r
                                  (interp-let exn-id (LocalId)
-                                             (Exception vtry stry)
+                                             vtry stry
                                              excepts
                                              env stk))]
                          (if (and (Exception? excepts-r)
