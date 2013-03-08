@@ -50,7 +50,7 @@ class str(object):
     return ___delta("strint", self, int)
 
   def __bool__(self):
-    if str == "":
+    if self == "":
       return False
     return True
     #once we fix trueval, falseval: use this
