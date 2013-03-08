@@ -28,7 +28,7 @@ class set(object):
   def __eq__(self, other):
     if self.__len__() != other.__len__():
       return False
-    for elt in self.__list():
+    for elt in self.__list__():
       if not other.__in__(elt):
         return False
     return True

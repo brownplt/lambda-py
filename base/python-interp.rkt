@@ -297,22 +297,31 @@
     ;; note that for now we're assuming that dict keys and values aren't going
     ;; to mess with the environment and store, but this might be wrong
     [CDict (class contents)
-           (letrec ([interped-hash (make-hash empty)]
-                    [interp-pairs (lambda (lst)
-                                  (map (lambda (pair)
-                                       (hash-set! interped-hash
-                                                   (v*s-v (interp-env (car pair) env sto stk))
-                                                   (v*s-v (interp-env (cdr pair) env sto stk))))
-                                      lst))])
-             (begin
-               (interp-pairs (hash->list contents))
-                 (handle-result (interp-env class env sto stk)
-                  (lambda (cval csto)
-                     (alloc-result (VObjectClass 'dict
-                                   (some (MetaDict interped-hash))
-                                   (hash empty)
-                                   (some cval))
-                      csto)))))]
+     (local [
+       (define (interp-pair p sto)
+         (handle-result (interp-env (car p) env sto stk)
+           (lambda (carv cars)
+             (handle-result (interp-env (cdr p) env cars stk)
+               (lambda (cdrv cdrs)
+                 (vpair*s carv cdrv cdrs))))))
+       (define dict-hash (make-hash empty))
+       (define (interp-pairs lst sto)
+         (cond
+           [(empty? lst) sto]
+           [(cons? lst)
+            (type-case ResultPair (interp-pair (first lst) sto)
+             [vpair*s (v1 v2 new-sto)
+               (begin
+                 (hash-set! dict-hash v1 v2)
+                 (interp-pairs (rest lst) new-sto))])]))
+       (define post-dict-sto (interp-pairs (hash->list contents) sto))]
+     (handle-result (interp-env class env post-dict-sto stk)
+      (lambda (cval csto)
+       (alloc-result (VObjectClass 'dict
+                       (some (MetaDict dict-hash))
+                       (hash empty)
+                       (some cval))
+                     csto))))]
 
     [CSet (class values)
      (type-case ResultList (interp-cascade values sto env stk)
