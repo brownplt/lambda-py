@@ -35,7 +35,10 @@ class list(object):
     return ___delta("list-set", self, set)
 
   def __in__(self, test):
-    return ___delta("list-in", self, test)
+    for elt in self:
+      if test.__eq__(elt):
+        return True
+    return False
 
   def __str__(self):
     return ___delta("list-str", self, str)

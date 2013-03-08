@@ -206,7 +206,6 @@
     (interp-env body newenv (hash-set sto loc val) stk)))
 
 ;; interp-id will first lookup id in env, then fetch the value of the id in the sto.
-;; At the same time, interp-id will return the address of the id for aliasing.
 (define (interp-id [id : symbol] [type : IdType]
                    [env : Env] [sto : Store]) : Result
   (local [(define name-error-str
