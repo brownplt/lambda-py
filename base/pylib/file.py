@@ -1,12 +1,16 @@
 class file:
-    def __init__(self, path, mode):
-        if ___delta("str=", mode, "r"):
-            if ___delta("existing-file?", path):
-                self = ___delta("file-open", path, mode)
-            else:
-                raise IOError("No such file: " + path)
+    def __new__(self, *args):
+      path = args.__getitem__(0)
+      mode = args.__getitem__(1)
+      if mode == "r":
+        if ___delta("existing-file?", path):
+          return ___delta("file-open", path, mode)
         else:
-            self = ___delta("file-open", path, mode)
+          raise IOError("No such file: " + path)
+      else:
+        return ___delta("file-open", path, mode)
+
+    def __init__(self, path, mode):
         self.path = path
         self.mode = mode
 
