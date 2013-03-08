@@ -248,13 +248,7 @@ primitives here.
 
     ;set
     ['set-len (prim-alloc set-len (fetch-heads argvs argsptrs))]
-    ['set-sub (prim-alloc set-sub (fetch-heads argvs argsptrs))]
-    ['set-and (prim-alloc set-and (fetch-heads argvs argsptrs))]
-    ['set-or (prim-alloc set-or (fetch-heads argvs argsptrs))]
-    ['set-xor (prim-alloc set-xor (fetch-heads argvs argsptrs))]
     ['set-list (prim-alloc set-list (fetch-heads argvs argsptrs))]
-    ['set-in (prim-noalloc set-in argvs)]
-    ['set-eq (prim-noalloc set-eq argvs)]
 
     ;object 
     ['obj-str (prim-alloc obj-str argvs)]

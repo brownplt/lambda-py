@@ -26,22 +26,55 @@ class set(object):
     return SeqIter(self.__list__())
 
   def __in__(self, elt):
-    return ___delta("set-in", self, elt)
+    return self.__list__().__in__(elt)
 
   def __eq__(self, other):
-    return ___delta("set-eq", self, other)
+    if self.__len__() != other.__len__():
+      return False
+    for elt in self.__list__():
+      if not other.__in__(elt):
+        return False
+    return True
 
   def __sub__(self, other):
-    return ___delta("set-sub", self, other, set)
+    result = []
+    for elt in self.__list__():
+      if not other.__in__(elt):
+        result.append(elt)
+
+    return set(result)
 
   def __and__(self, other):
-    return ___delta("set-and", self, other, set)
+    result = []
+    for elt in self.__list__():
+      if other.__in__(elt):
+        result.append(elt)
+
+    return set(result)
 
   def __or__(self, other):
-    return ___delta("set-or", self, other, set)
+    result = []
+    for elt in self.__list__():
+      # skip it the first time
+      if not other.__in__(elt):
+        result.append(elt)
+
+    for elt in other.__list__():
+      result.append(elt)
+
+    return set(result)
 
   def __xor__(self, other):
-    return ___delta("set-xor", self, other, set)
+    result = []
+    for elt in self.__list__():
+      if not other.__in__(elt):
+        result.append(elt)
+
+    for elt in other.__list__():
+      if not self.__in__(elt):
+        result.append(elt)
+
+    return set(result)
 
 ___assign("%set", set)
 
