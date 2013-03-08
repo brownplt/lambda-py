@@ -15,8 +15,6 @@ class SeqIter:
                 break
         return l
 
-
-
     def __iter__(self):
         return self
 

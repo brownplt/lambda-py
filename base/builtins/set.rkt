@@ -3,17 +3,7 @@
 (require "../python-core-syntax.rkt")
 (require "../util.rkt")
 (require [opaque-type-in racket/set [Set set?]])
-(require
-  (typed-in racket/set (set->list : (set? -> (listof 'a))))
-  (typed-in racket/set (set? : ('a -> boolean)))
-  (typed-in racket/set (set=? : (set? set? -> boolean)))
-  (typed-in racket/set (set-member? : (set? 'a -> boolean)))
-  (typed-in racket/set (set-subtract : (set? set? -> set?)))
-  (typed-in racket/set (set-intersect : (set? set? -> set?)))
-  (typed-in racket/set (set->list : (set? -> (listof 'a))))
-  (typed-in racket/set (set-union : (set? set? -> set?)))
-  (typed-in racket/set (set-symmetric-difference : (set? set? -> set?)))
-)
+(require (typed-in racket/set (set->list : (set? -> (listof 'a)))))
 
 (define (set-list (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaSet?

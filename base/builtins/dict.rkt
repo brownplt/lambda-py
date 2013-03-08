@@ -36,8 +36,6 @@
                     (some (fetch-once (some-v (lookup '%dict env)) new-sto)))
       new-sto)))
   
-
-
 (define (dict-len (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaDict?
                (some (VObjectClass 'int
@@ -89,9 +87,6 @@
                     (let ([target (MetaDict-contents mval1)]
                           [extras (MetaDict-contents mval2)])
                       (begin
-                        ;; TODO(Sumner): Since the contents of a MetaDict are now VPointers
-                        ;; even if they point to the same thing the racket hash doesn't know
-                        ;; and adds new mappings. Fix this!
                         (map (lambda (pair)
                                (hash-set! target (car pair) (cdr pair)))
                              (hash->list extras))

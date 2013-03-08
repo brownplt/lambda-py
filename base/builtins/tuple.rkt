@@ -56,6 +56,14 @@
                  (try (some (list-ref (MetaTuple-v mval1) (MetaNum-n mval2)))
                       (lambda () (none)))))
 
+(define (tuple-set (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
+  (check-types-pred args env sto MetaTuple?
+               (let ([values (MetaTuple-v mval1)])
+                    (some (VObjectClass 'set
+                                   (some (MetaSet (make-set values)))
+                                   (hash empty)
+                                   (some (second args)))))))
+
 (define (tuple-str (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaTuple?
                (some (VObjectClass 'str

@@ -70,5 +70,8 @@ class tuple(object):
   def __list__(self):
     return SeqIter(self).__list__()
 
+  def __set__(self):
+    return ___delta("tuple-set", self, set)
+
 ___assign("%tuple", tuple)
 

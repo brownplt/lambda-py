@@ -232,6 +232,7 @@ primitives here.
     ['tuple-len (prim-alloc tuple-len (fetch-heads argvs argsptrs))]
     ['tuple-getitem (prim-or-none tuple-getitem argvs)]
     ['tuple-str (prim-alloc tuple-str (fetch-heads argvs argsptrs))]
+    ['tuple-set (prim-alloc tuple-set (fetch-heads argvs argsptrs))]
 
     ;dict
     ['dict-len (prim-alloc dict-len (fetch-heads argvs argsptrs))]
