@@ -888,8 +888,8 @@
                             [thisclass : (optionof CVal)]
                             [env : Env] 
                             [sto : Store]) : Result
-  (begin ;(display "GET-OBJ: ") (display fld) (display "\n\n"); (display " ") (display obj)
-         ;(display " ") (display (fetch-ptr objptr sto)) (display "\n")
+  (begin ;(display "GET-OBJ: ") (display fld) (display "\n"); (display " ") (display obj)
+         ;(display " ") (display (fetch-ptr objptr sto)) (display "\n\n")
   (let ([obj (fetch-ptr objptr sto)])
     (cond
       ;; for method objects, __call__ attribute is the object itself
@@ -899,12 +899,13 @@
       [(and (equal? (VObjectClass-antecedent obj) 'super)
             (some? (hash-ref (VObjectClass-dict obj) '__self__)))
        (local ([define w_self (hash-ref (VObjectClass-dict obj) '__self__)]
-               [define self (fetch-ptr (fetch-once (some-v w_self) sto) sto)]
+               [define self (fetch-once (some-v w_self) sto)]
                [define thisclass (fetch-once (some-v (hash-ref (VObjectClass-dict obj)
                                                                 '__thisclass__))
                                               sto)])
          (cond
-           [(and (VObjectClass? self) (equal? (VObjectClass-antecedent self) 'type))
+           [(and (is-obj-ptr? self sto)
+                 (equal? (VObjectClass-antecedent (fetch-ptr self sto)) 'type))
             ;; obj.self is a class
             (get-field-from-cls fld self (some thisclass) env sto)]
            [else

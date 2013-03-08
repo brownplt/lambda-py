@@ -280,7 +280,7 @@ primitives here.
     ['file-close (prim-alloc file-close argvs)]
 
     ; super
-    ['super-self (alloc-result (some-v (super-self stk)) sto)]
+    ['super-self (prim-or-none-stk super-self stk)]
     ['super-thisclass (prim-or-none-stk super-thisclass stk)]
 
     ; Returns the class of the given object
