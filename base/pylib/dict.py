@@ -12,6 +12,9 @@ class dict(object):
   def __str__(self):
     return ___delta("dict-str", self, str)
 
+  def __bool__(self):
+    return not ___delta("num=", self.__len__(), 0)
+
   def __list__(self):
     return ___delta("dict->list", self, list)
 

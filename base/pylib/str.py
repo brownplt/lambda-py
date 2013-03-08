@@ -49,6 +49,13 @@ class str(object):
   def __int__(self):
     return ___delta("strint", self, int)
 
+  def __bool__(self):
+    if str == "":
+      return False
+    return True
+    #once we fix trueval, falseval: use this
+    #return not ___delta("num=", self.__len__(), 0)
+
   def __getitem__(self, idx):
     return ___delta("str-getitem", self, idx, str)
 

@@ -35,6 +35,9 @@ class tuple(object):
   def __str__(self):
     return ___delta("tuple-str", self, str)
 
+  def __bool__(self):
+    return not ___delta("num=", self.__len__(), 0)
+
   def __iter__(self):
     return SeqIter(self)
 

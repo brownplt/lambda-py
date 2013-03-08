@@ -57,7 +57,8 @@ that calls the primitive `print`.
                 (desugar-macros
                   (new-scope-phase
                     (get-structured-python pyast)))))))
-               (list "pylib/str.py"
+               (list "pylib/bool.py"
+                     "pylib/str.py"
                      "pylib/tuple.py"
                      "pylib/list.py"
                      "pylib/dict.py"

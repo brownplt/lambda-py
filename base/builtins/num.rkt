@@ -33,7 +33,14 @@
              (def 'int '__init__
                   (CFunc (list 'self) (some 'args)
                         (CNone)
-                        (some 'int))))))
+                        (some 'int)))
+
+             (def 'int '__bool__
+                  (CFunc (list 'self) (none)
+                         (CIf (CBuiltinPrim 'num= (list (Id 'self) (py-num 0)))
+                              (CReturn (gid 'False))
+                              (CReturn (gid 'True)))
+                         (some 'int))))))
 
 (define float-class
   (seq-ops (list
@@ -53,6 +60,12 @@
              (def 'float '__init__
                   (CFunc (list 'self 'other) (none)
                          (CNone)
+                         (some 'float)))
+             (def 'float '__bool__
+                  (CFunc (list 'self) (none)
+                         (CIf (CBuiltinPrim 'num= (list (Id 'self) (py-num 0.0)))
+                              (CReturn (gid 'False))
+                              (CReturn (gid 'True)))
                          (some 'float))))))
 
 (define num-class 

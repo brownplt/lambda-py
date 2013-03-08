@@ -40,6 +40,9 @@ class list(object):
   def __str__(self):
     return ___delta("list-str", self, str)
 
+  def __bool__(self):
+    return not ___delta("num=", self.__len__(), 0)
+
   def __getitem__(self, idx):
     return ___delta("list-getitem", self, idx)
 
