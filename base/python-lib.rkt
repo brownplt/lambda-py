@@ -12,6 +12,7 @@
          "builtins/none.rkt"
          "builtins/file.rkt"
          "builtins/method.rkt"
+         "modules/builtin-modules.rkt"
          "util.rkt"
          "python-lib-bindings.rkt"
          (typed-in "get-structured-python.rkt"
@@ -73,6 +74,7 @@ that calls the primitive `print`.
                      "pylib/all.py"
                      "pylib/dicteq.py"
                      "pylib/import.py"
+                     "pylib/file.py"
                      "pylib/isinstance.py"
                      "py-prelude.py"
                     ))))
@@ -93,5 +95,6 @@ that calls the primitive `print`.
                   (seq-ops (append
                              (map (lambda (b) (bind-right b)) lib-functions)
                              (get-pylib-programs)
+                             (get-builtin-modules)
                              (list (CModule-body expr))
-                             empty empty)))))
+                             empty)))))

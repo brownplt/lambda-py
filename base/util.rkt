@@ -25,11 +25,24 @@
 
 (require (typed-in racket/pretty (pretty-print : ('a -> 'b))))
 
+(require (typed-in racket (current-directory : (-> 'b))))
+(require (typed-in racket (path->string : ('a -> 'b))))
+
 (print-only-errors #t)
 
 ; a file for utility functions that aren't specific to python stuff
 (define (pprint exp)
   (pretty-print exp))
+
+; sys.path default value
+
+(define default-builtin-module-paths
+  (list "."
+        (string-append
+         (path->string (current-directory)) "../tests/modules/")))
+
+(define (get-module-path)
+  default-builtin-module-paths)
 
 (define python-path "/usr/local/bin/python3.2")
 (define (get-pypath)

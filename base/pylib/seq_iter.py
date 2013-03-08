@@ -64,7 +64,6 @@ class FuncIter:
         self.func = func
         self.stopwhen = stopwhen
         self.stopped = False
-        return self
 
     def __list__(self):
         l = []

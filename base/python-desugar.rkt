@@ -123,7 +123,12 @@
 (define (desugar-excepts [exn-id : symbol] [excepts : (listof LexExpr)]) : CExpr
   (local [(define (rec-desugar-excepts es)
             (cond
-              [(empty? es) (CId exn-id (LocalId))]
+              [(empty? es) ;; exceptions other than $Reraise are reraised if not catched
+                (rec-desugar (LexIf (LexApp (LexGlobalId '%isinstance 'Load)
+                                            (list (LexLocalId exn-id 'Load)
+                                                  (LexGlobalId '$Reraise 'Load)))
+                                    (LexPass)
+                                    (LexRaise (LexLocalId exn-id 'Load))))]
               [else
                 (local [(define except (first es))
                         (define-values (body as types)
@@ -155,20 +160,24 @@
                        (rec-desugar-excepts (rest es))))]))]
     (rec-desugar-excepts excepts)))
 
-#|  
 
 ;;; desugar import name as asname to
 ;;; asname = __import__('name')
-(define (desugar-import-py names asnames) : PyExpr
-  (local [(define (helper names asnames result)
-            (cond [(empty? names) result]
+;;; desugar-import-py will 
+(define (desugar-leximport names asnames) : LexExpr
+  (local [(define (desugar-leximport/rec names asnames)
+            (cond [(empty? names) (list)]
                   [else
-                   (helper (rest names) (rest asnames)
-                           (append result
-                                   (list (PyAssign (list (PyId (first asnames) 'Store))
-                                                   (PyApp (PyId '__import__ 'Load)
-                                                          (list (PyStr (first names))))))))]))]
-         (PySeq (helper names asnames (list)))))
+                   (append
+                    (list (LexAssign
+                           (list (LexGlobalId (first asnames) 'Store))
+                           (LexApp (LexGlobalId '__import__ 'Load)
+                                  (list (LexStr (first names))))))
+                    (desugar-leximport/rec (rest names) (rest asnames))
+                    )]))]
+         (LexSeq (desugar-leximport/rec names asnames))))
+
+#|  
 
 ;;; desugar from module import name as asname
 ;;; __tmp_module = __import__(module, globals(), locals(), [id], 0)
@@ -390,10 +399,10 @@
                    (local [(define last-arg (first (reverse args)))]
                      (rec-desugar
                        ; assuming 1 defarg for now, generalize later
-                       (LexSeq 
-                         (list
-                           (LexAssign (list (LexLocalId last-arg 'DesugarVar))
-                                      (first (reverse defargs)))
+                       ; NB: it also assumes no other arguments are present (fixed position
+                       ; or stararg), otherwise they are silently discarded. (Alejandro).
+                       (LexLocalLet last-arg
+                                    (first (reverse defargs))
                            (LexFuncVarArg name empty
                                           'stararg 
                                           (LexSeq
@@ -413,7 +422,7 @@
                                                                   (LexNum 0)))
                                                      (LexPass))
                                               body))
-                                          decorators opt-class)))))]
+                                          decorators opt-class))))]
                  [(empty? decorators)
                    (local [(define body-r (rec-desugar body))]
                      (CFunc args (none) body-r opt-class))]
@@ -567,8 +576,8 @@
                                                        desugared-slice)
                                                  (none))))]
                      [else (error 'desugar "We don't know how to delete identifiers yet.")]))]
-      [LexImport (names asnames) (rec-desugar (LexPass))]
-                 ;(rec-desugar (desugar-import-py names asnames))]
+      [LexImport (names asnames) 
+                 (rec-desugar (desugar-leximport names asnames))]
 
       [LexImportFrom (module names asnames level) (rec-desugar (LexPass))]
                    ;(rec-desugar (desugar-importfrom-py module names asnames level) global? env opt-class)]       

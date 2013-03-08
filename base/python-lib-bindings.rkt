@@ -14,6 +14,7 @@
          "builtins/code.rkt"
          "builtins/module.rkt"
          "util.rkt"
+         "modules/builtin-modules.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
          (typed-in "parse-python.rkt"
@@ -127,6 +128,7 @@
           (CBuiltinPrim '$locals empty))
          (none)))
 
+;; TODO: if source contains null bytes, it should raise TypeError
 (define compile-lambda
   (CFunc (list 'source 'filename 'mode) (none)
          (CReturn
@@ -157,8 +159,6 @@
         (bind '%int (assign '%int (CId 'int (GlobalId))))
         (bind 'float float-class)
         (bind '%float (assign '%float (CId 'float (GlobalId))))
-        (bind 'file file-class)
-        (bind 'open (assign 'open (CId 'file (GlobalId))))
         (bind 'code code-class)
         (bind '$module module-class)
 
@@ -176,6 +176,8 @@
 
         (bind 'BaseException base-exception)
         (bind 'Exception (assign 'Exception (make-exception-class 'Exception)))
+        (bind 'ImportError (assign 'ImportError (make-exception-class 'ImportError)))
+        (bind 'IOError (assign 'IOError (make-exception-class 'IOError)))
         (bind 'NameError (assign 'NameError (make-exception-class 'NameError)))
         (bind 'TypeError (assign 'TypeError (make-exception-class 'TypeError)))
         (bind 'ValueError (assign 'ValueError (make-exception-class 'ValueError)))
@@ -226,6 +228,11 @@
             (bind '%type (CUndefined))
             (bind 'super (CUndefined))
             (bind 'method (CUndefined))
+            (bind 'open (CUndefined))
+            ;; TODO(Sumner): is %open needed?
+            ;(bind '%open (CUndefined))
+            (bind 'file (CUndefined))
+            (bind '%file (CUndefined))
             (bind 'classmethod (CUndefined))
             (bind 'staticmethod (CUndefined))
             (bind '__import__ (CUndefined))
@@ -239,5 +246,8 @@
             (bind '___assertNotIn (CUndefined))
             (bind '___fail (CUndefined))
             (bind '___assertRaises (CUndefined)))
-      empty empty empty))
+      ;; dummies of built-in modules
+      (map (lambda (name) (bind name (CUndefined)))
+           (get-builtin-module-names))
+      empty empty))
 

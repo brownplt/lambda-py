@@ -278,6 +278,7 @@ primitives here.
     ['file-readline (prim-alloc file-readline argvs)]
     ['file-write (prim-alloc file-write argvs)]
     ['file-close (prim-alloc file-close argvs)]
+    ['existing-file? (prim-noalloc existing-file? argvs)]
 
     ; super
     ['super-self (prim-or-none-stk super-self stk)]
@@ -304,5 +305,4 @@ primitives here.
 
     ['compile (prim-alloc compile argvs)]
     
-    [else (error 'prim (format "Missed primitive: ~a" op))]
-))))
+    [else (error 'prim (format "Missed primitive: ~a" op))]))))

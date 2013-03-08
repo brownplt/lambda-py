@@ -523,9 +523,9 @@
        (handle-result (interp-env source env sto stk)
          (lambda (v-code s-code a)
            (cond
-             ;; [(not (and (VObjectClass? v-code)
-             ;;            (object-is? v-code 'code env s)))
-             ;;  (error 'interp "a non-code object is passed to make module object")]
+             [(not (and (VObjectClass? v-code)
+                        (eq? (VObjectClass-antecedent v-code) 'code)))
+              (error 'interp "a non-code object is passed to make module object")]
              [else
               (local [(define metacode (some-v (VObjectClass-mval v-code)))
                       (define global-var (MetaCode-globals metacode))

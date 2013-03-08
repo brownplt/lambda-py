@@ -173,3 +173,7 @@ ParselTongue.
   [Frame (env : Env) (class : (optionof CVal)) (self : (optionof CVal))])
 
 (define-type-alias Stack (listof ActivationRecord))
+
+;; Module is used to combine module binding name with its cooresponding object
+(define-type Modules
+  [Module (name : symbol) (object : CExpr)])
