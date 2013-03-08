@@ -40,10 +40,11 @@ class str(object):
     return ___delta("strmax", self, str)
 
   def __list__(self):
-    return ___delta("strlist", self, list)
+    l = ___delta("strlen", self, int)
+    return [self[i] for i in range(0, l)]
 
   def __tuple__(self):
-    return ___delta("str-tuple", self, tuple)
+    return tuple(self.__list__())
 
   def __int__(self):
     return ___delta("strint", self, int)

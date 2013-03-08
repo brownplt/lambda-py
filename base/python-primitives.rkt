@@ -202,8 +202,6 @@ primitives here.
     ['strmin (prim-alloc strmin (fetch-heads argvs argsptrs))]
     ['strmax (prim-alloc strmax (fetch-heads argvs argsptrs))]
     ['str-getitem (prim-alloc str-getitem (fetch-heads argvs argsptrs))]
-    ['strlist (prim-alloc strlist (fetch-heads argvs argsptrs))]
-    ['str-tuple (prim-alloc str-tuple (fetch-heads argvs argsptrs))]
     ['strslice (prim-alloc strslice (fetch-heads argvs argsptrs))]
     ['str= (prim-noalloc streq argvs)]
     ['strin (prim-noalloc strin argvs)]

@@ -25,27 +25,6 @@
     (some (MetaStr s))
     (hash empty)))
 
-(define (string->charlist [str : string]) : (listof CVal)
-  (map (lambda (s)
-         (VObject 'str
-                  (some (MetaStr (make-string 1 s)))
-                  (hash empty)))
-       (string->list str)))
-
-(define (strlist [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types-pred args env sto MetaStr?
-               (some (VObjectClass 'list
-                              (some (MetaList (string->charlist (MetaStr-s mval1))))
-                              (hash empty)
-                              (some (second args))))))
-
-(define (str-tuple [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types-pred args env sto MetaStr?
-               (some (VObjectClass 'tuple
-                              (some (MetaTuple (string->charlist (MetaStr-s mval1))))
-                              (hash empty)
-                              (some (second args))))))
-
 (define (str+ (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaStr? MetaStr?
                (some (VObjectClass 'str 
