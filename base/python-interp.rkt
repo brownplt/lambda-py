@@ -812,11 +812,12 @@
                              '__bases__ bases_w)
                             '__mro__ mro_w)
                            (none))
+                (let ([udict (alloc-result (make-under-dict h-dict env smro) smro)])
                   (hash-set 
                     (hash-set 
-                      (hash-set smro w (make-under-dict h-dict sto))
+                      (hash-set (v*s-s udict) w (v*s-v udict))
                       bases_w bases)
-                    mro_w vmro)))))))
+                    mro_w vmro))))))))
 
 ;; build-mro: merge the __mro__ of the bases using the C3 algorithm
 ;; Raises TypeError if there are duplicated bases or linearization is not possible.

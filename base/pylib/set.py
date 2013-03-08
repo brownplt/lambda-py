@@ -19,6 +19,9 @@ class set(object):
   def __list__(self):
     return ___delta("set-list", self, list)
 
+  def __str__(self):
+    return ___delta("set-str", self, str)
+
   def __bool__(self):
     return not ___delta("num=", self.__len__(), 0)
 

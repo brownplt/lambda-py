@@ -249,6 +249,7 @@ primitives here.
     ;set
     ['set-len (prim-alloc set-len (fetch-heads argvs argsptrs))]
     ['set-list (prim-alloc set-list (fetch-heads argvs argsptrs))]
+    ['set-str (prim-alloc set-str (fetch-heads argvs argsptrs))]
 
     ;object 
     ['obj-str (prim-alloc obj-str argvs)]
@@ -292,7 +293,7 @@ primitives here.
                                   (filter (lambda (p)
                                             (not (VUndefined? (fetch (cdr p) sto))))
                                           (hash->list (first (Frame-env (first stk)))))))
-                           sto)
+                           env sto)
                    (error 'locals "Empty stack in locals")))
                    sto)]
 
