@@ -123,7 +123,12 @@
 (define (desugar-excepts [exn-id : symbol] [excepts : (listof LexExpr)]) : CExpr
   (local [(define (rec-desugar-excepts es)
             (cond
-              [(empty? es) (CId exn-id (LocalId))]
+              [(empty? es) ;; exceptions other than $Reraise are reraised if not catched
+                (rec-desugar (LexIf (LexApp (LexGlobalId '%isinstance 'Load)
+                                            (list (LexLocalId exn-id 'Load)
+                                                  (LexGlobalId '$Reraise 'Load)))
+                                    (LexPass)
+                                    (LexRaise (LexLocalId exn-id 'Load))))]
               [else
                 (local [(define except (first es))
                         (define-values (body as types)
