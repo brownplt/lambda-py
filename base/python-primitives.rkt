@@ -213,6 +213,7 @@ primitives here.
     ['file-readline (file-readline args env sto)]
     ['file-write (file-write args env sto)]
     ['file-close (file-close args env sto)]
+    ['existing-file? (existing-file? args env sto)]
 
     ; super
     ['super-self (super-self stk)]
@@ -240,5 +241,4 @@ primitives here.
 
     ['compile (compile args env sto)]
     
-    [else (error 'prim (format "Missed primitive: ~a" op))]
-))
+    [else (error 'prim (format "Missed primitive: ~a" op))]))
