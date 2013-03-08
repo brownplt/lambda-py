@@ -11,9 +11,9 @@
              (CObject (CId '$module (GlobalId)) (none)))
     (CAssign (CGetField (CId sys-module-name (GlobalId)) 'path)
              (CList (CId '%list (GlobalId))
-                    (list
-                     (make-builtin-str ".")
-                     (make-builtin-str "/home/ibs/lambda-py/tests/modules"))))
+                    (map (lambda (x)
+                           (make-builtin-str x))
+                         (get-module-path))))
     (CAssign (CGetField (CId sys-module-name (GlobalId)) 'modules)
              (CDict
               (CId '%dict (GlobalId))
