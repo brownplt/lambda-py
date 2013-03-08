@@ -21,6 +21,7 @@
 (require [typed-in racket (flatten : ((listof (listof 'a) ) -> (listof 'a)))])
 (require [typed-in racket (remove-duplicates : ((listof 'a) -> (listof 'a)))])
 (require [typed-in racket (memq : ('a (listof 'a) -> (listof 'a)))])
+(require [typed-in racket (memf : (('a -> boolean) (listof 'a) -> (listof 'a)))])
 
 (require (typed-in racket/pretty (pretty-print : ('a -> 'b))))
 
@@ -250,8 +251,13 @@
                                                   (fetch-ptr (fetch-once w sto) sto)))))])
                 (if (none? thisclass)
                     mro
-                    (if (memq (some-v thisclass) mro)
-                        (rest (memq (some-v thisclass) mro))
+                    (if (memf (lambda (c) (let ([a (fetch-ptr (some-v thisclass) sto)]
+                                                [b (fetch-ptr c sto)])
+                                            (eq? a b)))
+                              mro)
+                        (rest (memf (lambda (c) (eq? (fetch-ptr (some-v thisclass) sto)
+                                                     (fetch-ptr c sto)))
+                                    mro))
                         (error 'get-mro
                           (string-append
                             (format "No member ~a in class mro " (some-v thisclass))

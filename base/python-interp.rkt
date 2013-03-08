@@ -633,7 +633,7 @@
     [else (non-ptr obj)]))
 
 (define (assign-to-field o f [value : CVal] [env : Env] [sto : Store] [stk : Stack]) : Result
-  (begin ;(display o) (display "---") (display f) (display "\n")
+  (begin ;(display o) (display "---") (display f) (display "\n") (display value) (display "\n")
   (handle-result (interp-env o env sto stk)
     (lambda (vo so)
          (obj-ptr-match vo so
@@ -901,8 +901,8 @@
        (local ([define w_self (hash-ref (VObjectClass-dict obj) '__self__)]
                [define self (fetch-ptr (fetch-once (some-v w_self) sto) sto)]
                [define thisclass (fetch-once (some-v (hash-ref (VObjectClass-dict obj)
-                                                          '__thisclass__))
-                                        sto)])
+                                                                '__thisclass__))
+                                              sto)])
          (cond
            [(and (VObjectClass? self) (equal? (VObjectClass-antecedent self) 'type))
             ;; obj.self is a class

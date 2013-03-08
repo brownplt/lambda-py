@@ -155,6 +155,10 @@ primitives here.
     (append (take l1 (- (length l1) 1)) (list (last l2))))
   (define (prim-or-none f args)
     (type-case (optionof CVal) (f args env sto)
+      [some (v)(v*s v sto)]
+      [none () (alloc-result vnone sto)]))
+  (define (prim-or-none-stk f args)
+    (type-case (optionof CVal) (f args)
       [some (v) (v*s v sto)]
       [none () (alloc-result vnone sto)]))
   (define (prim-update f to-update args)
@@ -277,7 +281,7 @@ primitives here.
 
     ; super
     ['super-self (alloc-result (some-v (super-self stk)) sto)]
-    ['super-thisclass (alloc-result (some-v (super-thisclass stk)) sto)]
+    ['super-thisclass (prim-or-none-stk super-thisclass stk)]
 
     ; Returns the class of the given object
     ['$class (v*s (get-class (first argvs) env sto) sto)]
