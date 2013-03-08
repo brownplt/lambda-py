@@ -22,7 +22,7 @@
 
 (define (list-len (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaList?
-               (some (VObjectClass 'num
+               (some (VObjectClass 'int
                               (some (MetaNum (length (MetaList-v mval1))))
                               (hash empty)
                               (some (second args))))))

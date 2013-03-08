@@ -21,16 +21,20 @@
                         'file
                         (list 'object)
                         (CNone)))
-             
-             (def 'file '__init__
-                  (CFunc (list 'self 'path 'mode) (none)
-                         (CAssign
-                           (CId 'self (LocalId))
+
+             (def 'file '__new__
+                  (CFunc (list 'self) (some 'args)
+                         (CReturn
                            (CBuiltinPrim 'file-open
                                          (list
-                                           (CId 'path (LocalId))
-                                           (CId 'mode (LocalId)))))
+                                           (py-getitem 'args 0)
+                                           (py-getitem 'args 1))))
                          (some 'file)))
+             
+             (def 'file '__init__
+                  (CFunc (list 'self) (some 'args)
+                         (CNone)
+                         (some 'int)))
 
              (def 'file 'read
                   (CFunc (list 'self) (some 'args)
@@ -106,7 +110,7 @@
                             (string-append line "\n")))))))
 
 (define (file-write [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'file 'str
+  (check-types-pred args env sto MetaPort? MetaStr?
                (begin
                  (write-string (MetaStr-s mval2) (MetaPort-p mval1))
                  (some vnone))))

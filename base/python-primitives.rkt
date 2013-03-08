@@ -23,6 +23,7 @@
          (typed-in racket/base (car : (('a * 'b) -> 'a)))
          (typed-in racket/base (cdr : (('a * 'b) -> 'b)))
          (typed-in racket/list (take : ((listof 'a) number -> (listof 'a))))
+         (typed-in racket/list (drop : ((listof 'a) number -> (listof 'a))))
          (typed-in racket/list (last : ((listof 'a) -> 'a)))
          (typed-in racket/base (hash->list : ((hashof 'a 'b) -> (listof ('a * 'b))))))
 
@@ -70,7 +71,8 @@ primitives here.
 (define (num* args env sto)
         (if (and (some? (VObjectClass-mval (second args)))
                  (MetaStr? (some-v (VObjectClass-mval (second args)))))
-            (str* (reverse args) env sto)
+            (str* (append (reverse args) (list (fetch-once (some-v (lookup '%str env)) sto)))
+                  env sto)
             (check-types-pred args env sto MetaNum? MetaNum? 
                          (some (VObject 'num (some (MetaNum 
                                                     (* (MetaNum-n mval1) 
@@ -192,20 +194,20 @@ primitives here.
     ['num-str (prim-alloc num-str argvs)]
 
     ;string
-    ['str+ (prim-alloc str+ argvs)]
-    ['str= (prim-alloc streq argvs)]
-    ['str* (prim-alloc str* argvs)]
-    ['strcmp (prim-alloc strcmp argvs)]
-    ['strlen (prim-alloc strlen argvs)]
-    ['strbool (prim-alloc strbool argvs)]
-    ['strint (prim-alloc strint argvs)]
-    ['strmin (prim-alloc strmin argvs)]
-    ['strmax (prim-alloc strmax argvs)]
-    ['strin (prim-alloc strin argvs)]
-    ['str-getitem (prim-alloc str-getitem argvs)]
-    ['strlist (prim-alloc strlist argvs)]
-    ['str-tuple (prim-alloc str-tuple argvs)]
-    ['strslice (prim-alloc strslice argvs)]
+    ['str+ (prim-alloc str+ (fetch-heads argvs argsptrs))]
+    ['str* (prim-alloc str* (fetch-heads argvs argsptrs))]
+    ['strcmp (prim-alloc strcmp (fetch-heads argvs argsptrs))]
+    ['strlen (prim-alloc strlen (fetch-heads argvs argsptrs))]
+    ['strint (prim-alloc strint (fetch-heads argvs argsptrs))]
+    ['strmin (prim-alloc strmin (fetch-heads argvs argsptrs))]
+    ['strmax (prim-alloc strmax (fetch-heads argvs argsptrs))]
+    ['str-getitem (prim-alloc str-getitem (fetch-heads argvs argsptrs))]
+    ['strlist (prim-alloc strlist (fetch-heads argvs argsptrs))]
+    ['str-tuple (prim-alloc str-tuple (fetch-heads argvs argsptrs))]
+    ['strslice (prim-alloc strslice (fetch-heads argvs argsptrs))]
+    ['str= (prim-noalloc streq argvs)]
+    ['strin (prim-noalloc strin argvs)]
+    ['strbool (prim-noalloc strbool (fetch-heads argvs argsptrs))]
 
     ;list
     ['list+ (prim-alloc list+ (fetch-heads argvs argsptrs))]
@@ -234,7 +236,8 @@ primitives here.
     ['dict-str (prim-alloc dict-str (fetch-heads argvs argsptrs))]
     ['dict-keys (prim-alloc dict-keys (fetch-heads argvs argsptrs))]
     ['dict-values (prim-alloc dict-values (fetch-heads argvs argsptrs))]
-    ['dict-items (prim-alloc dict-items (fetch-heads argvs argsptrs))]
+    ['dict-items (prim-alloc dict-items (append (take argvs (- (length argvs) 2))
+                                                (drop argsptrs (- (length argsptrs) 2))))]
     ['dict->list (prim-alloc dict->list (fetch-heads argvs argsptrs))]
     ['dict-init (prim-alloc dict-init (fetch-heads argvs argsptrs))]
     ['dict-getitem (prim-or-none dict-getitem argvs)]
@@ -247,13 +250,13 @@ primitives here.
 
     ;set
     ['set-len (prim-alloc set-len (fetch-heads argvs argsptrs))]
-    ['set-eq (prim-alloc set-eq (fetch-heads argvs argsptrs))]
     ['set-sub (prim-alloc set-sub (fetch-heads argvs argsptrs))]
     ['set-and (prim-alloc set-and (fetch-heads argvs argsptrs))]
     ['set-or (prim-alloc set-or (fetch-heads argvs argsptrs))]
     ['set-xor (prim-alloc set-xor (fetch-heads argvs argsptrs))]
     ['set-list (prim-alloc set-list (fetch-heads argvs argsptrs))]
     ['set-in (prim-noalloc set-in argvs)]
+    ['set-eq (prim-noalloc set-eq argvs)]
 
     ;object 
     ['obj-str (prim-alloc obj-str argvs)]

@@ -43,7 +43,7 @@
      (type-case MetaVal (some-v mv)
       [MetaTuple (vals)
        (some
-        (VObjectClass 'num
+        (VObjectClass 'int
                       (some (MetaNum (length vals)))
                       (hash empty)
                       (some (second args))))]

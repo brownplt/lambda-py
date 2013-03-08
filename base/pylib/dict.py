@@ -31,7 +31,10 @@ class dict(object):
     return ___delta("dict-clear", self)
 
   def update(self, *other):
-    return ___delta("dict-update", self, other)
+    if ___delta("num=", other.__len__(), 0):
+      pass
+    else:
+      return ___delta("dict-update", self, other.__getitem__(0))
 
   def keys(self):
     return ___delta("dict-keys", self, set)

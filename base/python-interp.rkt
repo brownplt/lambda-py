@@ -884,7 +884,7 @@
                             [env : Env] 
                             [sto : Store]) : Result
   (begin ;(display "GET-OBJ: ") (display fld) (display "\n\n"); (display " ") (display obj)
-         ;(display " ") (display objptr) (display "\n")
+         ;(display " ") (display (fetch-ptr objptr sto)) (display "\n")
   (let ([obj (fetch-ptr objptr sto)])
     (cond
       ;; for method objects, __call__ attribute is the object itself

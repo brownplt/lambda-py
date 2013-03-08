@@ -29,7 +29,7 @@
 
 (define (dict-len (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaDict?
-               (some (VObjectClass 'num
+               (some (VObjectClass 'int
                               (some (MetaNum (length (hash-keys (MetaDict-contents mval1)))))
                               (hash empty)
                               (some (second args))))))
@@ -74,25 +74,17 @@
                  (none))))))
 
 (define (dict-update (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types-pred args env sto MetaDict?
-               (let ([starargs (MetaTuple-v (some-v (VObjectClass-mval (second args))))])
-                 (cond
-                  ;; only work when the argument is a dict, it should handle pair iterators.
-                  [(and (= 1 (length starargs)) 
-                        (VObjectClass? (first starargs)) 
-                        (some? (VObjectClass-mval (first starargs)))
-                        (MetaDict? (some-v (VObjectClass-mval (first starargs)))))
-                   (let ([target (MetaDict-contents mval1)]
-                         [extras (MetaDict-contents (some-v (VObjectClass-mval (first starargs))))])
-                     (begin
-                       (map (lambda (pair)
-                              (hash-set! target (car pair) (cdr pair)))
-                            (hash->list extras))
-                       (some vnone)))]
-                  [(= 0 (length starargs))
-                   (some vnone)]
-                  [else
-                   (none)]))))
+  (check-types-pred args env sto MetaDict? MetaDict?
+                    (let ([target (MetaDict-contents mval1)]
+                          [extras (MetaDict-contents mval2)])
+                      (begin
+                        ;; TODO(Sumner): Since the contents of a MetaDict are now VPointers
+                        ;; even if they point to the same thing the racket hash doesn't know
+                        ;; and adds new mappings. Fix this!
+                        (map (lambda (pair)
+                               (hash-set! target (car pair) (cdr pair)))
+                             (hash->list extras))
+                        (some vnone)))))
 
 (define (dict-keys (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaDict?

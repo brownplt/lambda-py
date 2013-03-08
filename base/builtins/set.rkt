@@ -23,7 +23,7 @@
 
 (define (set-len (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaSet?
-               (some (VObjectClass 'num
+               (some (VObjectClass 'int
                               (some (MetaNum (length (set->list (MetaSet-elts mval1)))))
                               (hash empty)
                               (some (second args))))))
