@@ -416,14 +416,14 @@
              (handle-result (interp-env value env sto stk)
                (lambda (vv sv) (Return vv sv)))]
 
-    [CPrim1 (prim arg)
+    [CPrim1 (prim arg) 
             (handle-result (interp-env arg env sto stk)
-              (lambda (varg sarg) 
+              (lambda (varg sarg)
                    (case prim
                      ['Not (if (truthy? varg sarg)
-                             (v*s false-val sarg)
-                             (v*s true-val sarg))]
-                     [else (v*s (python-prim1 prim (fetch-ptr varg sarg)) sarg)])))]
+                             (alloc-result false-val sarg)
+                             (alloc-result true-val sarg))]
+                     [else (alloc-result (python-prim1 prim (fetch-ptr varg sarg)) sarg)])))]
 
     [CWhile (body test orelse) (interp-while body test orelse env sto stk)]
 
