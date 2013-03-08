@@ -70,7 +70,7 @@ primitives here.
 (define (num* args env sto)
         (if (and (some? (VObjectClass-mval (second args)))
                  (MetaStr? (some-v (VObjectClass-mval (second args)))))
-            (some-v (str* (reverse args) env sto))
+            (str* (reverse args) env sto)
             (check-types-pred args env sto MetaNum? MetaNum? 
                          (some (VObject 'num (some (MetaNum 
                                                     (* (MetaNum-n mval1) 
@@ -145,6 +145,10 @@ primitives here.
 (define (builtin-prim [op : symbol] [argsptrs : (listof CVal)] 
                       [env : Env] [sto : Store] [stk : Stack]) : Result
   (local [
+  (define (prim-error msg op args)
+    (mk-exception 'TypeError
+      (string-append msg (string-append (symbol->string op) (format " ~a" args)))
+      sto))
   (define (fetch-heads l1 l2)
     (append (take l1 (- (length l1) 1)) (list (last l2))))
   (define (prim-or-none f args)
@@ -157,23 +161,19 @@ primitives here.
         (type-case CVal to-update
           [VPointer (a) (v*s v (hash-set sto a v))]
           [else
-           (mk-exception 'TypeError
-            (format "Non-ptr (update): ~a" (cons op args)) sto)])]
+            (prim-error "Non-ptr (update): " op args)])]
       [none ()
-       (mk-exception 'TypeError
-        (format "Bad prim (update): ~a" (cons op args)) sto)]))
+        (prim-error "Bad prim (update): " op args)]))
   (define (prim-noalloc f args)
     (type-case (optionof CVal) (f args env sto)
       [some (v) (v*s v sto)]
       [none ()
-       (mk-exception 'TypeError
-        (format "Bad prim (noalloc): ~a" (cons op args)) sto)]))
+        (prim-error "Bad prim (noalloc): " op args)]))
   (define (prim-alloc f args)
     (type-case (optionof CVal) (f args env sto)
       [some (v) (alloc-result v sto)]
       [none ()
-       (mk-exception 'TypeError
-        (format "Bad prim (alloc): ~a" (cons op args)) sto)]))
+        (prim-error "Bad prim (alloc): " op args)]))
    ]
   (let ([argvs (map (lambda (a) (fetch-ptr a sto)) argsptrs)])
   (case op
@@ -209,6 +209,8 @@ primitives here.
 
     ;list
     ['list+ (prim-alloc list+ (fetch-heads argvs argsptrs))]
+    ['list-extend
+      (prim-update list+ (first argsptrs) (list (first argvs) (second argvs) (third argsptrs)))]
     ['list-len (prim-alloc list-len (fetch-heads argvs argsptrs))]
     ['list-in (prim-noalloc list-in argvs)]
     ['list-init (prim-alloc list-in (fetch-heads argvs argsptrs))]

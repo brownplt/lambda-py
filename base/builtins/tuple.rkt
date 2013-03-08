@@ -62,5 +62,5 @@
                         (some (MetaStr
                                 (pretty-metaval mval1)))
                         (hash empty)
-                        (second args)))))
+                        (some (second args))))))
 

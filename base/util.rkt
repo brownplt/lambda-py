@@ -250,7 +250,12 @@
                                                   (fetch-ptr (fetch-once w sto) sto)))))])
                 (if (none? thisclass)
                     mro
-                    (rest (memq (some-v thisclass) mro))))]
+                    (if (memq (some-v thisclass) mro)
+                        (rest (memq (some-v thisclass) mro))
+                        (error 'get-mro
+                          (string-append
+                            (format "No member ~a in class mro " (some-v thisclass))
+                              (to-string mro))))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
                                             (pretty cls)))]))
 

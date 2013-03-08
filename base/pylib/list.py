@@ -73,7 +73,7 @@ class list(object):
     return cmpresult.__eq__(0)
 
   def extend(self, other):
-    self = self.__add__(other)
+    ___delta("list-extend", self, other, self.__class__)
 
   def append(self, other):
     self.extend([other])
