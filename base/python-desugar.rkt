@@ -161,21 +161,6 @@
     (rec-desugar-excepts excepts)))
 
 
-;;; desugar import name as asname to
-;;; asname = __import__('name')
-;;; desugar-import-py will 
-(define (desugar-leximport names asnames) : LexExpr
-  (local [(define (desugar-leximport/rec names asnames)
-            (cond [(empty? names) (list)]
-                  [else
-                   (append
-                    (list (LexAssign
-                           (list (LexGlobalId (first asnames) 'Store))
-                           (LexApp (LexGlobalId '__import__ 'Load)
-                                  (list (LexStr (first names))))))
-                    (desugar-leximport/rec (rest names) (rest asnames))
-                    )]))]
-         (LexSeq (desugar-leximport/rec names asnames))))
 
 #|  
 
@@ -576,8 +561,7 @@
                                                        desugared-slice)
                                                  (none))))]
                      [else (error 'desugar "We don't know how to delete identifiers yet.")]))]
-      [LexImport (names asnames) 
-                 (rec-desugar (desugar-leximport names asnames))]
+      
 
       [LexImportFrom (module names asnames level) (rec-desugar (LexPass))]
                    ;(rec-desugar (desugar-importfrom-py module names asnames level) global? env opt-class)]       
