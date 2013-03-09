@@ -155,7 +155,7 @@ primitives here.
     (append (take l1 (- (length l1) 1)) (list (last l2))))
   (define (prim-or-none f args)
     (type-case (optionof CVal) (f args env sto)
-      [some (v)(v*s v sto)]
+      [some (v) (v*s v sto)]
       [none () (alloc-result vnone sto)]))
   (define (prim-or-none-stk f args)
     (type-case (optionof CVal) (f args)
@@ -189,11 +189,11 @@ primitives here.
     ['num/ (prim-alloc num/ argvs)]
     ['num// (prim-alloc num// argvs)]
     ['num% (prim-alloc num% argvs)]
-    ['num= (prim-alloc num= argvs)]
-    ['num> (prim-alloc num> argvs)]
-    ['num< (prim-alloc num< argvs)]
-    ['num>= (prim-alloc num>= argvs)]
-    ['num<= (prim-alloc num<= argvs)]
+    ['num= (prim-noalloc num= argvs)]
+    ['num> (prim-noalloc num> argvs)]
+    ['num< (prim-noalloc num< argvs)]
+    ['num>= (prim-noalloc num>= argvs)]
+    ['num<= (prim-noalloc num<= argvs)]
     ['numcmp (prim-alloc numcmp argvs)]
     ['num-str (prim-alloc num-str argvs)]
 
@@ -244,7 +244,8 @@ primitives here.
     ['dict->list (prim-alloc dict->list (fetch-heads argvs argsptrs))]
     ['dict-init (prim-alloc dict-init (fetch-heads argvs argsptrs))]
     ['dict-getitem (prim-or-none dict-getitem argvs)]
-    ['dict-setitem (prim-noalloc dict-setitem (fetch-heads argvs argsptrs))]
+    ['dict-setitem (prim-update dict-setitem (first argsptrs)
+                                (list (first argvs) (second argsptrs) (third argsptrs)))]
     ['dict-delitem (prim-noalloc dict-delitem argvs)]
     ['dict-clear (prim-noalloc dict-clear argvs)]
     ['dict-in (prim-noalloc dict-in argvs)]

@@ -28,7 +28,12 @@ class dict(object):
     return ___delta("dict-in", self, other)
 
   def __eq__(self, other):
-    return dicteq(self, other)
+    if self.__len__() != other.__len__():
+      return False
+    for x in self:
+      if self.__getitem__(x) != other.__getitem__(x):
+        return False
+    return True
 
   def clear(self):
     return ___delta("dict-clear", self)

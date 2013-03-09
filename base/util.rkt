@@ -387,17 +387,35 @@
         (set-box! n (add1 (unbox n)))
         (string->symbol (string-append (number->string (unbox n)) "var" ))))))
 
-(define true-val
-  (VObject
-    'bool
-    (some (MetaNum 1))
-    (hash empty)))
+(define dummy 'dummy)
+(define true-val dummy)
+(define (renew-true env sto)
+  (if (eq? true-val dummy)
+      (local [(define with-class
+                (VObjectClass 'bool (some (MetaNum 1)) (hash empty)
+                              (fetch-once (some-v (lookup '%bool env)) sto)))
+              (define new-true (alloc-result with-class sto))]
+        (begin
+          (set! true-val (v*s-v new-true))
+          new-true))
+      (v*s true-val sto)))
 
-(define false-val
-  (VObject
-    'bool
-    (some (MetaNum 0))
-    (hash empty)))
+(define false-val dummy)
+(define (renew-false env sto)
+  (if (eq? false-val dummy)
+      (local [(define with-class
+                (VObjectClass 'bool (some (MetaNum 0)) (hash empty)
+                              (fetch-once (some-v (lookup '%bool env)) sto)))
+              (define new-false (alloc-result with-class sto))]
+        (begin
+          (set! false-val (v*s-v new-false))
+          new-false))
+      (v*s false-val sto)))
+
+(define (reset-state)
+  (begin
+    (set! true-val dummy)
+    (set! false-val dummy)))
 
 (define (get-optionof-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : (optionof CVal)
   (begin ;(display n) (display " -- ") (display c) (display "\n") (display e) (display "\n\n")

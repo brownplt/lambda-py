@@ -72,7 +72,6 @@ that calls the primitive `print`.
                      "pylib/filter.py"
                      "pylib/any.py"
                      "pylib/all.py"
-                     "pylib/dicteq.py"
                      "pylib/import.py"
                      "pylib/file.py"
                      "pylib/isinstance.py"

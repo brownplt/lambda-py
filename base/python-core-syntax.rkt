@@ -80,15 +80,12 @@ ParselTongue.
 (define-type-alias Address number)
 (define Address->string number->string)
 (define-type-alias Store (hashof Address CVal))
-(define-values (new-loc reset-loc)
+(define new-loc
   (let ([n (box 0)])
-    (values
-      (lambda ()
-        (begin
-          (set-box! n (add1 (unbox n)))
-          (unbox n)))
-      (lambda ()
-        (set-box! n 0)))))
+    (lambda ()
+      (begin
+        (set-box! n (add1 (unbox n)))
+        (unbox n)))))
 
 (define-type Result
   [v*s (v : CVal) (s : Store)]

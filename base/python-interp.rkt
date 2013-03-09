@@ -261,10 +261,8 @@
                 (handle-result prelude-r
                   (lambda (v s) (interp-env body env s stk))))]
     
-    ;; TODO(joe): These should *not* alloc every time, this is an intermediate
-    ;; state for uniformly representing objects with VPointers
-    [CTrue () (alloc-result true-val sto)]
-    [CFalse () (alloc-result false-val sto)]
+    [CTrue () (renew-true env sto)]
+    [CFalse () (renew-false env sto)]
     [CNone () (alloc-result vnone sto)]
     [CUndefined () (v*s (VUndefined) sto)]
 
@@ -421,15 +419,15 @@
               (lambda (varg sarg)
                    (case prim
                      ['Not (if (truthy? varg sarg)
-                             (alloc-result false-val sarg)
-                             (alloc-result true-val sarg))]
-                     [else (alloc-result (python-prim1 prim (fetch-ptr varg sarg)) sarg)])))]
+                             (v*s false-val sarg)
+                             (v*s true-val sarg))]
+                     [else (v*s (python-prim1 prim (fetch-ptr varg sarg)) sarg)])))]
 
     [CWhile (body test orelse) (interp-while body test orelse env sto stk)]
 
     [CPrim2 (prim arg1 arg2) (interp-cprim2 prim arg1 arg2 sto env stk)]
     
-    [CBuiltinPrim (op args)
+    [CBuiltinPrim (op args) 
                   (type-case ResultList (interp-cascade args sto env stk)
                    [Abnormal (r) r]
                    [v*s/list (result-list new-s)
@@ -444,7 +442,8 @@
                        ;(display "\nValue is: ") (display (fetch-ptr vexpr sexpr))
                        ;(display "\n\n")
                        (cond
-                         [(and (is-obj-ptr? vexpr sexpr) (object-is? (fetch-ptr vexpr sexpr) 'BaseException env sexpr))
+                         [(and (is-obj-ptr? vexpr sexpr)
+                               (object-is? (fetch-ptr vexpr sexpr) 'BaseException env sexpr))
                           (Exception vexpr sexpr)]
                          [else (mk-exception 'TypeError
                                              "exceptions must derive from BaseException"
@@ -728,6 +727,7 @@
   (mk-exception 'SyntaxError "'continue' outside loop" sto))
 
 (define (interp expr)
+  (begin (reset-state)
   (type-case Result (interp-env expr (list (hash empty)) (hash empty) empty)
     [v*s (vexpr sexpr) (display "")]
     [Return (vexpr sexpr)
@@ -752,7 +752,7 @@
                                                    #t)
                                  "")))] 
     [Exception (vexpr sexpr)
-               (raise-user-error (string-append (pretty-exception vexpr sexpr #t) ""))]))
+               (raise-user-error (string-append (pretty-exception vexpr sexpr #t) ""))])))
 
 (define (truthy? [val : CVal] sto) : boolean
   (type-case CVal val
@@ -773,7 +773,6 @@
              (lambda (varg2 sarg2) 
                   (case prim
                     ;; Handle Is, IsNot, In, NotIn
-                    ;; NOTE(joe): true/false/none will fail here, fix
                     ['Is (if (is? varg1 varg2 sarg2)
                           (v*s true-val sarg2)
                           (v*s false-val sarg2))]

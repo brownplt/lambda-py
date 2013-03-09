@@ -208,7 +208,6 @@
             (bind 'any (CUndefined))
             (bind 'range (CUndefined))
             (bind 'filter (CUndefined))
-            (bind 'dicteq (CUndefined))
             (bind 'isinstance (CUndefined))
             (bind '%isinstance (CUndefined))
             (bind 'tuple (CUndefined))
