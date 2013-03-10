@@ -47,6 +47,11 @@
                                        (make-builtin-num -1)))
                          (some 'object)))
 
+             (def 'object '__bool__
+                  (CFunc (list) (some 'self)
+                         (CReturn (CTrue))
+                         (some 'object)))
+
              (def 'object '__gt__
                   (CFunc (list 'self 'other) (none)
                          (CLet '_cmpresult (LocalId)

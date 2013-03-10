@@ -2,6 +2,8 @@ class bool(int):
   def __new__(self, *args):
     if ___delta("num=", args.__len__(), 0):
       return False
+    elif ___delta("is-func?", args.__getitem__(0)):
+      return True
     else:
       return args.__getitem__(0).__bool__()
 

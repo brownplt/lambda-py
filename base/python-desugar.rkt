@@ -378,7 +378,7 @@
 
       [LexUnaryOp (op operand)
                   (case op
-                    ['Not (CPrim1 'Not (CApp (CGetField (desugar operand) '__bool__) (list) (none)))]
+                    ['Not (CPrim1 'Not (CApp (CId '%bool (GlobalId)) (list (desugar operand)) (none)))]
                     ['USub (rec-desugar (LexBinOp (LexNum 0) 'Sub operand))]
                     ['UAdd (rec-desugar (LexBinOp (LexNum 0) 'Add operand))]
                     ['Invert (local [(define roperand (rec-desugar operand))]

@@ -59,6 +59,11 @@ primitives here.
     [(print) (begin (print arg) arg)]
     [(callable) (callable arg)]))
 
+(define (is-func? argvs env sto)
+  (cond
+    [(VClosure? (first argvs)) (some true-val)]
+    [else (some false-val)]))
+
 (define (num+ args env sto)
   (check-types-pred args env sto MetaNum? MetaNum? 
                         (some (make-builtin-numv (+ (MetaNum-n mval1) 
@@ -262,6 +267,9 @@ primitives here.
 
     ;object 
     ['obj-str (prim-alloc obj-str argvs)]
+
+    ;function
+    ['is-func? (prim-alloc is-func? argvs)]
 
     ;exceptions
     ['exception-str (alloc-result 

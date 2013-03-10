@@ -17,5 +17,7 @@ class type(object):
         raise TypeError("__init__() should return None")
     return obj
 
+  def __bool__(self): return True
+
 ___assign("%type", type)
 
