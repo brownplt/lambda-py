@@ -1,8 +1,9 @@
 class dict(object):
-  def __init__(self, d):
+  def __init__(self, *d):
     self.__internaldict__ = []
-    for pair in d:
-      self.__setitem__(pair[0], pair[1])
+    if len(d) > 0:
+      for pair in ___delta("tuple-getitem", d, 0):
+        self.__setitem__(pair[0], pair[1])
 
   def __len__(self):
     result = 0

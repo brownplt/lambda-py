@@ -223,8 +223,7 @@ primitives here.
     ['list-extend
       (prim-update list+ (first argsptrs) (list (first argvs) (second argvs) (third argsptrs)))]
     ['list-len (prim-alloc list-len (fetch-heads argvs argsptrs))]
-    ['list-in (prim-noalloc list-in argvs)]
-    ['list-init (prim-alloc list-in (fetch-heads argvs argsptrs))]
+    ['list-init (prim-alloc list-init (fetch-heads argvs argsptrs))]
     ['list-getitem (prim-or-none list-getitem argvs)]
     ['list-remove
       (prim-update list-remove (first argsptrs) (list (first argvs) (second argvs) (third argsptrs)))]

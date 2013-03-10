@@ -11,3 +11,4 @@
    (and get-field-from-cls)
 [] mk-exception and pretty-exception are not pointerized
 [] What's going on with classes inheriting from object?
+[] list-init seems to not understand that self is a cls
