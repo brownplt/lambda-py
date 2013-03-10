@@ -3,7 +3,9 @@
 (require "../python-core-syntax.rkt"
          "../util.rkt"
          "num.rkt"
-         "none.rkt")
+         "none.rkt"
+         (typed-in racket/list (take : ((listof 'a) number -> (listof 'a))))
+         (typed-in racket/list (drop : ((listof 'a) number -> (listof 'a)))))
 
 (define (make-builtin-list [l : (listof CVal)] [class : CVal]) : CVal
   (VObjectClass 'list
@@ -83,6 +85,16 @@
                                      (third args)
                                      (MetaList-v mval1))
                        (fourth args)))))
+
+(define (list-remove [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
+  (check-types-pred args env sto MetaList? MetaNum?
+               (some (make-builtin-list
+                       (append (take (MetaList-v mval1)
+                                     (MetaNum-n mval2))
+                               (drop (MetaList-v mval1)
+                                     (add1 (MetaNum-n mval2))))
+                       (third args)))))
+
 
 (define (list-init [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (let ([obj (first args)])

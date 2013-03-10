@@ -70,6 +70,7 @@ that calls the primitive `print`.
                      "pylib/range.py"
                      "pylib/seq_iter.py"
                      "pylib/filter.py"
+                     "pylib/map.py"
                      "pylib/any.py"
                      "pylib/all.py"
                      "pylib/import.py"

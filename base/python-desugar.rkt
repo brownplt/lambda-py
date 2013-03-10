@@ -378,6 +378,7 @@
 
       [LexUnaryOp (op operand)
                   (case op
+                    ['Not (CPrim1 'Not (CApp (CGetField (desugar operand) '__bool__) (list) (none)))]
                     ['USub (rec-desugar (LexBinOp (LexNum 0) 'Sub operand))]
                     ['UAdd (rec-desugar (LexBinOp (LexNum 0) 'Add operand))]
                     ['Invert (local [(define roperand (rec-desugar operand))]
@@ -443,9 +444,22 @@
 
       [LexReturn (value) (CReturn (rec-desugar value))]
       
-      [LexDict (keys values) (CDict (CId '%dict (GlobalId))
-                                    (lists->hash (map rec-desugar keys)
-                                                 (map rec-desugar values)))]
+      [LexDict (keys values)
+       (local [
+        (define (pairs->tupleargs keys values)
+          (cond
+            [(empty? keys) empty]
+            [(cons? keys)
+             (cons (CTuple (CId '%tuple (GlobalId))
+                           (list (rec-desugar (first keys))
+                                 (rec-desugar (first values))))
+                   (pairs->tupleargs (rest keys) (rest values)))]))
+        ]
+        (CApp (CId '%dict (GlobalId))
+          (list
+            (CList (CId '%list (GlobalId))
+                   (pairs->tupleargs keys values)))
+          (none)))]
       [LexSet (elts) (CSet (CId '%set (GlobalId)) (map rec-desugar elts))]
       [LexList (values) (CList (CId '%list (GlobalId)) (map rec-desugar values))]
       [LexTuple (values) (CTuple (CId '%tuple (GlobalId)) (map rec-desugar values))]

@@ -67,6 +67,13 @@ class tuple(object):
     cmpresult = self.__cmp__(other)
     return cmpresult.__eq__(0)
 
+  def __hash__(self):
+    hashes = map(lambda elt: elt.__hash__(), self)
+    result = 43
+    for h in hashes:
+      result += h * 17
+    return result
+
   def __list__(self):
     return SeqIter(self).__list__()
 

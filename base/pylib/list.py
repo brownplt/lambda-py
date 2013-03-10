@@ -84,5 +84,13 @@ class list(object):
   def append(self, other):
     self.extend([other])
 
+  def remove(self, other):
+    removed = False
+    for x in range(0, len(self)):
+      if ___delta("list-getitem", self, x) == other:
+        removed = True
+        ___delta("list-remove", self, x)
+    raise ValueError('list.remove(x): x not in list')
+
 ___assign("%list", list)
 

@@ -25,7 +25,12 @@ class str(object):
     return SeqIter(self)
 
   def __eq__(self, other):
+    if not (type(other) == str):
+      return False
     return ___delta("str=", self, other)
+
+  def __hash__(self):
+    return ___delta("str-hash", self, int)
 
   def __cmp__(self, other):
     return ___delta("strcmp", self, other, int)

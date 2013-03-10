@@ -149,6 +149,19 @@
                     (hash empty)
                     (some (third args))))))
 
+(define (hash-a-str str)
+  (let* ([chars (string->list str)]
+         [ints (map (lambda (c) (* (char->integer c) 37)) chars)])
+   (foldl + 0 ints)))
+
+(define (str-hash [args : (listof CVal)] [env : Env] [sto : Store])
+  : (optionof CVal)
+  (check-types-pred args env sto MetaStr?
+    (some (VObjectClass 'num
+            (some (MetaNum (hash-a-str (MetaStr-s mval1))))
+            (hash empty)
+            (some (second args))))))
+
 ;; compute a slice of a string, should have 4 args, the string and 3 nums for
 ;; the start, end and step size of the slice
 (define (strslice [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
