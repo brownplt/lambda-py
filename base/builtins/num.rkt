@@ -210,6 +210,10 @@
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
                          (some 'num)))
+             (def 'num '__hash__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CId 'self (LocalId)))
+                         (some 'num)))
              (def 'num '__cmp__
                   (CFunc (list 'self 'other) (none)
                          (CReturn (CBuiltinPrim 'numcmp

@@ -10,3 +10,4 @@
 [] What's going on with method is-equals and allocation in get-field-from-obj
    (and get-field-from-cls)
 [] mk-exception and pretty-exception are not pointerized
+[] What's going on with classes inheriting from object?

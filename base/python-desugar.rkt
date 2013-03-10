@@ -161,21 +161,6 @@
     (rec-desugar-excepts excepts)))
 
 
-;;; desugar import name as asname to
-;;; asname = __import__('name')
-;;; desugar-import-py will 
-(define (desugar-leximport names asnames) : LexExpr
-  (local [(define (desugar-leximport/rec names asnames)
-            (cond [(empty? names) (list)]
-                  [else
-                   (append
-                    (list (LexAssign
-                           (list (LexGlobalId (first asnames) 'Store))
-                           (LexApp (LexGlobalId '__import__ 'Load)
-                                  (list (LexStr (first names))))))
-                    (desugar-leximport/rec (rest names) (rest asnames))
-                    )]))]
-         (LexSeq (desugar-leximport/rec names asnames))))
 
 #|  
 
@@ -378,6 +363,7 @@
 
       [LexUnaryOp (op operand)
                   (case op
+                    ['Not (CPrim1 'Not (CApp (CId '%bool (GlobalId)) (list (desugar operand)) (none)))]
                     ['USub (rec-desugar (LexBinOp (LexNum 0) 'Sub operand))]
                     ['UAdd (rec-desugar (LexBinOp (LexNum 0) 'Add operand))]
                     ['Invert (local [(define roperand (rec-desugar operand))]
@@ -443,9 +429,22 @@
 
       [LexReturn (value) (CReturn (rec-desugar value))]
       
-      [LexDict (keys values) (CDict (CId '%dict (GlobalId))
-                                    (lists->hash (map rec-desugar keys)
-                                                 (map rec-desugar values)))]
+      [LexDict (keys values)
+       (local [
+        (define (pairs->tupleargs keys values)
+          (cond
+            [(empty? keys) empty]
+            [(cons? keys)
+             (cons (CTuple (CId '%tuple (GlobalId))
+                           (list (rec-desugar (first keys))
+                                 (rec-desugar (first values))))
+                   (pairs->tupleargs (rest keys) (rest values)))]))
+        ]
+        (CApp (CId '%dict (GlobalId))
+          (list
+            (CList (CId '%list (GlobalId))
+                   (pairs->tupleargs keys values)))
+          (none)))]
       [LexSet (elts) (CSet (CId '%set (GlobalId)) (map rec-desugar elts))]
       [LexList (values) (CList (CId '%list (GlobalId)) (map rec-desugar values))]
       [LexTuple (values) (CTuple (CId '%tuple (GlobalId)) (map rec-desugar values))]
@@ -576,8 +575,7 @@
                                                        desugared-slice)
                                                  (none))))]
                      [else (error 'desugar "We don't know how to delete identifiers yet.")]))]
-      [LexImport (names asnames) 
-                 (rec-desugar (desugar-leximport names asnames))]
+      
 
       [LexImportFrom (module names asnames level) (rec-desugar (LexPass))]
                    ;(rec-desugar (desugar-importfrom-py module names asnames level) global? env opt-class)]       

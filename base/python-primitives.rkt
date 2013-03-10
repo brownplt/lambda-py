@@ -60,6 +60,11 @@ primitives here.
     [(print) (begin (print arg) arg)]
     [(callable) (callable arg)]))
 
+(define (is-func? argvs env sto)
+  (cond
+    [(VClosure? (first argvs)) (some true-val)]
+    [else (some false-val)]))
+
 (define (num+ args env sto)
   (check-types-pred args env sto MetaNum? MetaNum? 
                         (some (make-builtin-numv (+ (MetaNum-n mval1) 
@@ -208,6 +213,7 @@ primitives here.
     ['strmax (prim-alloc strmax (fetch-heads argvs argsptrs))]
     ['str-getitem (prim-alloc str-getitem (fetch-heads argvs argsptrs))]
     ['strslice (prim-alloc strslice (fetch-heads argvs argsptrs))]
+    ['str-hash (prim-alloc str-hash (fetch-heads argvs argsptrs))]
     ['str= (prim-noalloc streq argvs)]
     ['strin (prim-noalloc strin argvs)]
     ['strbool (prim-noalloc strbool (fetch-heads argvs argsptrs))]
@@ -220,6 +226,8 @@ primitives here.
     ['list-in (prim-noalloc list-in argvs)]
     ['list-init (prim-alloc list-in (fetch-heads argvs argsptrs))]
     ['list-getitem (prim-or-none list-getitem argvs)]
+    ['list-remove
+      (prim-update list-remove (first argsptrs) (list (first argvs) (second argvs) (third argsptrs)))]
     ['list-setitem
       (prim-update list-setitem (first argsptrs) (list (first argvs) (second argvs) (third argsptrs) (fourth argsptrs)))]
     ['list-str (prim-alloc list-str (fetch-heads argvs argsptrs))]
@@ -260,6 +268,9 @@ primitives here.
 
     ;object 
     ['obj-str (prim-alloc obj-str argvs)]
+
+    ;function
+    ['is-func? (prim-alloc is-func? argvs)]
 
     ;exceptions
     ['exception-str (alloc-result 
