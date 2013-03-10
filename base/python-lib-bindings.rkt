@@ -96,16 +96,6 @@
         (none)))
     (none)))
 
-(define print-lambda
-  (CFunc (list 'to-print) (none) 
-         (CSeq 
-          (CPrim1 'print (CApp 
-                          (CGetField (CId 'to-print (LocalId)) '__str__) 
-                          (list)
-                          (none)))
-          (CNone))
-         (none)))
-
 (define callable-lambda
   (local [(define exn-id (new-id))]
     (CFunc (list 'to-check) (none)
@@ -170,7 +160,6 @@
         (bind 'max (assign 'max max-lambda))
         (bind 'abs (assign 'abs abs-lambda))
 
-        (bind 'print (assign 'print print-lambda))
         (bind 'callable (assign 'callable callable-lambda))
         (bind 'locals (assign 'locals locals-lambda))
 
@@ -204,6 +193,7 @@
             (bind 'next (CUndefined))
             (bind 'FuncIter (CUndefined))
             (bind 'SeqIter (CUndefined))
+            (bind 'print (CUndefined))
             (bind 'all (CUndefined))
             (bind 'any (CUndefined))
             (bind 'range (CUndefined))

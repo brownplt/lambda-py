@@ -43,6 +43,7 @@ primitives here.
   (display (string-append (pretty arg) "\n")))
 
 (define (callable [arg : CVal]) : CVal 
+  (begin ;(display arg) (display "\n\n")
   (type-case CVal arg
     [VClosure (e a v b o) true-val]             
     [VObjectClass (a m d c)
@@ -51,7 +52,7 @@ primitives here.
                           true-val
                           false-val)
                       false-val)]
-    [else false-val]))
+    [else false-val])))
 
 
 (define (python-prim1 op arg)
