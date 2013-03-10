@@ -129,6 +129,11 @@ ParselTongue.
     [VPointer (a) (VObjectClass? (fetch-once a sto))]
     [else false]))
 
+(define (is-func-ptr? val sto)
+  (type-case CVal val
+    [VPointer (a) (VClosure (fetch-once a sto))]
+    [else false]))
+
 (define (fetch [w : Address] [sto : Store]) : CVal
   (local [(define val 
             (type-case (optionof CVal) (hash-ref sto w)

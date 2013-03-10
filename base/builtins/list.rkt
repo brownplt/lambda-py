@@ -42,18 +42,6 @@
                         (hash empty)
                         (some (second args))))))
 
-(define (list-in [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
- (letrec ([self-list (MetaList-v (some-v (VObjectClass-mval (first args))))]
-          [test (second args)]
-          [contains (lambda ([lst : (listof CVal)] [val : CVal]) : CVal
-                    (cond
-                     [(empty? lst) false-val]
-                     [(cons? lst)
-                       (if (equal? val (first lst))
-                         true-val
-                         (contains (rest lst) val))]))])
-   (some (contains self-list test))))
-
 (define (list-getitem (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   ; here we'll eventually need to support slicin' and dicin' bro
   (check-types-pred args env sto MetaList? MetaNum?
@@ -103,6 +91,4 @@
               (some (MetaList empty))
               (VObjectClass-dict obj)
               ;; preserve obj class pointer when set to support inheritance
-              (if (some? (VObjectClass-class obj))
-                  (VObjectClass-class obj)
-                  (some (second args)))))))
+                  (some (second args))))))

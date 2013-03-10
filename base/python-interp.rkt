@@ -79,6 +79,8 @@
                                                    (some-v 
                                                      (VObjectClass-mval 
                                                        (fetch-ptr (v*s-v sarg-r) (v*s-s sarg-r))))))]
+(begin ;(display (format "applying: ~a\n" vfun))
+       ;(display (format "starargs: ~a\n" (map (lambda (p) (fetch-ptr p (v*s-s sarg-r))) l)))
                                  (bind-and-execute 
                                    body opt-class argxs vararg 
                                    (append argvs-r (map (lambda (v)
@@ -87,7 +89,7 @@
                                    (append arges (map (lambda(x)
                                                         (make-builtin-num 0))
                                                       l))
-                                   env cenv (v*s-s sarg-r) stk)) 
+                                   env cenv (v*s-s sarg-r) stk))) 
                                (bind-and-execute
                                  body opt-class argxs vararg
                                  argvs-r arges env
@@ -118,6 +120,7 @@
                   (local [(define __call__ (get-field '__call__ vfun-ptr env sfun))]
                     (type-case Result __call__
                       [v*s (vc sc)
+                      (begin ;(display (format "Calling ~a\n" (fetch-ptr vc sc)))
                            (cond
                              ;; for bound methods use __func__ attribute and __self__
                              [(and (is-obj-ptr? vc sc) (equal? (VObjectClass-antecedent (fetch-ptr vc sc)) 'method))
@@ -139,7 +142,7 @@
                                   (interp-vclosure func m_arges stararg m_env sc stk)))]
                              [else
                                ;; for unbound methods, use function application
-                               (interp-vclosure (fetch-ptr vc sc) arges stararg env sc stk)])]
+                               (interp-vclosure (fetch-ptr vc sc) arges stararg env sc stk)]))]
                       [Return (vfun sfun) (return-exception sfun)]
                       [Break (sfun) (break-exception sfun)]
                       [Continue (sfun) (continue-exception sfun)]
@@ -585,12 +588,29 @@
 (define (global-scope? [env : Env]) : boolean
   (= (length env) 1))
 
+(define (print-class obj sto)
+  (let* ([objv (fetch-ptr obj sto)])
+    (type-case CVal objv
+      [VObjectClass (antecedent mval dict cls)
+       ;; TODO(joe): this shouldn't happen, typecheck to find out why
+       (if (VUndefined? cls)
+         "VUndefined Class"
+         (type-case (optionof CVal) cls
+           [none () "No Class"]
+           [some (v) (string-append (symbol->string antecedent)
+                      (string-append ": "
+                       (string-append (to-string (fetch-ptr v sto))
+                        (string-append "@"
+                         (to-string cls)))))]))]
+      [else "Non-VObject"])))
+
 ;; handles lookup chain for function calls on objects
 ;; multiple inheritance modification : for class lookup call get-field-from-class
 ;; optional address field added to support self aliasing in bound methods calls.
 (define (get-field [n : symbol] [cptr : CVal] [e : Env] [s : Store]) : Result
   (begin ;(display "GET: ") (display n) (display " ") (display cptr) (display "\n")
          ;(display (fetch-ptr cptr s)) (display "\n\n")
+         ;(display (print-class cptr s)) (display "\n\n")
          ;(display " ") (display w_c) (display "\n\n")
          ;(display e) (display "\n\n")
   (cond
@@ -608,8 +628,9 @@
      (get-field-from-obj n cptr (none) e s)]
     [(and (some? (VObjectClass-mval (fetch-ptr cptr s)))
           (MetaClass? (some-v (VObjectClass-mval (fetch-ptr cptr s)))))
+     (begin ;(display (format "looking up in class: ~a\n" n))
      ;; class lookup
-     (get-field-from-cls n cptr (none) e s)]
+     (get-field-from-cls n cptr (none) e s))]
     [else
       ;; instance lookup
       (type-case CVal (fetch-ptr cptr s)
@@ -619,7 +640,11 @@
                      (type-case (optionof Address) w
                        [some (w) 
                              (v*s (fetch-once w s) s)]
-                       [none () (get-field-from-obj n cptr (none) e s)])))]
+                       [none ()
+     (begin ;(display (format "looking up in obj ~a\n" n))
+      (let ([result (get-field-from-obj n cptr (none) e s)])
+        (begin #;(display (format "Got: ~a\n" (fetch-ptr (v*s-v result) (v*s-s result))))
+          result)))])))]
         [else (error 'interp "Not an object with fields.")])])))
 
 (define (obj-ptr-match obj sto if-obj non-obj non-ptr)
@@ -915,6 +940,9 @@
        (local ([define obj-cls (get-class obj env sto)])
          (type-case (optionof Address) (lookup-mro (get-mro obj-cls thisclass sto) fld sto)
            [some (w) (let ([value (fetch-once w sto)])
+                      (begin
+                        ;(display (format "Value from lookup-mro: ~a\n" (fetch-ptr value sto)))
+                        ;(display (format "on field: ~a\n" fld))
                        (cond
                          ;; For functions, create method object bound to the object itself
                          [(VClosure? (fetch-ptr value sto)) 
@@ -936,7 +964,7 @@
                                     (get-field '__func__ value env sto)]
                          ;; otherwise return the value of the attribute
                          [else 
-                          (v*s value sto)]))]
+                          (v*s value sto)])))]
            [none () (mk-exception 'AttributeError
                                   (string-append 
                                    (string-append "object " 

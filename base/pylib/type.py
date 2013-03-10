@@ -11,6 +11,9 @@ class type(object):
     pass
 
   def __call__(cls, *args):
+    if cls is type and ___delta("num=", args.__len__(), 1):
+      first_arg = ___delta("tuple-getitem", args, 0)
+      return ___delta("$class", first_arg)
     obj = cls.__new__(cls, *args)
     if isinstance(obj, cls):
       if obj.__init__(*args):

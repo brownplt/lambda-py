@@ -1,9 +1,9 @@
 
 class list(object):
-  def __new__(self, *args):
+  def __new__(cls, *args):
     if ___delta("num=", args.__len__(), 0):
       # list-init preserves the class pointer of self to support inheritance
-      return ___delta("list-init", self, list)
+      return ___delta("list-init", [], cls)
     elif ___delta("num=", args.__len__(), 1):
       other = ___delta("tuple-getitem", args, 0)
       if (type(other) == list):
