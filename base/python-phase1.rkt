@@ -85,8 +85,8 @@
                   [else
                    (append
                     (list (LexAssign
-                           (list (LexGlobalId (first asnames) 'Store))
-                           (LexApp (LexGlobalId '__import__ 'Load)
+                           (list (PyLexId (first asnames) 'Store))
+                           (LexApp (PyLexId '__import__ 'Load)
                                   (list (LexStr (first names))))))
                     (desugar-pyimport/rec (rest names) (rest asnames))
                     )]))]
