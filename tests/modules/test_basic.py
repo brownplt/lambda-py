@@ -15,4 +15,3 @@ ___assertIs(path2, sys.path)
 
 ___assertEqual(sys.__name__, "sys")
 ___assertEqual(sys2.__name__, "sys")
-

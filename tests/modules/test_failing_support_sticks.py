@@ -1,15 +1,18 @@
-# If an error occurs during importing the module, 
+# If an error occurs during importing the module,
 # the module will not be added to sys.modules
 import sys
-from support import *
+import support
 
-source = TESTFN + ".py"
+source = support.TESTFN + ".py"
 
 # generate new file
-with open(source, "w") as f:
+try:
+    f = open(source, "w")
     print("a = 1 / 0", file=f)
+except:
+    ___assertTrue(False)
 
 # import the new file, which contains a error
-___assertRaises(ZeroDivisionError, __import__, TESTFN);
+___assertRaises(ZeroDivisionError, __import__, support.TESTFN);
 # the sys.modules shouldn't contain the TESTFN
-___assertNotIn(TESTFN, sys.modules)
+___assertNotIn(support.TESTFN, sys.modules)
