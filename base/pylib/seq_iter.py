@@ -54,7 +54,10 @@ def iter(l, *args):
         try:
             return l.__iter__()
         except:
-            raise TypeError()
+            if ___delta("is-func?", l.__getitem__):
+                return SeqIter(l)
+            else:
+                raise TypeError()
 
 ___assign("%iter", iter)
 
