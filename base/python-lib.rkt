@@ -71,7 +71,6 @@ that calls the primitive `print`.
                      "pylib/seq_iter.py"
                      "pylib/print.py"
                      "pylib/filter.py"
-                     "pylib/map.py"
                      "pylib/any.py"
                      "pylib/all.py"
                      "pylib/import.py"
@@ -97,5 +96,7 @@ that calls the primitive `print`.
                              (map (lambda (b) (bind-right b)) lib-functions)
                              (get-pylib-programs)
                              (get-builtin-modules)
-                             (list (CModule-body expr))
-                             empty)))))
+                             (map (lambda (b) (bind-right b))
+                                  (list (bind 'True (assign 'True (CTrue)))
+                                        (bind 'False (assign 'False (CFalse)))))
+                             (list (CModule-body expr)))))))

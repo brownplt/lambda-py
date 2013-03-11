@@ -391,7 +391,9 @@
 (define dummy (VObjectClass 'bool (some (MetaNum 1)) (hash empty) (none)))
 (define true-val dummy)
 (define (renew-true env sto)
-  (if (eq? true-val dummy)
+  (if (or (VObjectClass? true-val)
+          (and (is-obj-ptr? true-val sto)
+               (VUndefined? (some-v (VObjectClass-class (fetch-ptr true-val sto))))))
       (local [(define with-class
                 (VObjectClass 'bool (some (MetaNum 1)) (hash empty)
                               (some (fetch-once (some-v (lookup '%bool env)) sto))))
@@ -403,7 +405,9 @@
 
 (define false-val dummy)
 (define (renew-false env sto)
-  (if (eq? false-val dummy)
+  (if (or (VObjectClass? false-val)
+          (and (is-obj-ptr? false-val sto)
+               (VUndefined? (some-v (VObjectClass-class (fetch-ptr false-val sto))))))
       (local [(define with-class
                 (VObjectClass 'bool (some (MetaNum 0)) (hash empty)
                               (some (fetch-once (some-v (lookup '%bool env)) sto))))
