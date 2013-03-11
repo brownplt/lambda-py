@@ -131,7 +131,7 @@ ParselTongue.
 
 (define (is-func-ptr? val sto)
   (type-case CVal val
-    [VPointer (a) (VClosure (fetch-once a sto))]
+    [VPointer (a) (VClosure? (fetch-once a sto))]
     [else false]))
 
 (define (fetch [w : Address] [sto : Store]) : CVal

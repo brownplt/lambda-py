@@ -264,10 +264,11 @@
                                                   (fetch-ptr (fetch-once w sto) sto)))))])
                 (if (none? thisclass)
                     mro
-                    (if (memf (lambda (c) (let ([a (fetch-ptr (some-v thisclass) sto)]
-                                                [b (fetch-ptr c sto)])
-                                            (eq? a b)))
-                              mro)
+                    (if (> (length
+                             (filter (lambda (c) (eq? (fetch-ptr (some-v thisclass) sto)
+                                                      (fetch-ptr c sto)))
+                                     mro))
+                           0)
                         (rest (memf (lambda (c) (eq? (fetch-ptr (some-v thisclass) sto)
                                                      (fetch-ptr c sto)))
                                     mro))
@@ -387,13 +388,13 @@
         (set-box! n (add1 (unbox n)))
         (string->symbol (string-append (number->string (unbox n)) "var" ))))))
 
-(define dummy 'dummy)
+(define dummy (VObjectClass 'bool (some (MetaNum 1)) (hash empty) (none)))
 (define true-val dummy)
 (define (renew-true env sto)
   (if (eq? true-val dummy)
       (local [(define with-class
                 (VObjectClass 'bool (some (MetaNum 1)) (hash empty)
-                              (fetch-once (some-v (lookup '%bool env)) sto)))
+                              (some (fetch-once (some-v (lookup '%bool env)) sto))))
               (define new-true (alloc-result with-class sto))]
         (begin
           (set! true-val (v*s-v new-true))
@@ -405,7 +406,7 @@
   (if (eq? false-val dummy)
       (local [(define with-class
                 (VObjectClass 'bool (some (MetaNum 0)) (hash empty)
-                              (fetch-once (some-v (lookup '%bool env)) sto)))
+                              (some (fetch-once (some-v (lookup '%bool env)) sto))))
               (define new-false (alloc-result with-class sto))]
         (begin
           (set! false-val (v*s-v new-false))

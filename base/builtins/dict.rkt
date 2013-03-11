@@ -15,7 +15,7 @@
 )
 
 
-(define (make-under-dict [h : (hashof symbol Address)] [env : Env] [sto : Store]) : CVal
+(define (make-under-dict [h : (hashof symbol Address)] [env : Env] [sto : Store]) : Result
   (local [(define filledhash (make-hash empty))
           (define new-sto sto)
           (define dicthash
