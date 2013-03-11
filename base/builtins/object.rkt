@@ -47,6 +47,11 @@
                                        (make-builtin-num -1)))
                          (some 'object)))
 
+             (def 'object '__bool__
+                  (CFunc (list) (some 'self)
+                         (CReturn (CTrue))
+                         (some 'object)))
+
              (def 'object '__gt__
                   (CFunc (list 'self 'other) (none)
                          (CLet '_cmpresult (LocalId)
@@ -111,7 +116,7 @@
                  [else true]))
    true))
 
-(define (obj-str (args : (listof CVal))) : (optionof CVal)
+(define (obj-str (args : (listof CVal)) env sto) : (optionof CVal)
   (local [(define o (first args))]
          (type-case CVal o
             [VObjectClass (ante mval d class)

@@ -96,16 +96,6 @@
         (none)))
     (none)))
 
-(define print-lambda
-  (CFunc (list 'to-print) (none) 
-         (CSeq 
-          (CPrim1 'print (CApp 
-                          (CGetField (CId 'to-print (LocalId)) '__str__) 
-                          (list)
-                          (none)))
-          (CNone))
-         (none)))
-
 (define callable-lambda
   (local [(define exn-id (new-id))]
     (CFunc (list 'to-check) (none)
@@ -159,9 +149,6 @@
         (bind '%int (assign '%int (CId 'int (GlobalId))))
         (bind 'float float-class)
         (bind '%float (assign '%float (CId 'float (GlobalId))))
-        (bind 'str str-class)
-        (bind '%str (assign '%str (CId 'str (GlobalId))))
-        (bind 'bool bool-class)
         (bind 'code code-class)
         (bind '$module module-class)
 
@@ -173,7 +160,6 @@
         (bind 'max (assign 'max max-lambda))
         (bind 'abs (assign 'abs abs-lambda))
 
-        (bind 'print (assign 'print print-lambda))
         (bind 'callable (assign 'callable callable-lambda))
         (bind 'locals (assign 'locals locals-lambda))
 
@@ -207,15 +193,19 @@
             (bind 'next (CUndefined))
             (bind 'FuncIter (CUndefined))
             (bind 'SeqIter (CUndefined))
+            (bind 'print (CUndefined))
             (bind 'all (CUndefined))
             (bind 'any (CUndefined))
             (bind 'range (CUndefined))
             (bind 'filter (CUndefined))
-            (bind 'dicteq (CUndefined))
             (bind 'isinstance (CUndefined))
             (bind '%isinstance (CUndefined))
             (bind 'tuple (CUndefined))
             (bind 'issubclass (CUndefined))
+            (bind 'bool (CUndefined))
+            (bind '%bool (CUndefined))
+            (bind 'str (CUndefined))
+            (bind '%str (CUndefined))
             (bind '%tuple (CUndefined))
             (bind 'list (CUndefined))
             (bind '%list (CUndefined))
@@ -228,7 +218,10 @@
             (bind 'super (CUndefined))
             (bind 'method (CUndefined))
             (bind 'open (CUndefined))
+            ;; TODO(Sumner): is %open needed?
+            ;(bind '%open (CUndefined))
             (bind 'file (CUndefined))
+            (bind '%file (CUndefined))
             (bind 'classmethod (CUndefined))
             (bind 'staticmethod (CUndefined))
             (bind '__import__ (CUndefined))

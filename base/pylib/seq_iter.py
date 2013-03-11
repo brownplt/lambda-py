@@ -2,6 +2,7 @@ class SeqIter:
     def __init__(self,l):
         self.l = l
         self.i = 0
+        self.stop = False
 
     def __len__(self):
         return len(self.l)
@@ -15,8 +16,6 @@ class SeqIter:
                 break
         return l
 
-
-
     def __iter__(self):
         return self
 
@@ -29,7 +28,10 @@ class SeqIter:
             has_length = False
 
         try:
+            if self.stop:
+                raise StopIteration()
             if has_length and self.i >= len(self.l):
+                self.stop = True
                 raise StopIteration()
             ret = self.l[self.i]
             found = True
@@ -52,7 +54,10 @@ def iter(l, *args):
         try:
             return l.__iter__()
         except:
-            raise TypeError()
+            if ___delta("is-func?", l.__getitem__):
+                return SeqIter(l)
+            else:
+                raise TypeError()
 
 ___assign("%iter", iter)
 
