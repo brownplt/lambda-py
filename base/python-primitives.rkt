@@ -245,24 +245,6 @@ primitives here.
     ['tuple-str (prim-alloc tuple-str (fetch-heads argvs argsptrs))]
     ['tuple-set (prim-alloc tuple-set (fetch-heads argvs argsptrs))]
 
-    ;dict
-    ['dict-len (prim-alloc dict-len (fetch-heads argvs argsptrs))]
-    ['dict-str (prim-alloc dict-str (fetch-heads argvs argsptrs))]
-    ['dict-keys (prim-alloc dict-keys (fetch-heads argvs argsptrs))]
-    ['dict-values (prim-alloc dict-values (fetch-heads argvs argsptrs))]
-    ['dict-items (prim-alloc dict-items (append (take argvs (- (length argvs) 2))
-                                                (drop argsptrs (- (length argsptrs) 2))))]
-    ['dict->list (prim-alloc dict->list (fetch-heads argvs argsptrs))]
-    ['dict-init (prim-alloc dict-init (fetch-heads argvs argsptrs))]
-    ['dict-getitem (prim-or-none dict-getitem argvs)]
-    ['dict-setitem (prim-update dict-setitem (first argsptrs)
-                                (list (first argvs) (second argsptrs) (third argsptrs)))]
-    ['dict-delitem (prim-noalloc dict-delitem argvs)]
-    ['dict-clear (prim-noalloc dict-clear argvs)]
-    ['dict-in (prim-noalloc dict-in argvs)]
-    ['dict-update (prim-noalloc dict-update argvs)]
-    ['dict-get (prim-or-none dict-get argvs)]
-
     ;set
     ['set-len (prim-alloc set-len (fetch-heads argvs argsptrs))]
     ['set-list (prim-alloc set-list (fetch-heads argvs argsptrs))]
