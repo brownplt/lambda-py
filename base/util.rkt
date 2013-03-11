@@ -21,6 +21,7 @@
 (require [typed-in racket (flatten : ((listof (listof 'a) ) -> (listof 'a)))])
 (require [typed-in racket (remove-duplicates : ((listof 'a) -> (listof 'a)))])
 (require [typed-in racket (memq : ('a (listof 'a) -> (listof 'a)))])
+(require [typed-in racket (memf : (('a -> boolean) (listof 'a) -> (listof 'a)))])
 
 (require (typed-in racket/pretty (pretty-print : ('a -> 'b))))
 
@@ -159,6 +160,35 @@
                     body))
         else-part)]))
 
+(define-syntax (check-types-pred x)
+  (syntax-case x ()
+    [(check-types args env sto tpred1? body)
+     (with-syntax ([mval1 (datum->syntax x 'mval1)])
+       #'(let ([arg1 (first args)])
+           (if (VObjectClass? arg1)
+               (let ([mayb-mval1 (VObjectClass-mval arg1)])
+                 (if (and (some? mayb-mval1)
+                          (tpred1? (some-v (VObjectClass-mval arg1))))
+                     (let ([mval1 (some-v mayb-mval1)])
+                       body)
+                     (none)))
+               (none))))]
+    [(check-types args env sto tpred1? tpred2? body)
+     (with-syntax ([mval1 (datum->syntax x 'mval1)]
+                   [mval2 (datum->syntax x 'mval2)])
+       #'(let ([arg1 (first args)]
+               [arg2 (second args)])
+           (if (and (VObjectClass? arg1) (VObjectClass? arg2))
+               (let ([mayb-mval1 (VObjectClass-mval arg1)]
+                     [mayb-mval2 (VObjectClass-mval arg2)])
+                 (if (and (some? mayb-mval1) (some? mayb-mval2)
+                          (tpred1? (some-v (VObjectClass-mval arg1)))
+                          (tpred2? (some-v (VObjectClass-mval arg2))))
+                     (let ([mval1 (some-v mayb-mval1)]
+                           [mval2 (some-v mayb-mval2)])
+                       body)
+                     (none)))
+               (none))))]))
 
 ;; the copypasta here is bad but we aren't clever enough with macros
 (define-syntax (check-types x)
@@ -167,7 +197,7 @@
      (with-syntax ([mval1 (datum->syntax x 'mval1)])
        #'(let ([arg1 (first args)])
            (if (and (VObjectClass? arg1)
-                (object-is? arg1 t1 env sto))
+                    (object-is? arg1 t1 env sto))
                (let ([mayb-mval1 (VObjectClass-mval arg1)])
                  (if (some? mayb-mval1)
                      (let ([mval1 (some-v mayb-mval1)])
@@ -221,7 +251,7 @@
 ;; Preseved for compatibility with check-types macro, it should be avoided for other uses.
 (define (object-is? [o : CVal] [c : symbol] [env : Env] [s : Store]) : boolean
   (let ([obj-cls (get-class o env s)]
-        [cls (fetch (some-v (lookup c env)) s)])
+        [cls (fetch-once (some-v (lookup c env)) s)])
     (member cls (get-mro obj-cls (none) s))))
 
 ;; get-mro: fetch __mro__ field as a list of classes, filtered up to thisclass if given
@@ -229,11 +259,23 @@
 (define (get-mro [cls : CVal] 
                  [thisclass : (optionof CVal)]
                  [sto : Store]) : (listof CVal)
-  (type-case (optionof Address) (hash-ref (VObjectClass-dict cls) '__mro__)
-    [some (w) (let ([mro (cons cls (MetaTuple-v (some-v (VObjectClass-mval (fetch w sto)))))])
+  (type-case (optionof Address) (hash-ref (VObjectClass-dict (fetch-ptr cls sto)) '__mro__)
+    [some (w) (let ([mro (cons cls (MetaTuple-v (some-v (VObjectClass-mval
+                                                  (fetch-ptr (fetch-once w sto) sto)))))])
                 (if (none? thisclass)
                     mro
-                    (rest (memq (some-v thisclass) mro))))]
+                    (if (> (length
+                             (filter (lambda (c) (eq? (fetch-ptr (some-v thisclass) sto)
+                                                      (fetch-ptr c sto)))
+                                     mro))
+                           0)
+                        (rest (memf (lambda (c) (eq? (fetch-ptr (some-v thisclass) sto)
+                                                     (fetch-ptr c sto)))
+                                    mro))
+                        (error 'get-mro
+                          (string-append
+                            (format "No member ~a in class mro " (some-v thisclass))
+                              (to-string mro))))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
                                             (pretty cls)))]))
 
@@ -241,22 +283,21 @@
 (define (get-class [obj : CVal] [env : Env] [sto : Store]) : CVal
   (local ([define w_class (if (some? (VObjectClass-class obj))
                               (VObjectClass-class obj)
-                              (some (fetch (some-v (lookup (VObjectClass-antecedent obj) env)) sto)))])
+                              (some (fetch-once (some-v (lookup (VObjectClass-antecedent obj) env)) sto)))])
     (type-case (optionof CVal) w_class
-      [some (cv)
-        (type-case CVal cv
-          [VPointer (a) (fetch a sto)]
-          [VObjectClass (_ __ ___ ____) cv]
-          [else (error 'get-class (string-append "bad class value: ~a" (pretty cv)))])]
+      [some (cv) cv]
       [none () (error 'get-class (string-append "object without class " 
                                                 (pretty obj)))])))
 
 
 (define (is? [v1 : CVal]
-             [v2 : CVal]) : boolean
+             [v2 : CVal]
+             [s : Store]) : boolean
   (begin
     ;(display v1) (display " ") (display v2) (display " ") (display (eq? v1 v2)) (display "\n")
-    (eq? v1 v2)))
+    (or (eq? v1 v2)
+        (and (is-obj-ptr? v1 s) (is-obj-ptr? v2 s)
+             (eq? (fetch-ptr v1 s) (fetch-ptr v2 s))))))
 
 (define (pretty arg)
   (type-case CVal arg
@@ -304,8 +345,9 @@
     [else "builtin-value"]
     ))
 
-(define (pretty-exception [exn : CVal] [sto : Store] [print-name : boolean]) : string
-  (local [(define name (symbol->string (VObjectClass-antecedent exn)))
+(define (pretty-exception [exnptr : CVal] [sto : Store] [print-name : boolean]) : string
+  (local [(define exn (fetch-ptr exnptr sto))
+          (define name (symbol->string (VObjectClass-antecedent exn)))
           (define args-loc (hash-ref (VObjectClass-dict exn) 'args))
           (define pretty-args (if (some? args-loc)
                                   (string-join 
@@ -346,17 +388,39 @@
         (set-box! n (add1 (unbox n)))
         (string->symbol (string-append (number->string (unbox n)) "var" ))))))
 
-(define true-val
-  (VObject
-    'bool
-    (some (MetaNum 1))
-    (hash empty)))
+(define dummy (VObjectClass 'bool (some (MetaNum 1)) (hash empty) (none)))
+(define true-val dummy)
+(define (renew-true env sto)
+  (if (or (VObjectClass? true-val)
+          (and (is-obj-ptr? true-val sto)
+               (VUndefined? (some-v (VObjectClass-class (fetch-ptr true-val sto))))))
+      (local [(define with-class
+                (VObjectClass 'bool (some (MetaNum 1)) (hash empty)
+                              (some (fetch-once (some-v (lookup '%bool env)) sto))))
+              (define new-true (alloc-result with-class sto))]
+        (begin
+          (set! true-val (v*s-v new-true))
+          new-true))
+      (v*s true-val sto)))
 
-(define false-val
-  (VObject
-    'bool
-    (some (MetaNum 0))
-    (hash empty)))
+(define false-val dummy)
+(define (renew-false env sto)
+  (if (or (VObjectClass? false-val)
+          (and (is-obj-ptr? false-val sto)
+               (VUndefined? (some-v (VObjectClass-class (fetch-ptr false-val sto))))))
+      (local [(define with-class
+                (VObjectClass 'bool (some (MetaNum 0)) (hash empty)
+                              (some (fetch-once (some-v (lookup '%bool env)) sto))))
+              (define new-false (alloc-result with-class sto))]
+        (begin
+          (set! false-val (v*s-v new-false))
+          new-false))
+      (v*s false-val sto)))
+
+(define (reset-state)
+  (begin
+    (set! true-val dummy)
+    (set! false-val dummy)))
 
 (define (get-optionof-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : (optionof CVal)
   (begin ;(display n) (display " -- ") (display c) (display "\n") (display e) (display "\n\n")

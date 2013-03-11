@@ -37,3 +37,5 @@ ___assertEqual(Node().__int__(), 23)
 ___assertEqual(int(Node()), 23)
 ___assertEqual(Frag().__int__(), 42)
 ___assertEqual(int(Frag()), 42)
+___assertEqual(Frag.__mro__, (Frag, Node, list, object))
+

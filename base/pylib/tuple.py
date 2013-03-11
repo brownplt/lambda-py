@@ -1,11 +1,14 @@
 
 class tuple(object):
-  def __init__(self, *args):
+  def __new__(self, *args):
     if ___delta("num=", args.__len__(), 0):
-      self = ()
+      return ()
     else:
       first_arg = ___delta("tuple-getitem", args, 0)
-      self = first_arg.__tuple__()
+      return first_arg.__tuple__()
+
+  def __init__(self, *args):
+    pass
 
   def __len__(self):
     return ___delta("tuple-len", self, int)
@@ -31,6 +34,9 @@ class tuple(object):
 
   def __str__(self):
     return ___delta("tuple-str", self, str)
+
+  def __bool__(self):
+    return not ___delta("num=", self.__len__(), 0)
 
   def __iter__(self):
     return SeqIter(self)
@@ -61,8 +67,16 @@ class tuple(object):
     cmpresult = self.__cmp__(other)
     return cmpresult.__eq__(0)
 
+  def __hash__(self):
+    for elt in self:
+      result += self.__hash__() * 17
+    return result
+
   def __list__(self):
     return SeqIter(self).__list__()
+
+  def __set__(self):
+    return ___delta("tuple-set", self, set)
 
 ___assign("%tuple", tuple)
 

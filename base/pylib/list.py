@@ -1,17 +1,20 @@
 
 class list(object):
-  def __init__(self, *args):
+  def __new__(cls, *args):
     if ___delta("num=", args.__len__(), 0):
       # list-init preserves the class pointer of self to support inheritance
-      self = ___delta("list-init", self, list)
+      return ___delta("list-init", [], cls)
     elif ___delta("num=", args.__len__(), 1):
       other = ___delta("tuple-getitem", args, 0)
       if (type(other) == list):
-        self = ___delta("list-copy", other, list)
+        return ___delta("list-copy", other, list)
       else:
-        self = other.__list__()
+        return other.__list__()
     else:
       raise TypeError("list() takes at most 1 argument")
+
+  def __init__(self, *args):
+    pass
 
   def __len__(self):
     return ___delta("list-len", self, int)
@@ -32,16 +35,22 @@ class list(object):
     return ___delta("list-set", self, set)
 
   def __in__(self, test):
-    return ___delta("list-in", self, test)
+    for elt in self:
+      if test.__eq__(elt):
+        return True
+    return False
 
   def __str__(self):
     return ___delta("list-str", self, str)
+
+  def __bool__(self):
+    return not ___delta("num=", self.__len__(), 0)
 
   def __getitem__(self, idx):
     return ___delta("list-getitem", self, idx)
 
   def __setitem__(self, idx, val):
-    self = ___delta("list-setitem", self, idx, val, list)
+    ___delta("list-setitem", self, idx, val, list)
 
   # NOTE(joe): copied code (tuple.py)
   def __cmp__(self, other):
@@ -70,10 +79,18 @@ class list(object):
     return cmpresult.__eq__(0)
 
   def extend(self, other):
-    self = self.__add__(other)
+    ___delta("list-extend", self, other, self.__class__)
 
   def append(self, other):
     self.extend([other])
+
+  def remove(self, other):
+    removed = False
+    for x in range(0, len(self)):
+      if ___delta("list-getitem", self, x) == other:
+        removed = True
+        ___delta("list-remove", self, x)
+    raise ValueError('list.remove(x): x not in list')
 
 ___assign("%list", list)
 

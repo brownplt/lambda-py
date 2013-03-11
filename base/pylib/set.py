@@ -1,10 +1,13 @@
 
 class set(object):
-  def __init__(self, *args):
+  def __new__(self, *args):
     if ___delta("num=", args.__len__(), 0):
-      self = ___emptyset()
+      return ___emptyset()
     else:
-      self = args.__getitem__(0).__set__()
+      return args.__getitem__(0).__set__()
+
+  def __init__(self, *args):
+    pass
 
   def __len__(self):
     return ___delta("set-len", self, int)
@@ -16,26 +19,65 @@ class set(object):
   def __list__(self):
     return ___delta("set-list", self, list)
 
+  def __str__(self):
+    return ___delta("set-str", self, str)
+
+  def __bool__(self):
+    return not ___delta("num=", self.__len__(), 0)
+
   def __iter__(self):
     return SeqIter(self.__list__())
 
   def __in__(self, elt):
-    return ___delta("set-in", self, elt)
+    return self.__list__().__in__(elt)
 
   def __eq__(self, other):
-    return ___delta("set-eq", self, other)
+    if self.__len__() != other.__len__():
+      return False
+    for elt in self.__list__():
+      if not other.__in__(elt):
+        return False
+    return True
 
   def __sub__(self, other):
-    return ___delta("set-sub", self, other, set)
+    result = []
+    for elt in self.__list__():
+      if not other.__in__(elt):
+        result.append(elt)
+
+    return set(result)
 
   def __and__(self, other):
-    return ___delta("set-and", self, other, set)
+    result = []
+    for elt in self.__list__():
+      if other.__in__(elt):
+        result.append(elt)
+
+    return set(result)
 
   def __or__(self, other):
-    return ___delta("set-or", self, other, set)
+    result = []
+    for elt in self.__list__():
+      # skip it the first time
+      if not other.__in__(elt):
+        result.append(elt)
+
+    for elt in other.__list__():
+      result.append(elt)
+
+    return set(result)
 
   def __xor__(self, other):
-    return ___delta("set-xor", self, other, set)
+    result = []
+    for elt in self.__list__():
+      if not other.__in__(elt):
+        result.append(elt)
+
+    for elt in other.__list__():
+      if not self.__in__(elt):
+        result.append(elt)
+
+    return set(result)
 
 ___assign("%set", set)
 

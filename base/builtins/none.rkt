@@ -12,6 +12,10 @@
                         'none
                         (list 'object)
                         (CNone)))
+             (def 'none '__bool__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CFalse))
+                         (some 'none)))
              (def 'none '__str__
                   (CFunc (list 'self) (none)
                          (CReturn (make-builtin-str "None"))

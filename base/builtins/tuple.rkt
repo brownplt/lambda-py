@@ -13,7 +13,7 @@
            (hash empty)))
 
 (define (tuple+ (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'tuple 'tuple
+  (check-types-pred args env sto MetaTuple? MetaTuple?
                (some (VObjectClass
                               'tuple
                               (some (MetaTuple
@@ -23,7 +23,7 @@
                               (some (third args))))))
 
 (define (tuple* (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'tuple 'num
+  (check-types-pred args env sto MetaTuple? MetaNum?
                (letrec ([tuple-list (MetaTuple-v mval1)]
                         [repetitions (MetaNum-n mval2)]
                         [repeat (lambda ([lst : (listof CVal)] [reps : number]) : (listof CVal)
@@ -43,7 +43,7 @@
      (type-case MetaVal (some-v mv)
       [MetaTuple (vals)
        (some
-        (VObjectClass 'num
+        (VObjectClass 'int
                       (some (MetaNum (length vals)))
                       (hash empty)
                       (some (second args))))]
@@ -52,15 +52,23 @@
 
 (define (tuple-getitem (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   ; TODO: slicing
-  (check-types args env sto 'tuple 'num
-               (some
-                 (try (list-ref (MetaTuple-v mval1) (MetaNum-n mval2))
-                      (lambda () vnone)))))
+  (check-types-pred args env sto MetaTuple? MetaNum?
+                 (try (some (list-ref (MetaTuple-v mval1) (MetaNum-n mval2)))
+                      (lambda () (none)))))
+
+(define (tuple-set (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
+  (check-types-pred args env sto MetaTuple?
+               (let ([values (MetaTuple-v mval1)])
+                    (some (VObjectClass 'set
+                                   (some (MetaSet (make-set values)))
+                                   (hash empty)
+                                   (some (second args)))))))
 
 (define (tuple-str (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'tuple
-               (some (VObject 'str
+  (check-types-pred args env sto MetaTuple?
+               (some (VObjectClass 'str
                         (some (MetaStr
                                 (pretty-metaval mval1)))
-                        (hash empty)))))
+                        (hash empty)
+                        (some (second args))))))
 
