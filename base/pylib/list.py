@@ -1,6 +1,7 @@
 
 class list(object):
   def __new__(cls, *args):
+    list = ___id("%list")
     if ___delta("num=", args.__len__(), 0):
       # list-init preserves the class pointer of self to support inheritance
       return ___delta("list-init", [], cls)
@@ -17,21 +18,27 @@ class list(object):
     pass
 
   def __len__(self):
+    int = ___id("%int")
     return ___delta("list-len", self, int)
 
   def __add__(self, other):
+    list = ___id("%list")
     return ___delta("list+", self, other, list)
 
   def __list__(self):
+    SeqIter = ___id("%SeqIter")
     return SeqIter(self).__list__()
 
   def __iter__(self):
+    SeqIter = ___id("%SeqIter")
     return SeqIter(self)
 
   def __tuple__(self):
+    tuple = ___id("%tuple")
     return ___delta("list-tuple", self, tuple)
 
   def __set__(self):
+    set = ___id("%set")
     return ___delta("list-set", self, set)
 
   def __in__(self, test):
@@ -41,6 +48,7 @@ class list(object):
     return False
 
   def __str__(self):
+    str = ___id("%str")
     return ___delta("list-str", self, str)
 
   def __bool__(self):
@@ -50,6 +58,7 @@ class list(object):
     return ___delta("list-getitem", self, idx)
 
   def __setitem__(self, idx, val):
+    list = ___id("%list")
     ___delta("list-setitem", self, idx, val, list)
 
   # NOTE(joe): copied code (tuple.py)
@@ -93,4 +102,3 @@ class list(object):
     raise ValueError('list.remove(x): x not in list')
 
 ___assign("%list", list)
-

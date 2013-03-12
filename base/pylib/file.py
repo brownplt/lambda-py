@@ -35,5 +35,4 @@ class file:
 
 ___assign('%file', file)
 ___assign('open', file)
-# TODO(Sumner): Is %open needed?
-#___assign('%open', file)
+___assign('%open', file)

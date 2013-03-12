@@ -11,6 +11,7 @@ class type(object):
     pass
 
   def __call__(cls, *args):
+    type = ___id("%type")
     if cls is type and ___delta("num=", args.__len__(), 1):
       first_arg = ___delta("tuple-getitem", args, 0)
       return ___delta("$class", first_arg)
