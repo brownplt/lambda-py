@@ -10,6 +10,7 @@ class set(object):
     pass
 
   def __len__(self):
+    int = ___id("%int")
     return ___delta("set-len", self, int)
 
   def __set__(self):
@@ -17,15 +18,18 @@ class set(object):
     return self.__list__().__set__()
 
   def __list__(self):
+    list = ___id("%list")
     return ___delta("set-list", self, list)
 
   def __str__(self):
+    str = ___id("%str")
     return ___delta("set-str", self, str)
 
   def __bool__(self):
     return not ___delta("num=", self.__len__(), 0)
 
   def __iter__(self):
+    SeqIter = ___id("%SeqIter")
     return SeqIter(self.__list__())
 
   def __in__(self, elt):
@@ -40,6 +44,7 @@ class set(object):
     return True
 
   def __sub__(self, other):
+    set = ___id("%set")
     result = []
     for elt in self.__list__():
       if not other.__in__(elt):
@@ -56,6 +61,7 @@ class set(object):
     return set(result)
 
   def __or__(self, other):
+    set = ___id("%set")
     result = []
     for elt in self.__list__():
       # skip it the first time
@@ -68,6 +74,7 @@ class set(object):
     return set(result)
 
   def __xor__(self, other):
+    set = ___id("%set")
     result = []
     for elt in self.__list__():
       if not other.__in__(elt):
@@ -80,4 +87,3 @@ class set(object):
     return set(result)
 
 ___assign("%set", set)
-

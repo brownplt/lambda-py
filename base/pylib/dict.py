@@ -1,14 +1,14 @@
 class dict(object):
   def __init__(self, *d):
     self.__internaldict__ = []
-    if len(d) > 0:
+    if d.__len__() > 0:
       for pair in ___delta("tuple-getitem", d, 0):
         self.__setitem__(pair[0], pair[1])
 
   def __len__(self):
     result = 0
     for pair in self.__internaldict__:
-      result += len(pair[1])
+      result += pair[1].__len__()
     return result
 
   def __str__(self):
@@ -30,7 +30,7 @@ class dict(object):
           if elt[0].__eq__(key):
             return elt[1]
 
-    if len(default) == 1:
+    if default.__len__() == 1:
       return default[0]
     return None
 
@@ -62,18 +62,21 @@ class dict(object):
         self.__setitem__(pair[0], pair[1])
 
   def keys(self):
+    set = ___id("%set")
     result = []
     for p in self.__list__():
       result.append(p[0]) 
     return set(result)
 
   def values(self):
+    set = ___id("%set")
     result = []
     for p in self.__list__():
       result.append(p[1]) 
     return set(result)
 
   def items(self):
+    set = ___id("%set")
     return set(self.__list__())
 
   def __getitem__(self, key):
@@ -85,12 +88,13 @@ class dict(object):
     raise KeyError(key)
 
   def __setitem__(self, key, val):
+    range = ___id("%range")
     found = False
     for elt in self.__internaldict__:
       if key.__hash__() == elt[0]:
         found = True
         found_in_lst = False
-        for i in range(0, len(elt[1])):
+        for i in range(0, elt[1].__len__()):
           if elt[1][i][0] == key:
             found_in_lst = True
             elt[1][i] = (key, val)
@@ -102,10 +106,11 @@ class dict(object):
       self.__internaldict__.append((key.__hash__(), [(key, val)]))
 
   def __delitem__(self, key):
+    range = ___id("%range")
     removed = False
     for pair in self.__internaldict__:
       if key.__hash__().__eq__(pair[0]):
-        for x in range(0, len(pair[1])): 
+        for x in range(0, pair[1].__len__()):
           if pair[1][x][0].__eq__(key):
             removed = True
             ___delta("list-remove", pair[1], x, list)
@@ -114,4 +119,3 @@ class dict(object):
       raise KeyError(key)
 
 ___assign("%dict", dict)
-

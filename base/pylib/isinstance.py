@@ -25,3 +25,5 @@ def issubclass(cls, classinfo):
         return any((issubclass(cls, c) for c in classinfo))
     else:
         raise TypeError("issubclass() arg 2 must be a class or a tuple of classes")
+
+___assign("%issubclass", issubclass)
