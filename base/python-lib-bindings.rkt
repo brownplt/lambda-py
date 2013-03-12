@@ -154,7 +154,9 @@
         (bind '$module module-class)
 
         (bind 'compile (assign 'compile compile-lambda))
+        (bind '%compile (assign '%compile (CId 'compile (GlobalId))))
         (bind 'make_module (assign 'make_module make_module-lambda))
+        (bind '%make_module (assign '%make_module (CId 'make_module (GlobalId))))
         
         (bind 'len (assign 'len len-lambda))
         (bind 'min (assign 'min min-lambda))
@@ -162,6 +164,7 @@
         (bind 'abs (assign 'abs abs-lambda))
 
         (bind 'callable (assign 'callable callable-lambda))
+        (bind '%callable (assign '%callable (CId 'callable (GlobalId))))
         (bind 'locals (assign 'locals locals-lambda))
 
         (bind 'BaseException base-exception)
@@ -198,11 +201,15 @@
             (bind 'SeqIter (CUndefined))
             (bind '%SeqIter (CUndefined))
             (bind 'print (CUndefined))
+            (bind '%print (CUndefined))
             (bind 'all (CUndefined))
+            (bind '%all (CUndefined))
             (bind 'any (CUndefined))
+            (bind '%any (CUndefined))
             (bind 'range (CUndefined))
             (bind '%range (CUndefined))
             (bind 'filter (CUndefined))
+            (bind '%filter (CUndefined))
             (bind 'isinstance (CUndefined))
             (bind '%isinstance (CUndefined))
             (bind 'tuple (CUndefined))

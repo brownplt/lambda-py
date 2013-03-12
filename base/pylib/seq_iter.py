@@ -23,14 +23,14 @@ class SeqIter:
         has_length = True
         found = False
         try:
-            len(self.l)
+            self.l.__len__()
         except AttributeError:
             has_length = False
 
         try:
             if self.stop:
                 raise StopIteration()
-            if has_length and self.i >= len(self.l):
+            if has_length and self.i >= self.l.__len__():
                 self.stop = True
                 raise StopIteration()
             ret = self.l[self.i]
@@ -49,17 +49,25 @@ class SeqIter:
 ___assign("%SeqIter", SeqIter)
 
 def iter(l, *args):
+    callable = ___id("%callable")
+    
     if len(args) == 1:
-        stopwhen = args[0]
-        return FuncIter(l, stopwhen)
-    else:
+        if callable(l):
+            stopwhen = args[0]
+            return FuncIter(l, stopwhen)
+        else:
+            TypeError("iter(v, w): v must be callable")
+    else len(args) == 0:
         try:
             return l.__iter__()
         except:
-            if ___delta("is-func?", l.__getitem__):
-                return SeqIter(l)
-            else:
-                raise TypeError()
+            try:
+                if callable(l.__getitem__):
+                    return SeqIter(l)
+            except:
+                raise TypeError("object is not iterable")
+    else:
+        raise TypeError("iter expect at most 2 arguments")
 
 ___assign("%iter", iter)
 
