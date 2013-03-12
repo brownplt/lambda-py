@@ -49,8 +49,4 @@ def range(arg1, *starargs):
     if(len(starargs) > 2):
         raise TypeError("Arity mismatch")
 
-
-
-
-
-
+___assign("%range", range)

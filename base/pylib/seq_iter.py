@@ -46,6 +46,8 @@ class SeqIter:
         else:
           return None
 
+___assign("%SeqIter", SeqIter)
+
 def iter(l, *args):
     if len(args) == 1:
         stopwhen = args[0]
@@ -63,6 +65,8 @@ ___assign("%iter", iter)
 
 def next(it):
     return it.__next__()
+
+___assign("%next", next)
 
 class FuncIter:
     def __init__(self, func, stopwhen):
@@ -88,3 +92,5 @@ class FuncIter:
             raise StopIteration()
         else:
             return v
+
+___assign("%FuncIter", FuncIter)
