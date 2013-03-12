@@ -2,6 +2,7 @@
 
 (require "python-core-syntax.rkt"
          "util.rkt"
+         "builtins/none.rkt"
          "builtins/str.rkt"
          "builtins/list.rkt"
          "builtins/tuple.rkt"
@@ -21,6 +22,9 @@
          (typed-in racket/base (remainder : (number number -> number)))
          (typed-in racket/base (car : (('a * 'b) -> 'a)))
          (typed-in racket/base (cdr : (('a * 'b) -> 'b)))
+         (typed-in racket/list (take : ((listof 'a) number -> (listof 'a))))
+         (typed-in racket/list (drop : ((listof 'a) number -> (listof 'a))))
+         (typed-in racket/list (last : ((listof 'a) -> 'a)))
          (typed-in racket/base (hash->list : ((hashof 'a 'b) -> (listof ('a * 'b))))))
 
 #|
@@ -39,6 +43,7 @@ primitives here.
   (display (string-append (pretty arg) "\n")))
 
 (define (callable [arg : CVal]) : CVal 
+  (begin ;(display arg) (display "\n\n")
   (type-case CVal arg
     [VClosure (e a v b o) true-val]             
     [VObjectClass (a m d c)
@@ -47,7 +52,7 @@ primitives here.
                           true-val
                           false-val)
                       false-val)]
-    [else false-val]))
+    [else false-val])))
 
 
 (define (python-prim1 op arg)
@@ -55,64 +60,80 @@ primitives here.
     [(print) (begin (print arg) arg)]
     [(callable) (callable arg)]))
 
-(define (builtin-prim [op : symbol] [args : (listof CVal)] 
-                      [env : Env] [sto : Store] [stk : Stack]) : (optionof CVal)
-  (case op
-    ['num+ (check-types args env sto 'num 'num 
+(define (is-func? argvs env sto)
+  (cond
+    [(VClosure? (first argvs)) (some true-val)]
+    [(and (VObjectClass? (first argvs))
+          (symbol=? (VObjectClass-antecedent (first argvs)) 'method))
+     (some true-val)]
+    [else (some false-val)]))
+
+(define (num+ args env sto)
+  (check-types-pred args env sto MetaNum? MetaNum? 
                         (some (make-builtin-numv (+ (MetaNum-n mval1) 
-                                                   (MetaNum-n mval2)))))]
-    ['num- (check-types args env sto 'num 'num 
+                                                    (MetaNum-n mval2))))))
+
+(define (num- args env sto)
+  (check-types-pred args env sto MetaNum? MetaNum? 
                         (some (make-builtin-numv (- (MetaNum-n mval1) 
-                                                   (MetaNum-n mval2)))))]
-    ['num*
+                                                   (MetaNum-n mval2))))))
+(define (num* args env sto)
         (if (and (some? (VObjectClass-mval (second args)))
                  (MetaStr? (some-v (VObjectClass-mval (second args)))))
-            (builtin-prim 'str* (reverse args) env sto stk)
-            (check-types args env sto 'num 'num 
+            (str* (append (reverse args) (list (fetch-once (some-v (lookup '%str env)) sto)))
+                  env sto)
+            (check-types-pred args env sto MetaNum? MetaNum? 
                          (some (VObject 'num (some (MetaNum 
                                                     (* (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
-                                       (hash empty)))))]
-    ['num/ (check-types args env sto 'num 'num 
+                                       (hash empty))))))
+(define (num/ args env sto)
+    (check-types-pred args env sto MetaNum? MetaNum? 
                         (some (VObject 'num (some (MetaNum 
                                                     (/ (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
-                                        (hash empty))))]
-    ['num// (check-types args env sto 'num 'num 
+                                        (hash empty)))))
+
+(define (num// args env sto)
+    (check-types-pred args env sto MetaNum? MetaNum? 
                         (some (VObject 'num (some (MetaNum 
                                                     (quotient (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
-                                        (hash empty))))]
-    ['num% (check-types args env sto 'num 'num 
+                                        (hash empty)))))
+(define (num% args env sto)
+    (check-types-pred args env sto MetaNum? MetaNum? 
                         (some (VObject 'num (some (MetaNum 
                                                     (quotient (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
-                                        (hash empty))))]
-    ['num= (check-types args env sto 'num 'num 
+                                        (hash empty)))))
+
+(define (num= args env sto)
+    (check-types-pred args env sto MetaNum? MetaNum?
                         (if (= (MetaNum-n mval1) (MetaNum-n mval2))
                           (some true-val)
-                          (some false-val)))]
-    ['num> (check-types args env sto 'num 'num 
+                          (some false-val))))
+(define (num> args env sto)
+    (check-types-pred args env sto MetaNum? MetaNum? 
                         (if (> (MetaNum-n mval1) (MetaNum-n mval2))
                           (some true-val)
-                          (some false-val)))]
-
-    ['num< (check-types args env sto 'num 'num 
+                          (some false-val))))
+(define (num< args env sto)
+    (check-types-pred args env sto MetaNum? MetaNum?
                         (if (< (MetaNum-n mval1) (MetaNum-n mval2))
                           (some true-val)
-                          (some false-val)))]
-
-    ['num>= (check-types args env sto 'num 'num 
+                          (some false-val))))
+(define (num>= args env sto)
+    (check-types-pred args env sto MetaNum? MetaNum? 
                         (if (>= (MetaNum-n mval1) (MetaNum-n mval2))
                           (some true-val)
-                          (some false-val)))]
-
-    ['num<= (check-types args env sto 'num 'num 
+                          (some false-val))))
+(define (num<= args env sto)
+    (check-types-pred args env sto MetaNum? MetaNum? 
                         (if (<= (MetaNum-n mval1) (MetaNum-n mval2))
                          (some true-val)
-                          (some false-val)))]
-    
-    ['numcmp (check-types args env sto 'num 'num
+                          (some false-val))))
+(define (numcmp args env sto)
+    (check-types-pred args env sto MetaNum? MetaNum?
                         (if (< (MetaNum-n mval1) (MetaNum-n mval2))
                             (some (VObject 'num
                                            (some (MetaNum -1))
@@ -123,122 +144,163 @@ primitives here.
                                                (hash empty)))
                                 (some (VObject 'num
                                                (some (MetaNum 0))
-                                               (hash empty))))))]
-    
-    ['num-str (let ([arg (first args)])
+                                               (hash empty)))))))
+(define (num-str args env sto)
+    (let ([arg (first args)])
             (some (VObject 'str 
                            (some (MetaStr 
                              (number->string (MetaNum-n (some-v (VObjectClass-mval
                                                                   arg))))))
-                           (hash empty))))]
+                           (hash empty)))))
+
+(define (builtin-prim [op : symbol] [argsptrs : (listof CVal)] 
+                      [env : Env] [sto : Store] [stk : Stack]) : Result
+  (local [
+  (define (prim-error msg op args)
+    (mk-exception 'TypeError
+      (string-append msg (string-append (symbol->string op) (format " ~a" args)))
+      sto))
+  (define (fetch-heads l1 l2)
+    (append (take l1 (- (length l1) 1)) (list (last l2))))
+  (define (prim-or-none f args)
+    (type-case (optionof CVal) (f args env sto)
+      [some (v) (v*s v sto)]
+      [none () (alloc-result vnone sto)]))
+  (define (prim-or-none-stk f args)
+    (type-case (optionof CVal) (f args)
+      [some (v) (v*s v sto)]
+      [none () (alloc-result vnone sto)]))
+  (define (prim-update f to-update args)
+    (type-case (optionof CVal) (f args env sto)
+      [some (v)
+        (type-case CVal to-update
+          [VPointer (a) (v*s v (hash-set sto a v))]
+          [else
+            (prim-error "Non-ptr (update): " op args)])]
+      [none ()
+        (prim-error "Bad prim (update): " op args)]))
+  (define (prim-noalloc f args)
+    (type-case (optionof CVal) (f args env sto)
+      [some (v) (v*s v sto)]
+      [none ()
+        (prim-error "Bad prim (noalloc): " op args)]))
+  (define (prim-alloc f args)
+    (type-case (optionof CVal) (f args env sto)
+      [some (v) (alloc-result v sto)]
+      [none ()
+        (prim-error "Bad prim (alloc): " op args)]))
+   ]
+  (let ([argvs (map (lambda (a) (fetch-ptr a sto)) argsptrs)])
+  (case op
+    ['num+ (prim-alloc num+ argvs)]
+    ['num- (prim-alloc num- argvs)]
+    ['num* (prim-alloc num* argvs)]
+    ['num/ (prim-alloc num/ argvs)]
+    ['num// (prim-alloc num// argvs)]
+    ['num% (prim-alloc num% argvs)]
+    ['num= (prim-noalloc num= argvs)]
+    ['num> (prim-noalloc num> argvs)]
+    ['num< (prim-noalloc num< argvs)]
+    ['num>= (prim-noalloc num>= argvs)]
+    ['num<= (prim-noalloc num<= argvs)]
+    ['numcmp (prim-alloc numcmp argvs)]
+    ['num-str (prim-alloc num-str argvs)]
+
     ;string
-    ['str+ (str+ args env sto)]
-    ['str= (streq args env sto)]
-    ['str* (str* args env sto)]
-    ['strcmp (strcmp args env sto)]
-    ['strlen (strlen args env sto)]
-    ['strbool (strbool args env sto)]
-    ['strint (strint args env sto)]
-    ['strmin (strmin args env sto)]
-    ['strmax (strmax args env sto)]
-    ['strin (strin args env sto)]
-    ['str-getitem (str-getitem args env sto)]
-    ['strlist (strlist args env sto)]
-    ['str-tuple (str-tuple args env sto)]
-    ['strslice (strslice args env sto)]
+    ['str+ (prim-alloc str+ (fetch-heads argvs argsptrs))]
+    ['str* (prim-alloc str* (fetch-heads argvs argsptrs))]
+    ['strcmp (prim-alloc strcmp (fetch-heads argvs argsptrs))]
+    ['strlen (prim-alloc strlen (fetch-heads argvs argsptrs))]
+    ['strint (prim-alloc strint (fetch-heads argvs argsptrs))]
+    ['strmin (prim-alloc strmin (fetch-heads argvs argsptrs))]
+    ['strmax (prim-alloc strmax (fetch-heads argvs argsptrs))]
+    ['str-getitem (prim-alloc str-getitem (fetch-heads argvs argsptrs))]
+    ['strslice (prim-alloc strslice (fetch-heads argvs argsptrs))]
+    ['str-hash (prim-alloc str-hash (fetch-heads argvs argsptrs))]
+    ['str= (prim-noalloc streq argvs)]
+    ['strin (prim-noalloc strin argvs)]
+    ['strbool (prim-noalloc strbool (fetch-heads argvs argsptrs))]
 
     ;list
-    ['list+ (list+ args env sto)]
-    ['list-len (list-len args env sto)]
-    ['list-in (list-in args env sto)]
-    ['list-getitem (list-getitem args env sto)]
-    ['list-setitem (list-setitem args env sto)]
-    ['list-str (list-str args env sto)]
-    ['list-set (list-set args env sto)]
-    ['list-tuple (list-tuple args env sto)]
-    ['list-copy (list-copy args env sto)]
-    ['list-init (list-init args env sto)]
+    ['list+ (prim-alloc list+ (fetch-heads argvs argsptrs))]
+    ['list-extend
+      (prim-update list+ (first argsptrs) (list (first argvs) (second argvs) (third argsptrs)))]
+    ['list-len (prim-alloc list-len (fetch-heads argvs argsptrs))]
+    ['list-init (prim-alloc list-init (fetch-heads argvs argsptrs))]
+    ['list-getitem (prim-or-none list-getitem argvs)]
+    ['list-remove
+      (prim-update list-remove (first argsptrs) (list (first argvs) (second argvs) (third argsptrs)))]
+    ['list-setitem
+      (prim-update list-setitem (first argsptrs) (list (first argvs) (second argvs) (third argsptrs) (fourth argsptrs)))]
+    ['list-str (prim-alloc list-str (fetch-heads argvs argsptrs))]
+    ['list-set (prim-alloc list-set (fetch-heads argvs argsptrs))]
+    ['list-tuple (prim-alloc list-tuple (fetch-heads argvs argsptrs))]
+    ['list-copy (prim-alloc list-copy (fetch-heads argvs argsptrs))]
 
     ;tuple
-    ['tuple+ (tuple+ args env sto)]
-    ['tuple* (tuple* args env sto)]
-    ['tuple-len (tuple-len args env sto)]
-    ['tuple-getitem (tuple-getitem args env sto)]
-    ['tuple-str (tuple-str args env sto)]
-
-    ;dict
-    ['dict-len (dict-len args env sto)]
-    ['dict-str (dict-str args env sto)]
-    ['dict-clear (dict-clear args env sto)]
-    ['dict-in (dict-in args env sto)]
-    ['dict-update (dict-update args env sto)]
-    ['dict-get (dict-get args env sto)]
-    ['dict-keys (dict-keys args env sto)]
-    ['dict-values (dict-values args env sto)]
-    ['dict-items (dict-items args env sto)]
-    ['dict-getitem (dict-getitem args env sto)]
-    ['dict-setitem (dict-setitem args env sto)]
-    ['dict-delitem (dict-delitem args env sto)]
-    ['dict->list (dict->list args env sto)]
-    ['dict-init (dict-init args env sto)]
+    ['tuple+ (prim-alloc tuple+ (fetch-heads argvs argsptrs))]
+    ['tuple* (prim-alloc tuple* (fetch-heads argvs argsptrs))]
+    ['tuple-len (prim-alloc tuple-len (fetch-heads argvs argsptrs))]
+    ['tuple-getitem (prim-or-none tuple-getitem argvs)]
+    ['tuple-str (prim-alloc tuple-str (fetch-heads argvs argsptrs))]
+    ['tuple-set (prim-alloc tuple-set (fetch-heads argvs argsptrs))]
 
     ;set
-    ['set-len (set-len args env sto)]
-    ['set-eq (set-eq args env sto)]
-    ['set-in (set-in args env sto)]
-    ['set-sub (set-sub args env sto)]
-    ['set-and (set-and args env sto)]
-    ['set-or (set-or args env sto)]
-    ['set-xor (set-xor args env sto)]
-    ['set-list (set-list args env sto)]
+    ['set-len (prim-alloc set-len (fetch-heads argvs argsptrs))]
+    ['set-list (prim-alloc set-list (fetch-heads argvs argsptrs))]
+    ['set-str (prim-alloc set-str (fetch-heads argvs argsptrs))]
 
     ;object 
-    ['obj-str (obj-str args)]
+    ['obj-str (prim-alloc obj-str argvs)]
+
+    ;function
+    ['is-func? (prim-alloc is-func? argvs)]
 
     ;exceptions
-    ['exception-str (let ([arg (first args)])
-                      (some (VObject 'str
+    ['exception-str (alloc-result 
+                     (let ([arg (first argvs)])
+                      (VObject 'str
                         (some (MetaStr
                                 (pretty-exception arg sto #f)))
-                        (hash empty))))]
+                        (hash empty)))
+                     sto)]
                             
 
     ;bool
-    ['bool-init (bool-init args env sto)]
+    ['bool-init (prim-alloc bool-init argvs)]
 
     ; file
-    ['file-open (file-open args env sto)]
-    ['file-read (file-read args env sto)]
-    ['file-readall (file-readall args env sto)]
-    ['file-readline (file-readline args env sto)]
-    ['file-write (file-write args env sto)]
-    ['file-close (file-close args env sto)]
-    ['existing-file? (existing-file? args env sto)]
+    ['file-open (prim-alloc file-open argvs)]
+    ['file-read (prim-alloc file-read argvs)]
+    ['file-readall (prim-alloc file-readall argvs)]
+    ['file-readline (prim-alloc file-readline argvs)]
+    ['file-write (prim-alloc file-write argvs)]
+    ['file-close (prim-alloc file-close argvs)]
+    ['existing-file? (prim-noalloc existing-file? argvs)]
 
     ; super
-    ['super-self (super-self stk)]
-    ['super-thisclass (super-thisclass stk)]
+    ['super-self (prim-or-none-stk super-self stk)]
+    ['super-thisclass (prim-or-none-stk super-thisclass stk)]
 
     ; Returns the class of the given object
-    ['$class
-     (some (get-class (first args) env sto))]
+    ['$class (v*s (get-class (first argvs) env sto) sto)]
 
     ['$locals (begin
                ; (display env) (display "\n\n")
                (if (> (length stk) 0) ;; it must be used inside a function
-                   (some (make-under-dict 
+                   (make-under-dict 
                            (hash
                              (map (lambda (p)
                                     (values (car p) (cdr p)))
                                   (filter (lambda (p)
                                             (not (VUndefined? (fetch (cdr p) sto))))
                                           (hash->list (first (Frame-env (first stk)))))))
-                           sto))
-                   (none)))]
+                           env sto)
+                   (error 'locals "Empty stack in locals")))]
 
-    ['code-str (code-str args env sto)]
-    ['code-globals (code-globals args env sto)]
+    ['code-str (prim-alloc code-str argvs)]
+    ['code-globals (prim-alloc code-globals argvs)]
 
-    ['compile (compile args env sto)]
+    ['compile (prim-alloc compile argvs)]
     
-    [else (error 'prim (format "Missed primitive: ~a" op))]))
+    [else (error 'prim (format "Missed primitive: ~a" op))]))))

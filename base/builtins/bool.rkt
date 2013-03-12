@@ -6,45 +6,6 @@
          "str.rkt"
          "object.rkt")
 
-(define bool-class 
-  (seq-ops (list
-             (CAssign (CId 'bool (GlobalId))
-                      (builtin-class
-                        'bool
-                        (list 'int)
-                        (CNone)))
-             
-             (def 'bool '__init__
-                  (CFunc (list 'self) (some 'args)
-                         (CAssign (CId 'self (LocalId))
-                                  (CBuiltinPrim 'bool-init
-                                                (list
-                                                 (CId 'args (LocalId)))))
-                         (some 'bool)))
-
-             (def 'bool '__str__
-                  (CFunc (list 'self) (none)
-                         (CIf (CApp (CGetField (CId 'self (LocalId)) '__eq__)
-                                    (list (make-builtin-num 1))
-                                    (none))
-                              (CReturn (make-builtin-str "True"))
-                              (CReturn (make-builtin-str "False")))
-                         (some 'bool)))
-
-             (def 'bool '__int__
-                  (CFunc (list 'self) (none)
-                         (CReturn (CApp (CGetField (CId 'self (LocalId)) '__add__) 
-                                        (list (make-builtin-num 0))
-                                        (none)))
-                         (some 'bool)))
-
-             (def 'bool '__float__
-                  (CFunc (list 'self) (none)
-                         (CReturn (CApp (CGetField (CId 'self (LocalId)) '__add__) 
-                                        (list (make-builtin-num 0.0))
-                                        (none)))
-                         (some 'bool))))))
-
 (define (make-builtin-bool [b : boolean]) : CExpr
   (if b
       (CTrue)

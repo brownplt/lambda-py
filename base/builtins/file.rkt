@@ -15,66 +15,6 @@
          (typed-in racket/base (eof-object? : ('a -> boolean)))
          (typed-in racket/base (file-exists? : ('a -> 'b))))
 
-;; (define file-class : CExpr
-;;   (seq-ops (list
-;;              (CAssign (CId 'file (GlobalId))
-;;                       (builtin-class
-;;                         'file
-;;                         (list 'object)
-;;                         (CNone)))
-
-;;              (def 'file '__init__
-;;                   (CFunc (list 'self 'path 'mode) (none)
-;;                          (CIf (CBuiltinPrim 'existing-file?
-;;                                             (list
-;;                                              (CId 'path (LocalId))))
-;;                               (CAssign
-;;                                (CId 'self (LocalId))
-;;                                (CBuiltinPrim 'file-open
-;;                                              (list
-;;                                               (CId 'path (LocalId))
-;;                                               (CId 'mode (LocalId)))))
-;;                               (CRaise
-;;                                (make-exception
-;;                                 'IOError
-;;                                 "No Such file")))
-;;                          (some 'file)))
-
-;;              (def 'file 'read
-;;                   (CFunc (list 'self) (some 'args)
-;;                          (match-varargs 'args
-;;                                         [() (CReturn (CBuiltinPrim 'file-readall
-;;                                                                    (list
-;;                                                                      (CId 'self (LocalId)))))]
-;;                                         [('size) (CReturn (CBuiltinPrim 'file-read
-;;                                                                         (list
-;;                                                                           (CId 'self (LocalId))
-;;                                                                           (CId 'size (LocalId)))))])
-;;                          (some 'file)))
-
-;;              (def 'file 'readline
-;;                   (CFunc (list 'self) (none)
-;;                          (CReturn (CBuiltinPrim 'file-readline
-;;                                                 (list
-;;                                                   (CId 'self (LocalId)))))
-;;                          (some 'file)))
-
-;;              (def 'file 'write
-;;                   (CFunc (list 'self 'data) (none)
-;;                          (CReturn (CBuiltinPrim 'file-write
-;;                                                 (list
-;;                                                   (CId 'self (LocalId))
-;;                                                   (CId 'data (LocalId)))))
-;;                          (some 'file)))
-
-;;              (def 'file 'close
-;;                   (CFunc (list 'self) (none)
-;;                          (CReturn (CBuiltinPrim 'file-close
-;;                                                 (list
-;;                                                   (CId 'self (LocalId)))))
-;;                          (some 'file)))
-;;              )))
-
 (define (file-open (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types args env sto 'str 'str
                (let ([filename (MetaStr-s mval1)]
@@ -114,7 +54,7 @@
                             (string-append line "\n")))))))
 
 (define (file-write [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'file 'str
+  (check-types-pred args env sto MetaPort? MetaStr?
                (begin
                  (write-string (MetaStr-s mval2) (MetaPort-p mval1))
                  (some vnone))))

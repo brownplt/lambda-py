@@ -1,4 +1,4 @@
-class filter:
+class filter(object):
     def __init__(self, function, iterable):
         if function:
             self.function = function
