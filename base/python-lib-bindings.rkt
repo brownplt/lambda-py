@@ -142,7 +142,6 @@
 
         (bind 'object object-class)
         (bind '%object (assign '%object (CId 'object (GlobalId))))
-        (bind 'none none-class)
         (bind 'num num-class)
         (bind '%num (assign '%num (CId 'num (GlobalId))))
         (bind 'int int-class)
@@ -188,6 +187,8 @@
       (map (lambda(b) (bind (bind-left b) (CUndefined)))
            lib-functions)
       (list 
+            (bind 'none (CUndefined))
+            (bind '%none (CUndefined))
             (bind 'iter (CUndefined))
             (bind '%iter (CUndefined))
             (bind 'next (CUndefined))

@@ -3,7 +3,6 @@
 (require "../python-core-syntax.rkt"
          "../util.rkt"
          "num.rkt"
-         "none.rkt"
          (typed-in racket/list (take : ((listof 'a) number -> (listof 'a))))
          (typed-in racket/list (drop : ((listof 'a) number -> (listof 'a)))))
 

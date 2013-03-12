@@ -3,7 +3,6 @@
 (require "../python-core-syntax.rkt")
 (require "../util.rkt"
          "str.rkt"
-         "none.rkt"
          "num.rkt"
          (typed-in "file-util.rkt"
                    (open-file : ('a string -> 'b))
