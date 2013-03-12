@@ -2,7 +2,6 @@
 
 (require "python-core-syntax.rkt"
          "util.rkt"
-         "builtins/none.rkt"
          "builtins/str.rkt"
          "builtins/list.rkt"
          "builtins/tuple.rkt"

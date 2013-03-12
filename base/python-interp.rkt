@@ -6,7 +6,6 @@
          "builtins/bool.rkt"
          "builtins/tuple.rkt"
          "builtins/num.rkt"
-         "builtins/none.rkt"
          "builtins/dict.rkt"
          "builtins/method.rkt"
          "util.rkt"

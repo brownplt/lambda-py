@@ -388,8 +388,8 @@
         (set-box! n (add1 (unbox n)))
         (string->symbol (string-append (number->string (unbox n)) "var" ))))))
 
-(define dummy (VObjectClass 'bool (some (MetaNum 1)) (hash empty) (none)))
-(define true-val dummy)
+(define truedummy (VObjectClass 'bool (some (MetaNum 1)) (hash empty) (none)))
+(define true-val truedummy)
 (define (renew-true env sto)
   (if (or (VObjectClass? true-val)
           (and (is-obj-ptr? true-val sto)
@@ -403,7 +403,8 @@
           new-true))
       (v*s true-val sto)))
 
-(define false-val dummy)
+(define falsedummy (VObjectClass 'bool (some (MetaNum 0)) (hash empty) (none)))
+(define false-val falsedummy)
 (define (renew-false env sto)
   (if (or (VObjectClass? false-val)
           (and (is-obj-ptr? false-val sto)
@@ -417,10 +418,26 @@
           new-false))
       (v*s false-val sto)))
 
+(define nonedummy (VObjectClass 'none (some (MetaNone)) (hash empty) (none)))
+(define vnone nonedummy)
+(define (renew-none env sto)
+  (if (or (VObjectClass? vnone)
+          (and (is-obj-ptr? vnone sto)
+               (VUndefined? (some-v (VObjectClass-class (fetch-ptr vnone sto))))))
+      (local [(define with-class
+                (VObjectClass 'none (some (MetaNone)) (hash empty)
+                              (some (fetch-once (some-v (lookup '%none env)) sto))))
+              (define new-false (alloc-result with-class sto))]
+        (begin
+          (set! vnone (v*s-v new-false))
+          new-false))
+      (v*s vnone sto)))
+
 (define (reset-state)
   (begin
-    (set! true-val dummy)
-    (set! false-val dummy)))
+    (set! true-val truedummy)
+    (set! false-val falsedummy)
+    (set! vnone nonedummy)))
 
 (define (get-optionof-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : (optionof CVal)
   (begin ;(display n) (display " -- ") (display c) (display "\n") (display e) (display "\n\n")

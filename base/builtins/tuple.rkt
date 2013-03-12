@@ -2,7 +2,6 @@
 
 (require "../python-core-syntax.rkt")
 (require "../util.rkt"
-         "none.rkt"
          "num.rkt"
          "list.rkt")
 (require [typed-in racket (format : (string 'a -> string))])
