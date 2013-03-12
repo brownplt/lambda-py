@@ -57,7 +57,7 @@ def iter(l, *args):
             return FuncIter(l, stopwhen)
         else:
             TypeError("iter(v, w): v must be callable")
-    else len(args) == 0:
+    elif len(args) == 0:
         try:
             return l.__iter__()
         except:
