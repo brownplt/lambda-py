@@ -73,6 +73,10 @@
                                                         (none)))))]
        [PyImport (names asnames) 
                  (desugar-pyimport names asnames)]
+       
+       [PyImportFrom (module names asnames level)
+                     (desugar-pyimportfrom module names asnames level)]
+       
        [else (default-recur)]
        )))))
 
@@ -93,6 +97,33 @@
          (LexSeq (desugar-pyimport/rec names asnames))))
 
 
+
+;;; desugar from module import name as asname
+;;; __tmp_module = __import__(module, globals(), locals(), [id], 0)
+;;; id_alias = __tmp_module.id
+;;; 
+;;;  from module import * is not available now
+(define (desugar-pyimportfrom [module : string]
+                              [names : (listof string)]
+                              [asnames : (listof symbol)]
+                              [level : number]) : LexExpr
+  (local [(define tmp-module (PyLexId '$__tmp_module 'Store))
+          (define module-expr
+            (LexAssign (list tmp-module)
+                      (LexApp (PyLexId '__import__ 'Load)
+                              (list (LexStr module)))))]
+    (cond [(not (equal? (first names) "*"))
+           (local [(define (get-bind-exprs module names asnames)
+                     (cond [(empty? names) (list)]
+                           [else
+                            (append (list (LexAssign (list (PyLexId (first asnames) 'Store))
+                                                    (LexDotField module (string->symbol (first names)))))
+                                    (get-bind-exprs module (rest names) (rest asnames)))]))
+                   (define bind-exprs
+                     (get-bind-exprs tmp-module names asnames))]
+             (LexSeq (append (list module-expr) bind-exprs)))]
+          [else ;; from module import *
+           (error 'desugar "star expression is not allowed yet.")])))
 
  
 (define (scope-phase [expr : PyExpr] ) : LexExpr
