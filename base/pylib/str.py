@@ -58,7 +58,8 @@ class str(object):
     return self.__len__() != 0
 
   def __getitem__(self, idx):
-    return ___delta("str-getitem", self, idx, str)
+    strcls = ___id("%str")
+    return ___delta("str-getitem", self, idx, strcls)
 
   def __slice__(self, lower, upper, step):
     return ___delta("strslice", self, lower, upper, step, str)
