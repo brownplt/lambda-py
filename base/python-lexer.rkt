@@ -1,7 +1,6 @@
 #lang racket
 
 (require parser-tools/lex
-	 parser-tools/yacc
          (prefix-in : parser-tools/lex-sre))
 
 #| TODO: Scan first two physical lines for encoding. |#
@@ -10,15 +9,15 @@
 #| 'Logical' refers *here* to the spec's logical newlines as well as INDENT/DEDENT tokens. |#
 #| 'Physical' refers *here* to physical newline and whitespace tokens. |#
 
-(provide lex-all get-python-lexer)
+(provide lex-all get-python-lexer empty-other-tokens empty-logical-tokens nonempty-other-tokens)
 
 (define (lex-all port)
-  (local [(define (lex-acc port acc python-lexer)
-	    (let ((token (python-lexer port)))
+  (local [(define (lex-acc acc python-lexer)
+	    (let ((token (python-lexer)))
 	      (if (equal? (token-name token) 'EOF)
 		  acc
-		  (lex-acc port (cons token acc) python-lexer))))]
-	 (reverse (lex-acc port (list) (get-python-lexer)))))
+		  (lex-acc (cons token acc) python-lexer))))]
+	 (reverse (lex-acc (list) (get-python-lexer port)))))
 
 #| LEXER PARTS AND RELATED FUNCTIONS |#
 
@@ -71,11 +70,11 @@ This only works because there are no valid source chars outside the ASCII range 
 	 (lexeme-noraw (substring lexeme (if raw 1 0)))
 	 (triple (eq? (substring lexeme-noraw 0 1) (substring lexeme-noraw 1 2)))
 	 (lexeme-no-quotes (substring lexeme-noraw 
-				     (if triple 3 1) 
-				     (- (string-length lexeme-noraw) (if triple 3 1)))))
+				      (if triple 3 1) 
+				      (- (string-length lexeme-noraw) (if triple 3 1)))))
     (if raw lexeme-no-quotes (backslash-escaped lexeme-no-quotes))))
 
-; TODO: Escapes
+					; TODO: Escapes
 (define (backslash-escaped lexeme)
   lexeme)
 
@@ -98,8 +97,8 @@ This only works because there are no valid source chars outside the ASCII range 
 	 (lexeme-no-prefix (substring lexeme (if raw 2 1)))
 	 (triple (eq? (substring lexeme-no-prefix 0 1) (substring lexeme-no-prefix 1 2)))
 	 (lexeme-no-quotes (substring lexeme-no-prefix 
-				     (if triple 3 1) 
-				     (- (string-length lexeme-no-prefix) (if triple 3 1)))))
+				      (if triple 3 1) 
+				      (- (string-length lexeme-no-prefix) (if triple 3 1)))))
     (if raw lexeme-no-quotes (backslash-escaped lexeme-no-quotes))))
 
 #| INTEGERS |#
@@ -283,7 +282,7 @@ Simple lexer, produces physical/other tokens.
    ((eof) (token-EOF))))
 
 #| Logical lexer - produces logical/other tokens using physical lexer |#
-(define (get-python-lexer)
+(define (get-python-lexer input-port)
   (local (
 
 	  #|
@@ -323,16 +322,16 @@ Simple lexer, produces physical/other tokens.
 		  [(member (token-name token) '(RP RCB RSB))
 		   (set! brace-depth (- brace-depth 1))]))
 
-#|
+	  #|
 	  (define (blab t)
-	    (display "At ") (display t) (newline)
-	    (display "Brace-depth: ") (display brace-depth) (newline)
-	    (display "State: ") (display state) (newline))
-|#
+	  (display "At ") (display t) (newline)
+	  (display "Brace-depth: ") (display brace-depth) (newline)
+	  (display "State: ") (display state) (newline))
+	  |#
 	  
 	  #| TODO: Probably rewrite as generator |#
-	  (define (get-logical-token input-port)
-	    (let ((continue (lambda () (get-logical-token input-port))))
+	  (define (get-logical-token)
+	    (let ((continue (lambda () (get-logical-token))))
 	      (case state
 		[(begin-line) 
 		 (let ((physical-token (lex input-port)))

@@ -13,7 +13,8 @@
          "run-tests.rkt"
          "util.rkt"
          "python-evaluator.rkt"
-	 "python-lexer.rkt")
+	 "python-lexer.rkt"
+	 "python-parser.rkt")
 
 (define (python-test-runner _ port)
   (run-python port))
@@ -65,6 +66,18 @@
 (define (get-lexer-tokens port)
   (lex-all port))
 
+(define (get-parse-tree input-port)
+  (parse-python (get-python-lexer input-port)))
+
+(define (run-python-nopy input-port)
+  (interp
+    (python-lib
+      (desugar
+        (new-scope-phase
+	 (get-structured-python
+	   (parse-python (get-python-lexer input-port))))))))
+
+
 (command-line
   #:once-each
   ("--interp" "Interpret stdin as python"
@@ -95,6 +108,12 @@
 
   ("--get-lex-tokens" "Get tokens from experimental lexer"
    (pretty-write (get-lexer-tokens (current-input-port))))
+
+  ("--get-parse-tree" "Get AST from experimental parser"
+   (pretty-write (get-parse-tree (current-input-port))))
+
+  ("--interp-nopy" "Interpret stdin as python"
+   (run-python-nopy (current-input-port)))
 
   
   ("--test" dirname "Run all tests in dirname"
