@@ -11,26 +11,9 @@
 
 (set-pypath "/home/joe/src/Python-3.2.3/python")
 
-(define-syntax pylam
-  (syntax-rules ()
-    [(_ (arg ...) body)
-     (CFunc (list arg ...) (none) (CReturn body) (none))]))
-
-(define-syntax pyapp
-  (syntax-rules ()
-    [(_ fun arg ...)
-     (CApp fun (list arg ...) (none))]))
-
 (define (pyget val fld)
   (pyapp (CGetField val '__getitem__)
 	 fld))
-
-(define (Id x)
-  (CId x (LocalId)))
-(define (Let x v e)
-  (CLet x (LocalId) v e))
-(define (gid x)
-  (CId x (GlobalId)))
 
 ;; Identifiers used in the headers of CPS-generated lambdas
 (define K (gensym 'next))
@@ -68,11 +51,7 @@
       (pylam (K R E B C) (pyapp (Id K) v)))
   ]
   (type-case CExpr expr
-<<<<<<< HEAD
-    [CStr (s) (const expr)]
     [CSym (s) (const expr)]
-=======
->>>>>>> 2946b3f59b9e681b94999ff4a68c437ec31f1b6e
     [CTrue () (const expr)]
     [CFalse () (const expr)]
     [CNone () (const expr)]
@@ -106,10 +85,10 @@
 	   Ki Ei Ri Bi Ci))
 	 Ri Ei Bi Ci))]
 
-    [CList (values) (error 'cps "Not written yet")]
-    [CTuple (values) (cps-list values (lambda (ids) (CTuple ids)))]
-    [CDict (contents) (error 'cps "Not written yet")]
-    [CSet (values) (error 'cps "Not written yet")]
+    [CList (cls values) (error 'cps "Not written yet")]
+    [CTuple (cls values) (cps-list values (lambda (ids) (CTuple cls ids)))]
+    [CDict (cls contents) (error 'cps "Not written yet")]
+    [CSet (cls values) (error 'cps "Not written yet")]
 
     [CLet (x typ bind body)
      (pylam (K R E B C)
@@ -191,10 +170,10 @@
               (pyapp (cps test)
                (pylam (V)
 		(CSeq
-		 (pyapp (gid 'print) (CStr "test continuation"))
+		 (pyapp (gid 'print) (CSym 'test-continuation))
                 (CIf Vi
 		  (CSeq
-		   (pyapp (gid 'print) (CStr "body of while"))
+		   (pyapp (gid 'print) (CSym 'body-of-while))
                   (pyapp (cps body)
                     (pylam (V2) (pyapp (Id '-while) Ki Ri Ei Bi Ci))
                     Ri Ei Bi Ci))
@@ -204,14 +183,14 @@
            (CAssign (Id '-continue)
             (pylam (V)
 	      (CSeq
-	       (pyapp (gid 'print) (CStr "continue continuation"))
+	       (pyapp (gid 'print) (CSym 'continue-continuation))
               (pyapp
                (Id '-while)
                Ki Ri Ei Ki ;; NOTE(joe): Break becomes the "normal" continuation Ki
                (Id '-continue)))))
            (pyapp (Id '-continue) (CSym 'nothing))))))))]
 
-    [CTryExceptElseFinally (try excepts orelse finally) (error 'cps "Not written yet")]
+    #;[CTryExceptElseFinally (try excepts orelse finally) (error 'cps "Not written yet")]
 
 
     [else (error 'cps (format "Not handled: ~a" expr))])))
@@ -225,12 +204,12 @@
               (pyapp (cps expr)
                      ; NOTE(joe): Not todo.  This is the base case of CPS
                      (pylam (V) (Id V))
-                     (pylam (V) (CRaise (some (CStr "Top-level return"))))
-                     (pylam (V) (CRaise (some (CStr "Top-level exception"))))
-                     (pylam (V) (CRaise (some (CStr "Top-level break"))))
-                     (pylam (V) (CRaise (some (CStr "Top-level continue")))))))
+                     (pylam (V) (CRaise (some (CSym 'Top-level-return))))
+                     (pylam (V) (CRaise (some (CSym 'Top-level-exception))))
+                     (pylam (V) (CRaise (some (CSym 'Top-level-break))))
+                     (pylam (V) (CRaise (some (CSym 'Top-level-continue)))))))
             (list (hash empty)) (hash empty) empty))
   ]
   (type-case Result result
-    [v*s (v s e) v]
+    [v*s (v s) v]
     [else (error 'cps-eval (format "Abnormal return: ~a" result))])))

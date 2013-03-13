@@ -784,12 +784,8 @@
     [VClosure (e a s b o) true]
     [VObjectClass (a mval d class) (truthy-object? (VObjectClass a mval d class))]
     [VUndefined () false]
-<<<<<<< HEAD
     [VSym (t) (equal? t 'true)]
-    [else (error 'truthy? "Shouldn't check truthiness of Pointer.")]))
-=======
     [VPointer (a) (truthy? (fetch-once a sto) sto)]))
->>>>>>> master
 
 (define (interp-cprim2 [prim : symbol] 
                        [arg1 : CExpr]

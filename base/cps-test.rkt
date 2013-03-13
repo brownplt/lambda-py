@@ -10,6 +10,8 @@
   "util.rkt"
   "python-cps.rkt")
 
+(display (pylam ('k) (CId 'x (LocalId))))
+
 (test (pylam ('k) (CId 'x (LocalId)))
       (CFunc (list 'k) (none)
         (CReturn (CId 'x (LocalId)))
@@ -46,20 +48,20 @@
           (pylam (K R E B C) (pyapp (Id K) (make-builtin-str "foo")))
           Ri Ri Ei Bi Ci)))
 
-(test (cps (CReturn (CReturn (CStr "foo"))))
+(test (cps (CReturn (CReturn (CSym 'foo))))
       (pylam (K R E B C)
         (pyapp
           (pylam (K R E B C)
             (pyapp
-              (pylam (K R E B C) (pyapp (Id K) (CStr "foo")))
+              (pylam (K R E B C) (pyapp (Id K) (CSym 'foo)))
               Ri Ri Ei Bi Ci))
           Ri Ri Ei Bi Ci)))
 
-(test (cps (CRaise (CStr "bar")))
+(test (cps (CRaise (CSym 'bar)))
       (pylam (K R E B C)
         (pyapp
           (pylam (K R E B C)
-            (pyapp Ki (CStr "bar")))
+            (pyapp Ki (CSym 'bar)))
           Ei Ri Ei Bi Ci)))
 
 #|
@@ -84,7 +86,7 @@
           (pylam ()
             (pyapp
               (pylam (K R E B C)
-                (pyapp Ki (CStr "else")))
+                (pyapp Ki (CSym 'else)))
               Ki Ri Ei Bi Ci))
             (CSeq
               (CAssign (Id '-while)
@@ -97,7 +99,7 @@
                        Vi
                        (pyapp
                         (pylam (K R E B C)
-                          (pyapp Ki (CStr "body")))
+                          (pyapp Ki (CSym 'body)))
                         (pylam (V)
                           (pyapp (Id '-while) Ki Ri Ei Bi Ci))
                         Ri Ei Bi Ci)
@@ -144,14 +146,14 @@
 (test (cps-eval (CWhile (CSym 'false) (CSym 'body) (CSym 'else)))
       (VSym 'else))
 
-(test (cps-eval (pyapp (gid 'print) (CStr "foo")))
+(test (cps-eval (pyapp (gid 'print) (CSym 'foo)))
       (VObjectClass 'none (some (MetaNone)) (hash empty) (none)))
 
 (define fun-expr (CApp (CFunc (list) (some 'arg)
 			      (CReturn (Id 'arg))
 			      (none))
 		       (list)
-		       (some (CTuple (list (CStr "foo-starred"))))))
+		       (some (CTuple (list (make-builtin-str "foo-starred"))))))
 
 (test (VObjectClass-mval
        (first (MetaTuple-v (some-v (VObjectClass-mval
