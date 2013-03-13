@@ -12,6 +12,7 @@
          "builtins/bool.rkt"
          "builtins/file.rkt"
          (typed-in racket/string (string-join : ((listof string) string -> string)))
+         (typed-in racket/base (format : (string 'a -> string)))
          (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (quotient : (number number -> number)))
          (typed-in racket/base (remainder : (number number -> number)))
@@ -150,20 +151,16 @@ primitives here.
     ['list-getitem (list-getitem args env sto)]
     ['list-setitem (list-setitem args env sto)]
     ['list-str (list-str args env sto)]
-    ['list-cpy (list-cpy args env sto)]
     ['list-set (list-set args env sto)]
     ['list-tuple (list-tuple args env sto)]
-    ['list-append (list-append args env sto)]
+    ['list-copy (list-copy args env sto)]
 
     ;tuple
     ['tuple+ (tuple+ args env sto)]
     ['tuple* (tuple* args env sto)]
     ['tuple-len (tuple-len args env sto)]
-    ['tuple-in (tuple-in args env sto)]
     ['tuple-getitem (tuple-getitem args env sto)]
     ['tuple-str (tuple-str args env sto)]
-    ['tuple-list (tuple-list args env sto)]
-    ['tuple-tuple (tuple-tuple args env sto)]
 
     ;dict
     ['dict-len (dict-len args env sto)]
@@ -182,7 +179,6 @@ primitives here.
     ['dict-init (dict-init args env sto)]
 
     ;set
-    ['set-set (set-set args env sto)]
     ['set-len (set-len args env sto)]
     ['set-eq (set-eq args env sto)]
     ['set-in (set-in args env sto)]
@@ -199,7 +195,7 @@ primitives here.
     ['exception-str (let ([arg (first args)])
                       (some (VObject 'str
                         (some (MetaStr
-                                (pretty-exception arg sto)))
+                                (pretty-exception arg sto #f)))
                         (hash empty))))]
                             
 
@@ -255,4 +251,5 @@ primitives here.
                  [(some? (Frame-class (first st))) (Frame-class (first st))]
                  [else (fetch-class (rest st))]))]
        (fetch-class stk))]
+    [else (error 'prim (format "Missed primitive: ~a" op))]
 ))

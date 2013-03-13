@@ -7,6 +7,7 @@
   "python-core-syntax.rkt"
   "python-interp.rkt"
   "python-lib.rkt"
+  "util.rkt"
   "python-cps.rkt")
 
 (test (pylam ('k) (CId 'x (LocalId)))
@@ -19,30 +20,30 @@
         (CReturn (CApp (Id K) (list (CId 'x (LocalId))) (none)))
         (none)))
 
-(test (cps (CSeq (CStr "foo") (CStr "bar")))
+(test (cps (CSeq (make-builtin-str "foo") (make-builtin-str "bar")))
       (pylam (K R E B C)
         (pyapp
           (pylam (K R E B C)
-            (pyapp (Id K) (CStr "foo")))
+            (pyapp (Id K) (make-builtin-str "foo")))
           (pylam (V) ;; note that V is not used
             (pyapp
-              (pylam (K R E B C) (pyapp (Id K) (CStr "bar")))
+              (pylam (K R E B C) (pyapp (Id K) (make-builtin-str "bar")))
               Ki Ri Ei Bi Ci))
           Ri Ei Bi Ci)))
 
-(test (cps (CAssign (CId 'x (GlobalId)) (CStr "woo")))
+(test (cps (CAssign (CId 'x (GlobalId)) (make-builtin-str "woo")))
       (pylam (K R E B C)
         (pyapp
           (pylam (K R E B C)
-            (pyapp (Id K) (CStr "woo")))
+            (pyapp (Id K) (make-builtin-str "woo")))
           (pylam (V)
             (pyapp (Id K) (CAssign (CId 'x (GlobalId)) Vi)))
           Ri Ei Bi Ci)))
 
-(test (cps (CReturn (CStr "foo")))
+(test (cps (CReturn (make-builtin-str "foo")))
       (pylam (K R E B C)
         (pyapp
-          (pylam (K R E B C) (pyapp (Id K) (CStr "foo")))
+          (pylam (K R E B C) (pyapp (Id K) (make-builtin-str "foo")))
           Ri Ri Ei Bi Ci)))
 
 (test (cps (CReturn (CReturn (CStr "foo"))))
@@ -182,4 +183,18 @@
 
 #;(test (cps-eval (CWhile (CSym 'true) (CSym 'body) (CSym 'else)))
       (VSym 'body))
+          
+#;(test (cps (CReturn (CReturn (make-builtin-str "foo"))))
+      (pylam (K R E B C)
+        (pyapp
+          (pylam (K R E B C)
+                  (pyapp
+                    (pylam (K R E B C) (pyapp (Id K) (make-builtin-str "foo")))
+                    Ri Ri Ei Bi Ci))
+          Ri Ri Ei Bi Ci)))
+
+;; It's a shame this doesn't work; testing full on interpretation will
+;; be more involved...
+#;(test (cps-eval (CSeq (make-builtin-str "foo") (make-builtin-str "bar")))
+      (make-builtin-str "bar"))
 

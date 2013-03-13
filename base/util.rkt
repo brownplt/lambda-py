@@ -14,6 +14,7 @@
  (typed-in racket/set (set->list : (set? -> (listof 'a))))
  (typed-in racket/set (set : ( -> set?)))
  (typed-in racket/set (set-add : (set? 'a -> set?)))
+ (typed-in racket/base (exact? : (number -> boolean)))
  
  )
 (require [typed-in racket (format : (string 'a -> string))])
@@ -21,10 +22,13 @@
 (require [typed-in racket (remove-duplicates : ((listof 'a) -> (listof 'a)))])
 (require [typed-in racket (memq : ('a (listof 'a) -> (listof 'a)))])
 
+(require (typed-in racket/pretty (pretty-print : ('a -> 'b))))
 
 (print-only-errors #t)
 
 ; a file for utility functions that aren't specific to python stuff
+(define (pprint exp)
+  (pretty-print exp))
 
 (define python-path "/usr/local/bin/python3.2")
 (define (get-pypath)
@@ -44,7 +48,7 @@
 (define (make-exception-class [name : symbol]) : CExpr
   (CClass
     name
-    (list 'Exception)
+    (list 'BaseException)
     (CNone)))
 
 (define (assign [name : symbol] [expr : CExpr]) : CExpr
@@ -102,7 +106,7 @@
 ; Example:
 ;
 ; (match-varargs 'args
-;   [() (CObject 'num (some (MetaNum 0)))]
+;   [() (CObject (gid '%num) (some (MetaNum 0)))]
 ;   [('a) (CId 'a (LocalId))]
 ;   [('a 'b) (CBuiltinPrim 'num+ (CId 'a (LocalId)) (CId 'b (LocalId)))])
 ;
@@ -142,19 +146,6 @@
                     body))
         else-part)]))
 
-;; syntactic sugars to avoid writing long expressions in the core language
-(define (py-num [n : number])
-  (CObject 'num (some (MetaNum n))))
-
-(define (py-len name)
-  (CApp (CGetField (CId name (LocalId)) '__len__)
-        (list)
-        (none)))
-
-(define (py-getitem name index)
-  (CApp (CGetField (CId name (LocalId)) '__getitem__)
-        (list (CObject 'num (some (MetaNum index))))
-        (none)))
 
 ;; the copypasta here is bad but we aren't clever enough with macros
 (define-syntax (check-types x)
@@ -162,7 +153,10 @@
     [(check-types args env sto t1 body)
      (with-syntax ([mval1 (datum->syntax x 'mval1)])
        #'(let ([arg1 (first args)])
-           (if (and (VObjectClass? arg1) (object-is? arg1 t1 env sto))
+           (if (and (VObjectClass? arg1)
+                ;; TODO(joe): what is going on here? t1 seems to always be a
+                ;; symbol, which doesn't jive with what object-is? expects
+                (object-is? arg1 t1 env sto))
                (let ([mayb-mval1 (VObjectClass-mval arg1)])
                  (if (some? mayb-mval1)
                      (let ([mval1 (some-v mayb-mval1)])
@@ -223,15 +217,6 @@
   (let ([cls (fetch (some-v (lookup c env)) s)])
     (object-is-cls? o cls env s)))
 
-;; get-mro: fetch __mro__ field as a list of classes
-;; termporarily prepended with cls to avoid self reference in __mro__
-#;(define (get-mro [cls : CVal] [sto : Store]) : (listof CVal)
-  (begin ;(display cls) (display "\n")
-  (type-case (optionof Address) (hash-ref (VObjectClass-dict cls) '__mro__)
-    [some (w) (cons cls (MetaTuple-v (some-v (VObjectClass-mval (fetch w sto)))))]
-    [none () (error 'get-mro (string-append "class without __mro__ field " 
-                                            (pretty cls)))])))
-
 ;; get-mro: fetch __mro__ field as a list of classes, filtered up to thisclass if given
 ;; and prepended with cls to avoid self reference in __mro__
 (define (get-mro [cls : CVal] 
@@ -249,9 +234,13 @@
 (define (get-class [obj : CVal] [env : Env] [sto : Store]) : CVal
   (local ([define w_class (if (some? (VObjectClass-class obj))
                               (VObjectClass-class obj)
-                              (lookup (VObjectClass-antecedent obj) env))])
-    (type-case (optionof Address) w_class
-      [some (w) (fetch w sto)]
+                              (some (fetch (some-v (lookup (VObjectClass-antecedent obj) env)) sto)))])
+    (type-case (optionof CVal) w_class
+      [some (cv)
+        (type-case CVal cv
+          [VPointer (a) (fetch a sto)]
+          [VObjectClass (_ __ ___ ____) cv]
+          [else (error 'get-class (string-append "bad class value: ~a" (pretty cv)))])]
       [none () (error 'get-class (string-append "object without class " 
                                                 (pretty obj)))])))
 
@@ -307,7 +296,7 @@
     [else "builtin-value"]
     ))
 
-(define (pretty-exception [exn : CVal] [sto : Store]) : string
+(define (pretty-exception [exn : CVal] [sto : Store] [print-name : boolean]) : string
   (local [(define name (symbol->string (VObjectClass-antecedent exn)))
           (define args-loc (hash-ref (VObjectClass-dict exn) 'args))
           (define pretty-args (if (some? args-loc)
@@ -319,17 +308,27 @@
                                                (fetch (some-v args-loc) sto)))))
                                     " ")
                                   ""))]
-    (if (not (string=? pretty-args ""))
-        (string-append name 
-                       (string-append ": "
-                                      pretty-args))
-        name)))
+    (if print-name
+        (if (not (string=? pretty-args ""))
+            (string-append name 
+                           (string-append ": "
+                                          pretty-args))
+            name)
+        pretty-args)))
 
 (define (make-exception [name : symbol] [error : string]) : CExpr
   (CApp
     (CId name (GlobalId))
-    (list (CStr error))
+    (list (make-builtin-str error))
     (none)))
+
+(define (default-except-handler [id : symbol] [body : CExpr]) : CExpr
+  (CIf (CApp (CId 'isinstance (GlobalId))
+             (list (CId id (LocalId))
+                   (CId 'BaseException (GlobalId)))
+             (none))
+       body
+       (CId id (LocalId))))
 
 ; generates a new unique variable name that isn't allowed by user code 
 (define new-id
@@ -375,3 +374,74 @@
 ;; any: any of a list of boolean (used in the c3 mro algorithm)
 (define (any [bs : (listof boolean)]) : boolean
   (foldr (lambda (e1 e2) (or e1 e2)) #f bs))
+
+
+
+;; syntactic sugars to avoid writing long expressions in the core language
+(define (py-num [n : number])
+  (CObject (gid '%num) (some (MetaNum n))))
+
+(define (py-len name)
+  (CApp (CGetField (CId name (LocalId)) '__len__)
+        (list)
+        (none)))
+
+(define (py-getitem name index)
+  (CApp (CGetField (CId name (LocalId)) '__getitem__)
+        (list (CObject (gid '%num) (some (MetaNum index))))
+        (none)))
+
+(define-syntax pylam
+  (syntax-rules ()
+    [(_ (arg ...) body)
+     (CFunc (list arg ...) (none) body (none))]))
+
+(define-syntax pyapp
+  (syntax-rules ()
+    [(_ fun arg ...)
+     (CApp fun (list arg ...) (none))]))
+
+(define (Id x)
+  (CId x (LocalId)))
+(define (gid x)
+  (CId x (GlobalId)))
+
+(define (Let id val lastbody)
+  (CLet id (LocalId) val lastbody))
+
+(define-syntax (Prim stx)
+  (syntax-case stx ()
+    [(_ op arg ...) #'(CBuiltinPrim op (list arg ...))]))
+
+(define-syntax (Method stx)
+  (syntax-case stx ()
+    [(_ obj name arg ...) #'(CApp (CGetField obj name) (list arg ...) (none))]))
+
+
+ 
+(define (make-builtin-str [s : string]) : CExpr
+  (CObject (gid '%str) (some (MetaStr s))))
+
+(define (make-builtin-num [n : number]) : CExpr
+  (CObject
+    (if (exact? n)
+        (gid '%int)
+        (gid '%float))
+    (some (MetaNum n))))
+
+(define (Num num)
+  (make-builtin-num num))
+
+(define-syntax (Construct stx)
+  (syntax-case stx ()
+    [(_ class arg ...)
+     #'(CApp (CGetField class '__init__) (list arg ...) (none))]))
+
+(test (Let 'x (CNone) (make-builtin-str "foo"))
+      (CLet 'x (LocalId) (CNone)
+        (make-builtin-str "foo")))
+
+(test (Prim 'num< (make-builtin-str "foo") (make-builtin-str "bar"))
+      (CBuiltinPrim 'num< (list (make-builtin-str "foo") (make-builtin-str "bar"))))
+
+

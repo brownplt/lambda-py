@@ -11,7 +11,6 @@
          "builtins/set.rkt"
          "builtins/none.rkt"
          "builtins/file.rkt"
-         "builtins/type.rkt"
          "builtins/method.rkt"
          "util.rkt"
          "python-lib-bindings.rkt"
@@ -22,6 +21,7 @@
          (typed-in racket/base (open-input-file : ('a -> 'b)))
          (typed-in racket/base (close-input-port : ('a -> 'b)))
          "python-syntax.rkt"
+         "python-macros.rkt"
          "python-lexical-syntax.rkt"
          "python-desugar.rkt"
          "python-phase1.rkt"
@@ -37,28 +37,42 @@ that calls the primitive `print`.
 
 |#
 
+(define pylib-programs (none))
 ;; these are builtin functions that we have written in actual python files which
 ;; are pulled in here and desugared for lib purposes
 (define (get-pylib-programs)
-  (map (lambda (file) 
-    (local [
-      (define f (open-input-file file))
-      (define pyast (parse-python/port f (get-pypath)))
-    ]
-    (begin
-      (close-input-port f)
-      (desugar 
-        (new-scope-phase
-          (get-structured-python pyast))))))
-       (list "pylib/range.py"
-             "pylib/seq_iter.py"
-             "pylib/filter.py"
-             "pylib/any.py"
-             "pylib/all.py"
-             "pylib/dicteq.py"
-             "py-prelude.py"
-            )))
-             
+  (type-case (optionof (listof CExpr)) pylib-programs
+    [none ()
+     (begin
+       (set! pylib-programs
+        (some
+          (map (lambda (file) 
+            (local [
+              (define f (open-input-file file))
+              (define pyast (parse-python/port f (get-pypath)))
+            ]
+            (begin
+              (close-input-port f)
+              (desugar 
+                (desugar-macros
+                  (new-scope-phase
+                    (get-structured-python pyast)))))))
+               (list "pylib/tuple.py"
+                     "pylib/list.py"
+                     "pylib/dict.py"
+                     "pylib/set.py"
+                     "pylib/type.py"
+                     "pylib/range.py"
+                     "pylib/seq_iter.py"
+                     "pylib/filter.py"
+                     "pylib/any.py"
+                     "pylib/all.py"
+                     "pylib/dicteq.py"
+                     "py-prelude.py"
+                    ))))
+         (some-v pylib-programs))]
+     [some (v) v]))
+                 
 
 (define-type-alias Lib (CExpr -> CExpr))
 

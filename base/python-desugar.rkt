@@ -39,14 +39,7 @@
 
 
 (define (desugar-pymodule [es : (listof LexExpr)]) : CExpr
-  (local [(define prelude
-            (rec-desugar (LexPass))
-            #;(if (not (empty? names))
-                (rec-desugar (LexSeq (map (lambda (n) (LexAssign (list (LexId n 'Load))
-                                                               (LexUndefined)))
-                                         names))
-                              g/ns-)
-                (rec-desugar (LexPass)  g/ns-)))
+  (local [(define prelude (rec-desugar (LexPass)))
           (define body (rec-desugar (LexSeq es)))]
      (CModule prelude body)))
 
@@ -74,46 +67,42 @@
       (DResult-expr body))
      (DResult-env body))))
 
-;; for the body of some local scope level like a class or function, hoist
-;; all the assignments and defs to the top as undefineds
-
 (define (desugar-for [target : LexExpr] [iter : LexExpr]
                      [body : LexExpr]) : CExpr
-  (local [(define iter-pyid (LexLocalId (new-id) 'Load))]
-
+  (local [(define iter-id (new-id))]
     (rec-desugar
-     (LexSeq
-      (list (LexAssign (list iter-pyid) (LexApp (LexGlobalId 'iter 'Load) (list iter)))
-            (LexWhile (LexBool true)
-                     (LexSeq 
-                      (list 
-                       (LexAssign (list target) (LexNone))
-                       (LexTryExceptElseFinally
-                         (LexAssign (list target) 
-                                    (LexApp (LexDotField iter-pyid '__next__) empty))
-                         (list (LexExcept (list (LexGlobalId 'StopIteration 'Load))
-                                          (LexBreak)))
-                         (LexPass)
-                         (LexPass))
-                       body))
-                     (LexPass)))))))
+     (LexLocalLet iter-id (LexApp (LexGlobalId 'iter 'Load) (list iter))
+                  (LexWhile (LexBool true)
+                            (LexSeq
+                             (list
+                              (LexTryExceptElse
+                               (LexAssign (list target)
+                                          (LexApp (LexDotField (LexLocalId iter-id 'Load)
+                                                               '__next__)
+                                                  empty))
+                               (list (LexExcept (list (LexGlobalId 'StopIteration 'Load))
+                                                (LexBreak)))
+                               (LexPass))
+                              body))
+                            (LexPass))))))
 
 (define (desugar-listcomp [body : LexExpr] [gens : (listof LexExpr)] ) : CExpr
-  (local [(define list-id (LexLocalId (new-id) 'Load))
+  (local [(define list-id (new-id))
           (define (make-comploop gens)
-            (cond 
-              [(empty? gens) (LexApp (LexDotField list-id 'append) 
-                                    (list body))]
+            (cond
+              [(empty? gens) (LexApp (LexDotField (LexLocalId list-id 'Load)
+                                                  'append)
+                                     (list body))]
               [(cons? gens)
                (LexFor (LexComprehen-target (first gens))
-                      (LexComprehen-iter (first gens))
-                      (make-comploop (rest gens)))]))
+                       (LexComprehen-iter (first gens))
+                       (make-comploop (rest gens)))]))
           (define full-expr
-            (LexSeq
-             (list 
-              (LexAssign (list list-id) (LexList empty))
-              (make-comploop gens)
-              list-id)))]
+            (LexLocalLet list-id (LexList empty)
+                         (LexSeq
+                          (list
+                           (make-comploop gens)
+                           (LexLocalId list-id 'Load)))))]
          (rec-desugar full-expr)))
 
 (define (which-scope [scp : LocalOrGlobal]) : IdType
@@ -130,6 +119,41 @@
    [(empty? es) (error 'desugar "empty sequences are not supported")]
    [(empty? (rest es)) (desugar (first es))]
    [else (CSeq (desugar (first es)) (desugar-seq (rest es)))]))
+
+(define (desugar-excepts [exn-id : symbol] [excepts : (listof LexExpr)]) : CExpr
+  (local [(define (rec-desugar-excepts es)
+            (cond
+              [(empty? es) (CId exn-id (LocalId))]
+              [else
+                (local [(define except (first es))
+                        (define-values (body as types)
+                          (if (LexExcept? except)
+                              (values
+                                (rec-desugar (LexExcept-body except))
+                                (none)
+                                (LexExcept-types except))
+                              (values
+                                (rec-desugar (LexExceptAs-body except))
+                                (some (LexExceptAs-name except))
+                                (LexExceptAs-types except))))
+                        (define checks 
+                          (cond
+                            [(empty? types)
+                             (list
+                               (LexApp (LexGlobalId 'isinstance 'Load)
+                                       (list (LexLocalId exn-id 'Load)
+                                             (LexGlobalId 'BaseException 'Load))))]
+                            [else (map (lambda (t)
+                                         (LexApp (LexGlobalId 'isinstance 'Load)
+                                                 (list (LexLocalId exn-id 'Load) t)))
+                                       types)]))
+                        (define condition (desugar-boolop 'Or checks))]
+                  (CIf condition
+                       (if (some? as)
+                           (CLet (some-v as) (LocalId) (CId exn-id (LocalId)) body)
+                           body)
+                       (rec-desugar-excepts (rest es))))]))]
+    (rec-desugar-excepts excepts)))
 
 #|  
 
@@ -332,12 +356,10 @@
                                                     (none)))
                                                 (CRaise (some
                                                   (CApp (CId 'TypeError (LocalId))
-                                                        (list (CObject
-                                                                'str
-                                                                (some (MetaStr 
-                                                                        (string-append
-                                                                          "argument of type '___'" 
-                                                                          "is not iterable")))))
+                                                        (list (make-builtin-str
+                                                               (string-append
+                                                                "argument of type '___'" 
+                                                                "is not iterable")))
                                                         (none))))))
                                      (none))
                               (list right-c left-c)
@@ -423,11 +445,12 @@
 
       [LexReturn (value) (CReturn (rec-desugar value))]
       
-      [LexDict (keys values) (CDict (lists->hash (map rec-desugar keys)
+      [LexDict (keys values) (CDict (CId '%dict (GlobalId))
+                                    (lists->hash (map rec-desugar keys)
                                                  (map rec-desugar values)))]
-      [LexSet (elts) (CSet (map rec-desugar elts))]
-      [LexList (values) (CList (map rec-desugar values))]
-      [LexTuple (values) (CTuple (map rec-desugar values))]
+      [LexSet (elts) (CSet (CId '%set (GlobalId)) (map rec-desugar elts))]
+      [LexList (values) (CList (CId '%list (GlobalId)) (map rec-desugar values))]
+      [LexTuple (values) (CTuple (CId '%tuple (GlobalId)) (map rec-desugar values))]
       
       [LexSubscript (left ctx slice)
                     (cond
@@ -448,19 +471,22 @@
                                            (list slice-low
                                                  slice-up slice-step)
                                            (none))))
-                             (local [(define slice-r (rec-desugar slice))] 
+                             (local [(define slice-r (rec-desugar slice))
+                                     (define exn-id (new-id))] 
                                (CLet left-id
                                      (LocalId)
                                      left-r
                                      (CSeq
-                                      (CTryExceptElseFinally
+                                      (CTryExceptElse
                                        (CGetField (CId left-id (LocalId))
                                                       '__getitem__)
-                                       (list (CExcept (list) (none) 
-                                                      (CRaise (some (make-exception 
-                                                                     'TypeError
-                                                                     "object is not subscriptable")))))
-                                       (CNone) (CNone))
+                                       exn-id
+                                       (default-except-handler
+                                         exn-id
+                                         (CRaise (some (make-exception 
+                                                         'TypeError
+                                                         "object is not subscriptable"))))
+                                       (CNone))
                                       (CApp (CGetField (CId left-id (LocalId))
                                                        '__getitem__)
                                             (list slice-r)
@@ -474,14 +500,10 @@
 
       [LexContinue () (CContinue)]
 
-      [LexApp (fun args)
-             (local [(define f (rec-desugar fun ))
-                     (define f-expr  f)
-                     (define results
-                       (map desugar args ))]
-                (CApp f-expr results (none))
-                )]
-
+      [LexApp (fun args) (local [(define f (rec-desugar fun))
+                                 (define f-expr f)
+                                 (define results (map desugar args))]
+                           (CApp f-expr results (none)))] 
 
       [LexAppStarArg (fun args sarg)
                      (local [(define f (rec-desugar fun))
@@ -501,24 +523,26 @@
 
       [LexDotField (value attr) (CGetField (rec-desugar value) attr)]
 
-      [LexTryExceptElseFinally (try excepts orelse finally)
-                               (local [(define try-r (rec-desugar try))
-                                       (define excepts-r (map rec-desugar excepts))
-                                       (define orelse-r (rec-desugar orelse))
-                                       (define finally-r (rec-desugar finally))]
-                                 (CTryExceptElseFinally 
-                                   try-r
-                                   excepts-r
-                                   orelse-r
-                                   finally-r))]
+      [LexTryExceptElse (try excepts orelse)
+                        (local [(define try-r (rec-desugar try))
+                                (define exn-id (new-id))
+                                (define excepts-r (desugar-excepts exn-id excepts))
+                                (define orelse-r (rec-desugar orelse))]
+                          (CTryExceptElse 
+                            try-r
+                            exn-id
+                            excepts-r
+                            orelse-r))]
 
-      [LexExcept (types body) (CExcept (map rec-desugar types)
-                                       (none)
-                                       (rec-desugar body))]
+      [LexTryFinally (try finally)
+                     (local [(define try-r (rec-desugar try))
+                             (define finally-r (rec-desugar finally))]
+                       (CTryFinally
+                         try-r
+                         finally-r))]
 
-      [LexExceptAs (types name body) (CExcept (map rec-desugar types)
-                                       (some name)
-                                       (rec-desugar body))]
+      [LexExcept (types body) (error 'desugar "should not encounter LexExcept!")]
+      [LexExceptAs (types name body) (error 'desugar "should not encounter LexExcept!")]
 
       [LexWhile (test body orelse) (CWhile (rec-desugar test)
                                            (rec-desugar body)

@@ -11,7 +11,6 @@
          "builtins/set.rkt"
          "builtins/none.rkt"
          "builtins/file.rkt"
-         "builtins/type.rkt"
          "builtins/method.rkt"
          "util.rkt"
          (typed-in "get-structured-python.rkt"
@@ -28,34 +27,28 @@
 (define-type LibBinding
   [bind (left : symbol) (right : CExpr)])
 
-(define exception
+(define base-exception
   (seq-ops
     (list 
-      (CAssign (CId 'Exception (GlobalId))
+      (CAssign (CId 'BaseException (GlobalId))
                (CClass
-                 'Exception
+                 'BaseException
                  (list 'object)
                  (CNone)))
-      (def 'Exception '__init__
+      (def 'BaseException '__init__
            (CFunc (list 'self) (some 'args)
-                  (CSeq 
-                    (CAssign 
-                      (CGetField
-                        (CId 'self (LocalId))
-                        'args)
-                      (CId 'args (LocalId)))
-                    (CAssign
-                      (CGetField
-                        (CId 'self (LocalId))
-                        '__class__)
-                      (CId 'Exception (LocalId))))
-                  (some 'Exception)))
-      (def 'Exception '__str__
+                  (CAssign 
+                    (CGetField
+                      (CId 'self (LocalId))
+                      'args)
+                    (CId 'args (LocalId)))
+                  (some 'BaseException)))
+      (def 'BaseException '__str__
            (CFunc (list 'self) (none)
                   (CReturn
                     (CBuiltinPrim 'exception-str
                                   (list (CId 'self (LocalId)))))
-                  (some 'Exception))))))
+                  (some 'BaseException))))))
 
 (define len-lambda
   (CFunc (list 'self) (none)
@@ -142,17 +135,20 @@
          (none)))
 
 (define callable-lambda
-  (CFunc (list 'to-check) (none)
-         (CSeq
-          (CTryExceptElseFinally
-           ;; try to get __call__ attribute and return True
+  (local [(define exn-id (new-id))]
+    (CFunc (list 'to-check) (none)
            (CSeq
-            (CGetField (CId 'to-check (LocalId)) '__call__)
-            (CReturn (CTrue)))
-           (list (CExcept (list) (none) (CNone))) (CNone) (CNone))
-          ;; use the primary operator
-          (CReturn (CPrim1 'callable (CId 'to-check (LocalId)))))
-         (none)))
+             (CTryExceptElse
+               ;; try to get __call__ attribute and return True
+               (CSeq
+                 (CGetField (CId 'to-check (LocalId)) '__call__)
+                 (CReturn (CTrue)))
+               exn-id 
+               (default-except-handler exn-id (CNone))
+               (CNone))
+             ;; use the primary operator
+             (CReturn (CPrim1 'callable (CId 'to-check (LocalId)))))
+           (none))))
 
 (define locals-lambda
   (CFunc (list) (none)
@@ -160,7 +156,6 @@
           (CBuiltinPrim '$locals empty))
          (none)))
   
-
 (define lib-functions
   (list (bind 'True (assign 'True (CTrue)))
         (bind 'False (assign 'False (CFalse)))
@@ -169,20 +164,16 @@
         (bind 'object object-class)
         (bind 'none none-class)
         (bind 'num num-class)
+        (bind '%num (assign '%num (CId 'num (GlobalId))))
         (bind 'int int-class)
+        (bind '%int (assign '%int (CId 'int (GlobalId))))
         (bind 'float float-class)
+        (bind '%float (assign '%float (CId 'float (GlobalId))))
         (bind 'str str-class)
-        (bind 'list list-class)
-        (bind 'tuple tuple-class)
-        ; this is a hack because one test overrides the dict name, 
-        ; we should do this $ thing for all builtin names for this reason
-        (bind '$dict dict-class) 
-        (bind 'dict (CId '$dict (GlobalId)))
+        (bind '%str (assign '%str (CId 'str (GlobalId))))
         (bind 'bool bool-class)
-        (bind 'set set-class)
         (bind 'file file-class)
         (bind 'open file-class)
-        (bind 'type type-class)
         (bind 'method method-class)
         (bind 'classmethod classmethod-class)
         (bind 'staticmethod staticmethod-class)
@@ -197,15 +188,17 @@
         (bind 'isinstance (assign 'isinstance isinstance-lambda))
         (bind 'print (assign 'print print-lambda))
         (bind 'callable (assign 'callable callable-lambda))
-        (bind 'locals locals-lambda)
+        (bind 'locals (assign 'locals locals-lambda))
 
-        (bind 'Exception exception)
+        (bind 'BaseException base-exception)
+        (bind 'Exception (assign 'Exception (make-exception-class 'Exception)))
         (bind 'NameError (assign 'NameError (make-exception-class 'NameError)))
         (bind 'TypeError (assign 'TypeError (make-exception-class 'TypeError)))
         (bind 'ValueError (assign 'ValueError (make-exception-class 'ValueError)))
         (bind 'SyntaxError (assign 'SyntaxError (make-exception-class 'SyntaxError)))
         (bind 'AttributeError (assign 'AttributeError (make-exception-class 'AttributeError)))
         (bind 'RuntimeError (assign 'RuntimeError (make-exception-class 'RuntimeError)))
+        (bind '$Reraise (assign '$Reraise (make-exception-class '$Reraise)))
         (bind 'KeyError (assign 'KeyError (make-exception-class 'KeyError)))
         (bind 'IndexError (assign 'IndexError (make-exception-class 'IndexError)))
         (bind 'UnboundLocalError
@@ -219,7 +212,8 @@
   (append
       (map (lambda(b) (bind (bind-left b) (CUndefined)))
            lib-functions)
-      (list (bind 'iter (CUndefined))
+      (list 
+            (bind 'iter (CUndefined))
             (bind 'FuncIter (CUndefined))
             (bind 'SeqIter (CUndefined))
             (bind 'all (CUndefined))
@@ -227,6 +221,16 @@
             (bind 'range (CUndefined))
             (bind 'filter (CUndefined))
             (bind 'dicteq (CUndefined))
+            (bind 'tuple (CUndefined))
+            (bind '%tuple (CUndefined))
+            (bind 'list (CUndefined))
+            (bind '%list (CUndefined))
+            (bind 'dict (CUndefined))
+            (bind '%dict (CUndefined))
+            (bind 'set (CUndefined))
+            (bind '%set (CUndefined))
+            (bind 'type (CUndefined))
+            (bind '%type (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))

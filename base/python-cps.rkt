@@ -2,6 +2,7 @@
 
 (require
   "python-core-syntax.rkt"
+  "util.rkt"
   "python-interp.rkt"
   "python-lib.rkt"
   "util.rkt"
@@ -67,8 +68,11 @@
       (pylam (K R E B C) (pyapp (Id K) v)))
   ]
   (type-case CExpr expr
+<<<<<<< HEAD
     [CStr (s) (const expr)]
     [CSym (s) (const expr)]
+=======
+>>>>>>> 2946b3f59b9e681b94999ff4a68c437ec31f1b6e
     [CTrue () (const expr)]
     [CFalse () (const expr)]
     [CNone () (const expr)]
@@ -230,4 +234,3 @@
   (type-case Result result
     [v*s (v s e) v]
     [else (error 'cps-eval (format "Abnormal return: ~a" result))])))
-

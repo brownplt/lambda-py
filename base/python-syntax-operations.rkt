@@ -17,6 +17,27 @@
 
 (define (haiku-error) (error 'haiku "Bad error message, find and fix"))
 
+(define haiku (call/cc (lambda (k)
+           (call-with-exception-handler
+            (lambda (y)
+             (k y))
+            (lambda ()
+              (k (haiku-error)
+              ))))))
+(define (gen-recur default special-func)
+  (lambda (this-expr)
+    (call/cc (lambda (k)
+               (call-with-exception-handler
+                (lambda (y)
+                  (k
+                   (begin
+                     (if (equal? (to-string haiku) (to-string y))
+                         (default this-expr)
+                         (error 'gen-recur (to-string y))))))
+                (lambda ()
+                  (k (special-func this-expr))
+                  ))))))
+
 (define (pyexpr-modify-tree [expr : PyExpr] [special-func : (PyExpr -> LexExpr)]) : LexExpr
   (local (
         (define (default this-expr)
@@ -41,11 +62,13 @@
               [PyExcept (types  body) (LexExcept (map recur types) (recur body))]
               [PyExceptAs (types name body)
                           (LexExceptAs (map recur types) name (recur body))]
-              [PyTryExceptElseFinally (try except orelse finally)
-                                      (LexTryExceptElseFinally (recur try)
-                                                               (map recur except)
-                                                               (recur orelse)
-                                                               (recur finally))]
+              [PyTryExceptElse (try except orelse)
+                               (LexTryExceptElse (recur try)
+                                                 (map recur except)
+                                                 (recur orelse))]
+              [PyTryFinally (try finally)
+                            (LexTryFinally (recur try)
+                                           (recur finally))]
                                         ;loops 
               [PyWhile (test body orelse)
                        (LexWhile (recur test) (recur body) (recur orelse))]
@@ -110,17 +133,13 @@
               [PyNone [] (LexNone)]
               [PyBreak [] (LexBreak)]
               [PyContinue [] (LexContinue)]))
-        (define (recur this-expr)
-            (call/cc (lambda (k)
-                    (call-with-exception-handler
-                     (lambda (y)
-                       (k
-                        (default this-expr)))
-                     (lambda ()
-                       (k (special-func this-expr))
-                       ))))))
+        (define
+          recur (gen-recur default special-func)
+            ))
           (recur expr)
           ))
+
+
 
 (define (lexexpr-modify-tree [expr : LexExpr] [special-func : (LexExpr -> LexExpr)]) : LexExpr
   (local (
@@ -157,11 +176,13 @@
               [LexExcept (types  body) (LexExcept (map recur types) (recur body))]
               [LexExceptAs (types name body)
                           (LexExceptAs (map recur types) name (recur body))]
-              [LexTryExceptElseFinally (try except orelse finally)
-                                      (LexTryExceptElseFinally (recur try)
-                                                               (map recur except)
-                                                               (recur orelse)
-                                                               (recur finally))]
+              [LexTryExceptElse (try except orelse)
+                                (LexTryExceptElse (recur try)
+                                                  (map recur except)
+                                                  (recur orelse))]
+              [LexTryFinally (try finally)
+                             (LexTryFinally (recur try)
+                                            (recur finally))]
                                         ;loops 
               [LexWhile (test body orelse)
                        (LexWhile (recur test) (recur body) (recur orelse))]
@@ -228,20 +249,14 @@
               [LexImport [names asnames] (LexImport names asnames)]
               [LexImportFrom [module names asnames level]
                              (LexImportFrom module names asnames level)])))
-        (define (recur this-expr)
-            (call/cc (lambda (k)
-                    (call-with-exception-handler
-                     (lambda (y)
-                       (k
-                        (default this-expr)))
-                     (lambda ()
-                       (k (special-func this-expr))
-                       ))))))
+        (define recur
+            (gen-recur default special-func)))
           (let ((ret (recur expr)))
             (begin
-              #;(display "done\n")
+              ;(display "done\n")
               ret
           ))))
+
 
 
 (define (pyexpr-fold-tree [expr : PyExpr] [special-func : (PyExpr -> (listof 'a))]) : (listof 'a)
@@ -271,12 +286,15 @@
                         (flatten (list (map recur types) (list (recur body))))]
               [PyExceptAs (types name body)
                           (flatten (list (map recur types) (list (recur body))))]
-              [PyTryExceptElseFinally (try except orelse finally)
-                                      (flatten (list
-                                                (list (recur try))
-                                                (map recur except)
-                                                (list (recur orelse))
-                                                (list (recur finally))))]
+              [PyTryExceptElse (try except orelse)
+                               (flatten (list
+                                          (list (recur try))
+                                          (map recur except)
+                                          (list (recur orelse))))]
+              [PyTryFinally (try finally)
+                            (flatten (list
+                                       (list (recur try))
+                                       (list (recur finally))))]
                                         ;loops 
               [PyWhile (test body orelse)
                        (flatten (list (recur test) (recur body) (recur orelse)))]
@@ -343,21 +361,15 @@
               [PyContinue [] empty]
               [PyImport (names asnames) empty]
               [PyImportFrom (module names asnames level) empty]))
-        (define (recur this-expr)
-            (call/cc (lambda (k)
-                    (call-with-exception-handler
-                     (lambda (y)
-                       (k
-                        (default this-expr)))
-                     (lambda ()
-                       (k (special-func this-expr))
-                       ))))))
+        (define recur
+            (gen-recur default special-func)))
           (recur expr)
           ))
 
+
 (define (lexexpr-fold-tree [expr : LexExpr] [special-func : (LexExpr -> (listof 'a))]) : (listof 'a)
   (local (
-        (define (default this-expr)
+        (define (default [this-expr : LexExpr])
             (type-case LexExpr this-expr
                                         ; control structures
               [LexIf (test body orelse)
@@ -388,12 +400,15 @@
                         (flatten (list (map recur types) (list (recur body))))]
               [LexExceptAs (types name body)
                           (flatten (list (map recur types) (list (recur body))))]
-              [LexTryExceptElseFinally (try except orelse finally)
-                                      (flatten (list
-                                                (list (recur try))
-                                                (map recur except)
-                                                (list (recur orelse))
-                                                (list (recur finally))))]
+              [LexTryExceptElse (try except orelse)
+                                (flatten (list
+                                           (list (recur try))
+                                           (map recur except)
+                                           (list (recur orelse))))]
+              [LexTryFinally (try finally)
+                             (flatten (list
+                                        (list (recur try))
+                                        (list (recur finally))))]
                                         ;loops 
               [LexWhile (test body orelse)
                        (flatten (list (recur test) (recur body) (recur orelse)))]
@@ -461,14 +476,8 @@
               [LexBlock [a b] (recur b)]
               [LexImport (names asnames) empty]
               [LexImportFrom (module names asnames level) empty]))
-        (define (recur this-expr)
-            (call/cc (lambda (k)
-                    (call-with-exception-handler
-                     (lambda (y)
-                       (k
-                        (default this-expr)))
-                     (lambda ()
-                       (k (special-func this-expr))
-                       ))))))
+        (define (recur expr) ((gen-recur default special-func) expr)
+            ))
           (recur expr)
           ))
+
