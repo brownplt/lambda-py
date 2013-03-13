@@ -11,7 +11,8 @@
          "python-lib.rkt"
          "run-tests.rkt"
          "util.rkt"
-         "python-evaluator.rkt")
+         "python-evaluator.rkt"
+	 "python-lexer.rkt")
 
 (define (python-test-runner _ port)
   (run-python port))
@@ -52,6 +53,9 @@
       (get-structured-python
         (parse-python/port port (get-pypath))))))
 
+(define (get-lexer-tokens port)
+  (lex-all port))
+
 (command-line
   #:once-each
   ("--interp" "Interpret stdin as python"
@@ -76,6 +80,9 @@
 
   ("--get-core-syntax-with-libs" "Get desugared python and libraries (big)"
    (pretty-write (desugar-w/lib (current-input-port))))
+
+  ("--get-lex-tokens" "Get tokens from experimental lexer"
+   (pretty-write (get-lexer-tokens (current-input-port))))
 
   
   ("--test" dirname "Run all tests in dirname"
