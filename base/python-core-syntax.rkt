@@ -23,8 +23,7 @@ ParselTongue.
   [CId (x : symbol) (type : IdType)]
   [CLet (x : symbol) (type : IdType) (bind : CExpr) (body : CExpr)]
   [CApp (fun : CExpr) (args : (listof CExpr)) (stararg : (optionof CExpr))]
-  [CFunc (args : (listof symbol)) (varargs : (optionof symbol)) (body : CExpr)
-         (opt-class : (optionof symbol))] ; class name for methods
+  [CFunc (args : (listof symbol)) (varargs : (optionof symbol)) (body : CExpr) (opt-class : (optionof symbol))] ; class name for methods
   [CWhile (test : CExpr) (body : CExpr) (orelse : CExpr)]
   [CReturn (value : CExpr)]
   [CPrim1 (prim : symbol) (arg : CExpr)]
@@ -59,8 +58,7 @@ ParselTongue.
                 (dict : object-dict) (class : (optionof CVal))]
   [VUndefined]
   [VPointer (a : Address)]
-  [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr)
-            (opt-class : (optionof symbol))]) ; class name for methods
+  [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr) (opt-class : (optionof symbol))]) ; class name for methods
 
 (define-type MetaVal
              [MetaNum (n : number)]
@@ -157,10 +155,11 @@ ParselTongue.
     [VPointer (a) (fetch-once a sto)]
     [else (error 'interp (string-append "fetch-ptr got a non-VPointer: " (to-string val)))]))
 
-(define (mk-exception [type : symbol] [arg : string] [sto : Store]) : Result
+(define (mk-exception [type : symbol] [arg : string] [env : Env] [sto : Store]) : Result
   (local [(define exn-loc (new-loc))
           (define args-loc (new-loc))
           (define args-field-loc (new-loc))
+          (define cls (fetch-once (some-v (lookup type env)) sto))
           (define args (list (VObjectClass 'str (some (MetaStr arg)) (hash empty) (none))))]
     (Exception
       (VPointer exn-loc)
@@ -169,7 +168,7 @@ ParselTongue.
           (hash-set sto args-loc (VObjectClass 'tuple (some (MetaTuple args)) (hash empty) (none)))
           args-field-loc (VPointer args-loc))
         exn-loc
-        (VObjectClass type (none) (hash-set (hash empty) 'args args-field-loc) (none))))))
+        (VObjectClass 'exception (none) (hash-set (hash empty) 'args args-field-loc) (some cls))))))
 
 (define-type ActivationRecord
   [Frame (env : Env) (class : (optionof CVal)) (self : (optionof CVal))])

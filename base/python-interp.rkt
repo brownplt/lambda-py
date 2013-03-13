@@ -29,12 +29,12 @@
 
          )
 
-(define (handle-result result fun)
+(define (handle-result env result fun)
    (type-case Result result
      [v*s (v s) (fun v s)]
-     [Return (v s) (return-exception s)]
-     [Break (s) (break-exception s)]
-     [Continue (s) (continue-exception s)] 
+     [Return (v s) (return-exception env env s)]
+     [Break (s) (break-exception env env s)]
+     [Continue (s) (continue-exception env env s)] 
      [Exception (v s) (Exception v s)]))
 
 (define (append3 a b c)
@@ -96,8 +96,8 @@
                    (type-case Result result
                      [v*s (vb sb) (alloc-result vnone sb)]
                      [Return (vb sb) (v*s vb sb)]
-                     [Break (sb) (break-exception sb)]
-                     [Continue (sb) (continue-exception sb)]
+                     [Break (sb) (break-exception env sb)]
+                     [Continue (sb) (continue-exception env sb)]
                      [Exception (vb sb) (Exception vb sb)]))])]
     [else (error 'interp (string-append "Not a closure: " (to-string vfun)))]))
 
@@ -106,7 +106,7 @@
                      [env : Env] [sto : Store] [stk : Stack]) : Result
   (begin ;(display "APP: ") (display fun) (display "\n") (display arges) (display "\n\n\n")
          ;(display env) (display "\n\n")
- (handle-result (interp-env fun env sto stk)
+ (handle-result env (interp-env fun env sto stk)
   (lambda (vfun-ptr sfun)
     (let ([vfun (fetch-ptr vfun-ptr sfun)])
     (type-case CVal vfun
@@ -142,13 +142,14 @@
                              [else
                                ;; for unbound methods, use function application
                                (interp-vclosure (fetch-ptr vc sc) arges stararg env sc stk)]))]
-                      [Return (vfun sfun) (return-exception sfun)]
-                      [Break (sfun) (break-exception sfun)]
-                      [Continue (sfun) (continue-exception sfun)]
+                      [Return (vfun sfun) (return-exception env sfun)]
+                      [Break (sfun) (break-exception env sfun)]
+                      [Continue (sfun) (continue-exception env sfun)]
                       [Exception (vfun sfun) (mk-exception 'TypeError
                                                            (string-append 
                                                              (symbol->string b)
                                                              " object is not callable")
+                                                           env
                                                            sto)]))]
       [else (error 'interp "Not a closure or constructor.")]))))))
 
@@ -232,16 +233,18 @@
                        (type-case CVal full-val
                          [VUndefined () (mk-exception 'UnboundLocalError
                                                       unboundlocal-error-str
+                                                      env
                                                       sto)]
                          [else (v*s full-val sto)])))
                      (local [(define full-w (lookup id env))]
                        (if (some? full-w)
                            (local [(define full-val (fetch-once (some-v full-w) sto))]
                              (type-case CVal full-val
-                               [VUndefined () (mk-exception 'NameError freevar-error-str sto)]
+                               [VUndefined () (mk-exception 'NameError freevar-error-str env sto)]
                                [else (v*s full-val sto)]))
                            (mk-exception 'NameError
                                          (string-append "global " name-error-str)
+                                         env
                                          sto))))))]
       [GlobalId ()
                 (local [(define full-w (lookup-global id env))]
@@ -249,9 +252,9 @@
                   (if (some? full-w)
                       (local [(define full-val (fetch-once (some-v full-w) sto))]
                         (type-case CVal full-val
-                          [VUndefined () (mk-exception 'NameError name-error-str sto)]
+                          [VUndefined () (mk-exception 'NameError name-error-str env sto)]
                           [else (v*s full-val sto)]))
-                      (mk-exception 'NameError name-error-str sto))))])))
+                      (mk-exception 'NameError name-error-str env sto))))])))
 
 ;; interp-env : CExpr * Env * Store * Stack -> Result
 (define (interp-env [expr : CExpr] [env : Env] [sto : Store] [stk : Stack]) : Result
@@ -260,7 +263,7 @@
   (type-case CExpr expr
     [CModule (prelude body)
              (local [(define prelude-r (interp-env prelude env sto stk))]
-                (handle-result prelude-r
+                (handle-result env prelude-r
                   (lambda (v s) (interp-env body env s stk))))]
     
     [CTrue () (renew-true env sto)]
@@ -270,9 +273,9 @@
 
     [CClass (name bases body)
             (begin ;(display "BEGIN CLASS\n") (display bases)
-            (handle-result (interp-env bases env sto stk)
+            (handle-result env (interp-env bases env sto stk)
               (lambda (vbases sbases)
-                   (handle-result (interp-env body (cons (hash empty) env) sbases stk)
+                   (handle-result env (interp-env body (cons (hash empty) env) sbases stk)
                      (lambda (vbody sbody)
                           (begin ;(display name) (display "\n")
                                  ;(display env) (display "\n")
@@ -284,7 +287,7 @@
     (begin
       ;(display "Getting field ") (display attr) (display "from: \n") (display value)
       ;(display "\n\n")
-               (handle-result (interp-env value env sto stk)
+               (handle-result env (interp-env value env sto stk)
                           (lambda (vval sval) (get-field attr vval env sval))))]
 			
     [CSeq (e1 e2) (type-case Result (interp-env e1 env sto stk)
@@ -299,9 +302,9 @@
     [CDict (class contents)
      (local [
        (define (interp-pair p sto)
-         (handle-result (interp-env (car p) env sto stk)
+         (handle-result env (interp-env (car p) env sto stk)
            (lambda (carv cars)
-             (handle-result (interp-env (cdr p) env cars stk)
+             (handle-result env (interp-env (cdr p) env cars stk)
                (lambda (cdrv cdrs)
                  (vpair*s carv cdrv cdrs))))))
        (define dict-hash (make-hash empty))
@@ -315,7 +318,7 @@
                  (hash-set! dict-hash v1 v2)
                  (interp-pairs (rest lst) new-sto))])]))
        (define post-dict-sto (interp-pairs (hash->list contents) sto))]
-     (handle-result (interp-env class env post-dict-sto stk)
+     (handle-result env (interp-env class env post-dict-sto stk)
       (lambda (cval csto)
        (alloc-result (VObjectClass 'dict
                        (some (MetaDict dict-hash))
@@ -327,7 +330,7 @@
      (type-case ResultList (interp-cascade values sto env stk)
       [Abnormal (r) r]
       [v*s/list (result-list new-s)
-       (handle-result (interp-env class env new-s stk)
+       (handle-result env (interp-env class env new-s stk)
         (lambda (cval csto)
          (let ([val-list (map v*s-v result-list)])
           (alloc-result (VObjectClass 'set
@@ -340,7 +343,7 @@
      (type-case ResultList (interp-cascade values sto env stk)
       [Abnormal (r) r]
       [v*s/list (result-list new-s)
-       (handle-result (interp-env class env new-s stk)
+       (handle-result env (interp-env class env new-s stk)
         (lambda (cval csto)
          (let ([val-list (map v*s-v result-list)])
           (alloc-result (VObjectClass 'list
@@ -353,7 +356,7 @@
      (type-case ResultList (interp-cascade values sto env stk)
       [Abnormal (r) r]
       [v*s/list (result-list new-s)
-       (handle-result (interp-env class env new-s stk)
+       (handle-result env (interp-env class env new-s stk)
         (lambda (cval csto)
          (let ([val-list (map v*s-v result-list)])
           (alloc-result (VObjectClass 'tuple
@@ -364,16 +367,17 @@
 
     [CAssign (t v) 
              (begin ;(display "\nASSIGN: ") (display t) (display " | ") (display v) (display "\n")
-               (handle-result (interp-env v env sto stk)
+               (handle-result env (interp-env v env sto stk)
                  (lambda (vv sv)
                       (type-case CExpr t
                         [CId (x type) (assign-to-id t vv env sv)]
                         [CGetField (o a) (assign-to-field o a vv env sv stk)]
                         [else (mk-exception 'SyntaxError
                                             "can't assign to literals"
+                                            env
                                             sv)]))))]
     
-    [CIf (i t e) (handle-result (interp-env i env sto stk)
+    [CIf (i t e) (handle-result env (interp-env i env sto stk)
                    (lambda (vi si) (if (truthy? vi si)
                                        (interp-env t env si stk)
                                        (interp-env e env si stk))))]
@@ -381,7 +385,7 @@
     [CId (x t) (interp-id x t env sto)]
 
     [CObject (class mval)
-             (handle-result (interp-env class env sto stk)
+             (handle-result env (interp-env class env sto stk)
                (lambda (cval csto)
                  (alloc-result (VObjectClass (MetaClass-c (some-v (VObjectClass-mval (fetch-ptr cval csto))))
                                     mval
@@ -392,7 +396,7 @@
     [CLet (x type bind body)
           (begin ;(display "LET: ") (display x) (display " ")
                  ;(display type) (display bind) (display "\n")
-          (handle-result (interp-env bind env sto stk)
+          (handle-result env (interp-env bind env sto stk)
             (lambda (val sto)
               (interp-let x type val sto body env stk))))]
 
@@ -413,11 +417,11 @@
                 sto))]
 
     [CReturn (value)
-             (handle-result (interp-env value env sto stk)
+             (handle-result env (interp-env value env sto stk)
                (lambda (vv sv) (Return vv sv)))]
 
     [CPrim1 (prim arg) 
-            (handle-result (interp-env arg env sto stk)
+            (handle-result env (interp-env arg env sto stk)
               (lambda (varg sarg)
                    (case prim
                      ['Not (if (truthy? varg sarg)
@@ -437,7 +441,7 @@
                             (builtin-prim op val-list env new-s stk))])]
     [CRaise (expr) 
             (if (some? expr)
-                (handle-result (interp-env (some-v expr) env sto stk)
+                (handle-result env (interp-env (some-v expr) env sto stk)
                   (lambda (vexpr sexpr)
                      (begin
                        ;(display "Raising: ") (display vexpr)
@@ -449,9 +453,11 @@
                           (Exception vexpr sexpr)]
                          [else (mk-exception 'TypeError
                                              "exceptions must derive from BaseException"
+                                             env
                                              sexpr)]))))
                 (mk-exception '$Reraise
                               "reraise previous exception if possible"
+                              env
                               sto))]
     
     [CTryExceptElse (try exn-id excepts orelse)
@@ -509,6 +515,7 @@
                   [Continue (sfin)
                             (mk-exception 'SyntaxError
                                           "'continue' not supported inside 'finally' clause"
+                                          env
                                           sfin)]
                   [Exception (vfin sfin)
                              (if (and (is-obj-ptr? vfin sfin)
@@ -521,7 +528,7 @@
             rev-try))]
 
     [CConstructModule (source)
-       (handle-result (interp-env source env sto stk)
+       (handle-result env (interp-env source env sto stk)
          (lambda (v-code s-code a)
            (cond
              [(not (and (VObjectClass? v-code)
@@ -550,7 +557,7 @@
                  ; interpret the code in module, raise any exceptions as it is
                  ; ImportError should be handled in __import__
                  ; TODO: filter the built-in functions instead of interpreting python-lib again
-                 (handle-result (interp-env (python-lib (CModule (CNone) xcode))
+                 (handle-result env (interp-env (python-lib (CModule (CNone) xcode))
                                             (list new-env) new-sto stk)
                    (lambda (v-module s-module a)
                      (begin ;(pprint v-module)
@@ -577,11 +584,13 @@
                                            (string-append "name '"
                                                           (string-append (symbol->string (CId-x id))
                                                                          "' is not defined"))
+                                           env
                                            sto)]
                  [GlobalId () (mk-exception 'NameError
                                             (string-append "global name '"
                                                            (string-append (symbol->string (CId-x id))
                                                                           "' is not defined"))
+                                            env
                                             sto)])))))
 
 (define (global-scope? [env : Env]) : boolean
@@ -618,6 +627,7 @@
                    (string-append 
                     (string-append (pretty cptr) " object has no attribute ")
                     (symbol->string n))
+                   e
                    s)]
      ;; special attribute __class__
     [(eq? n '__class__)
@@ -657,7 +667,7 @@
 
 (define (assign-to-field o f [value : CVal] [env : Env] [sto : Store] [stk : Stack]) : Result
   (begin ;(display o) (display "---") (display f) (display "\n") (display value) (display "\n")
-  (handle-result (interp-env o env sto stk)
+  (handle-result env (interp-env o env sto stk)
     (lambda (vo so)
          (obj-ptr-match vo so
             (lambda (address antecedent mval d class)
@@ -728,6 +738,7 @@
                                          ", received "
                                          (to-string (map v*s-v vals)))
                                    "")
+                                 env
                                  sto)))]
         [(and (cons? args) (cons? vals))
          ;; This means we're still binding values to argument symbols.
@@ -741,40 +752,25 @@
                  (define s (hash-set sto loc vv))]
                 (bind-args (rest args) sarg (rest vals) (rest arges) env e s))]))
 
-(define (return-exception [sto : Store]) : Result
-  (mk-exception 'SyntaxError "'return' outside function" sto))
+(define (return-exception env [sto : Store]) : Result
+  (mk-exception 'SyntaxError "'return' outside function" env sto))
 
-(define (break-exception [sto : Store]) : Result
-  (mk-exception 'SyntaxError "'break' outside loop" sto))
+(define (break-exception env [sto : Store]) : Result
+  (mk-exception 'SyntaxError "'break' outside loop" env sto))
 
-(define (continue-exception [sto : Store]) : Result
-  (mk-exception 'SyntaxError "'continue' outside loop" sto))
+(define (continue-exception env [sto : Store]) : Result
+  (mk-exception 'SyntaxError "'continue' outside loop" env sto))
 
 (define (interp expr)
   (begin (reset-state)
   (type-case Result (interp-env expr (list (hash empty)) (hash empty) empty)
     [v*s (vexpr sexpr) (display "")]
     [Return (vexpr sexpr)
-            (local [(define exn (return-exception sexpr))]
-              (raise-user-error (string-append
-                                  (pretty-exception (Exception-v exn)
-                                                    (Exception-s exn)
-                                                    #t)
-                                  "")))]
+     (raise-user-error (format "Unexpected return reached toplevel: ~a" vexpr))]
     [Break (sexpr)
-           (local [(define exn (break-exception sexpr))]
-             (raise-user-error (string-append
-                                 (pretty-exception (Exception-v exn)
-                                                   (Exception-s exn)
-                                                   #t)
-                                 "")))]
+     (raise-user-error (format "Unexpected break reached toplevel"))]
     [Continue (sexpr)
-           (local [(define exn (continue-exception sexpr))]
-             (raise-user-error (string-append
-                                 (pretty-exception (Exception-v exn)
-                                                   (Exception-s exn)
-                                                   #t)
-                                 "")))] 
+     (raise-user-error (format "Unexpected continue reached toplevel"))]
     [Exception (vexpr sexpr)
                (raise-user-error (string-append (pretty-exception vexpr sexpr #t) ""))])))
 
@@ -791,9 +787,9 @@
                        [sto : Store]
                        [env : Env]
                        [stk : Stack]) : Result
-    (handle-result (interp-env arg1 env sto stk)
+    (handle-result env (interp-env arg1 env sto stk)
       (lambda (varg1 sarg1)
-           (handle-result (interp-env arg2 env sarg1 stk)
+           (handle-result env (interp-env arg2 env sarg1 stk)
              (lambda (varg2 sarg2) 
                   (case prim
                     ;; Handle Is, IsNot, In, NotIn
@@ -825,7 +821,7 @@
           (define w (new-loc))
           (define bases_w (new-loc))
           (define mro_w (new-loc))]
-    (handle-result (build-mro name bases-list env sto)
+    (handle-result env (build-mro name bases-list env sto)
       (lambda (vmro smro) 
              (alloc-result (VObjectClass 'type
                            (some (MetaClass name)) 
@@ -859,12 +855,14 @@
                      (string-append 
                       "duplicate base class in class "
                       (symbol->string name))
+                     env
                      sto)]
       [(none? maybe-mro) 
        (mk-exception 'TypeError
                      (string-append 
                       "cannot create a consisten method resolution order for class "
                       (symbol->string name))
+                     env
                      sto)]
       [(some? maybe-mro)
        (begin 
@@ -970,6 +968,7 @@
                                                   (symbol->string (VObjectClass-antecedent obj)))
                                    (string-append " has no attribute "
                                                   (symbol->string fld)))
+                                  env
                                   sto)]))]))))
 
 ;; get-field-from-cls: looks for a field of a class using class __mro__
@@ -1014,6 +1013,7 @@
                                                 (symbol->string (VObjectClass-antecedent cls)))
                                  (string-append " has no attribute "
                                                 (symbol->string fld)))
+                                env
                                 sto)])]))))
 
 ;; lookup-mro: looks for field in mro list

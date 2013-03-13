@@ -158,6 +158,7 @@ primitives here.
   (define (prim-error msg op args)
     (mk-exception 'TypeError
       (string-append msg (string-append (symbol->string op) (format " ~a" args)))
+      env
       sto))
   (define (fetch-heads l1 l2)
     (append (take l1 (- (length l1) 1)) (list (last l2))))
