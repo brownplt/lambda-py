@@ -3,7 +3,8 @@
 (require "../python-core-syntax.rkt"
          "../util.rkt"
          "num.rkt"
-         "none.rkt")
+         (typed-in racket/list (take : ((listof 'a) number -> (listof 'a))))
+         (typed-in racket/list (drop : ((listof 'a) number -> (listof 'a)))))
 
 (define (make-builtin-list [l : (listof CVal)] [class : CVal]) : CVal
   (VObjectClass 'list
@@ -12,7 +13,7 @@
            (some class)))
 
 (define (list+ (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'list 'list
+  (check-types-pred args env sto MetaList? MetaList?
                (some (VObjectClass 'list
                               (some (MetaList
                                      (append (MetaList-v mval1)
@@ -21,48 +22,35 @@
                               (some (third args))))))
 
 (define (list-len (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'list
-               (some (VObjectClass 'num
+  (check-types-pred args env sto MetaList?
+               (some (VObjectClass 'int
                               (some (MetaNum (length (MetaList-v mval1))))
                               (hash empty)
                               (some (second args))))))
 
 (define (list-copy [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'list
+  (check-types-pred args env sto MetaList?
          (some (VObjectClass 'list (some (MetaList (MetaList-v mval1)))
                         (hash empty)
                         (some (second args))))))
 
 
 (define (list-tuple [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'list
+  (check-types-pred args env sto MetaList?
          (some (VObjectClass 'tuple (some (MetaTuple (MetaList-v mval1)))
                         (hash empty)
                         (some (second args))))))
 
-(define (list-in [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
- (letrec ([self-list (MetaList-v (some-v (VObjectClass-mval (first args))))]
-          [test (second args)]
-          [contains (lambda ([lst : (listof CVal)] [val : CVal]) : CVal
-                    (cond
-                     [(empty? lst) false-val]
-                     [(cons? lst)
-                       (if (equal? val (first lst))
-                         true-val
-                         (contains (rest lst) val))]))])
-   (some (contains self-list test))))
-
 (define (list-getitem (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   ; here we'll eventually need to support slicin' and dicin' bro
-  (check-types args env sto 'list 'num
-               (some 
+  (check-types-pred args env sto MetaList? MetaNum?
                  (try
-                   (list-ref (MetaList-v mval1) (MetaNum-n mval2))
+                   (some (list-ref (MetaList-v mval1) (MetaNum-n mval2)))
                    (lambda ()
-                     vnone)))))
+                     (none)))))
 
 (define (list-str (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'list
+  (check-types-pred args env sto MetaList?
                (some (VObjectClass 'str 
                         (some (MetaStr
                                 (pretty-metaval mval1)))
@@ -70,7 +58,7 @@
                         (some (second args))))))
 
 (define (list-set (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'list
+  (check-types-pred args env sto MetaList?
                (let ([values (MetaList-v mval1)])
                     (some (VObjectClass 'set
                                    (some (MetaSet (make-set values)))
@@ -78,12 +66,22 @@
                                    (some (second args)))))))
 
 (define (list-setitem [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto 'list 'num
+  (check-types-pred args env sto MetaList? MetaNum?
                (some (make-builtin-list
                        (list-replace (MetaNum-n mval2) 
                                      (third args)
                                      (MetaList-v mval1))
                        (fourth args)))))
+
+(define (list-remove [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
+  (check-types-pred args env sto MetaList? MetaNum?
+               (some (make-builtin-list
+                       (append (take (MetaList-v mval1)
+                                     (MetaNum-n mval2))
+                               (drop (MetaList-v mval1)
+                                     (add1 (MetaNum-n mval2))))
+                       (third args)))))
+
 
 (define (list-init [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (let ([obj (first args)])
@@ -92,6 +90,4 @@
               (some (MetaList empty))
               (VObjectClass-dict obj)
               ;; preserve obj class pointer when set to support inheritance
-              (if (some? (VObjectClass-class obj))
-                  (VObjectClass-class obj)
-                  (some (second args)))))))
+                  (some (second args))))))

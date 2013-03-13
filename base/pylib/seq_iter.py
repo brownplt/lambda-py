@@ -2,6 +2,7 @@ class SeqIter:
     def __init__(self,l):
         self.l = l
         self.i = 0
+        self.stop = False
 
     def __len__(self):
         return len(self.l)
@@ -15,8 +16,6 @@ class SeqIter:
                 break
         return l
 
-
-
     def __iter__(self):
         return self
 
@@ -24,12 +23,15 @@ class SeqIter:
         has_length = True
         found = False
         try:
-            len(self.l)
+            self.l.__len__()
         except AttributeError:
             has_length = False
 
         try:
-            if has_length and self.i >= len(self.l):
+            if self.stop:
+                raise StopIteration()
+            if has_length and self.i >= self.l.__len__():
+                self.stop = True
                 raise StopIteration()
             ret = self.l[self.i]
             found = True
@@ -44,27 +46,41 @@ class SeqIter:
         else:
           return None
 
+___assign("%SeqIter", SeqIter)
+
 def iter(l, *args):
-    if len(args) == 1:
-        stopwhen = args[0]
-        return FuncIter(l, stopwhen)
-    else:
+    callable = ___id("%callable")
+    
+    if args.__len__() == 1:
+        if callable(l):
+            stopwhen = args[0]
+            return FuncIter(l, stopwhen)
+        else:
+            TypeError("iter(v, w): v must be callable")
+    elif args.__len__() == 0:
         try:
             return l.__iter__()
         except:
-            raise TypeError()
+            try:
+                if callable(l.__getitem__):
+                    return SeqIter(l)
+            except:
+                raise TypeError("object is not iterable")
+    else:
+        raise TypeError("iter expect at most 2 arguments")
 
 ___assign("%iter", iter)
 
 def next(it):
     return it.__next__()
 
+___assign("%next", next)
+
 class FuncIter:
     def __init__(self, func, stopwhen):
         self.func = func
         self.stopwhen = stopwhen
         self.stopped = False
-        return self
 
     def __list__(self):
         l = []
@@ -84,3 +100,5 @@ class FuncIter:
             raise StopIteration()
         else:
             return v
+
+___assign("%FuncIter", FuncIter)

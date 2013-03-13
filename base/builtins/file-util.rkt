@@ -15,3 +15,4 @@
   (if (output-port? port)
       (close-output-port port)
       (close-input-port port)))
+

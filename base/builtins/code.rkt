@@ -29,7 +29,7 @@
 (define (code-str (args : (listof CVal))
                   (env : Env)
                   (sto : Store)) : (optionof CVal)
-   (check-types args env sto 'code
+   (check-types args env sto '%code
                 (some (VObject 'str
                                (some (MetaStr
                                       (pretty-metaval mval1)))
@@ -38,7 +38,7 @@
 (define (code-globals (args : (listof CVal))
                       (env : Env)
                       (sto : Store)) : (optionof CVal)
-   (check-types args env sto 'code
+   (check-types args env sto '%code
                 (some (make-builtin-tuple
                        (map
                         (lambda (name)

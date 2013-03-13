@@ -31,7 +31,7 @@
 ;; source, filename, mode as its argument
 (define (compile args env sto)
   (check-types args env sto 'str 'str 'str
-               (let* ([source (MetaStr-s mval1)]
+               (let* ([source (MetaStr-s mval1)] 
                       [filename (MetaStr-s mval2)]
                       [mode (MetaStr-s mval3)]
                       [code (compile-string source)]
