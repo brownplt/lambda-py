@@ -9,9 +9,9 @@
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/set.rkt"
-         "builtins/none.rkt"
          "builtins/file.rkt"
          "builtins/method.rkt"
+         "modules/builtin-modules.rkt"
          "util.rkt"
          "python-lib-bindings.rkt"
          (typed-in "get-structured-python.rkt"
@@ -24,7 +24,7 @@
          "python-macros.rkt"
          "python-lexical-syntax.rkt"
          "python-desugar.rkt"
-         "python-phase1.rkt"
+         "python-phases.rkt"
          (typed-in racket/base (append : ((listof 'a) (listof 'a) (listof 'a) (listof 'a) (listof 'a) -> (listof 'a)))))
 
 #|
@@ -57,17 +57,25 @@ that calls the primitive `print`.
                 (desugar-macros
                   (new-scope-phase
                     (get-structured-python pyast)))))))
-               (list "pylib/tuple.py"
+               (list "pylib/none.py"
+                     "pylib/bool.py"
+                     "pylib/str.py"
+                     "pylib/tuple.py"
                      "pylib/list.py"
                      "pylib/dict.py"
                      "pylib/set.py"
                      "pylib/type.py"
+                     "pylib/method.py"
+                     "pylib/super.py"
                      "pylib/range.py"
                      "pylib/seq_iter.py"
+                     "pylib/print.py"
                      "pylib/filter.py"
                      "pylib/any.py"
                      "pylib/all.py"
-                     "pylib/dicteq.py"
+                     "pylib/import.py"
+                     "pylib/file.py"
+                     "pylib/isinstance.py"
                      "py-prelude.py"
                     ))))
          (some-v pylib-programs))]
@@ -87,5 +95,8 @@ that calls the primitive `print`.
                   (seq-ops (append
                              (map (lambda (b) (bind-right b)) lib-functions)
                              (get-pylib-programs)
-                             (list (CModule-body expr))
-                             empty empty)))))
+                             (get-builtin-modules)
+                             (map (lambda (b) (bind-right b))
+                                  (list (bind 'True (assign 'True (CTrue)))
+                                        (bind 'False (assign 'False (CFalse)))))
+                             (list (CModule-body expr)))))))

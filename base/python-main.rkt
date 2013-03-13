@@ -6,8 +6,9 @@
          "parse-python.rkt"
          "get-structured-python.rkt"
          "python-interp.rkt"
-         "python-phase1.rkt"
+         "python-phases.rkt"
          "python-desugar.rkt"
+         "python-macros.rkt"
          "python-lib.rkt"
          "run-tests.rkt"
          "util.rkt"
@@ -46,6 +47,14 @@
      (get-structured-python
       (parse-python/port port (get-pypath)))))))
 
+(define (desugar-w/macros port)
+  (desugar
+   (desugar-macros
+    (new-scope-phase
+     (get-structured-python
+      (parse-python/port port (get-pypath)))))))
+
+
 (define (get-core-syntax port)
   (desugar
     (new-scope-phase
@@ -76,6 +85,9 @@
 
   ("--get-core-syntax-with-libs" "Get desugared python and libraries (big)"
    (pretty-write (desugar-w/lib (current-input-port))))
+
+  ("--get-core-syntax-with-macros" "Get desugared python with ___ macros expanded"
+   (pretty-write (desugar-w/macros (current-input-port))))
 
   
   ("--test" dirname "Run all tests in dirname"

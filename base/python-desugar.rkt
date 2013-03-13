@@ -71,7 +71,7 @@
                      [body : LexExpr]) : CExpr
   (local [(define iter-id (new-id))]
     (rec-desugar
-     (LexLocalLet iter-id (LexApp (LexGlobalId 'iter 'Load) (list iter))
+     (LexLocalLet iter-id (LexApp (LexGlobalId '%iter 'Load) (list iter))
                   (LexWhile (LexBool true)
                             (LexSeq
                              (list
@@ -123,7 +123,12 @@
 (define (desugar-excepts [exn-id : symbol] [excepts : (listof LexExpr)]) : CExpr
   (local [(define (rec-desugar-excepts es)
             (cond
-              [(empty? es) (CId exn-id (LocalId))]
+              [(empty? es) ;; exceptions other than $Reraise are reraised if not catched
+                (rec-desugar (LexIf (LexApp (LexGlobalId '%isinstance 'Load)
+                                            (list (LexLocalId exn-id 'Load)
+                                                  (LexGlobalId '$Reraise 'Load)))
+                                    (LexPass)
+                                    (LexRaise (LexLocalId exn-id 'Load))))]
               [else
                 (local [(define except (first es))
                         (define-values (body as types)
@@ -140,11 +145,11 @@
                           (cond
                             [(empty? types)
                              (list
-                               (LexApp (LexGlobalId 'isinstance 'Load)
+                               (LexApp (LexGlobalId '%isinstance 'Load)
                                        (list (LexLocalId exn-id 'Load)
                                              (LexGlobalId 'BaseException 'Load))))]
                             [else (map (lambda (t)
-                                         (LexApp (LexGlobalId 'isinstance 'Load)
+                                         (LexApp (LexGlobalId '%isinstance 'Load)
                                                  (list (LexLocalId exn-id 'Load) t)))
                                        types)]))
                         (define condition (desugar-boolop 'Or checks))]
@@ -155,20 +160,9 @@
                        (rec-desugar-excepts (rest es))))]))]
     (rec-desugar-excepts excepts)))
 
-#|  
 
-;;; desugar import name as asname to
-;;; asname = __import__('name')
-(define (desugar-import-py names asnames) : PyExpr
-  (local [(define (helper names asnames result)
-            (cond [(empty? names) result]
-                  [else
-                   (helper (rest names) (rest asnames)
-                           (append result
-                                   (list (PyAssign (list (PyId (first asnames) 'Store))
-                                                   (PyApp (PyId '__import__ 'Load)
-                                                          (list (PyStr (first names))))))))]))]
-         (PySeq (helper names asnames (list)))))
+
+#|  
 
 ;;; desugar from module import name as asname
 ;;; __tmp_module = __import__(module, globals(), locals(), [id], 0)
@@ -369,6 +363,7 @@
 
       [LexUnaryOp (op operand)
                   (case op
+                    ['Not (CPrim1 'Not (CApp (CId '%bool (GlobalId)) (list (desugar operand)) (none)))]
                     ['USub (rec-desugar (LexBinOp (LexNum 0) 'Sub operand))]
                     ['UAdd (rec-desugar (LexBinOp (LexNum 0) 'Add operand))]
                     ['Invert (local [(define roperand (rec-desugar operand))]
@@ -390,10 +385,10 @@
                    (local [(define last-arg (first (reverse args)))]
                      (rec-desugar
                        ; assuming 1 defarg for now, generalize later
-                       (LexSeq 
-                         (list
-                           (LexAssign (list (LexLocalId last-arg 'DesugarVar))
-                                      (first (reverse defargs)))
+                       ; NB: it also assumes no other arguments are present (fixed position
+                       ; or stararg), otherwise they are silently discarded. (Alejandro).
+                       (LexLocalLet last-arg
+                                    (first (reverse defargs))
                            (LexFuncVarArg name empty
                                           'stararg 
                                           (LexSeq
@@ -413,41 +408,43 @@
                                                                   (LexNum 0)))
                                                      (LexPass))
                                               body))
-                                          decorators opt-class)))))]
+                                          decorators opt-class))))]
                  [(empty? decorators)
                    (local [(define body-r (rec-desugar body))]
                      (CFunc args (none) body-r opt-class))]
 
                  [else
-                  (rec-desugar (LexSeq
-                                (list
-                                 (LexFunc name args (list) body (list) opt-class)
-                                 ;; apply decorators to the function
-                                 (LexAssign (list (LexLocalId name 'Load))
-                                           (foldr (lambda (decorator func)
-                                                    (LexApp decorator (list func)))
-                                                  (LexLocalId name 'Load)
-                                                  decorators)))))])]
-      
-      
+                  (rec-desugar ;; apply decorators to the function
+                   (foldr (lambda (decorator func) (LexApp decorator (list func)))
+                          (LexFunc name args (list) body (list) opt-class)
+                          decorators))])]
+
       [LexFuncVarArg (name args sarg body decorators opt-class)
                      (if (empty? decorators)
                          (CFunc args (some sarg) (rec-desugar body) opt-class)
-                         (rec-desugar (LexSeq
-                                       (list
-                                        (LexFuncVarArg name args sarg body (list) opt-class)
-                                        ;; apply decorators to the function
-                                        (LexAssign (list (LexLocalId name 'Load))
-                                                  (foldr (lambda (decorator func)
-                                                           (LexApp decorator (list func)))
-                                                         (LexLocalId name 'Load)
-                                                         decorators))))))]
+                         (rec-desugar ;; apply decorators to the function
+                          (foldr (lambda (decorator func) (LexApp decorator (list func)))
+                                 (LexFuncVarArg name args sarg body (list) opt-class)
+                                 decorators)))]
 
       [LexReturn (value) (CReturn (rec-desugar value))]
       
-      [LexDict (keys values) (CDict (CId '%dict (GlobalId))
-                                    (lists->hash (map rec-desugar keys)
-                                                 (map rec-desugar values)))]
+      [LexDict (keys values)
+       (local [
+        (define (pairs->tupleargs keys values)
+          (cond
+            [(empty? keys) empty]
+            [(cons? keys)
+             (cons (CTuple (CId '%tuple (GlobalId))
+                           (list (rec-desugar (first keys))
+                                 (rec-desugar (first values))))
+                   (pairs->tupleargs (rest keys) (rest values)))]))
+        ]
+        (CApp (CId '%dict (GlobalId))
+          (list
+            (CList (CId '%list (GlobalId))
+                   (pairs->tupleargs keys values)))
+          (none)))]
       [LexSet (elts) (CSet (CId '%set (GlobalId)) (map rec-desugar elts))]
       [LexList (values) (CList (CId '%list (GlobalId)) (map rec-desugar values))]
       [LexTuple (values) (CTuple (CId '%tuple (GlobalId)) (map rec-desugar values))]
@@ -513,9 +510,12 @@
             
       [LexClass (scp name bases body)
                 (CClass name
-                        (if (empty? bases)
-                            (list 'object)
-                            bases)
+                        ;TODO: would be better to change bases to be a (listof LexExpr)
+                        ;; and to build the tuple here (Alejandro).
+                        ;; (CNone) is because we may not have a tuple class object yet.
+                        (type-case CExpr (desugar bases)
+                          [CTuple (class tuple) (CTuple (CNone) tuple)]
+                          [else (error 'desugar "bases is not a tuple")])
                         (desugar body))]
 
       [LexInstanceId (x ctx)
@@ -575,8 +575,7 @@
                                                        desugared-slice)
                                                  (none))))]
                      [else (error 'desugar "We don't know how to delete identifiers yet.")]))]
-      [LexImport (names asnames) (rec-desugar (LexPass))]
-                 ;(rec-desugar (desugar-import-py names asnames))]
+      
 
       [LexImportFrom (module names asnames level) (rec-desugar (LexPass))]
                    ;(rec-desugar (desugar-importfrom-py module names asnames level) global? env opt-class)]       

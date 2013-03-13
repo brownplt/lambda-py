@@ -17,7 +17,7 @@
 
 
 ;I want encapsulation, so I guess this works
-(define (new-scope-phase expr)
+(define (scope-phase expr)
   (local
    [
          
@@ -28,7 +28,7 @@
 
        (call/cc
         (lambda (inner)
-          (outer (lexexpr-modify-tree expr (lambda (x) (if (fun x) (haiku-error) (inner (display message))))))))
+          (outer (lexexpr-modify-tree expr (lambda (x) (if (fun x) (default-recur) (inner (display message))))))))
        (error 'assert-on-tree: message)
        ))))
 
@@ -46,8 +46,13 @@
      (type-case PyExpr y
        [PyClass (name bases body)
                 (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexUndefined))
-                              (LexClass (Unknown-scope) name bases (LexBlock empty
-                                                                             (pre-desugar body)))))]
+                              (LexClass (Unknown-scope) name
+                                        (let ((desugared-bases (map pre-desugar bases)))
+                                          (LexTuple (if (empty? desugared-bases)
+                                                        (list (LexGlobalId '%object 'Load))
+                                                        desugared-bases)))
+                                        (LexBlock empty
+                                                  (pre-desugar body)))))]
        [PyLam (args body)
               (LexLam args (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
        [PyFunc (name args defaults body decorators)
@@ -60,240 +65,37 @@
        
        [PyFuncVarArg (name args sarg body decorators)
                      (LexSeq (list
-                              (LexAssign (list (PyLexId name 'Store)) 
+                              (LexAssign (list (PyLexId name 'Store))
                                          (LexFuncVarArg name args sarg
                                                         (LexBlock (cons sarg args)
                                                                   (cascade-nonlocal (cons sarg args) (pre-desugar body)))
                                                         (map pre-desugar decorators)
                                                         (none)))))]
-       [else (haiku-error)]
+       [PyImport (names asnames) 
+                 (desugar-pyimport names asnames)]
+       [else (default-recur)]
        )))))
 
-(define (introduce-locals listof-locs expr)
-        (cond
-         [(empty? listof-locs) expr]
-         [else (LexLocalLet (first listof-locs) (LexUndefined)
-                            (introduce-locals (rest listof-locs) expr))]))
+;;; desugar import name as asname to
+;;; asname = __import__('name')
+;;; desugar-import-py will 
+(define (desugar-pyimport names asnames) : LexExpr
+  (local [(define (desugar-pyimport/rec names asnames)
+            (cond [(empty? names) (list)]
+                  [else
+                   (append
+                    (list (LexAssign
+                           (list (PyLexId (first asnames) 'Store))
+                           (LexApp (PyLexId '__import__ 'Load)
+                                  (list (LexStr (first names))))))
+                    (desugar-pyimport/rec (rest names) (rest asnames))
+                    )]))]
+         (LexSeq (desugar-pyimport/rec names asnames))))
 
- (define (post-desugar [expr : LexExpr]) : LexExpr
-    (local
-     [
-      (define (finish-hoist-functions expr)
-        (lexexpr-modify-tree
-         expr
-         (lambda (y)
-           (type-case LexExpr y
-             [LexFunc (name args defaults body decorators class)
-                      (if
-                       (and
-                        (> (string-length (symbol->string name )) (string-length "class-replacement"))
-                        (equal? "class-replacement" (substring (symbol->string name) 0 (string-length "class-replacement"))))
-                       (LexFunc name args defaults body decorators (none))
-                       y)]
-             [else (haiku-error)]))))
-      (define hoist-functions (local
-       [
-      ;takes a body, makes two scopes out of it -
-      ;one for the functions, one for everything else.
-      ;alejandro's locals-in-class-definition solution.
-      ;this is currently _very_ slow.
-        (define (create-bindings-helper functions ids) : (listof LexExpr)
-          (cond
-           [(empty? functions) empty]
-           [(empty? ids) empty]
-           [else (cons
-                  (LexAssign (list (LexLocalId (first ids) 'Store)) (first functions))
-                  (create-bindings-helper (rest functions) (rest ids)))]))
-        (define (create-bindings functions ids)
-          (LexSeq (create-bindings-helper functions ids))
-          )
-        (define list-of-functions empty)
-        (define list-of-identifiers empty)
-        (define (hoist-functions [expr : LexExpr])
-          (begin
-            ;(display "entering hoist-functions")
-          (let ((result (let ((replaced-body (replace-functions expr)))
-            (introduce-locals
-             list-of-identifiers
-             (LexSeq
-              (list
-               ;this is the random-identifiers-assigned-to-lambdas part
-               (create-bindings list-of-functions list-of-identifiers)
-               ;this is the new body.
-               replaced-body
-               ))
-              ))))
-            (begin
-              ;(display "exiting hoist-functions")
-              result)
-            )
-            ))
 
-        (define (make-local-ids args)
-          (map (lambda (y) (LexLocalId y 'Load)) args))
-                                        ;functions are lam, func, funcvararg.
-      (define (replace-functions [body2 : LexExpr])
-        (lexexpr-modify-tree
-         body2
-         (lambda
-             ([e : LexExpr])
-           (type-case LexExpr e
-             [LexFunc (name args defaults body decorators class)
-                      (LexFunc name args
-                               (map replace-functions defaults)
-                               (begin
-                                 (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
-                                 (set! list-of-functions (cons
-                                                          
-                                                          (LexFunc (first list-of-identifiers)
-                                                                   args
-                                                                   empty
-                                                                   body
-                                                                   empty
-                                                                   (none)) list-of-functions))
-                                 (LexReturn (LexApp (LexLocalId (first list-of-identifiers) 'Load) (make-local-ids args)))
-                                 )
-                               (map replace-functions decorators) class)
-                      ]
-             [LexFuncVarArg (name args sarg body decorators class)
-                            (LexFuncVarArg name args sarg
-                               (begin
-                                 (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
-                                 (set! list-of-functions (cons
-                                                          (LexFunc (first list-of-identifiers)
-                                                                   (cons sarg args)
-                                                                   empty
-                                                                   body
-                                                                   empty
-                                                                   (none))
-                                                          list-of-functions))
-                                 (LexReturn
-                                  (LexApp (LexLocalId (first list-of-identifiers) 'Load) (make-local-ids (cons sarg args))))
-                                 )
-                               (map replace-functions decorators) class)]
-             [LexLam (args body) (begin
-                                   (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
-                                   (set! list-of-functions (cons e list-of-functions))
-                                   (LexLocalId (first list-of-identifiers) 'Load))]
-             [LexBlock (nls es) e]
-             [LexClass (scope name bases body) e]
-             [else (haiku-error)]))))
-      (define (generate-identifier )
-        (gensym 'class-replacement))
-      ]
-       hoist-functions))
-      ;end hoist functions.
-      
-      (define (replace-instance expr class-expr)
-        (lexexpr-modify-tree
-         expr
-         (lambda (y)
-           (type-case LexExpr y
-             [LexInstanceId (x ctx) (LexDotField class-expr x)]
-             [LexClass (scope name bases body) (LexClass scope name bases body)]
-             [else (haiku-error)]))))
-      (define (annotate-methods-with-class expr classname)
-        (lexexpr-modify-tree
-         expr
-         (lambda (y)
-           (type-case LexExpr y
-             [LexFunc (name args defaults body decorators class)
-                      (LexFunc name args defaults body decorators (some classname))]
-             [LexFuncVarArg (name args sarg body decorators class)
-                            (LexFuncVarArg name args sarg body decorators (some classname)) ]
-             [LexClass (scope name bases body)
-                       (LexClass scope name bases (annotate-methods-with-class body name))]
-             [else (haiku-error)]))))
-      (define (split-instance-into-instance-locals expr)
-        (introduce-locals
-         (lexexpr-fold-tree expr (lambda (y)
-                                   (type-case LexExpr y
-                                     [LexInstanceId (x ctx) (list x)]
-                                     [LexClass (scope name bases body) empty]
-                                     [LexBlock (nls es) empty]
-                                     [else (haiku-error)])))
-         (split-instance-into-instance-locals-helper expr)))
-      (define (split-instance-into-instance-locals-helper expr)
-        (let ((find-var (lambda (expr) : symbol
-                          (let ((var (lexexpr-fold-tree
-                           expr
-                           (lambda (e)
-                             (type-case LexExpr e
-                               [LexInstanceId (x ctx) (list x)]
-                               [LexBlock (nls e) empty]
-                               [LexClass (scope name bases body) empty]
-                               [else (haiku-error)])))))
-                            (cond
-                             [(empty? var) (error 'split-instance-lambda "we didn't find an instance variable")]
-                             [(empty? (rest var)) (first var)]
-                             [else (error 'split-instance-lambda "can't handle multiple instance variables!")])))))
-          (lexexpr-modify-tree
-           expr
-           (lambda (e)
-             (type-case LexExpr e
-               [LexAssign (targets value)
-                          (let ((affected-var (map find-var targets)))
-                            (cond
-                             [(empty? affected-var) (error 'e "wait we should have caught that just above")]
-                             [(empty? (rest affected-var))
-                              (LexSeq
-                               (list
-                                (LexAssign (list (LexLocalId (first affected-var) 'Store)) value)
-                                (LexAssign targets (LexLocalId (first affected-var) 'Load))))
-                              ]
-                             [else (error 'e "can't handle multiple assignment yet.")]))]
-                                        ;[LexAugAssign (op target value )]
-               [LexBlock (nls es) e]
-               [LexClass (scope name bases body) e]
-               [else (haiku-error)])))))
-      (define (deal-with-class expr class-expr)
-        (begin 
-        ;(display (string-append "deal-with-class on " (to-string expr)))
-        (lexexpr-modify-tree
-         expr
-         (lambda ([y : LexExpr])
-           (type-case LexExpr y
-             [LexClass (scope name bases body)
-                       (let ((body (hoist-functions (split-instance-into-instance-locals body))))
-                       ;(let ((body (identity body)))
-                           (let ((class-expr (if (Instance-scoped? scope)
-                                                 (LexDotField class-expr name)
-                                                     class-expr)))
-                             (let ((new-body (replace-instance
-                                              body
-                                              class-expr
-                                              )))
-                               (LexSeq (list (LexAssign
-                                              (list class-expr)
-                                              (LexClass scope name bases (LexPass)))
-                                             (deal-with-class
-                                              (annotate-methods-with-class new-body name)
-                                              class-expr))))))]
-             [else (haiku-error)])))))
-          (define (top-level-deal-with-class expr)
-            (begin
-              ;(display (string-append "top-level-deal-with-class on " (string-append (to-string expr) "\n") ))
-            (lexexpr-modify-tree
-             expr
-             (lambda ([y : LexExpr])
-               (type-case LexExpr y
-                 [LexClass (scope name bases body)
-                           (finish-hoist-functions (if (Instance-scoped? scope)
-                                 (error 'lexical "instance is not inside class")
-                                 (deal-with-class
-                                  y
-                                  (if (Globally-scoped? scope)
-                                      (LexGlobalId name 'Load)
-                                      (LexLocalId name 'Load)))))]
-                 [else (haiku-error)])))))]
-        (top-level-deal-with-class expr)))
 
+ 
 (define (scope-phase [expr : PyExpr] ) : LexExpr
-  (LexModule
-   (list 
-    (optimization-pass
-     (let-phase
-      (post-desugar
        (let ((replaced-locals (replace-all-locals  (replace-all-instance (pre-desugar expr)) empty empty)))
          (let ((fully-transformed (make-all-global replaced-locals))) 
            (remove-blocks
@@ -303,14 +105,14 @@
                (replace-lexmodule
                 (remove-unneeded-assigns
                  (process-syntax-errors
-                  (bind-locals fully-transformed)))))))))))))))) ;surround every block with PyLet of locals
+                  (bind-locals fully-transformed))))))))))) ;surround every block with PyLet of locals
 
 (define (replace-lexmodule expr)
   (lexexpr-modify-tree expr
                        (lambda (y)
                          (type-case LexExpr y
                            [LexModule (es ) (LexSeq (map replace-lexmodule es))]
-                           [else (haiku-error)]))))
+                           [else (default-recur)]))))
 
 
 (define (remove-unneeded-assigns expr)
@@ -334,7 +136,8 @@
                                              (error 'remove-unneeded-assigns "assignment is not to ID type")])))
                                       (type-case LexExpr (second es)
                                         [LexClass (scope name bases body)
-                                                  (LexClass replace-scope name bases
+                                                  (LexClass replace-scope name
+                                                            (remove-unneeded-assigns bases)
                                                             (remove-unneeded-assigns body))]
                                         [LexFunc (name args defaults body decorators class)
                                                  (LexFunc name args
@@ -353,9 +156,8 @@
                                       )
                                     (LexSeq (map remove-unneeded-assigns es)))]
                                
-                               [else (haiku-error)]))))
-(define (optimization-pass expr)
-  expr)
+                               [else (default-recur)]))))
+
 
 
 (define (process-syntax-errors [expr : LexExpr]) : LexExpr
@@ -387,36 +189,20 @@
                                                                     (flatten (list bindings these-locals nls)))
                                                                    e))]
                                   [LexLocalId (x ctx) (begin (set! these-locals (cons x these-locals)) e)]
-                                  [else (haiku-error)]
+                                  [else (default-recur)]
                                   )))))]
        (k (bindings-for-nonlocal empty expr))))))
 
-(define (let-phase [expr : LexExpr] ) : LexExpr
-(collapse-pyseq (cascade-undefined-globals (list-subtract
-                                            (begin
-                                              ;(display (extract-post-transform-globals expr))
-                                              (extract-post-transform-globals expr))
-                                            library-names) expr))) ;all globals, not just the current scope
 
-(define library-names (map (lambda (b) (bind-left b)) lib-function-dummies))
 
-(define (collapse-pyseq expr ) 
-  (lexexpr-modify-tree
-   expr 
-   (lambda (x) (type-case LexExpr x
-                 [LexSeq(lis)
-                        (LexSeq (flatten (map (lambda (y)
-                                                (let ((e (collapse-pyseq y)))
-                                                  (if (LexSeq? e) (LexSeq-es e) (list e))))
-                                              lis)))]
-                 [else (haiku-error)]))))
+
 (define (remove-global expr)
   (lexexpr-modify-tree
    expr
    (lambda (x)
      (type-case LexExpr x
        [PyLexGlobal(y) (LexPass)]
-       [else (haiku-error)]))))
+       [else (default-recur)]))))
 
 (define (remove-nonlocal expr)
   (lexexpr-modify-tree
@@ -424,7 +210,7 @@
    (lambda (x)
      (type-case LexExpr x
        [PyLexNonLocal(y) (LexPass)]
-       [else (haiku-error)]))))
+       [else (default-recur)]))))
 
 (define (remove-unneeded-pypass expr)
   (lexexpr-modify-tree
@@ -437,7 +223,7 @@
                 [(empty? filtered-seq) (LexPass)]
                 [(empty? (rest filtered-seq)) (remove-unneeded-pypass (first filtered-seq))]
                 [else (LexSeq (map remove-unneeded-pypass filtered-seq))]))]
-       [else (haiku-error)]))))
+       [else (default-recur)]))))
 
 (define (remove-blocks expr)
   (lexexpr-modify-tree
@@ -445,7 +231,7 @@
    (lambda (x)
      (type-case LexExpr x
        [LexBlock (nls e) (remove-blocks e)]
-       [else (haiku-error)]))))
+       [else (default-recur)]))))
 
 
 
@@ -455,14 +241,9 @@
                                              [else false]))
                                 (lambda (x) (type-case LexExpr x
                                         [LexBlock(a) (list a)]
-                                        [else (haiku-error)]))))
+                                        [else (default-recur)]))))
       (error 'assert-pyblock-exists "pyblock is missing")
       expr))
-(define (cascade-undefined-globals [globals : (listof symbol) ] [body : LexExpr] ) : LexExpr
-  (if (empty? globals)
-      body
-      (LexGlobalLet (first globals) (LexUndefined)
-            (cascade-undefined-globals (rest globals) body))))
 
 (define (cascade-undefined-locals [globals : (listof symbol) ] [body : LexExpr] ) : LexExpr
   (if (empty? globals)
@@ -476,16 +257,6 @@
 ;   [(empty? expr) body]
 ;   [else (CLet (first ids) (first expr) (cascade-let (rest ids) (rest expr) body))]))
 
-(define (extract-post-transform-globals expr) : (listof symbol)
-  (remove-duplicates
-   (lexexpr-fold-tree
-    expr
-    (lambda (exp)
-      (type-case LexExpr exp
-        [LexGlobalId (x ctx) (list x)]
-        #;[LexAssign (lhs rhs) (map (lambda (y) (LexGlobalId-x y))
-                                    (filter (lambda (y) (LexGlobalId? y)) lhs))]
-        [else (haiku-error)])))))
 
 
 ;remember, (extract-globals expr true) is _shallow_ 
@@ -497,7 +268,7 @@
                         (type-case LexExpr exp
                           [LexBlock (nonlocals es) (if current-scope-only? empty (extract-globals-cls es))]
                           [PyLexGlobal(globals) globals]
-                          [else (haiku-error)])))))
+                          [else (default-recur)])))))
 (define (find-all-instance expr)
       (let [[post-remove
       (list-subtract
@@ -512,7 +283,7 @@
                                           [else (error 'find-all-instance "can't handle non-pyid")])) lhs)]
              [LexAugAssign (op lhs rhs) (list (PyLexId-x lhs))]
              [LexBlock (_ __) empty]
-             [else (haiku-error)])))
+             [else (default-recur)])))
         (extract-globals expr true))
          (extract-nonlocals expr))]]
         post-remove))
@@ -545,7 +316,7 @@
            (type-case LexExpr exp
              [PyLexId (sym ctx) (list sym)]
              [LexInstanceId (_ __) empty]
-             [else (haiku-error)])))
+             [else (default-recur)])))
         (spec (lambda (exp)
                 (type-case LexExpr exp
                   [LexAssign (targets value)
@@ -557,7 +328,7 @@
                   [PyLexNonLocal (ids) ids]
                   [LexBlock (nls es) empty]
                   [LexExceptAs (types name body) (list name)]
-                  [else (haiku-error)]))))
+                  [else (default-recur)]))))
     (lexexpr-fold-tree expr spec)))
 
 (define (replace-all-instance [expr : LexExpr]) : LexExpr
@@ -572,7 +343,7 @@
                            (LexClass
                             scope
                             name
-                            bases
+                            (toplevel bases)
                             (type-case LexExpr body
                               [LexBlock (nls e)
                                        (LexBlock
@@ -580,7 +351,7 @@
                                         (second-level e))]
                               [else (begin (display "thing in class literal is not a block")
                                            (error 'e "thing in class literal is not block"))]))]
-           [else (haiku-error)]))))
+           [else (default-recur)]))))
     (define (second-level expr )
       (let
           ((locs (find-all-instance expr)))
@@ -601,7 +372,7 @@
                [LexAugAssign (op target value) (LexAugAssign op (assign-func target) value)]
                [LexBlock (nls e) (LexBlock nls (toplevel e))]
                [LexClass (scope name super body) (toplevel x)]
-               [else (haiku-error)]))))))
+               [else (default-recur)]))))))
     ]
    (toplevel expr)))
       
@@ -612,7 +383,7 @@
      (type-case LexExpr e
        [LexInstanceId (x ctx) (list x)]
        [LexBlock (_ __) empty]
-       [else (haiku-error)]))))
+       [else (default-recur)]))))
 
 (define (replace-all-locals [expr : LexExpr] [locs : (listof symbol) ] [instance : (listof symbol)])
   (let ((replace (lambda ([str : symbol] [ctx : symbol]) (if (empty? (flatten
@@ -641,7 +412,7 @@
                                                  ;all (replaced) instance variables in this scope.
                                                  (all-replaced-instance es)
                                                       ))]         
-         [else (haiku-error)])))))
+         [else (default-recur)])))))
 
 (define (make-all-global [expr : LexExpr]) : LexExpr
 ;  (lexexpr-modify-tree
@@ -655,7 +426,7 @@
         (type-case LexExpr x
           [PyLexId (x ctx) (begin #;(display "it's an ID\n") (LexGlobalId x ctx))]
                                         ;[LexReturn (r) (LexReturn (make-all-global r))]
-          [else (begin #;(display "executing default\n") (haiku-error))]))))
+          [else (begin #;(display "executing default\n") (default-recur))]))))
       ))
 
 ;finds all PyLexNonLocal designators in this block
@@ -665,7 +436,7 @@
                       (type-case LexExpr x
                         [LexBlock (nls e) empty]
                         [PyLexNonLocal (l) l]
-                        [else (haiku-error)]))))
+                        [else (default-recur)]))))
 
 
 ;only binds renamed locals in this scope.
@@ -693,7 +464,7 @@
                  [LexLocalId (sym ctx) (list sym)]
                  [LexGlobalId (_ __) empty]
                  [LexInstanceId (_ __) empty]
-                 [else (haiku-error)]
+                 [else (default-recur)]
                  )))
             (spec (lambda (exp) (type-case LexExpr exp
                  [LexAssign (targets value)
@@ -703,7 +474,7 @@
                              (flatten (list (extract-locals-helper value) target-ids)))]
                  [LexAugAssign (op l r) (flatten (list (extract-locals-helper r) (targ-fun l)))]
                  [LexBlock (nls es) empty]
-                 [else (haiku-error)]))))
+                 [else (default-recur)]))))
         (lexexpr-fold-tree expr spec)))]
    
    (lexexpr-modify-tree
@@ -714,7 +485,7 @@
                                 (let ((found-locals (extract-locals es)))
                                   (remove-duplicates found-locals))
                                 (bind-locals es )))]
-        [else (haiku-error)])))))
+        [else (default-recur)])))))
 
 ]
 (scope-phase expr)))

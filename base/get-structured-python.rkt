@@ -70,7 +70,7 @@ structure that you define in python-syntax.rkt
      (PyBoolOp (nodetype->symbol op) (map get-structured-python values))]
 
     [(hash-table ('nodetype "Name")
-                 ('ctx ctx)        
+                 ('ctx ctx)
                  ('id id))
      (PyId (string->symbol id) (nodetype->symbol ctx))]
 
@@ -142,7 +142,7 @@ structure that you define in python-syntax.rkt
                  ('kwargs kwargs)
                  ('starargs sargs))
      (PyClass (string->symbol name)
-              (map PyId-x (map get-structured-python bases))
+              (map get-structured-python bases)
               (get-structured-python body))]
     
     [(hash-table ('nodetype "FunctionDef")

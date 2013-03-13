@@ -24,11 +24,14 @@
           [(and (LexGlobalId? fun) (equal? (LexGlobalId-x fun) '___delta)
                 (> (length args) 0) (LexStr? (first args)))
            (LexBuiltinPrim (string->symbol (LexStr-s (first args))) (rest args))]
+          [(and (LexGlobalId? fun) (equal? (LexGlobalId-x fun) '___prim1)
+                (= (length args) 2) (LexStr? (first args)))
+           (LexUnaryOp (string->symbol (LexStr-s (first args))) (second args))]
           [(and (LexGlobalId? fun) (equal? (LexGlobalId-x fun) '___prim2)
                 (= (length args) 3) (LexStr? (first args)))
            (LexBinOp (second args)
                      (string->symbol (LexStr-s (first args)))
                      (third args))]
           [else expr])]
-        [else (haiku-error)]))))
+        [else (default-recur)]))))
 

@@ -12,9 +12,6 @@
   (reduction-relation
    λπ
    #:domain p
-   (==> (str string)
-        (obj-val str (meta-str string) ())
-        "string")
    (==> none
         vnone
         "none")
@@ -27,8 +24,8 @@
    (==> false
 	vfalse
 	"false")
-   (==> (list (val ...))
-        (obj-val list (meta-list (val ...)) ())
+   (==> (list val_1 (val ...))
+        (obj-val list (meta-list (val ...)) () val_1)
         "list")
    (==> (tuple (val ...))
         (obj-val tuple (meta-tuple (val ...)) ())
@@ -81,6 +78,8 @@
    (==> (seq (return-r val) e)
 	(return-r val)
 	"seq-return")
+   (==> (seq (exception-r val) e)
+        (exception-r val))
    #|
    (==> (seq break-r e)
 	break-r
@@ -96,7 +95,7 @@
         vnone
         "loop")
    (==> (loop (in-hole H break-r))
-        vnone
+        break-r
         "loop-break")
    (==> break
         break-r
@@ -160,7 +159,7 @@
         (fresh x_new)
         (where ref_new ,(new-loc))
         "let")|#
-   (--> ((in-hole E (let (x_1 val_1) e))
+   (--> ((in-hole E (let (x_1 local val_1) e))
          (ε_1 ε ...)
          Σ)
         ((in-hole E e)
@@ -168,7 +167,7 @@
          (override-store Σ ref_1 val_1))
         (where ref_1 ,(new-loc))
         "let")
-   (--> ((in-hole E (let (x_1 (return-r val_1)) e))
+   (--> ((in-hole E (let (x_1 local (return-r val_1)) e))
          (ε_1 ε ...)
          Σ)
         ((in-hole E e)
@@ -176,7 +175,7 @@
          (override-store Σ ref_1 val_1))
         (where ref_1 ,(new-loc))
         "let-ret")
-   (--> ((in-hole E (let (x_1 break-r) e))
+   (--> ((in-hole E (let (x_1 local break-r) e))
          (ε_1 ε ...)
          Σ)
         ((in-hole E e)

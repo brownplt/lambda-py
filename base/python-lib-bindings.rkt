@@ -11,8 +11,10 @@
          "builtins/set.rkt"
          "builtins/none.rkt"
          "builtins/file.rkt"
-         "builtins/method.rkt"
+         "builtins/code.rkt"
+         "builtins/module.rkt"
          "util.rkt"
+         "modules/builtin-modules.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
          (typed-in "parse-python.rkt"
@@ -31,7 +33,7 @@
   (seq-ops
     (list 
       (CAssign (CId 'BaseException (GlobalId))
-               (CClass
+               (builtin-class
                  'BaseException
                  (list 'object)
                  (CNone)))
@@ -94,46 +96,6 @@
         (none)))
     (none)))
 
-(define iter-lambda
-  (CFunc (list 'self) (none)
-    (CReturn
-      (CApp
-        (CGetField
-          (CId 'self (LocalId))
-          '__iter__)
-        (list)
-        (none)))
-    (none)))
-
-(define next-lambda
-  (CFunc (list 'self) (none)
-    (CReturn
-      (CApp
-        (CGetField
-          (CId 'self (LocalId))
-          '__next__)
-        (list)
-        (none)))
-    (none)))
-
-(define isinstance-lambda
-  (CFunc (list 'self 'type) (none)
-    (CReturn
-      (CBuiltinPrim 'isinstance
-                    (list (CId 'self (LocalId))
-                          (CId 'type (LocalId)))))
-    (none)))
-
-(define print-lambda
-  (CFunc (list 'to-print) (none) 
-         (CSeq 
-          (CPrim1 'print (CApp 
-                          (CGetField (CId 'to-print (LocalId)) '__str__) 
-                          (list)
-                          (none)))
-          (CNone))
-         (none)))
-
 (define callable-lambda
   (local [(define exn-id (new-id))]
     (CFunc (list 'to-check) (none)
@@ -155,43 +117,59 @@
          (CReturn
           (CBuiltinPrim '$locals empty))
          (none)))
-  
+
+;; TODO: if source contains null bytes, it should raise TypeError
+(define compile-lambda
+  (CFunc (list 'source 'filename 'mode) (none)
+         (CReturn
+          (CBuiltinPrim 'compile
+                        (list
+                         (CId 'source (LocalId))
+                         (CId 'filename (LocalId))
+                         (CId 'mode (LocalId)))))
+         (none)))
+
+(define make_module-lambda
+  (CFunc (list 'code) (none)
+         (CReturn
+          (CConstructModule (CId 'code (LocalId))))
+         (none)))
+
 (define lib-functions
   (list (bind 'True (assign 'True (CTrue)))
         (bind 'False (assign 'False (CFalse)))
         (bind 'None (assign 'None (CNone)))
 
         (bind 'object object-class)
-        (bind 'none none-class)
+        (bind '%object (assign '%object (CId 'object (GlobalId))))
         (bind 'num num-class)
         (bind '%num (assign '%num (CId 'num (GlobalId))))
         (bind 'int int-class)
         (bind '%int (assign '%int (CId 'int (GlobalId))))
         (bind 'float float-class)
         (bind '%float (assign '%float (CId 'float (GlobalId))))
-        (bind 'str str-class)
-        (bind '%str (assign '%str (CId 'str (GlobalId))))
-        (bind 'bool bool-class)
-        (bind 'file file-class)
-        (bind 'open file-class)
-        (bind 'method method-class)
-        (bind 'classmethod classmethod-class)
-        (bind 'staticmethod staticmethod-class)
-        (bind 'super super-class)
+        (bind 'code code-class)
+        (bind '%code (assign '%code (CId 'code (GlobalId))))
+        (bind '$module module-class)
 
+        (bind 'compile (assign 'compile compile-lambda))
+        (bind '%compile (assign '%compile (CId 'compile (GlobalId))))
+        (bind 'make_module (assign 'make_module make_module-lambda))
+        (bind '%make_module (assign '%make_module (CId 'make_module (GlobalId))))
+        
         (bind 'len (assign 'len len-lambda))
         (bind 'min (assign 'min min-lambda))
         (bind 'max (assign 'max max-lambda))
-        (bind 'next (assign 'next next-lambda))
         (bind 'abs (assign 'abs abs-lambda))
 
-        (bind 'isinstance (assign 'isinstance isinstance-lambda))
-        (bind 'print (assign 'print print-lambda))
         (bind 'callable (assign 'callable callable-lambda))
+        (bind '%callable (assign '%callable (CId 'callable (GlobalId))))
         (bind 'locals (assign 'locals locals-lambda))
 
         (bind 'BaseException base-exception)
         (bind 'Exception (assign 'Exception (make-exception-class 'Exception)))
+        (bind 'ImportError (assign 'ImportError (make-exception-class 'ImportError)))
+        (bind 'IOError (assign 'IOError (make-exception-class 'IOError)))
         (bind 'NameError (assign 'NameError (make-exception-class 'NameError)))
         (bind 'TypeError (assign 'TypeError (make-exception-class 'TypeError)))
         (bind 'ValueError (assign 'ValueError (make-exception-class 'ValueError)))
@@ -213,16 +191,36 @@
       (map (lambda(b) (bind (bind-left b) (CUndefined)))
            lib-functions)
       (list 
+            (bind 'none (CUndefined))
+            (bind '%none (CUndefined))
             (bind 'iter (CUndefined))
+            (bind '%iter (CUndefined))
+            (bind 'next (CUndefined))
+            (bind '%next (CUndefined))
             (bind 'FuncIter (CUndefined))
+            (bind '%FuncIter (CUndefined))
             (bind 'SeqIter (CUndefined))
+            (bind '%SeqIter (CUndefined))
+            (bind 'print (CUndefined))
+            (bind '%print (CUndefined))
             (bind 'all (CUndefined))
+            (bind '%all (CUndefined))
             (bind 'any (CUndefined))
+            (bind '%any (CUndefined))
             (bind 'range (CUndefined))
+            (bind '%range (CUndefined))
             (bind 'filter (CUndefined))
-            (bind 'dicteq (CUndefined))
+            (bind '%filter (CUndefined))
+            (bind 'isinstance (CUndefined))
+            (bind '%isinstance (CUndefined))
             (bind 'tuple (CUndefined))
             (bind '%tuple (CUndefined))
+            (bind 'issubclass (CUndefined))
+            (bind '%issubclass (CUndefined))
+            (bind 'bool (CUndefined))
+            (bind '%bool (CUndefined))
+            (bind 'str (CUndefined))
+            (bind '%str (CUndefined))
             (bind 'list (CUndefined))
             (bind '%list (CUndefined))
             (bind 'dict (CUndefined))
@@ -231,6 +229,15 @@
             (bind '%set (CUndefined))
             (bind 'type (CUndefined))
             (bind '%type (CUndefined))
+            (bind 'super (CUndefined))
+            (bind 'method (CUndefined))
+            (bind 'open (CUndefined))
+            (bind '%open (CUndefined))
+            (bind 'file (CUndefined))
+            (bind '%file (CUndefined))
+            (bind 'classmethod (CUndefined))
+            (bind 'staticmethod (CUndefined))
+            (bind '__import__ (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))
@@ -241,5 +248,8 @@
             (bind '___assertNotIn (CUndefined))
             (bind '___fail (CUndefined))
             (bind '___assertRaises (CUndefined)))
-      empty empty empty))
+      ;; dummies of built-in modules
+      (map (lambda (name) (bind name (CUndefined)))
+           (get-builtin-module-names))
+      empty empty))
 

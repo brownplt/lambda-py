@@ -1,5 +1,6 @@
-class filter:
+class filter(object):
     def __init__(self, function, iterable):
+        iter = ___id("%iter")
         if function:
             self.function = function
         else:
@@ -18,3 +19,5 @@ class filter:
         for element in self:
             result.append(element)
         return result
+
+___assign("%filter", filter)

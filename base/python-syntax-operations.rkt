@@ -15,14 +15,14 @@
 
 (print-only-errors #t)
 
-(define (haiku-error) (error 'haiku "Bad error message, find and fix"))
+(define (default-recur) (error 'haiku "Bad error message, find and fix"))
 
 (define haiku (call/cc (lambda (k)
            (call-with-exception-handler
             (lambda (y)
              (k y))
             (lambda ()
-              (k (haiku-error)
+              (k (default-recur)
               ))))))
 (define (gen-recur default special-func)
   (lambda (this-expr)
@@ -81,7 +81,7 @@
               
                                         ; classes and objects 
               [PyClass (name bases body)
-                       (LexClass (Unknown-scope) name bases (recur body))]
+                       (LexClass (Unknown-scope) name (LexTuple (map recur bases)) (recur body))]
               [PyDotField (value attr) (LexDotField (recur value) attr)]
 
                                         ; operations
@@ -195,7 +195,7 @@
               
                                         ; classes and objects 
               [LexClass (scope name bases body)
-                       (LexClass scope name bases (recur body))]
+                       (LexClass scope name (recur bases) (recur body))]
               [LexDotField (value attr) (LexDotField (recur value) attr)]
 
                                         ; operations
@@ -308,7 +308,7 @@
               
                                         ; classes and objects 
               [PyClass (name bases body)
-                       (recur body)]
+                       (flatten (list (map recur bases) (recur body)))]
               [PyDotField (value attr)  (recur value)]
 
                                         ; operations
@@ -361,8 +361,8 @@
               [PyContinue [] empty]
               [PyImport (names asnames) empty]
               [PyImportFrom (module names asnames level) empty]))
-        (define recur
-            (gen-recur default special-func)))
+        (define (recur expr)
+            ((gen-recur default special-func) expr)))
           (recur expr)
           ))
 
@@ -422,7 +422,7 @@
               
                                         ; classes and objects 
               [LexClass (scope name bases body)
-                       (recur body)]
+                       (flatten (list (recur bases) (recur body)))]
               [LexDotField (value attr)  (recur value)]
 
                                         ; operations

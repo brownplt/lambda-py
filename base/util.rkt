@@ -21,14 +21,28 @@
 (require [typed-in racket (flatten : ((listof (listof 'a) ) -> (listof 'a)))])
 (require [typed-in racket (remove-duplicates : ((listof 'a) -> (listof 'a)))])
 (require [typed-in racket (memq : ('a (listof 'a) -> (listof 'a)))])
+(require [typed-in racket (memf : (('a -> boolean) (listof 'a) -> (listof 'a)))])
 
 (require (typed-in racket/pretty (pretty-print : ('a -> 'b))))
+
+(require (typed-in racket (current-directory : (-> 'b))))
+(require (typed-in racket (path->string : ('a -> 'b))))
 
 (print-only-errors #t)
 
 ; a file for utility functions that aren't specific to python stuff
 (define (pprint exp)
   (pretty-print exp))
+
+; sys.path default value
+
+(define default-builtin-module-paths
+  (list "."
+        (string-append
+         (path->string (current-directory)) "../tests/modules/")))
+
+(define (get-module-path)
+  default-builtin-module-paths)
 
 (define python-path "/usr/local/bin/python3.2")
 (define (get-pypath)
@@ -46,7 +60,7 @@
       h)))
 
 (define (make-exception-class [name : symbol]) : CExpr
-  (CClass
+  (builtin-class
     name
     (list 'BaseException)
     (CNone)))
@@ -146,6 +160,35 @@
                     body))
         else-part)]))
 
+(define-syntax (check-types-pred x)
+  (syntax-case x ()
+    [(check-types args env sto tpred1? body)
+     (with-syntax ([mval1 (datum->syntax x 'mval1)])
+       #'(let ([arg1 (first args)])
+           (if (VObjectClass? arg1)
+               (let ([mayb-mval1 (VObjectClass-mval arg1)])
+                 (if (and (some? mayb-mval1)
+                          (tpred1? (some-v (VObjectClass-mval arg1))))
+                     (let ([mval1 (some-v mayb-mval1)])
+                       body)
+                     (none)))
+               (none))))]
+    [(check-types args env sto tpred1? tpred2? body)
+     (with-syntax ([mval1 (datum->syntax x 'mval1)]
+                   [mval2 (datum->syntax x 'mval2)])
+       #'(let ([arg1 (first args)]
+               [arg2 (second args)])
+           (if (and (VObjectClass? arg1) (VObjectClass? arg2))
+               (let ([mayb-mval1 (VObjectClass-mval arg1)]
+                     [mayb-mval2 (VObjectClass-mval arg2)])
+                 (if (and (some? mayb-mval1) (some? mayb-mval2)
+                          (tpred1? (some-v (VObjectClass-mval arg1)))
+                          (tpred2? (some-v (VObjectClass-mval arg2))))
+                     (let ([mval1 (some-v mayb-mval1)]
+                           [mval2 (some-v mayb-mval2)])
+                       body)
+                     (none)))
+               (none))))]))
 
 ;; the copypasta here is bad but we aren't clever enough with macros
 (define-syntax (check-types x)
@@ -154,9 +197,7 @@
      (with-syntax ([mval1 (datum->syntax x 'mval1)])
        #'(let ([arg1 (first args)])
            (if (and (VObjectClass? arg1)
-                ;; TODO(joe): what is going on here? t1 seems to always be a
-                ;; symbol, which doesn't jive with what object-is? expects
-                (object-is? arg1 t1 env sto))
+                    (object-is? arg1 t1 env sto))
                (let ([mayb-mval1 (VObjectClass-mval arg1)])
                  (if (some? mayb-mval1)
                      (let ([mval1 (some-v mayb-mval1)])
@@ -207,26 +248,34 @@
 ;; returns true if the given o is an object of the given class or somehow a
 ;; subclass of that one. Modified to look at __mro__ for multiple inheritance
 ;; and to use the class object instead of the class name.
-(define (object-is-cls? [o : CVal] [cls : CVal] [env : Env] [s : Store]) : boolean
-  (let ([obj-cls (get-class o env s)])
-    (member cls (get-mro obj-cls (none) s))))
-
-;; idem before, but uses class name, preseved for compatibility with check-types macro,
-;; it should be avoided for other uses.
+;; Preseved for compatibility with check-types macro, it should be avoided for other uses.
 (define (object-is? [o : CVal] [c : symbol] [env : Env] [s : Store]) : boolean
-  (let ([cls (fetch (some-v (lookup c env)) s)])
-    (object-is-cls? o cls env s)))
+  (let ([obj-cls (get-class o env s)]
+        [cls (fetch-once (some-v (lookup c env)) s)])
+    (member cls (get-mro obj-cls (none) s))))
 
 ;; get-mro: fetch __mro__ field as a list of classes, filtered up to thisclass if given
 ;; and prepended with cls to avoid self reference in __mro__
 (define (get-mro [cls : CVal] 
                  [thisclass : (optionof CVal)]
                  [sto : Store]) : (listof CVal)
-  (type-case (optionof Address) (hash-ref (VObjectClass-dict cls) '__mro__)
-    [some (w) (let ([mro (cons cls (MetaTuple-v (some-v (VObjectClass-mval (fetch w sto)))))])
+  (type-case (optionof Address) (hash-ref (VObjectClass-dict (fetch-ptr cls sto)) '__mro__)
+    [some (w) (let ([mro (cons cls (MetaTuple-v (some-v (VObjectClass-mval
+                                                  (fetch-ptr (fetch-once w sto) sto)))))])
                 (if (none? thisclass)
                     mro
-                    (rest (memq (some-v thisclass) mro))))]
+                    (if (> (length
+                             (filter (lambda (c) (eq? (fetch-ptr (some-v thisclass) sto)
+                                                      (fetch-ptr c sto)))
+                                     mro))
+                           0)
+                        (rest (memf (lambda (c) (eq? (fetch-ptr (some-v thisclass) sto)
+                                                     (fetch-ptr c sto)))
+                                    mro))
+                        (error 'get-mro
+                          (string-append
+                            (format "No member ~a in class mro " (some-v thisclass))
+                              (to-string mro))))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
                                             (pretty cls)))]))
 
@@ -234,22 +283,21 @@
 (define (get-class [obj : CVal] [env : Env] [sto : Store]) : CVal
   (local ([define w_class (if (some? (VObjectClass-class obj))
                               (VObjectClass-class obj)
-                              (some (fetch (some-v (lookup (VObjectClass-antecedent obj) env)) sto)))])
+                              (some (fetch-once (some-v (lookup (VObjectClass-antecedent obj) env)) sto)))])
     (type-case (optionof CVal) w_class
-      [some (cv)
-        (type-case CVal cv
-          [VPointer (a) (fetch a sto)]
-          [VObjectClass (_ __ ___ ____) cv]
-          [else (error 'get-class (string-append "bad class value: ~a" (pretty cv)))])]
+      [some (cv) cv]
       [none () (error 'get-class (string-append "object without class " 
                                                 (pretty obj)))])))
 
 
 (define (is? [v1 : CVal]
-             [v2 : CVal]) : boolean
+             [v2 : CVal]
+             [s : Store]) : boolean
   (begin
     ;(display v1) (display " ") (display v2) (display " ") (display (eq? v1 v2)) (display "\n")
-    (eq? v1 v2)))
+    (or (eq? v1 v2)
+        (and (is-obj-ptr? v1 s) (is-obj-ptr? v2 s)
+             (eq? (fetch-ptr v1 s) (fetch-ptr v2 s))))))
 
 (define (pretty arg)
   (type-case CVal arg
@@ -287,6 +335,8 @@
                                     (hash->list contents))
                                ", "))
               "}")]
+    [MetaCode (e filename code)
+              "<code object>"]
     [MetaNone () "None"]
     [MetaSet (elts)
               (string-append
@@ -296,8 +346,9 @@
     [else "builtin-value"]
     ))
 
-(define (pretty-exception [exn : CVal] [sto : Store] [print-name : boolean]) : string
-  (local [(define name (symbol->string (VObjectClass-antecedent exn)))
+(define (pretty-exception [exnptr : CVal] [sto : Store] [print-name : boolean]) : string
+  (local [(define exn (fetch-ptr exnptr sto))
+          (define name (symbol->string (VObjectClass-antecedent exn)))
           (define args-loc (hash-ref (VObjectClass-dict exn) 'args))
           (define pretty-args (if (some? args-loc)
                                   (string-join 
@@ -323,7 +374,7 @@
     (none)))
 
 (define (default-except-handler [id : symbol] [body : CExpr]) : CExpr
-  (CIf (CApp (CId 'isinstance (GlobalId))
+  (CIf (CApp (CId '%isinstance (GlobalId))
              (list (CId id (LocalId))
                    (CId 'BaseException (GlobalId)))
              (none))
@@ -338,17 +389,56 @@
         (set-box! n (add1 (unbox n)))
         (string->symbol (string-append (number->string (unbox n)) "var" ))))))
 
-(define true-val
-  (VObject
-    'bool
-    (some (MetaNum 1))
-    (hash empty)))
+(define truedummy (VObjectClass 'bool (some (MetaNum 1)) (hash empty) (none)))
+(define true-val truedummy)
+(define (renew-true env sto)
+  (if (or (VObjectClass? true-val)
+          (and (is-obj-ptr? true-val sto)
+               (VUndefined? (some-v (VObjectClass-class (fetch-ptr true-val sto))))))
+      (local [(define with-class
+                (VObjectClass 'bool (some (MetaNum 1)) (hash empty)
+                              (some (fetch-once (some-v (lookup '%bool env)) sto))))
+              (define new-true (alloc-result with-class sto))]
+        (begin
+          (set! true-val (v*s-v new-true))
+          new-true))
+      (v*s true-val sto)))
 
-(define false-val
-  (VObject
-    'bool
-    (some (MetaNum 0))
-    (hash empty)))
+(define falsedummy (VObjectClass 'bool (some (MetaNum 0)) (hash empty) (none)))
+(define false-val falsedummy)
+(define (renew-false env sto)
+  (if (or (VObjectClass? false-val)
+          (and (is-obj-ptr? false-val sto)
+               (VUndefined? (some-v (VObjectClass-class (fetch-ptr false-val sto))))))
+      (local [(define with-class
+                (VObjectClass 'bool (some (MetaNum 0)) (hash empty)
+                              (some (fetch-once (some-v (lookup '%bool env)) sto))))
+              (define new-false (alloc-result with-class sto))]
+        (begin
+          (set! false-val (v*s-v new-false))
+          new-false))
+      (v*s false-val sto)))
+
+(define nonedummy (VObjectClass 'none (some (MetaNone)) (hash empty) (none)))
+(define vnone nonedummy)
+(define (renew-none env sto)
+  (if (or (VObjectClass? vnone)
+          (and (is-obj-ptr? vnone sto)
+               (VUndefined? (some-v (VObjectClass-class (fetch-ptr vnone sto))))))
+      (local [(define with-class
+                (VObjectClass 'none (some (MetaNone)) (hash empty)
+                              (some (fetch-once (some-v (lookup '%none env)) sto))))
+              (define new-false (alloc-result with-class sto))]
+        (begin
+          (set! vnone (v*s-v new-false))
+          new-false))
+      (v*s vnone sto)))
+
+(define (reset-state)
+  (begin
+    (set! true-val truedummy)
+    (set! false-val falsedummy)
+    (set! vnone nonedummy)))
 
 (define (get-optionof-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : (optionof CVal)
   (begin ;(display n) (display " -- ") (display c) (display "\n") (display e) (display "\n\n")
@@ -444,4 +534,18 @@
 (test (Prim 'num< (make-builtin-str "foo") (make-builtin-str "bar"))
       (CBuiltinPrim 'num< (list (make-builtin-str "foo") (make-builtin-str "bar"))))
 
+;; strip the CLet in CModule
+(define (get-module-body (es : CExpr)) : CExpr
+  (type-case CExpr es
+    [CModule (pre body) (get-module-body body)]
+    [CLet (x type bind body)
+          (get-module-body body)]   
+    [else es]))
 
+;; builtin-class: used construct builtin classes in the core language
+(define (builtin-class [name : symbol] [bases : (listof symbol)] [body : CExpr]) : CExpr
+  (CClass name
+          ;; builtin classes are bound to ids in the global scope
+          (CTuple (CNone) ;; we may not have a tuple class object yet
+                  (map (lambda (id) (CId id (GlobalId))) bases))
+          body))

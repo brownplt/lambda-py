@@ -39,7 +39,7 @@
   [LexAssert (test : LexExpr) (msg : (listof LexExpr))]
 
   ; classes and objects 
-  [LexClass (scope : LocalOrGlobal) (name : symbol) (bases : (listof symbol)) (body : LexExpr)]
+  [LexClass (scope : LocalOrGlobal) (name : symbol) (bases : LexExpr) (body : LexExpr)]
   [LexDotField (value : LexExpr) (attr : symbol)]
 
   ; operations

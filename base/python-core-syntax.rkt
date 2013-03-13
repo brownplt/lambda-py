@@ -15,7 +15,7 @@ ParselTongue.
   [CTrue]
   [CFalse]
   [CNone]
-  [CClass (name : symbol) (bases : (listof symbol)) (body : CExpr)]
+  [CClass (name : symbol) (bases : CExpr) (body : CExpr)]
   [CObject (class : CExpr) (bval : (optionof MetaVal))]
   [CGetField (value : CExpr) (attr : symbol)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
@@ -41,7 +41,8 @@ ParselTongue.
   [CUndefined]
   [CBreak]
   [CContinue]
-  [CModule (prelude : CExpr) (body : CExpr)])
+  [CModule (prelude : CExpr) (body : CExpr)]
+  [CConstructModule (source : CExpr)])
 
 (define-type IdType
     [GlobalId]
@@ -69,6 +70,7 @@ ParselTongue.
              [MetaList (v : (listof CVal))]
              [MetaTuple (v : (listof CVal))]
              [MetaDict (contents : (hashof CVal CVal))]
+             [MetaCode (e : CExpr) (filename : string) (globals : (listof symbol))]
              [MetaClass (c : symbol)]
              [MetaSet (elts : Set)]
              [MetaNone]
@@ -80,22 +82,31 @@ ParselTongue.
 (define-type-alias Address number)
 (define Address->string number->string)
 (define-type-alias Store (hashof Address CVal))
-(define-values (new-loc reset-loc)
+(define new-loc
   (let ([n (box 0)])
-    (values
-      (lambda ()
-        (begin
-          (set-box! n (add1 (unbox n)))
-          (unbox n)))
-      (lambda ()
-        (set-box! n 0)))))
+    (lambda ()
+      (begin
+        (set-box! n (add1 (unbox n)))
+        (unbox n)))))
 
 (define-type Result
-  [v*s (v : CVal) (s : Store) (a : (optionof Address))]
-  [Return (v : CVal) (s : Store) (a : (optionof Address))]
+  [v*s (v : CVal) (s : Store)]
+  [Return (v : CVal) (s : Store)]
   [Exception (v : CVal) (s : Store)]
   [Break (s : Store)]
   [Continue (s : Store)])
+
+(define-type ResultPair
+  [vpair*s (v1 : CVal) (v2 : CVal) (s : Store)])
+
+(define (alloc-result val sto)
+  (local ([define l (new-loc)]
+          [define new-sto (hash-set sto l val)])
+   (v*s (VPointer l) new-sto)))
+
+(define-type ResultList
+  [v*s/list (vs : (listof Result)) (s : Store)]
+  [Abnormal (ab : Result)])
 
 (define-type-alias object-dict (hashof symbol Address))
 
@@ -115,6 +126,16 @@ ParselTongue.
     [(empty? (rest env)) (hash-ref (first env) x)]
     [else (lookup-global x (rest env))]))
 
+(define (is-obj-ptr? val sto)
+  (type-case CVal val
+    [VPointer (a) (VObjectClass? (fetch-once a sto))]
+    [else false]))
+
+(define (is-func-ptr? val sto)
+  (type-case CVal val
+    [VPointer (a) (VClosure? (fetch-once a sto))]
+    [else false]))
+
 (define (fetch [w : Address] [sto : Store]) : CVal
   (local [(define val 
             (type-case (optionof CVal) (hash-ref sto w)
@@ -133,35 +154,30 @@ ParselTongue.
              [none () (error 'interp
                              (string-append "No value at address " (Address->string w)))]))
 
-;; lookup in the env and sto, in order to get the final address through the aliasing address.
-(define (deep-lookup [x : symbol] [env : Env] [sto : Store]) : (optionof Address)
-  (let ((env-addr (lookup x env)))
-    (if (some? env-addr)
-        (let ((mayb-pointer (fetch-once (some-v env-addr) sto)))
-          (if (VPointer? mayb-pointer)
-              (some (VPointer-a mayb-pointer))
-              env-addr))               
-        (none))))
+(define (fetch-ptr val sto)
+  (type-case CVal val
+    [VPointer (a) (fetch-once a sto)]
+    [else (error 'interp (string-append "fetch-ptr got a non-VPointer: " (to-string val)))]))
 
-(define (deep-lookup-global [x : symbol] [env : Env] [sto : Store]) : (optionof Address)
-  (let ((env-addr (lookup-global x env)))
-    (if (some? env-addr)
-        (let ((mayb-pointer (fetch-once (some-v env-addr) sto)))
-          (if (VPointer? mayb-pointer)
-              (some (VPointer-a mayb-pointer))
-              env-addr))
-        (none))))
-
-(define (deep-lookup-local [x : symbol] [env : Env] [sto : Store]) : (optionof Address)
-  (let ((env-addr (lookup-local x env)))
-    (if (some? env-addr)
-        (let ((mayb-pointer (fetch-once (some-v env-addr) sto)))
-          (if (VPointer? mayb-pointer)
-              (some (VPointer-a mayb-pointer))
-              env-addr))
-        (none))))
+(define (mk-exception [type : symbol] [arg : string] [sto : Store]) : Result
+  (local [(define exn-loc (new-loc))
+          (define args-loc (new-loc))
+          (define args-field-loc (new-loc))
+          (define args (list (VObjectClass 'str (some (MetaStr arg)) (hash empty) (none))))]
+    (Exception
+      (VPointer exn-loc)
+      (hash-set
+        (hash-set
+          (hash-set sto args-loc (VObjectClass 'tuple (some (MetaTuple args)) (hash empty) (none)))
+          args-field-loc (VPointer args-loc))
+        exn-loc
+        (VObjectClass type (none) (hash-set (hash empty) 'args args-field-loc) (none))))))
 
 (define-type ActivationRecord
   [Frame (env : Env) (class : (optionof CVal)) (self : (optionof CVal))])
 
 (define-type-alias Stack (listof ActivationRecord))
+
+;; Module is used to combine module binding name with its cooresponding object
+(define-type Modules
+  [Module (name : symbol) (object : CExpr)])
