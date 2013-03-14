@@ -2,6 +2,7 @@
 class list(object):
   def __new__(cls, *args):
     list = ___id("%list")
+    type = ___id("%type")
     if ___delta("num=", args.__len__(), 0):
       # list-init preserves the class pointer of self to support inheritance
       return ___delta("list-init", [], cls)
@@ -88,7 +89,12 @@ class list(object):
     return cmpresult.__eq__(0)
 
   def extend(self, other):
-    ___delta("list-extend", self, other, self.__class__)
+    list = ___id("%list")
+    type = ___id("%type")
+    if (type(other) == list):
+        ___delta("list-extend", self, other, self.__class__)
+    else:
+        ___delta("list-extend", self, other.__list__(), self.__class__)
 
   def append(self, other):
     self.extend([other])

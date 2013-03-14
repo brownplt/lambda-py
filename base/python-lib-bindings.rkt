@@ -209,6 +209,8 @@
             (bind '%any (CUndefined))
             (bind 'range (CUndefined))
             (bind '%range (CUndefined))
+            (bind 'range_iterator (CUndefined))
+            (bind '%range_iterator (CUndefined))
             (bind 'filter (CUndefined))
             (bind '%filter (CUndefined))
             (bind 'isinstance (CUndefined))

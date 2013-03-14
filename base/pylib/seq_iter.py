@@ -51,13 +51,13 @@ ___assign("%SeqIter", SeqIter)
 def iter(l, *args):
     callable = ___id("%callable")
     
-    if len(args) == 1:
+    if args.__len__() == 1:
         if callable(l):
             stopwhen = args[0]
             return FuncIter(l, stopwhen)
         else:
             TypeError("iter(v, w): v must be callable")
-    elif len(args) == 0:
+    elif args.__len__() == 0:
         try:
             return l.__iter__()
         except:
