@@ -4,7 +4,8 @@
 (require "parse-python.rkt")
 (require racket/match
          racket/list
-         racket/base)
+         racket/base
+	 racket/pretty)
 
 #|
 
@@ -364,9 +365,11 @@ structure that you define in python-syntax.rkt
 
     [(list) (PyPass)] 
     
-    [empty (PyNone)]
+    #;[empty (PyNone)] ; Disabled for parser debugging
 
-    [_ (error 'parse "Haven't handled a case yet: ")])))
+    [_ (error 'parse (string-append "Haven't handled a case yet: "
+				    (pretty-format pyjson)
+				    ))])))
 
 
 ;; tests!
