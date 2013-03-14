@@ -9,8 +9,6 @@
   (typed-in racket/base (format : (string 'a -> string)))
   (typed-in racket/base (gensym : (symbol -> symbol))))
 
-(set-pypath "/home/joe/src/Python-3.2.3/python")
-
 (define (pyget val fld)
   (pyapp (CGetField val '__getitem__)
 	 fld))
