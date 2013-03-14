@@ -40,6 +40,32 @@
         (pylam (id) (cps-list/help (rest exprs) (cons id ids) base-thunk))
         Ri Ei Bi Ci))]))
 
+
+;; NOTE(dbp): the next two were created to deal with dicts, but dicts
+;; may be going away, so these could potentially be dropped if that is
+;; the case.
+(define (cps-hash hsh base-thunk)
+  (pylam (K R E B C)
+         (pyapp Ki (cps-hash/help (hash-keys hsh) hsh empty base-thunk))))
+
+(define (cps-hash/help keys hsh pairs base-thunk)
+  (cond
+    [(empty? keys) (base-thunk pairs)]
+    [(cons? keys)
+     (local [(define key (gensym '-cps/hashkey))
+             (define val (gensym '-cps/hashval))]
+       (pyapp
+        (cps (first keys))
+        (pylam (key)
+          (pyapp
+           (cps (some-v (hash-ref hsh (first keys))))
+           (pylam (val) (cps-hash/help (rest keys)
+                                       (cons (values (Id key) (Id val)) pairs)
+                                       base-thunk))
+           Ri Ei Bi Ci))
+        Ri Ei Bi Ci))]))
+
+
 (define (cps expr)
   (local [
     (define (const v)
@@ -54,7 +80,15 @@
     [CObject (c b) (const expr)]
     [CFunc (args varargs body opt-class) (const expr)]
 
-    [CClass (nm bases body) (error 'cps "Not written yet")]
+    [CClass (nm bases body)
+      (pylam (K R E B C)
+        (pyapp (cps bases)
+          (pylam (V)
+            (pyapp (cps body)
+              (pylam (V2)
+                (pyapp Ki (CClass nm Vi V2i)))
+              Ri Ei Bi Ci))
+          Ri Ei Bi Ci))]
     [CGetField (val attr)
       (pylam (K R E B C)
         (pyapp (cps val)
@@ -82,8 +116,10 @@
 
     [CList (cls values) (cps-list values (lambda (ids) (CList cls ids)))]
     [CTuple (cls values) (cps-list values (lambda (ids) (CTuple cls ids)))]
-    [CDict (cls contents) (error 'cps "Not written yet")]
-    [CSet (cls values) (error 'cps "Not written yet")]
+    ;; NOTE(dbp): my impression is that CDict is going away... so this doesn't
+    ;; need to ever be implemented.
+    [CDict (cls contents) (error 'cps "CDict not implemented yet")]
+    [CSet (cls values) (cps-list values (lambda (ids) (CSet cls ids)))]
 
     [CLet (x typ bind body)
      (pylam (K R E B C)
