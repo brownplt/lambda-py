@@ -201,7 +201,7 @@
                     (cons (Frame env class self) stk))))))
 
 (define (interp-let [name : symbol] [type : IdType]
-                    [val : Result] [sto : Store]
+                    [val : CVal] [sto : Store]
                     [body : CExpr] [env : Env] [stk : Stack]) : Result
   (local [(define loc (new-loc))
           (define newenv (cons (hash-set (first env) name loc) (rest env)))]
@@ -523,7 +523,7 @@
 
     [CConstructModule (source)
        (handle-result (interp-env source env sto stk)
-         (lambda (v-code s-code a)
+         (lambda (v-code s-code)
            (cond
              [(not (and (VObjectClass? v-code)
                         (eq? (VObjectClass-antecedent v-code) 'code)))
@@ -553,9 +553,9 @@
                  ; TODO: filter the built-in functions instead of interpreting python-lib again
                  (handle-result (interp-env (python-lib (CModule (CNone) xcode))
                                             (list new-env) new-sto stk)
-                   (lambda (v-module s-module a)
+                   (lambda (v-module s-module)
                      (begin ;(pprint v-module)
-                       (v*s (VObject '$module (none) module-attr) s-module (none))))))])))]
+                       (v*s (VObject '$module (none) module-attr) s-module)))))])))]
     
     [CBreak () (Break sto)]
     [CContinue () (Continue sto)])))
@@ -593,7 +593,7 @@
     (type-case CVal objv
       [VObjectClass (antecedent mval dict cls)
        ;; TODO(joe): this shouldn't happen, typecheck to find out why
-       (if (VUndefined? cls)
+       (if (and (some? cls) (VUndefined? (some-v cls)))
          "VUndefined Class"
          (type-case (optionof CVal) cls
            [none () "No Class"]
