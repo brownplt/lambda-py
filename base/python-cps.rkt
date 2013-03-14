@@ -9,9 +9,6 @@
   (typed-in racket/base (format : (string 'a -> string)))
   (typed-in racket/base (gensym : (symbol -> symbol))))
 
-(define (pyget val fld)
-  (pyapp (CGetField val '__getitem__)
-	 fld))
 
 ;; Identifiers used in the headers of CPS-generated lambdas
 (define K (gensym 'next))
@@ -31,7 +28,7 @@
 
 (define (cps-list exprs base-thunk)
   (pylam (K R E B C)
-    (cps-list/help exprs empty base-thunk)))
+    (pyapp Ki (cps-list/help exprs empty base-thunk))))
 
 (define (cps-list/help exprs ids base-thunk)
   (cond
@@ -60,9 +57,9 @@
     [CClass (nm bases body) (error 'cps "Not written yet")]
     [CGetField (val attr)
       (pylam (K R E B C)
-	(pyapp (cps val)
+        (pyapp (cps val)
 	  (pylam (V)
-	    (CGetField Vi attr))
+            (pyapp Ki (CGetField Vi attr)))
 	  Ri Ei Bi Ci))]
     
     [CApp (fun args stararg)
@@ -78,7 +75,7 @@
 		[some (e)
 		  (pyapp (cps e)
 		    (pylam (V2)
-		    (CApp Vi ids (some V2i)))
+                           (CApp Vi ids (some V2i)))
 		  Ri Ei Bi Ci)])))
 	   Ki Ei Ri Bi Ci))
 	 Ri Ei Bi Ci))]
@@ -168,10 +165,12 @@
               (pyapp (cps test)
                (pylam (V)
 		(CSeq
-		 (pyapp (gid 'print) (CSym 'test-continuation))
+                 (CNone)
+		 ;(pyapp (gid 'print) (CSym 'test-continuation))
                 (CIf Vi
 		  (CSeq
-		   (pyapp (gid 'print) (CSym 'body-of-while))
+                   (CNone)
+		   ;(pyapp (gid 'print) (CSym 'body-of-while))
                   (pyapp (cps body)
                     (pylam (V2) (pyapp (Id '-while) Ki Ri Ei Bi Ci))
                     Ri Ei Bi Ci))
@@ -181,7 +180,8 @@
            (CAssign (Id '-continue)
             (pylam (V)
 	      (CSeq
-	       (pyapp (gid 'print) (CSym 'continue-continuation))
+               (CNone)
+	       ;(pyapp (gid 'print) (CSym 'continue-continuation))
               (pyapp
                (Id '-while)
                Ki Ri Ei Ki ;; NOTE(joe): Break becomes the "normal" continuation Ki
@@ -196,7 +196,9 @@
 (define (cps-eval expr)
   (local [
     (define result
-      (interp-env
+      (begin
+        (reset-state)
+        (interp-env
             (python-lib
               (CModule '()
               (pyapp (cps expr)
@@ -206,8 +208,26 @@
                      (pylam (V) (CRaise (some (CSym 'Top-level-exception))))
                      (pylam (V) (CRaise (some (CSym 'Top-level-break))))
                      (pylam (V) (CRaise (some (CSym 'Top-level-continue)))))))
-            (list (hash empty)) (hash empty) empty))
+            (list (hash empty)) (hash empty) empty)))
   ]
   (type-case Result result
-    [v*s (v s) v]
+    [v*s (v s) (type-case CVal v
+                 [VPointer (p) (fetch-once p s)]
+                 [else v])]
+    [else (error 'cps-eval (format "Abnormal return: ~a" result))])))
+
+(define (non-cps-eval expr)
+  (local [
+    (define result
+      (begin
+        (reset-state)
+        (interp-env
+            (python-lib
+              (CModule '() expr))
+            (list (hash empty)) (hash empty) empty)))
+  ]
+  (type-case Result result
+    [v*s (v s) (type-case CVal v
+                 [VPointer (p) (fetch-once p s)]
+                 [else v])]
     [else (error 'cps-eval (format "Abnormal return: ~a" result))])))

@@ -263,7 +263,7 @@
                 (handle-result prelude-r
                   (lambda (v s) (interp-env body env s stk))))]
     
-    [CSym (s) (v*s (VSym s) sto (none))]
+    [CSym (s) (v*s (VSym s) sto)]
     [CTrue () (renew-true env sto)]
     [CFalse () (renew-false env sto)]
     [CNone () (alloc-result vnone sto)]

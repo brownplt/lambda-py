@@ -490,12 +490,16 @@
 (define-syntax pylam
   (syntax-rules ()
     [(_ (arg ...) body)
-     (CFunc (list arg ...) (none) body (none))]))
+     (CFunc (list arg ...) (none) (CReturn body) (none))]))
 
 (define-syntax pyapp
   (syntax-rules ()
     [(_ fun arg ...)
      (CApp fun (list arg ...) (none))]))
+
+(define (pyget val fld)
+  (pyapp (CGetField val '__getitem__)
+               fld))
 
 (define (Id x)
   (CId x (LocalId)))
