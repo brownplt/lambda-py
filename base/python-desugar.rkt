@@ -205,6 +205,12 @@
 
 |#
 
+(define (id-to-symbol expr)
+  (type-case LexExpr expr
+    [LexLocalId (x ctx) x]
+    [LexGlobalId (x ctx) x]
+    [else (error 'desugar "cannot convert non-id to symbol with id-to-symbol")]))
+
 (define (rec-desugar [expr : LexExpr] ) : CExpr 
   (begin ;(display expr) (display "\n\n")
     (type-case LexExpr expr
@@ -410,8 +416,8 @@
                                               body))
                                           decorators opt-class))))]
                  [(empty? decorators)
-                   (local [(define body-r (rec-desugar body))]
-                     (CFunc args (none) body-r opt-class))]
+                   (local [(define body-r (rec-desugar body))] 
+                     (CFunc args (none) body-r (option-map id-to-symbol opt-class)))]
 
                  [else
                   (rec-desugar ;; apply decorators to the function
@@ -421,7 +427,7 @@
 
       [LexFuncVarArg (name args sarg body decorators opt-class)
                      (if (empty? decorators)
-                         (CFunc args (some sarg) (rec-desugar body) opt-class)
+                         (CFunc args (some sarg) (rec-desugar body) (option-map id-to-symbol opt-class))
                          (rec-desugar ;; apply decorators to the function
                           (foldr (lambda (decorator func) (LexApp decorator (list func)))
                                  (LexFuncVarArg name args sarg body (list) opt-class)

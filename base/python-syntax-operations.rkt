@@ -212,9 +212,11 @@
                      (LexLam args (recur body))]
 
               [LexFunc (name args defaults body decorators class)
-                      (LexFunc name args (map recur defaults) (recur body) (map recur decorators) class)]
+                      (LexFunc name args (map recur defaults) (recur body) (map recur decorators)
+                               (option-map recur class))]
               [LexFuncVarArg (name args sarg body decorators class)
-                            (LexFuncVarArg name args sarg (recur body) (map recur decorators) class)]
+                            (LexFuncVarArg name args sarg (recur body) (map recur decorators)
+                                           (option-map recur class))]
               [LexReturn (value) (LexReturn (recur value))]
               [LexApp (fun args) (LexApp (recur fun) (map recur args))]
               [LexAppStarArg (fun args stararg)
@@ -438,9 +440,13 @@
               [LexLam (args body)
                      (recur body)]
               [LexFunc (name args defaults body decorators class)
-                      (flatten (list (map recur defaults) (list (recur body))))]
+                      (flatten (list (map recur defaults) (list (recur body) (type-case (optionof LexExpr) class
+                                                          [some (v) (recur v)]
+                                                          [none () empty]))))]
               [LexFuncVarArg (name args sarg body decorators class)
-                            (recur body)]
+                            (flatten (list (recur body) (type-case (optionof LexExpr) class
+                                                          [some (v) (recur v)]
+                                                          [none () empty])))]
               [LexReturn (value) (recur value)]
               [LexApp (fun args) (flatten (list (list (recur fun)) (map recur args)))]
               [LexAppStarArg (fun args stararg)

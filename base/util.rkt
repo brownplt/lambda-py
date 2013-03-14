@@ -279,6 +279,12 @@
     [none () (error 'get-mro (string-append "class without __mro__ field " 
                                             (pretty cls)))]))
 
+;; option-map: unwrap the option, perform the function (if applicable), re-wrap.
+(define (option-map [fn : ('a -> 'b)] [thing : (optionof 'a)]) : (optionof 'b)
+    (type-case (optionof 'a) thing
+          [some (v) (some (fn v))]
+              [none () (none)]))
+
 ;; get-class: retrieve the object's class
 (define (get-class [obj : CVal] [env : Env] [sto : Store]) : CVal
   (local ([define w_class (if (some? (VObjectClass-class obj))
