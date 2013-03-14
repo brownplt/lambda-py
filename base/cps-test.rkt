@@ -162,8 +162,12 @@
 (test (cps-eval tuple-field-expr)
       (VSym 'foo))
 
+(test (cps-eval (pyget (CList (gid '%list) (list (CSym 'foo) (CSym 'bar)))
+                       (make-builtin-num 1)))
+      (VSym 'bar))
+
 ;; TODO(joe): need builtin prim (list cps) for this to work.
-(test (cps-eval
+#;(test (cps-eval
   (Let 'x (make-builtin-num 0)
     (CWhile (CTrue)
       (CSeq

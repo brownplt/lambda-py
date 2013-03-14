@@ -28,7 +28,7 @@
 
 (define (cps-list exprs base-thunk)
   (pylam (K R E B C)
-    (pyapp Ki (cps-list/help exprs empty base-thunk))))
+    (pyapp Ki (cps-list/help (reverse exprs) empty base-thunk))))
 
 (define (cps-list/help exprs ids base-thunk)
   (cond
@@ -80,7 +80,7 @@
 	   Ki Ei Ri Bi Ci))
 	 Ri Ei Bi Ci))]
 
-    [CList (cls values) (error 'cps "Not written yet")]
+    [CList (cls values) (cps-list values (lambda (ids) (CList cls ids)))]
     [CTuple (cls values) (cps-list values (lambda (ids) (CTuple cls ids)))]
     [CDict (cls contents) (error 'cps "Not written yet")]
     [CSet (cls values) (error 'cps "Not written yet")]
