@@ -55,7 +55,7 @@
               Ri Ri Ei Bi Ci))
           Ri Ri Ei Bi Ci)))
 
-(test (cps (CRaise (CSym 'bar)))
+(test (cps (CRaise (some (CSym 'bar))))
       (pylam (K R E B C)
         (pyapp
           (pylam (K R E B C)
@@ -189,3 +189,13 @@
 
 (test (VObjectClass-mval (cps-eval (CClass 'hello (CTuple (gid '%tuple) (list)) (CSym 'bar))))
       (some (MetaClass 'hello)))
+
+;; NOTE(dbp): not sure how to test tryfinally properly, because we
+;; don't have a way to capture that the finally block was run, as we
+;; aren't testing side effects. Also, current test framework wants
+;; only actual values to be the result, so writing tests that raise
+;; things or have breaks/continues causes errors... errg. Perhaps this
+;; will be better served by larger scale tests where all of those things
+;; can be asserted.
+(test (cps-eval (CTryFinally (CSym 'foo) (CSym 'bar)))
+      (VSym 'foo))

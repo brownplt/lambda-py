@@ -89,6 +89,7 @@
                 (pyapp Ki (CClass nm Vi V2i)))
               Ri Ei Bi Ci))
           Ri Ei Bi Ci))]
+
     [CGetField (val attr)
       (pylam (K R E B C)
         (pyapp (cps val)
@@ -180,7 +181,10 @@
      (pylam (K R E B C) (pyapp (cps val) Ri Ri Ei Bi Ci))]
 
     [CRaise (val)
-     (pylam (K R E B C) (pyapp (cps val) Ei Ri Ei Bi Ci))]
+     (type-case (optionof CVal) val
+       [none () (error 'cps "Haven't handled empty raises yet")]
+       [some (v)
+             (pylam (K R E B C) (pyapp (cps v) Ei Ri Ei Bi Ci))])]
 
     [CBreak ()
      (pylam (K R E B C) (pyapp Bi (CNone)))]
@@ -224,8 +228,41 @@
                (Id '-continue)))))
            (pyapp (Id '-continue) (CSym 'nothing))))))))]
 
-    #;[CTryExceptElseFinally (try excepts orelse finally) (error 'cps "Not written yet")]
+    [CTryExceptElse
+     (try exn excepts els)
+     (error 'cps "TryExceptElse not written yet")]
 
+    [CTryFinally
+     (try finally)
+     (pylam (K R E B C)
+       (pyapp (cps try)
+         ;; in each case, we run the finally and then put the original
+         ;; value back to whatever continuation that it wanted
+         (pylam (V)
+              (pyapp (cps finally)
+                     (pylam (V2)
+                       (pyapp Ki Vi))
+                     Ri Ei Bi Ci))
+         (pylam (V)
+              (pyapp (cps finally)
+                     (pylam (V2)
+                       (pyapp Ri Vi))
+                     Ri Ei Bi Ci))
+         (pylam (V)
+              (pyapp (cps finally)
+                     (pylam (V2)
+                       (pyapp Ei Vi))
+                     Ri Ei Bi Ci))
+         (pylam (V)
+              (pyapp (cps finally)
+                     (pylam (V2)
+                       (pyapp Bi Vi))
+                     Ri Ei Bi Ci))
+         (pylam (V)
+              (pyapp (cps finally)
+                     (pylam (V2)
+                       (pyapp Ci Vi))
+                     Ri Ei Bi Ci))))]
 
     [else (error 'cps (format "Not handled: ~a" expr))])))
 
