@@ -352,7 +352,7 @@
           (define args-loc (hash-ref (VObjectClass-dict exn) 'args))
           (define pretty-args (if (some? args-loc)
                                   (string-join 
-                                    (map pretty
+                                    (map (lambda (v) (pretty (fetch-ptr v sto)))
                                          (MetaTuple-v
                                            (some-v
                                              (VObjectClass-mval
