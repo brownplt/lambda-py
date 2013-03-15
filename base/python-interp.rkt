@@ -202,7 +202,7 @@
                     (cons (Frame env class self) stk))))))
 
 (define (interp-let [name : symbol] [type : IdType]
-                    [val : Result] [sto : Store]
+                    [val : CVal] [sto : Store]
                     [body : CExpr] [env : Env] [stk : Stack]) : Result
   (local [(define loc (new-loc))
           (define newenv (cons (hash-set (first env) name loc) (rest env)))]
@@ -266,6 +266,7 @@
                 (handle-result env prelude-r
                   (lambda (v s) (interp-env body env s stk))))]
     
+    [CSym (s) (v*s (VSym s) sto)]
     [CTrue () (renew-true env sto)]
     [CFalse () (renew-false env sto)]
     [CNone () (alloc-result vnone sto)]
@@ -528,8 +529,8 @@
             rev-try))]
 
     [CConstructModule (source)
-       (handle-result env (interp-env source env sto stk)
-         (lambda (v-code s-code a)
+       (handle-result (interp-env source env sto stk)
+         (lambda (v-code s-code)
            (cond
              [(not (and (VObjectClass? v-code)
                         (eq? (VObjectClass-antecedent v-code) 'code)))
@@ -559,9 +560,9 @@
                  ; TODO: filter the built-in functions instead of interpreting python-lib again
                  (handle-result env (interp-env (python-lib (CModule (CNone) xcode))
                                             (list new-env) new-sto stk)
-                   (lambda (v-module s-module a)
+                   (lambda (v-module s-module)
                      (begin ;(pprint v-module)
-                       (v*s (VObject '$module (none) module-attr) s-module (none))))))])))]
+                       (v*s (VObject '$module (none) module-attr) s-module)))))])))]
     
     [CBreak () (Break sto)]
     [CContinue () (Continue sto)])))
@@ -601,7 +602,7 @@
     (type-case CVal objv
       [VObjectClass (antecedent mval dict cls)
        ;; TODO(joe): this shouldn't happen, typecheck to find out why
-       (if (VUndefined? cls)
+       (if (and (some? cls) (VUndefined? (some-v cls)))
          "VUndefined Class"
          (type-case (optionof CVal) cls
            [none () "No Class"]
@@ -779,6 +780,7 @@
     [VClosure (e a s b o) true]
     [VObjectClass (a mval d class) (truthy-object? (VObjectClass a mval d class))]
     [VUndefined () false]
+    [VSym (t) (equal? t 'true)]
     [VPointer (a) (truthy? (fetch-once a sto) sto)]))
 
 (define (interp-cprim2 [prim : symbol] 

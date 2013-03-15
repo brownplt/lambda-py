@@ -54,9 +54,9 @@
   ; functions
   [LexLam (args : (listof symbol)) (body : LexExpr)]
   [LexFunc (name : symbol) (args : (listof symbol)) (defaults : (listof LexExpr))
-           (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof symbol))]
+           (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof LexExpr))]
   [LexFuncVarArg (name : symbol) (args : (listof symbol)) 
-                (sarg : symbol) (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof symbol))]
+                (sarg : symbol) (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof LexExpr))]
   [LexReturn (value : LexExpr)]
   [LexApp (fun : LexExpr) (args : (listof LexExpr))]
   [LexAppStarArg (fun : LexExpr) (args : (listof LexExpr)) (stararg : LexExpr)]

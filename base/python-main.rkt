@@ -96,6 +96,11 @@
   ("--test-py" dirname "Run all tests in dirname using python"
    (display (results-summary (run-tests (mk-python-cmdline-eval (get-pypath)) dirname))))
 
+  ("--test-cps" "Run cps tests"
+   ;; NOTE(dbp): this is somewhat of a hack, but cps-test.rkt has a
+   ;; bunch of (test ...) statements, and this will cause them to be run.
+   (dynamic-require "cps-test.rkt" 0))
+
   ("--python-path" path "Set the python path" 
    (set-pypath path))
 

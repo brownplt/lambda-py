@@ -279,6 +279,12 @@
     [none () (error 'get-mro (string-append "class without __mro__ field " 
                                             (pretty cls)))]))
 
+;; option-map: unwrap the option, perform the function (if applicable), re-wrap.
+(define (option-map [fn : ('a -> 'b)] [thing : (optionof 'a)]) : (optionof 'b)
+    (type-case (optionof 'a) thing
+          [some (v) (some (fn v))]
+              [none () (none)]))
+
 ;; get-class: retrieve the object's class
 (define (get-class [obj : CVal] [env : Env] [sto : Store]) : CVal
   (local ([define w_class (if (some? (VObjectClass-class obj))
@@ -304,6 +310,7 @@
     [VObjectClass (a mval d class) (if (some? mval)
                             (pretty-metaval (some-v mval))
                             "Can't print non-builtin object.")]
+    [VSym (s) (symbol->string s)]
     [VClosure (env args sarg body opt-class) "<function>"]
     [VUndefined () "Undefined"]
     [VPointer (a) (string-append "Pointer to address " (number->string a))]))
@@ -483,12 +490,16 @@
 (define-syntax pylam
   (syntax-rules ()
     [(_ (arg ...) body)
-     (CFunc (list arg ...) (none) body (none))]))
+     (CFunc (list arg ...) (none) (CReturn body) (none))]))
 
 (define-syntax pyapp
   (syntax-rules ()
     [(_ fun arg ...)
      (CApp fun (list arg ...) (none))]))
+
+(define (pyget val fld)
+  (pyapp (CGetField val '__getitem__)
+               fld))
 
 (define (Id x)
   (CId x (LocalId)))
