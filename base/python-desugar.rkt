@@ -3,6 +3,7 @@
 (require "python-lexical-syntax.rkt"
          "python-core-syntax.rkt"
          "util.rkt"
+         "builtins/type.rkt"
          "builtins/num.rkt"
          "python-syntax-operations.rkt"
          "builtins/str.rkt")
@@ -515,14 +516,14 @@
                              (CApp f results (some s)))]
             
       [LexClass (scp name bases body)
-                (CClass name
-                        ;TODO: would be better to change bases to be a (listof LexExpr)
-                        ;; and to build the tuple here (Alejandro).
-                        ;; (CNone) is because we may not have a tuple class object yet.
-                        (type-case CExpr (desugar bases)
-                          [CTuple (class tuple) (CTuple (CNone) tuple)]
-                          [else (error 'desugar "bases is not a tuple")])
-                        (desugar body))]
+                (make-class name
+                            ;TODO: would be better to change bases to be a (listof LexExpr)
+                            ;; and to build the tuple here (Alejandro).
+                            ;; (CNone) is because we may not have a tuple class object yet.
+                            (type-case CExpr (desugar bases)
+                              [CTuple (class tuple) (CTuple (CNone) tuple)]
+                              [else (error 'desugar "bases is not a tuple")])
+                            (desugar body))]
 
       [LexInstanceId (x ctx)
                      (error 'desugar "should not encounter an instance ID!")]

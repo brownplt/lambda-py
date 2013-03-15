@@ -13,6 +13,7 @@
          "builtins/file.rkt"
          "builtins/code.rkt"
          "builtins/module.rkt"
+         "builtins/type.rkt"
          "util.rkt"
          "modules/builtin-modules.rkt"
          (typed-in "get-structured-python.rkt"
@@ -51,6 +52,12 @@
                     (CBuiltinPrim 'exception-str
                                   (list (CId 'self (LocalId)))))
                   (some 'BaseException))))))
+
+(define (make-exception-class [name : symbol]) : CExpr
+  (builtin-class
+    name
+    (list 'BaseException)
+    (CNone)))
 
 (define len-lambda
   (CFunc (list 'self) (none)

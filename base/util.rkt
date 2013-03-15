@@ -59,12 +59,6 @@
             l1 l2)
       h)))
 
-(define (make-exception-class [name : symbol]) : CExpr
-  (builtin-class
-    name
-    (list 'BaseException)
-    (CNone)))
-
 (define (assign [name : symbol] [expr : CExpr]) : CExpr
   (CAssign (CId name (GlobalId))
            expr))
@@ -551,11 +545,3 @@
     [CLet (x type bind body)
           (get-module-body body)]   
     [else es]))
-
-;; builtin-class: used construct builtin classes in the core language
-(define (builtin-class [name : symbol] [bases : (listof symbol)] [body : CExpr]) : CExpr
-  (CClass name
-          ;; builtin classes are bound to ids in the global scope
-          (CTuple (CNone) ;; we may not have a tuple class object yet
-                  (map (lambda (id) (CId id (GlobalId))) bases))
-          body))

@@ -272,18 +272,13 @@
     [CNone () (alloc-result vnone sto)]
     [CUndefined () (v*s (VUndefined) sto)]
 
-    [CClass (name bases body)
-            (begin ;(display "BEGIN CLASS\n") (display bases)
-            (handle-result env (interp-env bases env sto stk)
-              (lambda (vbases sbases)
-                   (handle-result env (interp-env body (cons (hash empty) env) sbases stk)
-                     (lambda (vbody sbody)
-                          (begin ;(display name) (display "\n")
-                                 ;(display env) (display "\n")
-                                 ;(display sbody) (display "\n")
-                                 (let ([res (mk-type name vbases (hash empty) sbody env)])
-                                   res)))))))]
-   
+    [CClass (name)
+            (alloc-result (VObjectClass 'type
+                                        (some (MetaClass name))
+                                        (hash empty)
+                                        (none))
+                          sto)]
+
     [CGetField (value attr)
     (begin
       ;(display "Getting field ") (display attr) (display "from: \n") (display value)
@@ -777,102 +772,6 @@
                                                           prim)))]))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; multiple inheritance ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; mk-type will compute __mro__ for the class,
-;; may return an exception if linearization is not possible
-;; builtins/type.rkt would be a good place for this stuff,
-;; it should handle type(name, bases, dict)
-(define (mk-type [name : symbol]
-                 [bases-ptr : CVal]
-                 [h-dict : (hashof symbol Address)]
-                 [sto : Store]
-                 [env : Env]) : Result
-  (begin ;(display "mk-type") (display name) (display "\n")
-         ;(display bases-ptr) (display "\n") (display h-dict) (display "\n")
-  (local [(define bases (fetch-ptr bases-ptr sto))
-          (define bases-list (MetaTuple-v (some-v (VObjectClass-mval bases))))
-          (define w (new-loc))
-          (define bases_w (new-loc))
-          (define mro_w (new-loc))]
-    (handle-result env (build-mro name bases-list env sto)
-      (lambda (vmro smro) 
-             (alloc-result (VObjectClass 'type
-                           (some (MetaClass name)) 
-                           (hash-set
-                            (hash-set
-                             (hash-set h-dict '__dict__ w)
-                             '__bases__ bases_w)
-                            '__mro__ mro_w)
-                           (none))
-                (let ([udict (make-under-dict h-dict env smro)])
-                  (hash-set 
-                    (hash-set 
-                      (hash-set (v*s-s udict) w (v*s-v udict))
-                      bases_w bases)
-                    mro_w vmro))))))))
-
-;; build-mro: merge the __mro__ of the bases using the C3 algorithm
-;; Raises TypeError if there are duplicated bases or linearization is not possible.
-;; The class should be the first element of __mro__, but since this seems hard
-;; to implement with immutable hashes, it will be prepended on retrieval
-(define (build-mro [name : symbol] 
-                   [bases : (listof CVal)] 
-                   [env : Env] 
-                   [sto : Store]) : Result
-  ;; The mro is the c3-merge of the mro of the bases plus the list of bases
-  (let ([maybe-mro (c3-merge (append (map (lambda (base) (get-mro base (none) sto)) bases)
-                                     (list bases)) empty)])
-    (cond
-      [(< (length (remove-duplicates bases)) (length bases))
-       (mk-exception 'TypeError
-                     (string-append 
-                      "duplicate base class in class "
-                      (symbol->string name))
-                     env
-                     sto)]
-      [(none? maybe-mro) 
-       (mk-exception 'TypeError
-                     (string-append 
-                      "cannot create a consisten method resolution order for class "
-                      (symbol->string name))
-                     env
-                     sto)]
-      [(some? maybe-mro)
-       (begin 
-         ;(display "class: ") (display name) (display " mro: ") 
-         ;(display (map pretty (some-v maybe-mro))) (display "\n")
-         ;(display "bases: ")
-         ;(display (map pretty bases)) (display "\n")
-         ;(display "stuff at bases: ")
-         ;(display (map (lambda (b) (pretty (fetch-ptr b sto))) bases)) (display "\n")
-         (alloc-result (VObjectClass 'tuple (some (MetaTuple (some-v maybe-mro))) (hash empty) (none))
-              sto))])))
- 
-;; c3-merge: implements the c3 algorithm to merge mro lists
-;; looks for a candidate (using c3-select)) and removes it from the mro lists
-;; until all the mro lists are empty (success) or no candidate can be found (fail).
-(define (c3-merge [xss : (listof (listof 'a))] 
-                  [acc : (listof 'a)]) : (optionof (listof 'a))
-  (let ([xss-ne (filter cons? xss)])
-    (cond
-      [(empty? xss-ne) (some acc)]
-      [else (type-case (optionof 'b) (c3-select xss-ne 0)
-              [none () (none)]
-              [some (el) (c3-merge
-                          (map (lambda (xs) 
-                                 (filter (lambda (x) (not (eq? x el))) xs)) 
-                               xss-ne)
-                          (append acc (list el)))])])))
-
-;; c3-select: looks sequentially for a head which doesn't appear in the tails
-;; if none is found there is no c3 linearization possible
-(define (c3-select [xss : (listof (listof 'a))] [n : number]) : (optionof 'a)
-  (cond
-    [(>= n (length xss)) (none)]
-    [else (let ([el (first (list-ref xss n))])
-            (if (any (map (lambda (xs) (member el (rest xs))) xss))
-                (c3-select xss (add1 n))
-                (some el)))]))
 
 ;; get-field-from-obj: looks for a field of an object using the class __mro__
 ;; skip up to thisclass in __mro__, if defined.

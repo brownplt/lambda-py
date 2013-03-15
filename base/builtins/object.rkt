@@ -3,6 +3,7 @@
 ;; object - the base-class of everything
 (require "../python-core-syntax.rkt" 
          "../util.rkt"
+         "type.rkt"
          "num.rkt"
          "str.rkt"
          (typed-in racket/base (string-length : (string -> number))))

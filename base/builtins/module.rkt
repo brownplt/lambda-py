@@ -1,6 +1,7 @@
 #lang plai-typed/untyped
 
 (require "../python-core-syntax.rkt"
+         "type.rkt"
          "../util.rkt")
 
 (define module-class : CExpr

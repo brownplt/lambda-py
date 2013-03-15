@@ -11,6 +11,7 @@
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/file.rkt"
+         "builtins/type.rkt"
          "builtins/super.rkt"
          "builtins/code.rkt"
          "python-compile.rkt"
@@ -277,6 +278,10 @@ primitives here.
     ['file-write (prim-alloc file-write argvs)]
     ['file-close (prim-alloc file-close argvs)]
     ['existing-file? (prim-noalloc existing-file? argvs)]
+
+    ; type
+    ['type-uniqbases (prim-noalloc type-uniqbases argvs)]
+    ['type-buildmro (prim-alloc type-buildmro argvs)]
 
     ; super
     ['super-self (prim-or-none-stk super-self stk)]

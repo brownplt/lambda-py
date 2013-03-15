@@ -2,6 +2,7 @@
 
 (require "str.rkt"
          "tuple.rkt"
+         "type.rkt"
          "../util.rkt"
          "../python-core-syntax.rkt")
 
