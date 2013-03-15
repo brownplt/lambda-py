@@ -95,8 +95,8 @@ that calls the primitive `print`.
                   (seq-ops (append
                              (map (lambda (b) (bind-right b)) lib-functions)
                              (get-pylib-programs)
-                             (get-builtin-modules)
                              (map (lambda (b) (bind-right b))
                                   (list (bind 'True (assign 'True (CTrue)))
                                         (bind 'False (assign 'False (CFalse)))))
+                             (get-builtin-modules)
                              (list (CModule-body expr)))))))

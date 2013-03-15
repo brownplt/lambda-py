@@ -117,9 +117,6 @@
 
     [CList (cls values) (cps-list values (lambda (ids) (CList cls ids)))]
     [CTuple (cls values) (cps-list values (lambda (ids) (CTuple cls ids)))]
-    ;; NOTE(dbp): my impression is that CDict is going away... so this doesn't
-    ;; need to ever be implemented.
-    [CDict (cls contents) (error 'cps "CDict not implemented yet")]
     [CSet (cls values) (cps-list values (lambda (ids) (CSet cls ids)))]
 
     [CLet (x typ bind body)

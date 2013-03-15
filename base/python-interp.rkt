@@ -298,35 +298,6 @@
                     [Continue (s1) (Continue s1)] 
                     [Exception (v1 s1) (Exception v1 s1)])]
     
-    ;; note that for now we're assuming that dict keys and values aren't going
-    ;; to mess with the environment and store, but this might be wrong
-    [CDict (class contents)
-     (local [
-       (define (interp-pair p sto)
-         (handle-result env (interp-env (car p) env sto stk)
-           (lambda (carv cars)
-             (handle-result env (interp-env (cdr p) env cars stk)
-               (lambda (cdrv cdrs)
-                 (vpair*s carv cdrv cdrs))))))
-       (define dict-hash (make-hash empty))
-       (define (interp-pairs lst sto)
-         (cond
-           [(empty? lst) sto]
-           [(cons? lst)
-            (type-case ResultPair (interp-pair (first lst) sto)
-             [vpair*s (v1 v2 new-sto)
-               (begin
-                 (hash-set! dict-hash v1 v2)
-                 (interp-pairs (rest lst) new-sto))])]))
-       (define post-dict-sto (interp-pairs (hash->list contents) sto))]
-     (handle-result env (interp-env class env post-dict-sto stk)
-      (lambda (cval csto)
-       (alloc-result (VObjectClass 'dict
-                       (some (MetaDict dict-hash))
-                       (hash empty)
-                       (some cval))
-                     csto))))]
-
     [CSet (class values)
      (type-case ResultList (interp-cascade values sto env stk)
       [Abnormal (r) r]

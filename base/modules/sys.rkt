@@ -4,21 +4,23 @@
          "../util.rkt")
 
 (define sys-module-name 'sys)
+(define sys-id (CId sys-module-name (GlobalId)))
 (define sys-module
   (seq-ops
    (list
-    (CAssign (CId sys-module-name (GlobalId))
-             (CObject (CId '$module (GlobalId)) (none)))
-    (CAssign (CGetField (CId sys-module-name (GlobalId)) 'path)
+    (CAssign sys-id (CObject (CId '$module (GlobalId)) (none)))
+    (CAssign (CGetField sys-id 'path)
              (CList (CId '%list (GlobalId))
                     (map (lambda (x)
                            (make-builtin-str x))
                          (get-module-path))))
-    (CAssign (CGetField (CId sys-module-name (GlobalId)) 'modules)
-             (CDict
-              (CId '%dict (GlobalId))
-              (hash
-               (list
-                (values (make-builtin-str "sys")
-                        ;;NOTE: this relies on aliasing!
-                        (CId sys-module-name (GlobalId))))))))))
+    (CAssign (CGetField sys-id 'modules)
+             (CApp (CId '%dict (GlobalId))
+                   (list
+                    (CList (CId '%list (GlobalId))
+                           (list
+                            (CTuple (CId '%tuple (GlobalId))
+                              (list
+                               (make-builtin-str "sys")
+                               sys-id)))))
+                   (none))))))
