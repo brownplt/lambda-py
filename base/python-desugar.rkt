@@ -3,6 +3,7 @@
 (require "python-lexical-syntax.rkt"
          "python-core-syntax.rkt"
          "util.rkt"
+         "builtins/type.rkt"
          "builtins/num.rkt"
          "python-syntax-operations.rkt"
          "builtins/str.rkt")
@@ -160,6 +161,11 @@
                        (rec-desugar-excepts (rest es))))]))]
     (rec-desugar-excepts excepts)))
 
+(define (id-to-symbol expr)
+  (type-case LexExpr expr
+    [LexLocalId (x ctx) x]
+    [LexGlobalId (x ctx) x]
+    [else (error 'desugar "cannot convert non-id to symbol with id-to-symbol")]))
 
 (define (rec-desugar [expr : LexExpr] ) : CExpr 
   (begin ;(display expr) (display "\n\n")
@@ -366,8 +372,8 @@
                                               body))
                                           decorators opt-class))))]
                  [(empty? decorators)
-                   (local [(define body-r (rec-desugar body))]
-                     (CFunc args (none) body-r opt-class))]
+                   (local [(define body-r (rec-desugar body))] 
+                     (CFunc args (none) body-r (option-map id-to-symbol opt-class)))]
 
                  [else
                   (rec-desugar ;; apply decorators to the function
@@ -377,7 +383,7 @@
 
       [LexFuncVarArg (name args sarg body decorators opt-class)
                      (if (empty? decorators)
-                         (CFunc args (some sarg) (rec-desugar body) opt-class)
+                         (CFunc args (some sarg) (rec-desugar body) (option-map id-to-symbol opt-class))
                          (rec-desugar ;; apply decorators to the function
                           (foldr (lambda (decorator func) (LexApp decorator (list func)))
                                  (LexFuncVarArg name args sarg body (list) opt-class)
@@ -465,14 +471,14 @@
                              (CApp f results (some s)))]
             
       [LexClass (scp name bases body)
-                (CClass name
-                        ;TODO: would be better to change bases to be a (listof LexExpr)
-                        ;; and to build the tuple here (Alejandro).
-                        ;; (CNone) is because we may not have a tuple class object yet.
-                        (type-case CExpr (desugar bases)
-                          [CTuple (class tuple) (CTuple (CNone) tuple)]
-                          [else (error 'desugar "bases is not a tuple")])
-                        (desugar body))]
+                (make-class name
+                            ;TODO: would be better to change bases to be a (listof LexExpr)
+                            ;; and to build the tuple here (Alejandro).
+                            ;; (CNone) is because we may not have a tuple class object yet.
+                            (type-case CExpr (desugar bases)
+                              [CTuple (class tuple) (CTuple (CNone) tuple)]
+                              [else (error 'desugar "bases is not a tuple")])
+                            (desugar body))]
 
       [LexInstanceId (x ctx)
                      (error 'desugar "should not encounter an instance ID!")]

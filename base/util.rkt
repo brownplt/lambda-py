@@ -59,12 +59,6 @@
             l1 l2)
       h)))
 
-(define (make-exception-class [name : symbol]) : CExpr
-  (builtin-class
-    name
-    (list 'BaseException)
-    (CNone)))
-
 (define (assign [name : symbol] [expr : CExpr]) : CExpr
   (CAssign (CId name (GlobalId))
            expr))
@@ -279,6 +273,12 @@
     [none () (error 'get-mro (string-append "class without __mro__ field " 
                                             (pretty cls)))]))
 
+;; option-map: unwrap the option, perform the function (if applicable), re-wrap.
+(define (option-map [fn : ('a -> 'b)] [thing : (optionof 'a)]) : (optionof 'b)
+    (type-case (optionof 'a) thing
+          [some (v) (some (fn v))]
+              [none () (none)]))
+
 ;; get-class: retrieve the object's class
 (define (get-class [obj : CVal] [env : Env] [sto : Store]) : CVal
   (local ([define w_class (if (some? (VObjectClass-class obj))
@@ -304,6 +304,7 @@
     [VObjectClass (a mval d class) (if (some? mval)
                             (pretty-metaval (some-v mval))
                             "Can't print non-builtin object.")]
+    [VSym (s) (symbol->string s)]
     [VClosure (env args sarg body opt-class) "<function>"]
     [VUndefined () "Undefined"]
     [VPointer (a) (string-append "Pointer to address " (number->string a))]))
@@ -351,7 +352,7 @@
           (define args-loc (hash-ref (VObjectClass-dict exn) 'args))
           (define pretty-args (if (some? args-loc)
                                   (string-join 
-                                    (map pretty
+                                    (map (lambda (v) (pretty (fetch-ptr v sto)))
                                          (MetaTuple-v
                                            (some-v
                                              (VObjectClass-mval
@@ -388,8 +389,8 @@
         (set-box! n (add1 (unbox n)))
         (string->symbol (string-append (number->string (unbox n)) "var" ))))))
 
-(define dummy (VObjectClass 'bool (some (MetaNum 1)) (hash empty) (none)))
-(define true-val dummy)
+(define truedummy (VObjectClass 'bool (some (MetaNum 1)) (hash empty) (none)))
+(define true-val truedummy)
 (define (renew-true env sto)
   (if (or (VObjectClass? true-val)
           (and (is-obj-ptr? true-val sto)
@@ -403,7 +404,8 @@
           new-true))
       (v*s true-val sto)))
 
-(define false-val dummy)
+(define falsedummy (VObjectClass 'bool (some (MetaNum 0)) (hash empty) (none)))
+(define false-val falsedummy)
 (define (renew-false env sto)
   (if (or (VObjectClass? false-val)
           (and (is-obj-ptr? false-val sto)
@@ -417,10 +419,26 @@
           new-false))
       (v*s false-val sto)))
 
+(define nonedummy (VObjectClass 'none (some (MetaNone)) (hash empty) (none)))
+(define vnone nonedummy)
+(define (renew-none env sto)
+  (if (or (VObjectClass? vnone)
+          (and (is-obj-ptr? vnone sto)
+               (VUndefined? (some-v (VObjectClass-class (fetch-ptr vnone sto))))))
+      (local [(define with-class
+                (VObjectClass 'none (some (MetaNone)) (hash empty)
+                              (some (fetch-once (some-v (lookup '%none env)) sto))))
+              (define new-false (alloc-result with-class sto))]
+        (begin
+          (set! vnone (v*s-v new-false))
+          new-false))
+      (v*s vnone sto)))
+
 (define (reset-state)
   (begin
-    (set! true-val dummy)
-    (set! false-val dummy)))
+    (set! true-val truedummy)
+    (set! false-val falsedummy)
+    (set! vnone nonedummy)))
 
 (define (get-optionof-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : (optionof CVal)
   (begin ;(display n) (display " -- ") (display c) (display "\n") (display e) (display "\n\n")
@@ -466,12 +484,16 @@
 (define-syntax pylam
   (syntax-rules ()
     [(_ (arg ...) body)
-     (CFunc (list arg ...) (none) body (none))]))
+     (CFunc (list arg ...) (none) (CReturn body) (none))]))
 
 (define-syntax pyapp
   (syntax-rules ()
     [(_ fun arg ...)
      (CApp fun (list arg ...) (none))]))
+
+(define (pyget val fld)
+  (pyapp (CGetField val '__getitem__)
+               fld))
 
 (define (Id x)
   (CId x (LocalId)))
@@ -523,11 +545,3 @@
     [CLet (x type bind body)
           (get-module-body body)]   
     [else es]))
-
-;; builtin-class: used construct builtin classes in the core language
-(define (builtin-class [name : symbol] [bases : (listof symbol)] [body : CExpr]) : CExpr
-  (CClass name
-          ;; builtin classes are bound to ids in the global scope
-          (CTuple (CNone) ;; we may not have a tuple class object yet
-                  (map (lambda (id) (CId id (GlobalId))) bases))
-          body))

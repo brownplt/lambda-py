@@ -132,15 +132,21 @@
        hoist-functions))
       ;end hoist functions.
       
-      (define (replace-instance expr class-expr)
-        (lexexpr-modify-tree
-         expr
-         (lambda (y)
-           (type-case LexExpr y
-             [LexInstanceId (x ctx) (LexDotField class-expr x)]
-             [LexClass (scope name bases body) (LexClass scope name bases body)]
-             [else (default-recur)]))))
-      (define (annotate-methods-with-class expr classname)
+      (define (replace-instance-and-annotate-methods-with-class expr class-expr)
+        (let ((recur (lambda (x) (replace-instance-and-annotate-methods-with-class x class-expr))))
+          (lexexpr-modify-tree
+           expr
+           (lambda (y)
+             (type-case LexExpr y
+               [LexInstanceId (x ctx) (LexDotField class-expr x)]
+               [LexFunc (name args defaults body decorators class)
+                        (LexFunc name args (map recur defaults) body decorators
+                                 (some class-expr))]
+               [LexFuncVarArg (name args sarg body decorators class)
+                              (LexFuncVarArg name args sarg body (map recur decorators) (some class-expr)) ]
+               [LexClass (scope name bases body) (LexClass scope name bases body)]
+               [else (default-recur)])))))
+      #;(define (annotate-methods-with-class expr [classname : LexExpr])
         (lexexpr-modify-tree
          expr
          (lambda (y)
@@ -207,7 +213,7 @@
                            (let ((class-expr (if (Instance-scoped? scope)
                                                  (LexDotField class-expr name)
                                                      class-expr)))
-                             (let ((new-body (replace-instance
+                             (let ((new-body (replace-instance-and-annotate-methods-with-class
                                               body
                                               class-expr
                                               )))
@@ -215,7 +221,7 @@
                                               (list class-expr)
                                               (LexClass scope name bases (LexPass)))
                                              (deal-with-class
-                                              (annotate-methods-with-class new-body name)
+                                              new-body
                                               class-expr))))))]
              [else (default-recur)])))))
           (define (top-level-deal-with-class expr)
@@ -243,7 +249,7 @@
                                               (extract-post-transform-globals expr))
                                             library-names) expr))) ;all globals, not just the current scope
 
-(define library-names (map (lambda (b) (bind-left b)) lib-function-dummies))
+(define library-names (map (lambda (b) (bind-left b)) lib-function-dummies)) 
 
 (define (cascade-undefined-globals [globals : (listof symbol) ] [body : LexExpr] ) : LexExpr
   (if (empty? globals)

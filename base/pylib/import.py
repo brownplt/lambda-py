@@ -25,6 +25,10 @@
 
 
 def __import__(name):
+    open = ___id("%open")
+    compile = ___id("%compile")
+    make_module = ___id("%make_module")
+
     if name in sys.modules:
         return sys.modules[name]
 

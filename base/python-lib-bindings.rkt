@@ -13,6 +13,7 @@
          "builtins/file.rkt"
          "builtins/code.rkt"
          "builtins/module.rkt"
+         "builtins/type.rkt"
          "util.rkt"
          "modules/builtin-modules.rkt"
          (typed-in "get-structured-python.rkt"
@@ -51,6 +52,12 @@
                     (CBuiltinPrim 'exception-str
                                   (list (CId 'self (LocalId)))))
                   (some 'BaseException))))))
+
+(define (make-exception-class [name : symbol]) : CExpr
+  (builtin-class
+    name
+    (list 'BaseException)
+    (CNone)))
 
 (define len-lambda
   (CFunc (list 'self) (none)
@@ -142,7 +149,6 @@
 
         (bind 'object object-class)
         (bind '%object (assign '%object (CId 'object (GlobalId))))
-        (bind 'none none-class)
         (bind 'num num-class)
         (bind '%num (assign '%num (CId 'num (GlobalId))))
         (bind 'int int-class)
@@ -150,10 +156,13 @@
         (bind 'float float-class)
         (bind '%float (assign '%float (CId 'float (GlobalId))))
         (bind 'code code-class)
+        (bind '%code (assign '%code (CId 'code (GlobalId))))
         (bind '$module module-class)
 
         (bind 'compile (assign 'compile compile-lambda))
+        (bind '%compile (assign '%compile (CId 'compile (GlobalId))))
         (bind 'make_module (assign 'make_module make_module-lambda))
+        (bind '%make_module (assign '%make_module (CId 'make_module (GlobalId))))
         
         (bind 'len (assign 'len len-lambda))
         (bind 'min (assign 'min min-lambda))
@@ -161,6 +170,7 @@
         (bind 'abs (assign 'abs abs-lambda))
 
         (bind 'callable (assign 'callable callable-lambda))
+        (bind '%callable (assign '%callable (CId 'callable (GlobalId))))
         (bind 'locals (assign 'locals locals-lambda))
 
         (bind 'BaseException base-exception)
@@ -188,25 +198,38 @@
       (map (lambda(b) (bind (bind-left b) (CUndefined)))
            lib-functions)
       (list 
+            (bind 'none (CUndefined))
+            (bind '%none (CUndefined))
             (bind 'iter (CUndefined))
             (bind '%iter (CUndefined))
             (bind 'next (CUndefined))
+            (bind '%next (CUndefined))
             (bind 'FuncIter (CUndefined))
+            (bind '%FuncIter (CUndefined))
             (bind 'SeqIter (CUndefined))
+            (bind '%SeqIter (CUndefined))
             (bind 'print (CUndefined))
+            (bind '%print (CUndefined))
             (bind 'all (CUndefined))
+            (bind '%all (CUndefined))
             (bind 'any (CUndefined))
+            (bind '%any (CUndefined))
             (bind 'range (CUndefined))
+            (bind '%range (CUndefined))
+            (bind 'range_iterator (CUndefined))
+            (bind '%range_iterator (CUndefined))
             (bind 'filter (CUndefined))
+            (bind '%filter (CUndefined))
             (bind 'isinstance (CUndefined))
             (bind '%isinstance (CUndefined))
             (bind 'tuple (CUndefined))
+            (bind '%tuple (CUndefined))
             (bind 'issubclass (CUndefined))
+            (bind '%issubclass (CUndefined))
             (bind 'bool (CUndefined))
             (bind '%bool (CUndefined))
             (bind 'str (CUndefined))
             (bind '%str (CUndefined))
-            (bind '%tuple (CUndefined))
             (bind 'list (CUndefined))
             (bind '%list (CUndefined))
             (bind 'dict (CUndefined))
@@ -218,8 +241,7 @@
             (bind 'super (CUndefined))
             (bind 'method (CUndefined))
             (bind 'open (CUndefined))
-            ;; TODO(Sumner): is %open needed?
-            ;(bind '%open (CUndefined))
+            (bind '%open (CUndefined))
             (bind 'file (CUndefined))
             (bind '%file (CUndefined))
             (bind 'classmethod (CUndefined))

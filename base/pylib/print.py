@@ -8,3 +8,4 @@ def print(*args):
       s += ' '
   ___prim1("print", s)
 
+___assign("%print", print)

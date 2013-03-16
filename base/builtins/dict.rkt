@@ -2,7 +2,6 @@
 
 (require "../python-core-syntax.rkt")
 (require "../util.rkt"
-         "none.rkt"
          "set.rkt"
          "str.rkt")
 (require

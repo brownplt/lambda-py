@@ -2,7 +2,6 @@
 
 (require "python-core-syntax.rkt"
          "util.rkt"
-         "builtins/none.rkt"
          "builtins/str.rkt"
          "builtins/list.rkt"
          "builtins/tuple.rkt"
@@ -12,6 +11,7 @@
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/file.rkt"
+         "builtins/type.rkt"
          "builtins/super.rkt"
          "builtins/code.rkt"
          "python-compile.rkt"
@@ -159,6 +159,7 @@ primitives here.
   (define (prim-error msg op args)
     (mk-exception 'TypeError
       (string-append msg (string-append (symbol->string op) (format " ~a" args)))
+      env
       sto))
   (define (fetch-heads l1 l2)
     (append (take l1 (- (length l1) 1)) (list (last l2))))
@@ -277,6 +278,11 @@ primitives here.
     ['file-write (prim-alloc file-write argvs)]
     ['file-close (prim-alloc file-close argvs)]
     ['existing-file? (prim-noalloc existing-file? argvs)]
+
+    ; type
+    ['type-new (prim-alloc type-new argvs)]
+    ['type-uniqbases (prim-noalloc type-uniqbases argvs)]
+    ['type-buildmro (prim-alloc type-buildmro argvs)]
 
     ; super
     ['super-self (prim-or-none-stk super-self stk)]

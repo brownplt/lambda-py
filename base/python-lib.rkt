@@ -9,7 +9,6 @@
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/set.rkt"
-         "builtins/none.rkt"
          "builtins/file.rkt"
          "builtins/method.rkt"
          "modules/builtin-modules.rkt"
@@ -58,7 +57,8 @@ that calls the primitive `print`.
                 (desugar-macros
                   (new-scope-phase
                     (get-structured-python pyast)))))))
-               (list "pylib/bool.py"
+               (list "pylib/none.py"
+                     "pylib/bool.py"
                      "pylib/str.py"
                      "pylib/tuple.py"
                      "pylib/list.py"
@@ -95,8 +95,8 @@ that calls the primitive `print`.
                   (seq-ops (append
                              (map (lambda (b) (bind-right b)) lib-functions)
                              (get-pylib-programs)
-                             (get-builtin-modules)
                              (map (lambda (b) (bind-right b))
                                   (list (bind 'True (assign 'True (CTrue)))
                                         (bind 'False (assign 'False (CFalse)))))
+                             (get-builtin-modules)
                              (list (CModule-body expr)))))))

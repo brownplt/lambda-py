@@ -2,6 +2,7 @@
 
 (require "../python-core-syntax.rkt")
 (require "../util.rkt"
+         "type.rkt"
          (typed-in racket/base (exact? : (number -> boolean))))
 
 (define (make-builtin-numv [n : number]) : CVal

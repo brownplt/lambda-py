@@ -15,8 +15,5 @@ N = 1073741824
 # small number of elements to be taken from the iterable
 n = 5
 
-# test lazyness of range
-___assertEqual(list_take(range(N), n), list(range(n)))
-
 # test lazyness of generator expressions
 ___assertEqual(list_take((i for i in range(N)), n), list(range(n)))
