@@ -298,7 +298,7 @@ Simple lexer, produces physical/other tokens.
 	  (define (adjust-brace-depth token)
 	    (cond [(member (token-struct-type token) (list '\( '\[ '\{))
 		   (set! brace-depth (+ brace-depth 1))]
-		  [(member (token-struct-type token) '('\) '\] '\}))
+		  [(member (token-struct-type token) (list '\) '\] '\}))
 		   (set! brace-depth (- brace-depth 1))]))
 
 	  #|

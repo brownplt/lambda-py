@@ -49,6 +49,10 @@ Example:
      (ast 'nodetype "Assign"
 	   'targets (list (py-ragg-expr->python-ast testlist "Store"))
 	   'value (py-ragg-expr->python-ast val "Load"))]
+
+    [(list 'expr_stmt val)
+     (ast 'nodetype "Expr"
+	  'value (py-ragg-expr->python-ast val "Load"))]
     
     [_ 
      (display "=== Unhandled grammar ===\n")
@@ -56,14 +60,14 @@ Example:
      (error (string-append "Unhandled grammar"))]))
 
 ; Destructure ragg python expressions to python-ast with ctx values
-; Apply "Load" as ctx until appropriate nodes are reached, then apply expr-ctx and replace with "Load"
-; e.g. apply only to last Slice in a row somehow.
 (define (py-ragg-expr->python-ast py-ragg expr-ctx)
   (match py-ragg
 
     #| Expression fallthroughs... |#
     [(list (or 'testlist 'test 'or_test 'and_test 'not_test 'comparison 'expr 'xor_expr 'and_expr 'shift_expr 'arith_expr 'term 'factor 'power) expr)
      (py-ragg-expr->python-ast expr expr-ctx)]
+
+    
 
     ; Note expr-ctx (this may be wrong)
     [(list 'atom (cons 'name name))
@@ -83,7 +87,3 @@ Example:
      (display "=== Unhandled expression ===\n")
      (pretty-write py-ragg)
      (error (string-append "Unhandled expression"))]))
-				    
-
-
-	 
