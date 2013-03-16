@@ -14,7 +14,10 @@
          "util.rkt"
          "python-evaluator.rkt"
 	 "python-lexer.rkt"
-	 "python-parser.rkt")
+	 "python-parser.rkt"
+	 "python-grammar.rkt"
+	 "test-parser.rkt"
+	 )
 
 (define (python-test-runner _ port)
   (run-python port))
@@ -66,16 +69,22 @@
 (define (get-lexer-tokens port)
   (lex-all port))
 
-(define (get-parse-tree input-port)
-  (parse-python (get-python-lexer input-port)))
+(define (get-ragg-sexp port)
+  (pretty-write (syntax->datum (parse (get-python-lexer port)))))
 
-(define (run-python-nopy input-port)
+(define (get-parse-tree port)
+  (parse-python (get-python-lexer port)))
+
+(define (parse-test port)
+  (compare-parse port))
+
+(define (run-python-nopy port)
   (interp
     (python-lib
       (desugar
         (new-scope-phase
 	 (get-structured-python
-	   (parse-python (get-python-lexer input-port))))))))
+	   (parse-python (get-python-lexer port))))))))
 
 
 (command-line
@@ -112,6 +121,9 @@
   ("--get-parse-tree" "Get AST from experimental parser"
    (pretty-write (get-parse-tree (current-input-port))))
 
+  ("--get-ragg-sexp" "Get AST from experimental parser"
+   (pretty-write (get-ragg-sexp (current-input-port))))
+
   ("--interp-nopy" "Interpret stdin as python"
    (run-python-nopy (current-input-port)))
 
@@ -121,6 +133,9 @@
 
   ("--test-py" dirname "Run all tests in dirname using python"
    (display (results-summary (run-tests (mk-python-cmdline-eval (get-pypath)) dirname))))
+
+  ("--test-parser" "Compare native parser results with Python parser for input"
+   (display (parse-test (current-input-port))))
 
   ("--python-path" path "Set the python path" 
    (set-pypath path))

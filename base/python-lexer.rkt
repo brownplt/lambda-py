@@ -1,7 +1,10 @@
 #lang racket
 
 (require parser-tools/lex
+	 ragg/support
          (prefix-in : parser-tools/lex-sre))
+
+#| TODO: Convert all tokens to ragg/support type |#
 
 #| TODO: Scan first two physical lines for encoding. |#
 #| TODO: Support other encodings (than utf-8). |#
@@ -9,12 +12,12 @@
 #| 'Logical' refers *here* to the spec's logical newlines as well as INDENT/DEDENT tokens. |#
 #| 'Physical' refers *here* to physical newline and whitespace tokens. |#
 
-(provide lex-all get-python-lexer empty-other-tokens empty-logical-tokens nonempty-other-tokens)
+(provide lex-all get-python-lexer)
 
 (define (lex-all port)
   (local [(define (lex-acc acc python-lexer)
 	    (let ((token (python-lexer)))
-	      (if (equal? (token-name token) 'EOF)
+	      (if (equal? (token-struct-type token) 'EOF)
 		  acc
 		  (lex-acc (cons token acc) python-lexer))))]
 	 (reverse (lex-acc (list) (get-python-lexer port)))))
@@ -27,7 +30,7 @@
   (physical-eol (:or "\n" "\r\n" "\r"))
   (line-continue (:: "\\" physical-eol)))
 
-#| IDENTIFIERS |#
+#| NAMES |#
 
 #| 
 Catch all unicode non-ascii characters and test explicitly. 
@@ -82,8 +85,8 @@ This only works because there are no valid source chars outside the ASCII range 
 (define-lex-abbrevs
   (bytesliteral (:: bytesprefix (:or shortbytes longbytes)))
   (bytesprefix (:or "b" "B" "br" "Br" "bR" "BR"))
-  (shortbytes (:or (:: "'" (:* single-shortbytesitem) "'") ("\"" (:* double-shortbytesitem) "\"")))
-  (longbytes (:or (:: "'''" (:* longbytesitem) "'''") ("\"\"\"" (:* longbytesitem) "\"\"\"")))
+  (shortbytes (:or (:: "'" (:* single-shortbytesitem) "'") (:: "\"" (:* double-shortbytesitem) "\"")))
+  (longbytes (:or (:: "'''" (:* longbytesitem) "'''") (:: "\"\"\"" (:* longbytesitem) "\"\"\"")))
   (single-shortbytesitem (:or single-shortbyteschar bytesescapeseq))
   (double-shortbytesitem (:or double-shortbyteschar bytesescapeseq))
   (longbytesitem (:or longbyteschar bytesescapeseq))
@@ -142,31 +145,6 @@ This only works because there are no valid source chars outside the ASCII range 
 (define (parse-imaginary lexeme)
   (* 0+1i (string->number (substring lexeme 0 (- (string-length lexeme) 1)))))
 
-#| TOKENS - For both lexer phases |#
-(define-tokens nonempty-physical-tokens (WHITESPACE))
-(define-tokens nonempty-other-tokens (IDENTIFIER INTEGER FLOAT IMAGINARY STRING BYTES))
-(define-empty-tokens empty-physical-tokens (PHYSICAL-NEWLINE))
-(define-empty-tokens empty-logical-tokens (INDENT DEDENT NEWLINE))
-(define-empty-tokens empty-other-tokens (EOF
-
-					 False      class      finally    is         return
-					 None       continue   for        lambda     try
-					 True       def        from       nonlocal   while
-					 and        del        global     not        with
-					 as         elif       if         or         yield
-					 assert     else       import     pass
-					 break      except     in         raise
-
-					 +       -       *       **      /       //      %
-					 <<      >>      &       BAR       ^       ~
-					 <       >       <=      >=      ==      !=
-
-					 LP       RP       LSB       RSB       LCB       RCB
-					 COMMA       :      DOT        SEMICOLON       @       =
-					 +=      -=      *=      /=      //=     %=
-					 &=      BAR=      ^=      >>=     <<=     **= 
-					 ))
-
 #| TODO: Optional warning system for space/tab mixing |#
 (define (count-spaces str)
   (foldl (lambda (char count)
@@ -178,9 +156,12 @@ This only works because there are no valid source chars outside the ASCII range 
 
 (define comment-lexer
   (lexer
-   (physical-eol (token-PHYSICAL-NEWLINE))
+   (physical-eol (token 'PHYSICAL-NEWLINE))
    (any-char (comment-lexer input-port))))
 
+
+(define (etoken sym)
+  (token sym (symbol->string sym)))
 #|
 Simple lexer, produces physical/other tokens.
 |#
@@ -188,98 +169,96 @@ Simple lexer, produces physical/other tokens.
   (lexer 
    ("#" (comment-lexer input-port))
 
-   ("False" (token-False))
-   ("class" (token-class))
-   ("finally" (token-finally))
-   ("is" (token-is))
-   ("return" (token-return))
-   ("None" (token-None))
-   ("continue" (token-continue))
-   ("for" (token-for))
-   ("lambda" (token-lambda))
-   ("try" (token-try))
-   ("True" (token-True))
-   ("def" (token-def))
-   ("from" (token-from))
-   ("nonlocal" (token-nonlocal))
-   ("while" (token-while))
-   ("and" (token-and))
-   ("del" (token-del))
-   ("global" (token-global))
-   ("not" (token-not))
-   ("with" (token-with))
-   ("as" (token-as))
-   ("elif" (token-elif))
-   ("if" (token-if))
-   ("or" (token-or))
-   ("yield" (token-yield))
-   ("assert" (token-assert))
-   ("else" (token-else))
-   ("import" (token-import))
-   ("pass" (token-pass))
-   ("break" (token-break))
-   ("except" (token-except))
-   ("in" (token-in))
-   ("raise" (token-raise))
+   ("class" (etoken 'class))
+   ("finally" (etoken 'finally))
+   ("is" (etoken 'is))
+   ("return" (etoken 'return))
+   ("continue" (etoken 'continue))
+   ("for" (etoken 'for))
+   ("lambda" (etoken 'lambda))
+   ("try" (etoken 'try))
+   ("def" (etoken 'def))
+   ("from" (etoken 'from))
+   ("nonlocal" (etoken 'nonlocal))
+   ("while" (etoken 'while))
+   ("and" (etoken 'and))
+   ("del" (etoken 'del))
+   ("global" (etoken 'global))
+   ("not" (etoken 'not))
+   ("with" (etoken 'with))
+   ("as" (etoken 'as))
+   ("elif" (etoken 'elif))
+   ("if" (etoken 'if))
+   ("or" (etoken 'or))
+   ("yield" (etoken 'yield))
+   ("assert" (etoken 'assert))
+   ("else" (etoken 'else))
+   ("import" (etoken 'import))
+   ("pass" (etoken 'pass))
+   ("break" (etoken 'break))
+   ("except" (etoken 'except))
+   ("in" (etoken 'in))
+   ("raise" (etoken 'raise))
 
-   ("+" (token-+))
-   ("-" (token--))
-   ("*" (token-*))
-   ("**" (token-**))
-   ("/" (token-/))
-   ("//" (token-//))
-   ("%" (token-%))
-   ("<<" (token-<<))
-   (">>" (token->>))
-   ("&" (token-&))
-   ("|" (token-BAR))
-   ("^" (token-^))
-   ("~" (token-~))
-   ("<" (token-<))
-   (">" (token->))
-   ("<=" (token-<=))
-   (">=" (token->=))
-   ("==" (token-==))
-   ("!=" (token-!=))
+   ("+" (etoken '+))
+   ("-" (etoken '-))
+   ("*" (etoken '*))
+   ("**" (etoken '**))
+   ("/" (etoken '/))
+   ("//" (etoken '//))
+   ("%" (etoken '%))
+   ("<<" (etoken '<<))
+   (">>" (etoken '>>))
+   ("&" (etoken '&))
+   ("|" (etoken '\|))
+   ("^" (etoken '^))
+   ("~" (etoken '~))
+   ("<" (etoken '<))
+   (">" (etoken '>))
+   ("<=" (etoken '<=))
+   (">=" (etoken '>=))
+   ("==" (etoken '==))
+   ("!=" (etoken '!=))
 
-   ("(" (token-LP))
-   (")" (token-RP))
-   ("[" (token-LSB))
-   ("]" (token-RSB))
-   ("{" (token-LCB))
-   ("}" (token-RCB))
-   ("," (token-COMMA))
-   (":" (token-:))
-   ("." (token-DOT))
-   (";" (token-SEMICOLON))
-   ("@" (token-@))
-   ("=" (token-=))
-   ("+=" (token-+=))
-   ("-=" (token--=))
-   ("*=" (token-*=))
-   ("/=" (token-/=))
-   ("//=" (token-//=))
-   ("%=" (token-%=))
-   ("&=" (token-&=))
-   ("|=" (token-BAR=))
-   ("^=" (token-^=))
-   (">>=" (token->>=))
-   ("<<=" (token-<<=))
-   ("**=" (token-**=))
+   ("(" (etoken '\())
+   (")" (etoken '\)))
+   ("[" (etoken '\[))
+   ("]" (etoken '\]))
+   ("{" (etoken '\{))
+   ("}" (etoken '\}))
+   ("," (etoken '\,))
+   (":" (etoken ':))
+   ("." (etoken '\.))
+   (";" (etoken '\;))
+   ("@" (etoken '@))
+   ("=" (etoken '=))
+   ("+=" (etoken '+=))
+   ("-=" (etoken '-=))
+   ("*=" (etoken '*=))
+   ("/=" (etoken '/=))
+   ("//=" (etoken '//=))
+   ("%=" (etoken '%=))
+   ("&=" (etoken '&=))
+   ("|=" (etoken '\|=))
+   ("^=" (etoken '^=))
+   (">>=" (etoken '>>=))
+   ("<<=" (etoken '<<=))
+   ("**=" (etoken '**=))
    
-   (integer (token-INTEGER (parse-integer lexeme)))
-   (floatnumber (token-FLOAT (parse-float lexeme)))
-   (imagnumber (token-IMAGINARY (parse-imaginary lexeme)))
-   (stringliteral (token-STRING (parse-string lexeme)))
+   (integer (token 'NUMBER (cons 'integer (parse-integer lexeme))))
+   (floatnumber (token 'NUMBER (cons 'float (parse-float lexeme))))
+   (imagnumber (token 'NUMBER (cons 'imaginary (parse-imaginary lexeme))))
+   (stringliteral (token 'STRING (cons 'string (parse-string lexeme))))
+   (bytesliteral (error "Bytes not yet supported.")) 
 
    (identifier (if (valid-identifier? lexeme)
-		   (token-IDENTIFIER lexeme) ; Not sure whether these should be normalized.
+		   (token 'NAME (cons 'name lexeme)) ; Not sure whether these should be normalized.
 		   (error (string-append "Invalid unicode identifier: " lexeme))))
 
    ((:: "\\" physical-eol) (lex input-port))
-   (physical-eol (token-PHYSICAL-NEWLINE))
-   ((:+ (:or " " "\t")) (token-WHITESPACE (count-spaces lexeme)))
-   ((eof) (token-EOF))))
+   (physical-eol (token 'PHYSICAL-NEWLINE))
+   ((:+ (:or " " "\t")) (token 'WHITESPACE (count-spaces lexeme)))
+   ((eof) (etoken 'EOF))))
 
 #| Logical lexer - produces logical/other tokens using physical lexer |#
 (define (get-python-lexer input-port)
@@ -308,7 +287,7 @@ Simple lexer, produces physical/other tokens.
 	  - OTHER: to slurg, produce other
 	  |#
 
-	  (define brace-depth 0) ; TODO: Brace depth
+	  (define brace-depth 0)
 
 	  (define state 'begin-line) ; lexer state. 
 	  (define indent-stack '(0)) ; indent stack, strictly decreasing from top to bottom.
@@ -317,9 +296,9 @@ Simple lexer, produces physical/other tokens.
 	  (define spaces 0) ; The amount of whitespace encountered in this line
 
 	  (define (adjust-brace-depth token)
-	    (cond [(member (token-name token) '(LP LCB LSB))
+	    (cond [(member (token-struct-type token) (list '\( '\[ '\{))
 		   (set! brace-depth (+ brace-depth 1))]
-		  [(member (token-name token) '(RP RCB RSB))
+		  [(member (token-struct-type token) '('\) '\] '\}))
 		   (set! brace-depth (- brace-depth 1))]))
 
 	  #|
@@ -335,12 +314,12 @@ Simple lexer, produces physical/other tokens.
 	      (case state
 		[(begin-line) 
 		 (let ((physical-token (lex input-port)))
-		   (case (token-name physical-token)
+		   (case (token-struct-type physical-token)
 		     [(PHYSICAL-NEWLINE) 
 		      (continue)]
 		     [(WHITESPACE)
 		      (set! state 'leading-ws)
-		      (set! spaces (token-value physical-token))
+		      (set! spaces (token-struct-val physical-token))
 		      (continue)]
 		     [else
 		      (set! state 'pre-slurg)
@@ -348,7 +327,7 @@ Simple lexer, produces physical/other tokens.
 		      (continue)]))]
 		[(leading-ws) 
 		 (let ((physical-token (lex input-port)))
-		   (case (token-name physical-token)
+		   (case (token-struct-type physical-token)
 		     [(PHYSICAL-NEWLINE)
 		      (set! state 'begin-line)
 		      (set! spaces 0)
@@ -366,12 +345,13 @@ Simple lexer, produces physical/other tokens.
 		 (cond
 		  [(> spaces (car indent-stack))
 		   (set! indent-stack (cons spaces indent-stack))
-		   (token-INDENT)]
+		   (etoken 'INDENT)]
 		  [(< spaces (car indent-stack))
 		   (set! indent-stack (cdr indent-stack))
 					; If the value of spaces is 'skipped' in indent-stack, bad dedent.
-		   (if (> spaces (car indent-stack)) (error "Bad dedentation")
-		       (token-DEDENT))]
+		   (if (> spaces (car indent-stack)) 
+		       (error "Bad dedentation")
+		       (etoken 'DEDENT))]
 		  [stored-token ; After all dedents/indents are consumed, the other token is left...
 		   (let ((t stored-token))
 		     (set! stored-token #f)
@@ -382,7 +362,7 @@ Simple lexer, produces physical/other tokens.
 		   (continue)])]
 		[(slurg) 
 		 (let ((physical-token (lex input-port)))
-		   (case (token-name physical-token)
+		   (case (token-struct-type physical-token)
 		     [(EOF)
 		      (if (> brace-depth 0)
 			  (error "File ended inside braces.")
@@ -393,7 +373,7 @@ Simple lexer, produces physical/other tokens.
 			  (begin
 			    (set! state 'begin-line)
 			    (set! spaces 0)
-			    (token-NEWLINE)))]
+			    (etoken 'NEWLINE)))]
 		     [(WHITESPACE)
 		      (continue)]
 		     [else
