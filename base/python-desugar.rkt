@@ -580,20 +580,31 @@
       ; TODO: this whole thing needs re-writing.  I'm just converting it to do a standard assignment. 
       
       [LexDelete (targets)
-                 (let ([target (first targets)]) ; TODO: handle deletion of more than one target
-                   (type-case LexExpr target
-                     [LexSubscript (left ctx slice)
-                                   (letrec ([desugared-target (rec-desugar left)]
-                                            [desugared-slice (rec-desugar slice)]
-                                            [target-id (new-id)]
-                                            [target-var (CId target-id (LocalId))])
-                                     (CLet target-id (LocalId) desugared-target
-                                           (CApp (CGetField target-var
-                                                            '__delitem__)
-                                                 (list 
-                                                       desugared-slice)
-                                                 (none))))]
-                     [else (error 'desugar "We don't know how to delete identifiers yet.")]))]
+                 (local
+                  [(define (handle-delete target)
+                     (type-case LexExpr target
+                       [LexSubscript (left ctx slice)
+                                     (letrec ([desugared-target (rec-desugar left)]
+                                              [desugared-slice (rec-desugar slice)]
+                                              [target-id (new-id)]
+                                              [target-var (CId target-id (LocalId))])
+                                       (CLet target-id (LocalId) desugared-target
+                                             (CApp (CGetField target-var
+                                                              '__delitem__)
+                                                   (list 
+                                                    desugared-slice)
+                                                   (none))))]
+                       [LexLocalId (x ctx) (rec-desugar
+                                            (LexAssign (list (LexLocalId x ctx)) (LexUndefined)))]
+                       [LexGlobalId (x ctx) (rec-desugar
+                                            (LexAssign (list (LexGlobalId x ctx)) (LexUndefined)))]
+                       [else (error 'desugar "We don't know how to delete this yet.")]))
+                  (define (make-sequence [exprs : (listof CExpr)] )
+                     (cond
+                      [(empty? exprs) (error 'make-sequence "went too far")]
+                      [(empty? (rest exprs)) (first exprs)]
+                      [else (CSeq (first exprs) (make-sequence (rest exprs)))]))]
+                  (make-sequence (map handle-delete targets)))]
       
 
       [LexImportFrom (module names asnames level) (rec-desugar (LexPass))]
