@@ -163,13 +163,13 @@
               [PyLexGlobal (ids) (PyLexGlobal ids)]
               [PyLexNonLocal (ids) (PyLexNonLocal ids)]
 
-              
+              [LexInScopeLocals (ids ) (LexInScopeLocals ids)]
               [LexLocalId (x ctx) (LexLocalId x ctx)]
               [LexGlobalId (x ctx) (LexGlobalId x ctx)]
               [LexInstanceId (x ctx) (LexInstanceId x ctx)]
               [LexLocalLet (id bind body) (LexLocalLet id (recur bind) (recur body))]
-              [LexGlobalLet (id bind body)
-                            (LexGlobalLet id (recur bind) (recur body))]
+              [LexGlobals (ids body)
+                            (LexGlobals ids (recur body))]
               
                                         ; exceptions and exception handling
               [LexRaise (expr) (LexRaise (recur expr))]
@@ -391,7 +391,8 @@
               [LexGlobalId (x ctx)  empty]
               [LexLocalId (x ctx)  empty]
               [LexLocalLet (id bind body) (flatten (list (recur bind) (recur body)))]
-              [LexGlobalLet (id bind body) (flatten (list (recur bind) (recur body)))]
+              [LexInScopeLocals (_) empty]
+              [LexGlobals (ids body) (recur body)]
               [PyLexId (x ctx)  empty]
               [PyLexGlobal (ids) empty]
               [PyLexNonLocal (ids) empty]

@@ -252,10 +252,7 @@
 (define library-names (map (lambda (b) (bind-left b)) lib-function-dummies)) 
 
 (define (cascade-undefined-globals [globals : (listof symbol) ] [body : LexExpr] ) : LexExpr
-  (if (empty? globals)
-      body
-      (LexGlobalLet (first globals) (LexUndefined)
-            (cascade-undefined-globals (rest globals) body))))
+  (LexGlobals globals body))
 
 (define (extract-post-transform-globals expr) : (listof symbol)
   (remove-duplicates

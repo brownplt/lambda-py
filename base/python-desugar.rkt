@@ -49,7 +49,7 @@
 ;; if global scope, it only gets definitions, for local scope it gets
 ;; definitions and assignments
 
-#;(define (desugar-pymodule [es : (listof PyExpr)] 
+#|(define (desugar-pymodule [es : (listof PyExpr)] 
                           [global? : boolean]
                           [env : IdEnv]) : DesugarResult
   (local [(define g/ns-env (get-globals/nonlocals (PySeq es) global? env))
@@ -67,6 +67,7 @@
       (DResult-expr prelude)
       (DResult-expr body))
      (DResult-env body))))
+|#
 
 (define (desugar-for [target : LexExpr] [iter : LexExpr]
                      [body : LexExpr]) : CExpr
@@ -264,8 +265,19 @@
       [LexStr (s) (make-builtin-str s)]
       [LexLocalId (x ctx) (CId x (LocalId))]
       [LexGlobalId (x ctx) (CId x (GlobalId))]
-      [LexGlobalLet (x bind body) (CLet x (GlobalId) (rec-desugar bind) (rec-desugar body))]
+      [LexGlobals (ids body)
+                  (local 
+                   [(define (make-global-lets ids body)
+                    (cond
+                     [(empty? ids) (rec-desugar body)]
+                     [else (CLet (first ids) (GlobalId)
+                           (rec-desugar (LexUndefined))
+                           (make-global-lets (rest ids) body))]))]
+                   (make-global-lets ids body))]
       [LexLocalLet (x bind body) (CLet x (LocalId) (rec-desugar bind) (rec-desugar body))]
+      ;hopefully this will come in handy for whatever we decide to do with locals
+      ;right now it's just a stub.
+      [LexInScopeLocals (ids) (rec-desugar (LexPass))]
       [LexUndefined () (CUndefined)]  
       [LexRaise (expr) (local [(define expr-r
                                  (if (or (LexLocalId? expr) (LexGlobalId? expr))
