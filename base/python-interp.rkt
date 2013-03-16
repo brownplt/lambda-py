@@ -495,7 +495,7 @@
             rev-try))]
 
     [CConstructModule (source)
-       (handle-result (interp-env source env sto stk)
+       (handle-result env (interp-env source env sto stk)
          (lambda (v-code s-code)
            (cond
              [(not (and (VObjectClass? v-code)
