@@ -167,12 +167,6 @@
     [LexGlobalId (x ctx) x]
     [else (error 'desugar "cannot convert non-id to symbol with id-to-symbol")]))
 
-(define (id-to-symbol expr)
-  (type-case LexExpr expr
-    [LexLocalId (x ctx) x]
-    [LexGlobalId (x ctx) x]
-    [else (error 'desugar "cannot convert non-id to symbol with id-to-symbol")]))
-
 (define (rec-desugar [expr : LexExpr] ) : CExpr 
   (begin ;(display expr) (display "\n\n")
     (type-case LexExpr expr
