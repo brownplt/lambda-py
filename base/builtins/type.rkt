@@ -35,6 +35,15 @@
               'TypeError
               "cannot create a consisten method resolution order"))))))
 
+;; type-new: creates a new class object
+(define (type-new [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
+  (check-types-pred args env sto MetaStr?
+                    (let ([name (string->symbol (MetaStr-s mval1))])
+                      (some (VObjectClass 'type
+                                          (some (MetaClass name))
+                                          (hash empty)
+                                          (none))))))
+
 ;; type-uniqbases: check for uniqueness of bases
 (define (type-uniqbases [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaTuple?

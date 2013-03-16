@@ -280,6 +280,7 @@ primitives here.
     ['existing-file? (prim-noalloc existing-file? argvs)]
 
     ; type
+    ['type-new (prim-alloc type-new argvs)]
     ['type-uniqbases (prim-noalloc type-uniqbases argvs)]
     ['type-buildmro (prim-alloc type-buildmro argvs)]
 
