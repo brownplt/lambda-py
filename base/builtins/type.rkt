@@ -29,11 +29,11 @@
       (CTryExceptElse
        (CAssign (CGetField (CId 'new-class (LocalId)) '__mro__)
                 (CBuiltinPrim 'type-buildmro (list (CId 'bases (LocalId)))))
-       '_ (CRaise (make-exception 'TypeError "duplicate base"))
+       '_ (CRaise (some (make-exception 'TypeError "duplicate base")))
        (CId 'new-class (LocalId))))
-     (CRaise (make-exception
-              'TypeError
-              "cannot create a consisten method resolution order"))))))
+     (CRaise (some (make-exception
+                    'TypeError
+                    "cannot create a consisten method resolution order")))))))
 
 ;; type-new: creates a new class object
 (define (type-new [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
