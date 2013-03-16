@@ -16,7 +16,7 @@ class type(object):
         except:
           raise TypeError("cannot create a consisten method resolution order")
         else:
-          #for k,v in dict:
+          #for k,v in dict.items():
           #  setattr(cls, k, v)
           return cls
       else:
