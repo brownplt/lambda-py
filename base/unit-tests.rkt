@@ -1,6 +1,7 @@
 #lang plai-typed/untyped
 
 (require "util.rkt"
+         "builtins/type.rkt"
          "python-interp.rkt"
          "python-syntax.rkt"
          "python-lexical-syntax.rkt"
