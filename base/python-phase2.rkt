@@ -21,8 +21,11 @@
     (optimization-pass
      (let-phase
       (remove-blocks
-       (post-desugar
-        expr)))))))
+       (make-local-list
+        empty
+        (collapse-pyseq
+         (post-desugar
+          expr)))))))))
 
 (define (post-desugar [expr : LexExpr]) : LexExpr
     (local
@@ -235,11 +238,14 @@
         (top-level-deal-with-class expr)))
 
 (define (let-phase [expr : LexExpr] ) : LexExpr
-(collapse-pyseq (cascade-undefined-globals (list-subtract
-                                            (begin
-                                              ;(display (extract-post-transform-globals expr))
-                                              (extract-post-transform-globals expr))
-                                            library-names) expr))) ;all globals, not just the current scope
+;(collapse-pyseq
+ (cascade-undefined-globals (list-subtract
+                             (begin
+                                        ;(display (extract-post-transform-globals expr))
+                               (extract-post-transform-globals expr))
+                             library-names) expr)
+ ;)
+) ;all globals, not just the current scope
 
 (define library-names (map (lambda (b) (bind-left b)) lib-function-dummies)) 
 
@@ -269,16 +275,22 @@
 
 
 
-(define (collapse-pyseq expr ) 
+(define (collapse-pyseq expr )
+  (let (( non-lexpass (lambda ([exprs : (listof LexExpr)])
+                        (filter (lambda (y) (not (LexPass? y))) exprs))))
   (lexexpr-modify-tree
    expr 
    (lambda (x) (type-case LexExpr x
                  [LexSeq(lis)
-                        (LexSeq (flatten (map (lambda (y)
+                        (let ((new-es (non-lexpass (flatten (map (lambda (y)
                                                 (let ((e (collapse-pyseq y)))
                                                   (if (LexSeq? e) (LexSeq-es e) (list e))))
-                                              lis)))]
-                 [else (default-recur)]))))
+                                              lis)))))
+                          (cond
+                           [(empty? new-es) (LexPass)]
+                           [(empty? (rest new-es)) (first new-es)]
+                           [else (LexSeq new-es)]))]
+                 [else (default-recur)])))))
 
 (define (remove-blocks expr)
   (lexexpr-modify-tree
@@ -300,6 +312,28 @@
          [else (default-recur)])))
     starting-locals)))
 
+(define (move-past-local-lets-helper [new-expr : LexExpr]
+                                     [listof-exprs : (listof LexExpr)]) :
+                                     (listof LexExpr)
+  (cond
+   [(empty? listof-exprs) (list new-expr)]
+   [(LexLocalLet? (first listof-exprs)) (cons (first listof-exprs)
+               (move-past-local-lets-helper new-expr (rest listof-exprs)))]
+   #;[(LexSeq? (first listof-exprs)) (cons
+                                    (LexSeq (move-past-local-lets-helper
+                                             new-expr
+                                             (LexSeq-es (first listof-exprs))))
+                                    (rest listof-exprs))]
+   [else (cons new-expr listof-exprs)]))
+
+(define (move-past-local-lets [new-expr : LexExpr]
+                              [potential-local-lets : LexExpr] ) : LexExpr
+  (type-case LexExpr potential-local-lets
+    [LexLocalLet (id bind body)
+                 (LexLocalLet id bind (move-past-local-lets new-expr body)) ]
+    #;[LexSeq (es) (LexSeq (move-past-local-lets-helper new-expr es))]
+    [else (LexSeq (list new-expr potential-local-lets))]))
+
 (define (make-local-list starting-locals expr)
   (lexexpr-modify-tree
    expr
@@ -307,7 +341,7 @@
      (type-case LexExpr y
        [LexBlock (nls body)
                  (let ((locals (collect-locals-in-scope body starting-locals)))
-                   (LexBlock nls (LexSeq (list (LexInScopeLocals locals)
-                                               (make-local-list locals body)))))]
+                   (LexBlock nls (move-past-local-lets (LexInScopeLocals locals)
+                                               (make-local-list locals body))))]
        [else (default-recur)]))))
 
