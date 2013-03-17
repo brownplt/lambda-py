@@ -387,15 +387,6 @@
              (handle-result env (interp-env value env sto stk)
                (lambda (vv sv) (Return vv sv)))]
 
-    [CPrim1 (prim arg) 
-            (handle-result env (interp-env arg env sto stk)
-              (lambda (varg sarg)
-                   (case prim
-                     ['Not (if (truthy? varg sarg)
-                             (v*s false-val sarg)
-                             (v*s true-val sarg))]
-                     [else (v*s (python-prim1 prim (fetch-ptr varg sarg)) sarg)])))]
-
     [CWhile (body test orelse) (interp-while body test orelse env sto stk)]
 
     [CPrim2 (prim arg1 arg2) (interp-cprim2 prim arg1 arg2 sto env stk)]
