@@ -488,7 +488,7 @@
          (lambda (v-code s-code)
            (cond
              [(not (and (is-obj-ptr? v-code s-code)
-                        (eq? (VObjectClass-antecedent (fetch-ptr v-code s-code)) 'code)))
+                        (object-is? (fetch-ptr v-code s-code) '%code env sto)))
               (error 'interp (format "a non-code object ~a is passed to make module object" v-code))]
              [else
               (let ((obj (fetch-ptr v-code s-code)))

@@ -117,7 +117,8 @@
                         (list
                          (CId 'source (LocalId))
                          (CId 'filename (LocalId))
-                         (CId 'mode (LocalId)))))
+                         (CId 'mode (LocalId))
+                         (CId '%code (GlobalId)))))
          (none)))
 
 (define make_module-lambda

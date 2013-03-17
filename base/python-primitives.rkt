@@ -289,7 +289,7 @@ primitives here.
     ['code-str (prim-alloc code-str argvs)]
     ['code-globals (prim-alloc code-globals argvs)]
 
-    ['compile (prim-alloc compile argvs)]
+    ['compile (prim-alloc compile (fetch-heads argvs argsptrs))];argvs)]
 
     ['print (begin (print (first argvs)) (v*s (first argsptrs) sto))]
 
