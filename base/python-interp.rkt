@@ -272,13 +272,6 @@
     [CNone () (alloc-result vnone sto)]
     [CUndefined () (v*s (VUndefined) sto)]
 
-    [CClass (name)
-            (alloc-result (VObjectClass 'type
-                                        (some (MetaClass name))
-                                        (hash empty)
-                                        (none))
-                          sto)]
-
     [CGetField (value attr)
     (begin
       ;(display "Getting field ") (display attr) (display "from: \n") (display value)
@@ -354,11 +347,21 @@
     [CObject (class mval)
              (handle-result env (interp-env class env sto stk)
                (lambda (cval csto)
-                 (alloc-result (VObjectClass (MetaClass-c (some-v (VObjectClass-mval (fetch-ptr cval csto))))
-                                    mval
-                                    (hash empty)
-                                    (some cval))
-                      csto)))]
+                 (let ([cls-obj (fetch-ptr cval csto)])
+                   (alloc-result
+                    (if (and (some? (VObjectClass-mval cls-obj))
+                             (MetaClass? (some-v (VObjectClass-mval cls-obj))))
+                        ;; normal object with class pointer
+                        (VObjectClass (MetaClass-c (some-v (VObjectClass-mval cls-obj)))
+                                      mval
+                                      (hash empty)
+                                      (some cval))
+                        ;; internal use only object without class pointer
+                        (VObjectClass 'NoClass
+                                      mval
+                                      (hash empty)
+                                      (none)))
+                    csto))))]
 
     [CLet (x type bind body)
           (begin ;(display "LET: ") (display x) (display " ")

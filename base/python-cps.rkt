@@ -79,7 +79,6 @@
     [CId (x l) (const expr)]
     [CObject (c b) (const expr)]
     [CFunc (args varargs body opt-class) (const expr)]
-    [CClass (nm) (const (CClass nm))]
 
     [CGetField (val attr)
       (pylam (K R E B C)

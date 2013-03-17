@@ -187,9 +187,6 @@
        (cps-eval (CSet (gid '%set) (list (CSym 'foo) (CSym 'bar)))))))
       (make-set (list (VSym 'foo) (VSym 'bar))))
 
-(test (VObjectClass-mval (cps-eval (CClass 'hello)))
-      (some (MetaClass 'hello)))
-
 ;; NOTE(dbp): not sure how to test tryfinally properly, because we
 ;; don't have a way to capture that the finally block was run, as we
 ;; aren't testing side effects. Also, current test framework wants

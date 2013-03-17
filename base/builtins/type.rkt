@@ -13,14 +13,17 @@
               body))
 
 ;; make-class: used to build class objects
-;; - create an empty class object using CClass
-;; - check uniqueness of bases and set __bases__ field
-;; - compute linearization of bases and set __mro__ field
+;; - create an empty class object using type-new
+;; - check uniqueness of bases using type-uniqbases and set __bases__ field
+;; - compute linearization of bases using type-buildmro and set __mro__ field
 (define (make-class [name : symbol] [bases : CExpr] [body : CExpr]) : CExpr
   (CLet
    'bases (LocalId) bases
    (CLet
-    'new-class (LocalId) (CClass name)
+    'new-class (LocalId)
+    (CBuiltinPrim 'type-new
+                  (list (CObject (CNone)
+                                 (some (MetaStr (symbol->string name))))))
     (CIf
      (CBuiltinPrim 'type-uniqbases (list (CId 'bases (LocalId))))
      (CSeq
