@@ -261,7 +261,8 @@
                                          (MetaTuple-v
                                            (some-v
                                              (VObjectClass-mval
-                                               (fetch-once (some-v args-loc) sto)))))
+                                               (fetch-ptr
+                                                (fetch-once (some-v args-loc) sto) sto)))))
                                     " ")
                                   ""))]
     (if print-name

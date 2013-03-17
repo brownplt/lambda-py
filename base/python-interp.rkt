@@ -387,19 +387,8 @@
              (handle-result env (interp-env value env sto stk)
                (lambda (vv sv) (Return vv sv)))]
 
-    [CPrim1 (prim arg) 
-            (handle-result env (interp-env arg env sto stk)
-              (lambda (varg sarg)
-                   (case prim
-                     ['Not (if (truthy? varg sarg)
-                             (v*s false-val sarg)
-                             (v*s true-val sarg))]
-                     [else (v*s (python-prim1 prim (fetch-ptr varg sarg)) sarg)])))]
-
     [CWhile (body test orelse) (interp-while body test orelse env sto stk)]
 
-    [CPrim2 (prim arg1 arg2) (interp-cprim2 prim arg1 arg2 sto env stk)]
-    
     [CBuiltinPrim (op args) 
                   (type-case ResultList (interp-cascade args sto env stk)
                    [Abnormal (r) r]
@@ -750,28 +739,6 @@
     [VUndefined () false]
     [VSym (t) (equal? t 'true)]
     [VPointer (a) (truthy? (fetch-once a sto) sto)]))
-
-(define (interp-cprim2 [prim : symbol] 
-                       [arg1 : CExpr]
-                       [arg2 : CExpr]
-                       [sto : Store]
-                       [env : Env]
-                       [stk : Stack]) : Result
-    (handle-result env (interp-env arg1 env sto stk)
-      (lambda (varg1 sarg1)
-           (handle-result env (interp-env arg2 env sarg1 stk)
-             (lambda (varg2 sarg2) 
-                  (case prim
-                    ;; Handle Is, IsNot, In, NotIn
-                    ['Is (if (is? varg1 varg2 sarg2)
-                          (v*s true-val sarg2)
-                          (v*s false-val sarg2))]
-                    ['IsNot (if (not (is? varg1 varg2 sarg2))
-                           (v*s true-val sarg2)
-                           (v*s false-val sarg2))]
-                    [else (error 'interp (string-append "Haven't implemented a case yet: "
-                                                        (symbol->string
-                                                          prim)))]))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; multiple inheritance ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

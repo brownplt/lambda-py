@@ -27,8 +27,6 @@ ParselTongue.
   [CFunc (args : (listof symbol)) (varargs : (optionof symbol)) (body : CExpr) (opt-class : (optionof symbol))] ; class name for methods
   [CWhile (test : CExpr) (body : CExpr) (orelse : CExpr)]
   [CReturn (value : CExpr)]
-  [CPrim1 (prim : symbol) (arg : CExpr)]
-  [CPrim2 (prim : symbol) (arg1 : CExpr) (arg2 : CExpr)]
   [CBuiltinPrim (op : symbol) (args : (listof CExpr))]
   [CList (class : CExpr) (values : (listof CExpr))]
   [CTuple (class : CExpr) (values : (listof CExpr))]

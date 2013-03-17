@@ -333,18 +333,18 @@
                               (list right-c left-c)
                               (none))]
                    ['NotIn (rec-desugar (LexUnaryOp 'Not (LexBinOp left 'In right)))]
-                   [else (CPrim2 op left-c right-c)]))]
+                   [else (CBuiltinPrim op (list left-c right-c))]))]
 
       [LexUnaryOp (op operand)
                   (case op
-                    ['Not (CPrim1 'Not (CApp (CId '%bool (GlobalId)) (list (desugar operand)) (none)))]
+                    ['Not (CIf (CApp (CId '%bool (GlobalId)) (list (desugar operand)) (none)) (CFalse) (CTrue))]
                     ['USub (rec-desugar (LexBinOp (LexNum 0) 'Sub operand))]
                     ['UAdd (rec-desugar (LexBinOp (LexNum 0) 'Add operand))]
                     ['Invert (local [(define roperand (rec-desugar operand))]
                                (CApp (CGetField roperand '__invrt__)
                                      (list)
                                      (none)))]
-                    [else (CPrim1 op (rec-desugar operand))])]
+                    [else (CBuiltinPrim op (list (rec-desugar operand)))])]
       
       [LexBoolOp (op values) (desugar-boolop op values)]
       [LexCompOp (l op rights) (desugar-compop l op rights)]

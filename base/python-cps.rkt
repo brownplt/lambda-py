@@ -118,22 +118,6 @@
             (pyapp (cps body) Ki Ri Ei Bi Ci)))
         Ri Ei Bi Ci))]
 
-    [CPrim1 (op e1)
-     (pylam (K R E B C)
-       (pyapp (cps e1)
-        (pylam (V)
-          (pyapp Ki (CPrim1 op Vi)))))] 
-
-    [CPrim2 (op e1 e2)
-     (pylam (K R E B C)
-       (pyapp (cps e1)
-        (pylam (V)
-          (pyapp (cps e2)
-           (pylam (V2)
-            (pyapp Ki (CPrim2 op Vi V2i)))
-           Ri Ei Bi Ci))
-        Ri Ei Bi Ci))]
-
     [CBuiltinPrim (op args)
      (cps-list args (lambda (ids) (CBuiltinPrim op ids)))]
 
