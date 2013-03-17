@@ -6,6 +6,6 @@ def print(*args):
     i = i - 1
     if i > 0:
       s += ' '
-  ___prim1("print", s)
+  ___delta("print", s)
 
 ___assign("%print", print)

@@ -291,7 +291,7 @@ primitives here.
 
     ['compile (prim-alloc compile argvs)]
 
-    ['print (print (first argvs))]
+    ['print (begin (print (first argvs)) (v*s (first argsptrs) sto))]
 
     ['Is (if (is? (first argsptrs)
                   (second argsptrs) sto)
