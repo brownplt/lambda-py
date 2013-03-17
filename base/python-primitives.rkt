@@ -285,7 +285,7 @@ primitives here.
                              (map (lambda (p)
                                     (values (car p) (cdr p)))
                                   (filter (lambda (p)
-                                            (not (VUndefined? (fetch (cdr p) sto))))
+                                            (not (VUndefined? (fetch-once (cdr p) sto))))
                                           (hash->list (first (Frame-env (first stk)))))))
                            env sto)
                    (error 'locals "Empty stack in locals")))]

@@ -130,17 +130,6 @@ ParselTongue.
     [VPointer (a) (VClosure? (fetch-once a sto))]
     [else false]))
 
-(define (fetch [w : Address] [sto : Store]) : CVal
-  (local [(define val 
-            (type-case (optionof CVal) (hash-ref sto w)
-              [some (v) v]
-              [none () (error 'interp
-                              (begin ;(display sto)
-                              (string-append "No value at address " (Address->string w))))]))]
-    (if (VPointer? val)
-        (fetch (VPointer-a val) sto)
-        val)))
-
 ;; fetch only once in the store
 (define (fetch-once [w : Address] [sto : Store]) : CVal
   (type-case (optionof CVal) (hash-ref sto w)
@@ -176,3 +165,4 @@ ParselTongue.
 ;; Module is used to combine module binding name with its cooresponding object
 (define-type Modules
   [Module (name : symbol) (object : CExpr)])
+
