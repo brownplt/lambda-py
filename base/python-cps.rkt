@@ -79,16 +79,7 @@
     [CId (x l) (const expr)]
     [CObject (c b) (const expr)]
     [CFunc (args varargs body opt-class) (const expr)]
-
-    [CClass (nm bases body)
-      (pylam (K R E B C)
-        (pyapp (cps bases)
-          (pylam (V)
-            (pyapp (cps body)
-              (pylam (V2)
-                (pyapp Ki (CClass nm Vi V2i)))
-              Ri Ei Bi Ci))
-          Ri Ei Bi Ci))]
+    [CClass (nm) (const (CClass nm))]
 
     [CGetField (val attr)
       (pylam (K R E B C)

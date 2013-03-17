@@ -4,7 +4,7 @@
 (require "../util.rkt")
 (require [typed-in racket/list (remove-duplicates : ((listof 'a) -> (listof 'a)))])
 
-;; builtin-class: used construct builtin classes in the core language
+;; builtin-class: used to construct builtin classes in the core language
 (define (builtin-class [name : symbol] [bases : (listof symbol)] [body : CExpr]) : CExpr
   (make-class name
               ;; builtin classes are bound to ids in the global scope
@@ -12,8 +12,8 @@
                       (map (lambda (id) (CId id (GlobalId))) bases))
               body))
 
-;; build class object: 
-;; - creates an empty class object using CClass
+;; make-class: used to build class objects
+;; - create an empty class object using CClass
 ;; - check uniqueness of bases and set __bases__ field
 ;; - compute linearization of bases and set __mro__ field
 (define (make-class [name : symbol] [bases : CExpr] [body : CExpr]) : CExpr
@@ -29,11 +29,11 @@
       (CTryExceptElse
        (CAssign (CGetField (CId 'new-class (LocalId)) '__mro__)
                 (CBuiltinPrim 'type-buildmro (list (CId 'bases (LocalId)))))
-       '_ (CRaise (make-exception 'TypeError "duplicate base"))
+       '_ (CRaise (some (make-exception 'TypeError "duplicate base")))
        (CId 'new-class (LocalId))))
-     (CRaise (make-exception
-              'TypeError
-              "cannot create a consisten method resolution order"))))))
+     (CRaise (some (make-exception
+                    'TypeError
+                    "cannot create a consistent method resolution order")))))))
 
 ;; type-new: creates a new class object
 (define (type-new [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)

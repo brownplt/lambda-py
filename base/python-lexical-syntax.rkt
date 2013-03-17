@@ -73,8 +73,10 @@
   [LexLocalId (x : symbol) (ctx : symbol)]
   [LexGlobalId (x : symbol) (ctx : symbol)]
   [LexInstanceId (x : symbol) (ctx : symbol)]
-  [LexGlobalLet (id : symbol) (bind : LexExpr) (body : LexExpr)]
+  [LexGlobals (ids : (listof symbol)) (body : LexExpr)]
   [LexLocalLet (id : symbol) (bind : LexExpr) (body : LexExpr)]
+  [LexInScopeLocals (locals : (listof symbol))]
+  
 
   ;helpful; a "block" denotes a new scope
   ;the nonlocals list is for function arguments.
