@@ -44,7 +44,7 @@
 (define (get-module-path)
   default-builtin-module-paths)
 
-(define python-path "/home/joe/src/Python-3.2.3/python")
+(define python-path "/usr/bin/python/")
 (define (get-pypath)
   python-path)
 (define (set-pypath p)
