@@ -333,7 +333,7 @@
                               (list right-c left-c)
                               (none))]
                    ['NotIn (rec-desugar (LexUnaryOp 'Not (LexBinOp left 'In right)))]
-                   [else (CPrim2 op left-c right-c)]))]
+                   [else (CBuiltinPrim op (list left-c right-c))]))]
 
       [LexUnaryOp (op operand)
                   (case op

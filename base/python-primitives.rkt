@@ -292,5 +292,15 @@ primitives here.
     ['compile (prim-alloc compile argvs)]
 
     ['print (print (first argvs))]
-    
+
+    ['Is (if (is? (first argsptrs)
+                  (second argsptrs) sto)
+             (v*s true-val sto)
+             (v*s false-val sto))]
+    ['IsNot (if (not (is? (first argsptrs)
+                  (second argsptrs) sto))
+             (v*s true-val sto)
+             (v*s false-val sto))]
+ 
     [else (error 'prim (format "Missed primitive: ~a" op))]))))
+
