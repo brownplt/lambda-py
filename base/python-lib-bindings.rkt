@@ -117,7 +117,8 @@
                         (list
                          (CId 'source (LocalId))
                          (CId 'filename (LocalId))
-                         (CId 'mode (LocalId)))))
+                         (CId 'mode (LocalId))
+                         (CId '%code (GlobalId)))))
          (none)))
 
 (define make_module-lambda
@@ -221,13 +222,17 @@
             (bind 'type (CUndefined))
             (bind '%type (CUndefined))
             (bind 'super (CUndefined))
+            (bind '%super (CUndefined))
             (bind 'method (CUndefined))
+            (bind '%method (CUndefined))
             (bind 'open (CUndefined))
             (bind '%open (CUndefined))
             (bind 'file (CUndefined))
             (bind '%file (CUndefined))
             (bind 'classmethod (CUndefined))
+            (bind '%classmethod (CUndefined))
             (bind 'staticmethod (CUndefined))
+            (bind '%staticmethod (CUndefined))
             (bind '__import__ (CUndefined))
             (bind 'callable (CUndefined))
             (bind '%callable (CUndefined))

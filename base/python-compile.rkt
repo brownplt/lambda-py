@@ -28,14 +28,16 @@
     (else (list))))
 
 ;; built-in compile function, which takes
-;; source, filename, mode as its argument
+;; source, filename, mode and code class as its arguments
 (define (compile args env sto)
   (check-types-pred args env sto MetaStr? MetaStr? MetaStr?
                (let* ([source (MetaStr-s mval1)] 
                       [filename (MetaStr-s mval2)]
                       [mode (MetaStr-s mval3)]
                       [code (compile-string source)]
-                      [globals (get-global-names code)])
-                 (some (VObject 'code
-                                (some (MetaCode code filename globals))
-                                (hash empty))))))
+                      [globals (get-global-names code)]
+                      [code-class (fourth args)])
+                 (some (VObjectClass 'code
+                                     (some (MetaCode code filename globals))
+                                     (hash empty)
+                                     (some code-class))))))

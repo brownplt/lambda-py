@@ -10,6 +10,8 @@ class method(object):
     # we don't have __name__ for functions and classes, yet.
     return "(method of " + str(type(self.__self__)) + " object)"
 
+___assign("%method", method)
+
 # classmethod type
 # In classmethod objects __func__ is defined as instance attribute
 # classmethod objects are converted to method objects 
@@ -18,9 +20,13 @@ class classmethod(object):
   def __init__(self, func):
     self.__func__ = func
 
+___assign("%classmethod", classmethod)
+
 # staticmethod type
 # In staicmethod objects __func__ is defined as instance attribute
 # staticmethod objects are converted to functions on attribute retrieval
 class staticmethod(object):
   def __init__(self, func):
     self.__func__ = func
+
+___assign("%staticmethod", staticmethod)
