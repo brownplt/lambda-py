@@ -20,8 +20,9 @@
    (list 
     (optimization-pass
      (let-phase
-      (post-desugar
-       expr))))))
+       (post-desugar
+        (remove-blocks
+         expr)))))))
 
 (define (post-desugar [expr : LexExpr]) : LexExpr
     (local
@@ -123,7 +124,7 @@
                                    (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
                                    (set! list-of-functions (cons e list-of-functions))
                                    (LexLocalId (first list-of-identifiers) 'Load))]
-             [LexBlock (nls es) e]
+             ;[LexBlock (nls es) e]
              [LexClass (scope name bases body) e]
              [else (default-recur)]))))
       (define (generate-identifier )
@@ -287,3 +288,35 @@
                                                   (if (LexSeq? e) (LexSeq-es e) (list e))))
                                               lis)))]
                  [else (default-recur)]))))
+
+(define (remove-blocks expr)
+  (lexexpr-modify-tree
+   expr
+   (lambda (x)
+     (type-case LexExpr x
+       [LexBlock (nls e) (remove-blocks e)]
+       [else (default-recur)]))))
+
+(define (collect-locals-in-scope expr starting-locals) : (listof symbol)
+  (flatten
+   (list
+    (lexexpr-fold-tree
+     expr
+     (lambda (y)
+       (type-case LexExpr y
+         [LexBlock (_ __) empty]
+         [LexLocalId (x ctx) (list x)]
+         [else (default-recur)])))
+    starting-locals)))
+
+(define (make-local-list starting-locals expr)
+  (lexexpr-modify-tree
+   expr
+   (lambda (y)
+     (type-case LexExpr y
+       [LexBlock (nls body)
+                 (let ((locals (collect-locals-in-scope body starting-locals)))
+                   (LexBlock nls (LexSeq (list (LexInScopeLocals locals)
+                                               (make-local-list locals body)))))]
+       [else (default-recur)]))))
+
