@@ -158,13 +158,12 @@
                                             (symbol->string cls)))]))
 
 ;; get-mro: fetch __mro__ field as a list of classes, filtered up to thisclass if given
-;; and prepended with cls to avoid self reference in __mro__
 (define (get-mro [cls : CVal] 
                  [thisclass : (optionof CVal)]
                  [sto : Store]) : (listof CVal)
   (type-case (optionof Address) (hash-ref (VObjectClass-dict (fetch-ptr cls sto)) '__mro__)
-    [some (w) (let ([mro (cons cls (MetaTuple-v (some-v (VObjectClass-mval
-                                                  (fetch-ptr (fetch-once w sto) sto)))))])
+    [some (w) (let ([mro (MetaTuple-v (some-v (VObjectClass-mval
+                                               (fetch-ptr (fetch-once w sto) sto))))])
                 (if (none? thisclass)
                     mro
                     (if (> (length

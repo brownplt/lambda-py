@@ -825,40 +825,35 @@
                             [sto : Store]) : Result
   (begin ;(display "GET-CLS: ") (display fld) ;(display " ") (display clsptr)
          ;(display " ") (display clsptr) (display "\n")
-  (let ([cls (fetch-ptr clsptr sto)])
-    (cond
-      [(equal? fld '__mro__) 
-       ;; temporary hack to avoid self-reference in __mro__
-       (alloc-result (VObjectClass 'tuple (some (MetaTuple (get-mro clsptr thisclass sto))) (hash empty) (none))
-            sto)]
-      [else
-       (type-case (optionof Address) (lookup-mro (get-mro clsptr thisclass sto) fld sto)
-         [some (w)
-               (let ([value (fetch-once w sto)])
-                 (cond
-                   ;; for classmethod obj. create method obj. bound to the class
-                   [(and (is-obj-ptr? value sto) 
-                         (object-is? (fetch-ptr value sto) '%classmethod env sto))
-                    (local [(define w_func (some-v (hash-ref (VObjectClass-dict (fetch-ptr value sto)) '__func__)))
-                            (define-values (meth sto-m) (mk-method w_func clsptr env sto))]
-                      (alloc-result meth sto-m))]
-                   ;; for staticmethod obj. return func attribute
-                   [(and (is-obj-ptr? value sto)
-                         (object-is? (fetch-ptr value sto) '%staticmethod env sto))
-                    (get-field '__func__ value env sto)]
-                   ;; otherwise return the value of the attribute
-                   [else
-                    (begin ;(display "Else of get-cls\n") (display value)
-                    ;(display "\n") (display (fetch-ptr value sto)) (display "\n")
-                    (v*s value sto))]))]
-         [none () (mk-exception 'AttributeError
-                                (string-append 
-                                 (string-append "class " 
-                                                (symbol->string (VObjectClass-antecedent cls)))
-                                 (string-append " has no attribute "
-                                                (symbol->string fld)))
-                                env
-                                sto)])]))))
+    (let ([cls (fetch-ptr clsptr sto)])
+      (type-case (optionof Address) (lookup-mro (get-mro clsptr thisclass sto) fld sto)
+        [some (w)
+              (let ([value (fetch-once w sto)])
+                (cond
+                  ;; for classmethod obj. create method obj. bound to the class
+                  [(and (is-obj-ptr? value sto)
+                        (object-is? (fetch-ptr value sto) '%classmethod env sto))
+                   (local [(define w_func (some-v (hash-ref (VObjectClass-dict (fetch-ptr value sto))
+                                                            '__func__)))
+                           (define-values (meth sto-m) (mk-method w_func clsptr env sto))]
+                     (alloc-result meth sto-m))]
+                  ;; for staticmethod obj. return func attribute
+                  [(and (is-obj-ptr? value sto)
+                        (object-is? (fetch-ptr value sto) '%staticmethod env sto))
+                   (get-field '__func__ value env sto)]
+                  ;; otherwise return the value of the attribute
+                  [else
+                   (begin ;(display "Else of get-cls\n") (display value)
+                     ;(display "\n") (display (fetch-ptr value sto)) (display "\n")
+                     (v*s value sto))]))]
+        [none () (mk-exception 'AttributeError
+                               (string-append
+                                (string-append "class "
+                                               (symbol->string (VObjectClass-antecedent cls)))
+                                (string-append " has no attribute "
+                                               (symbol->string fld)))
+                               env
+                               sto)]))))
 
 ;; lookup-mro: looks for field in mro list
 (define (lookup-mro [mro : (listof CVal)] [n : symbol] [sto : Store]) : (optionof Address)
