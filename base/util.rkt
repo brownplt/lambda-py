@@ -110,53 +110,9 @@
   (VObjectClass antecedent mval dict (none)))
 
 
-; Macro to match varargs
-; Example:
-;
-; (match-varargs 'args
-;   [() (CObject (gid '%num) (some (MetaNum 0)))]
-;   [('a) (CId 'a (LocalId))]
-;   [('a 'b) (CBuiltinPrim 'num+ (CId 'a (LocalId)) (CId 'b (LocalId)))])
-;
-(define-syntax (match-varargs x)
-  (syntax-case x ()
-    [(match-varargs 'args [vars body])
-     #'(if-varargs 'args vars body)]
-    [(match-varargs 'args [vars1 body1] [vars2 body2])
-     #'(if-varargs 'args vars1 body1
-                 (if-varargs 'args vars2 body2))]
-    [(match-varargs 'args [vars1 body1] [vars2 body2] [vars3 body3])
-     #'(if-varargs 'args vars1 body1
-                 (if-varargs 'args vars2 body2
-                             (if-varargs 'args vars3 body3)))]))
-
-; Helper macro used in implementing match-varargs
-(define-syntax (if-varargs x)
-  (syntax-case x ()
-    [(if-varargs 'args vars body)
-     #'(if-varargs 'args vars body (make-exception 'TypeError "argument mismatch"))]
-    [(if-varargs 'args () body else-part)
-     #'(CIf ; Did we get 0 args?
-        (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
-        body
-        else-part)]
-    [(if-varargs 'args (a) body else-part)
-     #'(CIf ; Did we get 1 args?
-        (CBuiltinPrim 'num= (list (py-len 'args) (py-num 1)))
-        (CLet a (LocalId) (py-getitem 'args 0)
-              body)
-        else-part)]
-    [(if-varargs 'args (a b) body else-part)
-     #'(CIf ; Did we get 2 args?
-        (CBuiltinPrim 'num= (list (py-len 'args) (py-num 2)))
-        (CLet a (LocalId) (py-getitem 'args 0)
-              (CLet b (LocalId) (py-getitem 'args 1)
-                    body))
-        else-part)]))
-
 (define-syntax (check-types-pred x)
   (syntax-case x ()
-    [(check-types args env sto tpred1? body)
+    [(_ args env sto tpred1? body)
      (with-syntax ([mval1 (datum->syntax x 'mval1)])
        #'(let ([arg1 (first args)])
            (if (VObjectClass? arg1)
@@ -167,7 +123,7 @@
                        body)
                      (none)))
                (none))))]
-    [(check-types args env sto tpred1? tpred2? body)
+    [(_ args env sto tpred1? tpred2? body)
      (with-syntax ([mval1 (datum->syntax x 'mval1)]
                    [mval2 (datum->syntax x 'mval2)])
        #'(let ([arg1 (first args)]
@@ -180,61 +136,6 @@
                           (tpred2? (some-v (VObjectClass-mval arg2))))
                      (let ([mval1 (some-v mayb-mval1)]
                            [mval2 (some-v mayb-mval2)])
-                       body)
-                     (none)))
-               (none))))]))
-
-;; the copypasta here is bad but we aren't clever enough with macros
-(define-syntax (check-types x)
-  (syntax-case x ()
-    [(check-types args env sto t1 body)
-     (with-syntax ([mval1 (datum->syntax x 'mval1)])
-       #'(let ([arg1 (first args)])
-           (if (and (VObjectClass? arg1)
-                    (object-is? arg1 t1 env sto))
-               (let ([mayb-mval1 (VObjectClass-mval arg1)])
-                 (if (some? mayb-mval1)
-                     (let ([mval1 (some-v mayb-mval1)])
-                       body)
-                     (none)))
-               (none))))]
-    [(check-types args env sto t1 t2 body)
-     (with-syntax ([mval1 (datum->syntax x 'mval1)]
-                   [mval2 (datum->syntax x 'mval2)])
-       #'(let ([arg1 (first args)]
-               [arg2 (second args)])
-           (if (and (VObjectClass? arg1) (VObjectClass? arg2)
-                    (object-is? arg1 t1 env sto)
-                    (object-is? arg2 t2 env sto))
-               (let ([mayb-mval1 (VObjectClass-mval arg1)]
-                     [mayb-mval2 (VObjectClass-mval arg2)])
-                 (if (and (some? mayb-mval1) (some? mayb-mval2))
-                     (let ([mval1 (some-v mayb-mval1)]
-                           [mval2 (some-v mayb-mval2)])
-                       body)
-                     (none)))
-               (none))))]
-    [(check-types args env sto t1 t2 t3 body)
-     (with-syntax ([mval1 (datum->syntax x 'mval1)]
-                   [mval2 (datum->syntax x 'mval2)]
-                   [mval3 (datum->syntax x 'mval3)])
-       #'(let ([arg1 (first args)]
-               [arg2 (second args)]
-               [arg3 (third args)])
-           (if (and (VObjectClass? arg1) (VObjectClass? arg2)
-                    (VObjectClass? arg3)
-                    (object-is? arg1 t1 env sto)
-                    (object-is? arg2 t2 env sto)
-                    (object-is? arg3 t3 env sto))
-               (let ([mayb-mval1 (VObjectClass-mval arg1)]
-                     [mayb-mval2 (VObjectClass-mval arg2)]
-                     [mayb-mval3 (VObjectClass-mval arg3)])
-                 (if (and (some? mayb-mval1) 
-                          (some? mayb-mval2)
-                          (some? mayb-mval3))
-                     (let ([mval1 (some-v mayb-mval1)]
-                           [mval2 (some-v mayb-mval2)]
-                           [mval3 (some-v mayb-mval3)])
                        body)
                      (none)))
                (none))))]))
