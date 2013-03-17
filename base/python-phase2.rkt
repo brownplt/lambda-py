@@ -20,9 +20,9 @@
    (list 
     (optimization-pass
      (let-phase
+      (remove-blocks
        (post-desugar
-        (remove-blocks
-         expr)))))))
+        expr)))))))
 
 (define (post-desugar [expr : LexExpr]) : LexExpr
     (local
@@ -147,18 +147,6 @@
                               (LexFuncVarArg name args sarg body (map recur decorators) (some class-expr)) ]
                [LexClass (scope name bases body) (LexClass scope name bases body)]
                [else (default-recur)])))))
-      #;(define (annotate-methods-with-class expr [classname : LexExpr])
-        (lexexpr-modify-tree
-         expr
-         (lambda (y)
-           (type-case LexExpr y
-             [LexFunc (name args defaults body decorators class)
-                      (LexFunc name args defaults body decorators (some classname))]
-             [LexFuncVarArg (name args sarg body decorators class)
-                            (LexFuncVarArg name args sarg body decorators (some classname)) ]
-             [LexClass (scope name bases body)
-                       (LexClass scope name bases (annotate-methods-with-class body name))]
-             [else (default-recur)]))))
       (define (split-instance-into-instance-locals expr)
         (introduce-locals
          (lexexpr-fold-tree expr (lambda (y)
@@ -209,8 +197,11 @@
          (lambda ([y : LexExpr])
            (type-case LexExpr y
              [LexClass (scope name bases body)
-                       (let ((body (hoist-functions (split-instance-into-instance-locals body))))
-                       ;(let ((body (identity body)))
+                       (let ((body
+                              (type-case LexExpr body
+                                [LexBlock (nls es) (LexBlock nls (hoist-functions (split-instance-into-instance-locals es)))]
+                                [else (error 'deal-with-class "Thing inside LexClass not a LexBlock!")])
+                              ))
                            (let ((class-expr (if (Instance-scoped? scope)
                                                  (LexDotField class-expr name)
                                                      class-expr)))
