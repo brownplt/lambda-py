@@ -10,12 +10,11 @@ def test_with_extension(ext):
     # for testing the module.
     try:
         f = open(source, "w")
-        print("# This tests Python's ability to import a",
-              ext, "file.", file=f)
+        f.write("# This tests Python's ability to import a " + ext + "file.")
         a = 10
         b = 15
-        print("a =", a, file=f)
-        print("b =", b, file=f)
+        f.write("a =" + str(a))
+        f.write("b =" + str(b))
     except:
         ___fail("open error")
 

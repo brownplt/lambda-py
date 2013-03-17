@@ -6,11 +6,16 @@ import support
 source = support.TESTFN + ".py"
 
 # generate new file
-try:
-    f = open(source, "w")
-    print("a = 1 / 0", file=f)
-except:
-    ___assertTrue(False)
+# try:
+#     f = open(source, "w")
+#     f.write("a = 1 / 0")
+#     f.close()
+# except:
+#     ___assertTrue(False)
+
+f = open(source, "w")
+f.write("a = 1 / 0")
+f.close()
 
 # import the new file, which contains a error
 ___assertRaises(ZeroDivisionError, __import__, support.TESTFN);

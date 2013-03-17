@@ -1,2 +1,2 @@
 # support file for other testing file
-TESTFN = "@test"
+TESTFN = "generated4test"

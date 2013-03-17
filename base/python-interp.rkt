@@ -522,7 +522,7 @@
                                        (hash empty) ; NOTE: passing empty hash as env
                                        s-code
                                        (hash empty)))]
-                                        ; interpret the code in module, raise any exceptions as it is
+                                        ; interpret the code in module, raise any exception as it is
                                         ; ImportError should be handled in __import__
                                         ; TODO: filter the built-in functions instead of interpreting python-lib again
                        (handle-result env (interp-env (python-lib (CModule (CNone) xcode))
