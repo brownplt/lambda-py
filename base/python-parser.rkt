@@ -29,22 +29,32 @@ Example:
 
 (define ast hasheq)
 
+(define (suite->ast-list suite)
+  (match suite
+    [(list 'suite stmt) 
+     (list (py-ragg->python-ast stmt))]
+    [(list 'suite "NEWLINE" "INDENT" stmts ... "DEDENT")
+     (map py-ragg->python-ast stmts)]))
+
 (define (py-ragg->python-ast py-ragg)
   (match py-ragg
     [(list 'file_input stmts ...)
      (ast 'nodetype "Module"
 	   'body (map py-ragg->python-ast stmts))]
     
-    [(list 'stmt stmt) (py-ragg->python-ast stmt)]
+    [(list (or 'stmt 'flow_stmt 'small_stmt 'compound_stmt) stmt) 
+     (py-ragg->python-ast stmt)]
+
+    #| Simple version for python-reference/types... |#
+    [(list 'if_stmt "if" test ":" suite)
+     (ast 'nodetype "If"
+	  'orelse '()
+	  'test (py-ragg-expr->python-ast test "Load")
+	  'body (suite->ast-list suite))]
     
     [(list 'simple_stmt stmt NEWLINE) (py-ragg->python-ast stmt)] ; Todo: simple-stmt-multi.py
     
-    [(list 'small_stmt stmt) (py-ragg->python-ast stmt)]
-    
     ; TODO: Allow only assignments to those allowed by http://docs.python.org/3.2/reference/simple_stmts.html#assignment-statements
-    ; TODO: assign-chain.py
-    ; TODO: augassign.py
-    ; TODO: augassign-yield.py
     [(list 'expr_stmt testlist "=" val)
      (ast 'nodetype "Assign"
 	   'targets (list (py-ragg-expr->python-ast testlist "Store"))
@@ -53,6 +63,11 @@ Example:
     [(list 'expr_stmt val)
      (ast 'nodetype "Expr"
 	  'value (py-ragg-expr->python-ast val "Load"))]
+
+    [(list 'raise_stmt "raise" exc)
+     (ast 'nodetype "Raise"
+	  'exc (py-ragg-expr->python-ast exc "Load")
+	  'cause #\nul)]
     
     [_ 
      (display "=== Unhandled grammar ===\n")
@@ -64,24 +79,47 @@ Example:
   (match py-ragg
 
     #| Expression fallthroughs... |#
-    [(list (or 'testlist 'test 'or_test 'and_test 'not_test 'comparison 'expr 'xor_expr 'and_expr 'shift_expr 'arith_expr 'term 'factor 'power) expr)
+    [(list (or 'argument 'testlist 'test 'or_test 'and_test 'not_test 'comparison 'expr 'xor_expr 'and_expr 'shift_expr 'arith_expr 'term 'factor 'power) expr)
      (py-ragg-expr->python-ast expr expr-ctx)]
 
-    
+    #| Calls - Temporary single arg form |#
+    [(list 'power func (list 'trailer "(" (list 'arglist arg1) ")"))
+     (ast 'nodetype "Call"
+	  'args (list (py-ragg-expr->python-ast arg1 "Load"))
+	  'kwargs #\nul
+	  'starargs #\nul
+	  'keywords '()
+	  'func (py-ragg-expr->python-ast func "Load"))]
+
+    [(list 'not_test "not" expr)
+     (ast 'nodetype "UnaryOp"
+	  'op (ast 'nodetype "Not")
+	  'operand (py-ragg-expr->python-ast expr expr-ctx))]
 
     ; Note expr-ctx (this may be wrong)
+    ; Cons here is from token construction in the lexer
     [(list 'atom (cons 'name name))
      (ast 'nodetype "Name"
 	   'id name
 	   'ctx (ast 'nodetype expr-ctx))]
 
+    ; Cons here is from token construction in the lexer
     [(list 'atom (cons type val))
      (if (equal? expr-ctx "Store")
 	 (error "Cannot store to a literal")
 	 (cond [(member type '(integer float imaginary)) 
 		(ast 'nodetype "Num"
 		      'n val)]
+	       [(member type '(string))
+		(ast 'nodetype "Str"
+		     's val)]
 	       [else (error "Literal not handled yet")]))]
+
+    #| Dict - Temporary single item form... |#
+    [(list 'atom "{" (list 'dictorsetmaker key ":" value) "}")
+     (ast 'nodetype "Dict"
+	  'keys (list (py-ragg-expr->python-ast key expr-ctx))
+	  'values (list (py-ragg-expr->python-ast value expr-ctx)))]
 
     [_ 
      (display "=== Unhandled expression ===\n")

@@ -4,13 +4,12 @@
 	 ragg/support
          (prefix-in : parser-tools/lex-sre))
 
-#| TODO: Convert all tokens to ragg/support type |#
 
 #| TODO: Scan first two physical lines for encoding. |#
 #| TODO: Support other encodings (than utf-8). |#
 
-#| 'Logical' refers *here* to the spec's logical newlines as well as INDENT/DEDENT tokens. |#
-#| 'Physical' refers *here* to physical newline and whitespace tokens. |#
+#| 'Logical' refers *here* to the spec's logical newlines (NEWLINE) as well as INDENT/DEDENT tokens. |#
+#| 'Physical' refers *here* to PHYSICAL-NEWLINE and WHITESPACE tokens. |#
 
 (provide lex-all get-python-lexer)
 
@@ -77,9 +76,44 @@ This only works because there are no valid source chars outside the ASCII range 
 				      (- (string-length lexeme-noraw) (if triple 3 1)))))
     (if raw lexeme-no-quotes (backslash-escaped lexeme-no-quotes))))
 
-					; TODO: Escapes
+
+; Char c in the set abfnrtv to escaped character of \c
+(define (escape-char c)
+  (match c
+    [#\a #\7] ; bell
+    [#\b #\010] ; backspace
+    [#\f #\014]
+    [#\n #\012]
+    [#\r #\015] 
+    [#\t #\tab]
+    [#\v #\vtab]))
+
+(define (octal c)
+  (member c '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7)))
+
+(define (hex c)
+  (member c '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\a #\b #\c )))
+    
 (define (backslash-escaped lexeme)
-  lexeme)
+  (local ((define (escape char-lst acc)
+	    (match char-lst
+	      [`() (reverse acc)]
+	      [`(#\\) (error (string-append "String constant ends with backslash: " lexeme))]
+	      [(list-rest #\\ #\newline) (escape rest acc)]
+	      [(list-rest #\\ (and c (or #\\ #\' #\")) rest) 
+	       (escape rest (cons c acc))]
+	      [(list-rest #\\ (and c (or #\a #\b #\f #\n #\r #\t #\v)) rest)
+	       (escape rest (cons (escape-char c) acc))]
+	      [(list-rest #\\ (? octal c1) (? octal c2) (? octal c3) rest)
+	       (escape rest (cons (integer->char (+ c3 (* c2 8) (* c1 64))) acc))]
+	      [(list-rest #\\ (? octal c1) (? octal c2) rest)
+	       (escape rest (cons (integer->char (+ c2 (* c1 8)))))]
+	      [(list-rest #\\ (? octal c1) rest)
+	       (escape rest (cons (integer->char c1) rest))]
+	      [(list-rest c rest) (escape rest (cons c acc))])))
+	 
+	      #| TODO: Hex, unicode |#
+	 (list->string (escape (string->list lexeme) (list)))))
 
 #| BYTESTRINGS |#
 (define-lex-abbrevs
@@ -102,7 +136,10 @@ This only works because there are no valid source chars outside the ASCII range 
 	 (lexeme-no-quotes (substring lexeme-no-prefix 
 				      (if triple 3 1) 
 				      (- (string-length lexeme-no-prefix) (if triple 3 1)))))
-    (if raw lexeme-no-quotes (backslash-escaped lexeme-no-quotes))))
+    (if raw lexeme-no-quotes 
+	(error "Bytestrings not supported")
+	#| TODO: backslash-escaped-bytestring, Byte strings do not recognize unicode escapes. |#
+	#;(backslash-escaped lexeme-no-quotes))))
 
 #| INTEGERS |#
 (define-lex-abbrevs
@@ -159,9 +196,6 @@ This only works because there are no valid source chars outside the ASCII range 
    (physical-eol (token 'PHYSICAL-NEWLINE))
    (any-char (comment-lexer input-port))))
 
-
-(define (etoken sym)
-  (token sym (symbol->string sym)))
 #|
 Simple lexer, produces physical/other tokens.
 |#
@@ -169,81 +203,10 @@ Simple lexer, produces physical/other tokens.
   (lexer 
    ("#" (comment-lexer input-port))
 
-   ("class" (etoken 'class))
-   ("finally" (etoken 'finally))
-   ("is" (etoken 'is))
-   ("return" (etoken 'return))
-   ("continue" (etoken 'continue))
-   ("for" (etoken 'for))
-   ("lambda" (etoken 'lambda))
-   ("try" (etoken 'try))
-   ("def" (etoken 'def))
-   ("from" (etoken 'from))
-   ("nonlocal" (etoken 'nonlocal))
-   ("while" (etoken 'while))
-   ("and" (etoken 'and))
-   ("del" (etoken 'del))
-   ("global" (etoken 'global))
-   ("not" (etoken 'not))
-   ("with" (etoken 'with))
-   ("as" (etoken 'as))
-   ("elif" (etoken 'elif))
-   ("if" (etoken 'if))
-   ("or" (etoken 'or))
-   ("yield" (etoken 'yield))
-   ("assert" (etoken 'assert))
-   ("else" (etoken 'else))
-   ("import" (etoken 'import))
-   ("pass" (etoken 'pass))
-   ("break" (etoken 'break))
-   ("except" (etoken 'except))
-   ("in" (etoken 'in))
-   ("raise" (etoken 'raise))
-
-   ("+" (etoken '+))
-   ("-" (etoken '-))
-   ("*" (etoken '*))
-   ("**" (etoken '**))
-   ("/" (etoken '/))
-   ("//" (etoken '//))
-   ("%" (etoken '%))
-   ("<<" (etoken '<<))
-   (">>" (etoken '>>))
-   ("&" (etoken '&))
-   ("|" (etoken '\|))
-   ("^" (etoken '^))
-   ("~" (etoken '~))
-   ("<" (etoken '<))
-   (">" (etoken '>))
-   ("<=" (etoken '<=))
-   (">=" (etoken '>=))
-   ("==" (etoken '==))
-   ("!=" (etoken '!=))
-
-   ("(" (etoken '\())
-   (")" (etoken '\)))
-   ("[" (etoken '\[))
-   ("]" (etoken '\]))
-   ("{" (etoken '\{))
-   ("}" (etoken '\}))
-   ("," (etoken '\,))
-   (":" (etoken ':))
-   ("." (etoken '\.))
-   (";" (etoken '\;))
-   ("@" (etoken '@))
-   ("=" (etoken '=))
-   ("+=" (etoken '+=))
-   ("-=" (etoken '-=))
-   ("*=" (etoken '*=))
-   ("/=" (etoken '/=))
-   ("//=" (etoken '//=))
-   ("%=" (etoken '%=))
-   ("&=" (etoken '&=))
-   ("|=" (etoken '\|=))
-   ("^=" (etoken '^=))
-   (">>=" (etoken '>>=))
-   ("<<=" (etoken '<<=))
-   ("**=" (etoken '**=))
+   ((:or "class" "finally" "is" "return" "continue" "for" "lambda" "try" "def" "from" "nonlocal" "while" "and" "del" "global" "not" "with" "as" "elif" "if" "or" "yield" "assert" "else" "import" "pass" "break" "except" "in" "raise" 
+	 "+" "-" "*" "**" "/" "//" "%" "<<" ">>" "&" "|" "^" "~" "<" ">" "<=" ">=" "==" "!=" 
+	 "(" ")" "[" "]" "{" "}" "," ":" "." ";" "@" "=" "+=" "-=" "*=" "/=" "//=" "%=" "&=" "|=" "^=" ">>=" "<<=" "**=") 
+    (token (string->symbol lexeme) lexeme))
    
    (integer (token 'NUMBER (cons 'integer (parse-integer lexeme))))
    (floatnumber (token 'NUMBER (cons 'float (parse-float lexeme))))
@@ -258,7 +221,7 @@ Simple lexer, produces physical/other tokens.
    ((:: "\\" physical-eol) (lex input-port))
    (physical-eol (token 'PHYSICAL-NEWLINE))
    ((:+ (:or " " "\t")) (token 'WHITESPACE (count-spaces lexeme)))
-   ((eof) (etoken 'EOF))))
+   ((eof) (token 'EOF "EOF"))))
 
 #| Logical lexer - produces logical/other tokens using physical lexer |#
 (define (get-python-lexer input-port)
@@ -345,13 +308,13 @@ Simple lexer, produces physical/other tokens.
 		 (cond
 		  [(> spaces (car indent-stack))
 		   (set! indent-stack (cons spaces indent-stack))
-		   (etoken 'INDENT)]
+		   (token 'INDENT "INDENT")]
 		  [(< spaces (car indent-stack))
 		   (set! indent-stack (cdr indent-stack))
 					; If the value of spaces is 'skipped' in indent-stack, bad dedent.
 		   (if (> spaces (car indent-stack)) 
 		       (error "Bad dedentation")
-		       (etoken 'DEDENT))]
+		       (token 'DEDENT "DEDENT"))]
 		  [stored-token ; After all dedents/indents are consumed, the other token is left...
 		   (let ((t stored-token))
 		     (set! stored-token #f)
@@ -373,7 +336,7 @@ Simple lexer, produces physical/other tokens.
 			  (begin
 			    (set! state 'begin-line)
 			    (set! spaces 0)
-			    (etoken 'NEWLINE)))]
+			    (token 'NEWLINE "NEWLINE")))]
 		     [(WHITESPACE)
 		      (continue)]
 		     [else
