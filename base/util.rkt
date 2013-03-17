@@ -138,7 +138,29 @@
                            [mval2 (some-v mayb-mval2)])
                        body)
                      (none)))
+               (none))))]
+    [(_ args env sto tpred1? tpred2? tpred3? body)
+     (with-syntax ([mval1 (datum->syntax x 'mval1)]
+                   [mval2 (datum->syntax x 'mval2)]
+                   [mval3 (datum->syntax x 'mval3)])
+       #'(let ([arg1 (first args)]
+               [arg2 (second args)]
+               [arg3 (third args)])
+           (if (and (VObjectClass? arg1) (VObjectClass? arg2) (VObjectClass? arg3))
+               (let ([mayb-mval1 (VObjectClass-mval arg1)]
+                     [mayb-mval2 (VObjectClass-mval arg2)]
+                     [mayb-mval3 (VObjectClass-mval arg3)])
+                 (if (and (some? mayb-mval1) (some? mayb-mval2) (some? mayb-mval3)
+                          (tpred1? (some-v (VObjectClass-mval arg1)))
+                          (tpred2? (some-v (VObjectClass-mval arg2)))
+                          (tpred3? (some-v (VObjectClass-mval arg3))))
+                     (let ([mval1 (some-v mayb-mval1)]
+                           [mval2 (some-v mayb-mval2)]
+                           [mval3 (some-v mayb-mval3)])
+                       body)
+                     (none)))
                (none))))]))
+
 
 ;; returns true if the given o is an object of the given class or somehow a
 ;; subclass of that one. Modified to look at __mro__ for multiple inheritance

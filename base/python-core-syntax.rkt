@@ -93,9 +93,6 @@ ParselTongue.
   [Break (s : Store)]
   [Continue (s : Store)])
 
-(define-type ResultPair
-  [vpair*s (v1 : CVal) (v2 : CVal) (s : Store)])
-
 (define (alloc-result val sto)
   (local ([define l (new-loc)]
           [define new-sto (hash-set sto l val)])
