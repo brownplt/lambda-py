@@ -17,3 +17,5 @@ class super(object):
         raise TypeError("super(type, obj): obj must be an instance or subtype of type")
     else:
       raise TypeError("super() takes at most 2 arguments")
+
+___assign("%super", super)

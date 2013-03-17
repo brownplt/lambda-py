@@ -122,7 +122,7 @@
                       (begin ;(display (format "Calling ~a\n" (fetch-ptr vc sc)))
                            (cond
                              ;; for bound methods use __func__ attribute and __self__
-                             [(and (is-obj-ptr? vc sc) (equal? (VObjectClass-antecedent (fetch-ptr vc sc)) 'method))
+                             [(and (is-obj-ptr? vc sc) (object-is? (fetch-ptr vc sc) '%method env sc))
                               (local 
                                 [(define func
                                    (fetch-ptr
@@ -755,10 +755,10 @@
   (let ([obj (fetch-ptr objptr sto)])
     (cond
       ;; for method objects, __call__ attribute is the object itself
-      [(and (equal? (VObjectClass-antecedent obj) 'method) (equal? fld '__call__))
+      [(and (object-is? obj '%method env sto) (equal? fld '__call__))
        (v*s objptr sto)]
       ;; special lookup handling for initialized super object
-      [(and (equal? (VObjectClass-antecedent obj) 'super)
+      [(and (object-is? obj '%super env sto)
             (some? (hash-ref (VObjectClass-dict obj) '__self__)))
        (local ([define w_self (hash-ref (VObjectClass-dict obj) '__self__)]
                [define self (fetch-once (some-v w_self) sto)]
@@ -767,7 +767,7 @@
                                               sto)])
          (cond
            [(and (is-obj-ptr? self sto)
-                 (equal? (VObjectClass-antecedent (fetch-ptr self sto)) 'type))
+                 (object-is? (fetch-ptr self sto) '%type env sto))
             ;; obj.self is a class
             (get-field-from-cls fld self (some thisclass) env sto)]
            [else
@@ -784,21 +784,21 @@
                        (cond
                          ;; For functions, create method object bound to the object itself
                          [(VClosure? (fetch-ptr value sto)) 
-                          (local [(define-values (meth sto-m) (mk-method w objptr (none) sto))]
+                          (local [(define-values (meth sto-m) (mk-method w objptr env sto))]
                             (alloc-result meth sto-m))]
                          ;; for classmethod objects create method object bound to the object's class
                          [(and (is-obj-ptr? value sto) 
-                               (equal? (VObjectClass-antecedent (fetch-ptr value sto)) 'classmethod))
+                               (object-is? (fetch-ptr value sto) '%classmethod env sto))
                           (local [(define w_func 
                                     (some-v (hash-ref (VObjectClass-dict (fetch-ptr value sto)) '__func__)))
                                   (define-values (meth sto-m)
                                     ;; NOTE(joe): obj-cls needs to be a pointer
-                                    (mk-method w_func obj-cls (none) sto))]
+                                    (mk-method w_func obj-cls env sto))]
                             ;; NOTE(joe): does this alloc-result break is-equality of class methods?
                             (alloc-result meth sto-m))]
                          ;; for staticmethod obj. return func attribute
                          [(and (is-obj-ptr? value sto) 
-                               (equal? (VObjectClass-antecedent (fetch-ptr value sto)) 'staticmethod))
+                               (object-is? (fetch-ptr value sto) '%staticmethod env sto))
                                     (get-field '__func__ value env sto)]
                          ;; otherwise return the value of the attribute
                          [else 
@@ -835,13 +835,13 @@
                  (cond
                    ;; for classmethod obj. create method obj. bound to the class
                    [(and (is-obj-ptr? value sto) 
-                         (equal? (VObjectClass-antecedent (fetch-ptr value sto)) 'classmethod))
+                         (object-is? (fetch-ptr value sto) '%classmethod env sto))
                     (local [(define w_func (some-v (hash-ref (VObjectClass-dict (fetch-ptr value sto)) '__func__)))
-                            (define-values (meth sto-m) (mk-method w_func clsptr (none) sto))]
+                            (define-values (meth sto-m) (mk-method w_func clsptr env sto))]
                       (alloc-result meth sto-m))]
                    ;; for staticmethod obj. return func attribute
                    [(and (is-obj-ptr? value sto)
-                         (equal? (VObjectClass-antecedent (fetch-ptr value sto)) 'staticmethod))
+                         (object-is? (fetch-ptr value sto) '%staticmethod env sto))
                     (get-field '__func__ value env sto)]
                    ;; otherwise return the value of the attribute
                    [else
