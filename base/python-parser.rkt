@@ -29,6 +29,17 @@ Example:
 
 (define ast hasheq)
 
+(define (args arg-list)
+  (ast 'args arg-list
+       'defaults '()
+       'nodetype "arguments"
+       'vararg #\nul
+       'kwargannotation #\nul
+       'kwarg #\nul
+       'varargannotation #\nul
+       'kw_defaults '()
+       'kwonlyargs '()))
+
 (define (suite->ast-list suite)
   (match suite
     [(list 'suite stmt) 
@@ -36,6 +47,21 @@ Example:
     [(list 'suite "NEWLINE" "INDENT" stmts ... "DEDENT")
      (map py-ragg->python-ast stmts)]))
 
+;; trailer: line to list of args 
+;; Currently positional args only
+(define (trailer->ast-list trailer)
+  (local ((define (more-args arg-lst acc)
+	    (match arg-lst
+	      [(list) (reverse acc)]
+	      [(list arg) (reverse (cons (py-ragg-expr->python-ast arg "Load") acc))]
+	      [(list arg "," rest ...) (more-args (cons (py-ragg-expr->python-ast arg "Load") acc))])))
+	 (match trailer
+	   [(list 'trailer "(" ")") '()]
+	   [(list 'trailer "(" (list 'arglist rest ...) ")") (more-args rest '())]
+	   [_ (error "Unsupported trailer (arglist) shape")])))
+	       
+
+;; Transform most of the non-expression grammar from ragg into the ast (hasheq symbol->various) format
 (define (py-ragg->python-ast py-ragg)
   (match py-ragg
     [(list 'file_input stmts ...)
@@ -68,7 +94,30 @@ Example:
      (ast 'nodetype "Raise"
 	  'exc (py-ragg-expr->python-ast exc "Load")
 	  'cause #\nul)]
-    
+
+    [(list 'pass_stmt "pass")
+     (ast 'nodetype "Pass")]
+
+    #| Temporary trivial fundef |#
+    [`(funcdef "def" (name . ,name) (parameters "(" ")") ":" ,suite)
+     (ast 'nodetype "FunctionDef"
+	  'body (suite->ast-list suite)
+	  'args (args '())
+	  'name name
+	  'returns #\nul
+	  'decorator_list '())]
+
+    #| Temporary trivial classdef |#
+    [`(classdef "class" (name . ,name) ":" ,suite)
+     (ast 'nodetype "ClassDef"
+	  'body (suite->ast-list suite)
+	  'bases '()
+	  'name name
+	  'decorator_list '()
+	  'kwargs #\nul
+	  'starargs #\nul
+	  'keywords '())]
+
     [_ 
      (display "=== Unhandled grammar ===\n")
      (pretty-write py-ragg)
@@ -82,10 +131,10 @@ Example:
     [(list (or 'argument 'testlist 'test 'or_test 'and_test 'not_test 'comparison 'expr 'xor_expr 'and_expr 'shift_expr 'arith_expr 'term 'factor 'power) expr)
      (py-ragg-expr->python-ast expr expr-ctx)]
 
-    #| Calls - Temporary single arg form |#
-    [(list 'power func (list 'trailer "(" (list 'arglist arg1) ")"))
+    #| Calls - see trailer->ast-list |#
+    [(list 'power func (and (cons 'trailer _) (app trailer->ast-list arglist)))
      (ast 'nodetype "Call"
-	  'args (list (py-ragg-expr->python-ast arg1 "Load"))
+	  'args arglist
 	  'kwargs #\nul
 	  'starargs #\nul
 	  'keywords '()
