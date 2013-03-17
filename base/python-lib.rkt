@@ -85,6 +85,12 @@ that calls the primitive `print`.
 
 (define-type-alias Lib (CExpr -> CExpr))
 
+;; built-in functions and classes
+(define builtins-symbol
+  (map (lambda (lib)
+         (bind-left lib))
+       lib-function-dummies))
+
 (define (python-lib [expr : CExpr]) : CExpr
   (local [(define (cascade-lets bindings body)
             (if (empty? bindings)
