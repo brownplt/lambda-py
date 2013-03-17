@@ -495,40 +495,42 @@
             rev-try))]
 
     [CConstructModule (source)
-       (handle-result (interp-env source env sto stk)
+       (handle-result env (interp-env source env sto stk)
          (lambda (v-code s-code)
            (cond
-             [(not (and (VObjectClass? v-code)
-                        (eq? (VObjectClass-antecedent v-code) 'code)))
-              (error 'interp "a non-code object is passed to make module object")]
+             [(not (and (is-obj-ptr? v-code s-code)
+                        (eq? (VObjectClass-antecedent (fetch-ptr v-code s-code)) 'code)))
+              (error 'interp (format "a non-code object ~a is passed to make module object" v-code))]
              [else
-              (local [(define metacode (some-v (VObjectClass-mval v-code)))
-                      (define global-var (MetaCode-globals metacode))
-                      (define xcode (get-module-body (MetaCode-e metacode)))
-                      
-                      (define (inject-vars vars e s attr)
-                        (cond [(empty? vars)
-                               (values e s attr)]
-                              [else
-                               (let ((loc (new-loc))
-                                     (sym (first vars)))
-                                 (inject-vars (rest vars)
-                                              (hash-set e sym loc)
-                                              (hash-set s loc vnone)
-                                              (hash-set attr sym loc)))]))
-                      (define-values (new-env new-sto module-attr)
-                        (inject-vars global-var
-                                     (hash empty) ; NOTE: passing empty hash as env
-                                     s-code
-                                     (hash empty)))]
-                 ; interpret the code in module, raise any exceptions as it is
-                 ; ImportError should be handled in __import__
-                 ; TODO: filter the built-in functions instead of interpreting python-lib again
-                 (handle-result env (interp-env (python-lib (CModule (CNone) xcode))
-                                            (list new-env) new-sto stk)
-                   (lambda (v-module s-module)
-                     (begin ;(pprint v-module)
-                       (v*s (VObject '$module (none) module-attr) s-module)))))])))]
+              (let ((obj (fetch-ptr v-code s-code)))
+                (local [(define metacode (some-v (VObjectClass-mval obj)))
+                        (define global-var (MetaCode-globals metacode))
+                        (define xcode (get-module-body (MetaCode-e metacode)))
+                        
+                        (define (inject-vars vars e s attr)
+                          (cond [(empty? vars)
+                                 (values e s attr)]
+                                [else
+                                 (let ((loc (new-loc))
+                                       (sym (first vars)))
+                                   (inject-vars (rest vars)
+                                                (hash-set e sym loc)
+                                                (hash-set s loc vnone)
+                                                (hash-set attr sym loc)))]))
+                        (define-values (new-env new-sto module-attr)
+                          (inject-vars global-var
+                                       (hash empty) ; NOTE: passing empty hash as env
+                                       s-code
+                                       (hash empty)))]
+                                        ; interpret the code in module, raise any exception as it is
+                                        ; ImportError should be handled in __import__
+                                        ; TODO: filter the built-in functions instead of interpreting python-lib again
+                       (handle-result env (interp-env (python-lib (CModule (CNone) xcode))
+                                                      (list new-env) new-sto stk)
+                                      (lambda (v-module s-module)
+                                        (begin ;(pprint v-module)
+                                          (alloc-result (VObject '$module (none) module-attr)
+                                                        s-module))))))])))]
     
     [CBreak () (Break sto)]
     [CContinue () (Continue sto)])))

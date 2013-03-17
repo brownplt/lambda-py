@@ -36,9 +36,12 @@
 ; sys.path default value
 
 (define default-builtin-module-paths
-  (list "."
-        (string-append
-         (path->string (current-directory)) "../tests/modules/")))
+  (let ((wd (path->string (current-directory))))
+    (list "."
+          (string-append
+           wd "../tests/modules/")
+          (string-append
+           wd "../tests/python-reference/modules/"))))
 
 (define (get-module-path)
   default-builtin-module-paths)
