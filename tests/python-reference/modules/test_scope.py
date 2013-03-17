@@ -6,7 +6,7 @@ def f():
 
 f()
 try:
-    TESTFN
+    print(support.TESTFN)
     ___fail("import scope broken")
 except NameError:
     pass

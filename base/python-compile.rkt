@@ -30,7 +30,7 @@
 ;; built-in compile function, which takes
 ;; source, filename, mode as its argument
 (define (compile args env sto)
-  (check-types args env sto 'str 'str 'str
+  (check-types-pred args env sto MetaStr? MetaStr? MetaStr?
                (let* ([source (MetaStr-s mval1)] 
                       [filename (MetaStr-s mval2)]
                       [mode (MetaStr-s mval3)]

@@ -42,6 +42,7 @@ def __import__(name):
                            file_with_path,
                            "exec")
             tmp_module = make_module(code)
+            tmp_module.__name__ = name
             sys.modules[name] = tmp_module
             return tmp_module
 

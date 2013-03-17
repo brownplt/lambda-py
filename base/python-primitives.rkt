@@ -14,7 +14,7 @@
          "builtins/type.rkt"
          "builtins/super.rkt"
          "builtins/code.rkt"
-         ;"python-compile.rkt"
+         "python-compile.rkt"
          (typed-in racket/string (string-join : ((listof string) string -> string)))
          (typed-in racket/base (format : (string 'a -> string)))
          (typed-in racket/base (number->string : (number -> string)))
@@ -285,7 +285,7 @@ primitives here.
                              (map (lambda (p)
                                     (values (car p) (cdr p)))
                                   (filter (lambda (p)
-                                            (not (VUndefined? (fetch (cdr p) sto))))
+                                            (not (VUndefined? (fetch-once (cdr p) sto))))
                                           (hash->list (first (Frame-env (first stk)))))))
                            env sto)
                    (error 'locals "Empty stack in locals")))]
@@ -293,6 +293,6 @@ primitives here.
     ['code-str (prim-alloc code-str argvs)]
     ['code-globals (prim-alloc code-globals argvs)]
 
-    ;['compile (prim-alloc compile argvs)]
+    ['compile (prim-alloc compile argvs)]
     
     [else (error 'prim (format "Missed primitive: ~a" op))]))))

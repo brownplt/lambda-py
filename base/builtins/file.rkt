@@ -15,7 +15,7 @@
          (typed-in racket/base (file-exists? : ('a -> 'b))))
 
 (define (file-open (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '%str '%str
+  (check-types-pred args env sto MetaStr? MetaStr?
                (let ([filename (MetaStr-s mval1)]
                      [mode (MetaStr-s mval2)])
                      (some (VObject 'file
@@ -35,17 +35,17 @@
         (string-append s (file-readall-internal file)))))
 
 (define (file-read (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '%file '%int
+  (check-types-pred args env sto MetaPort? MetaNum?
                (some (make-str-value
                       (file-read-internal (MetaPort-p mval1) (MetaNum-n mval2))))))
 
 (define (file-readall (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '%file
+  (check-types-pred args env sto MetaPort?
                (some (make-str-value
                       (file-read-internal (MetaPort-p mval1) 1024)))))
 
 (define (file-readline (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '%file
+  (check-types-pred args env sto MetaPort?
                (some (make-str-value
                       (let ([line (read-line (MetaPort-p mval1))])
                         (if (eof-object? line)
@@ -59,13 +59,13 @@
                  (some vnone))))
 
 (define (file-close (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '%file
+  (check-types-pred args env sto MetaPort?
                (begin
                  (close-file (MetaPort-p mval1))
                  (some vnone))))
 
 (define (existing-file? [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
-  (check-types args env sto '%str
+  (check-types-pred args env sto MetaStr?
                (if (file-exists? (MetaStr-s mval1))
                    (some true-val)
                    (some false-val))))

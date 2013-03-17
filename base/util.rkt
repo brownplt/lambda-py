@@ -5,7 +5,6 @@
 (require [opaque-type-in racket/set [Set set?]])
 (require
  (typed-in racket/string (string-join : ((listof string) string -> string)))
- (typed-in racket/base (hash-for-each : ((hashof 'a 'b) ('c 'd -> 'e) -> void)))
  (typed-in racket/base (hash->list : ((hashof 'a 'b)  -> (listof 'c))))
  (typed-in racket/base (number->string : (number -> string)))
  (typed-in racket/base (car : (('a * 'b)  -> 'a)))
@@ -37,31 +36,21 @@
 ; sys.path default value
 
 (define default-builtin-module-paths
-  (list "."
-        (string-append
-         (path->string (current-directory)) "../tests/modules/")))
+  (let ((wd (path->string (current-directory))))
+    (list "."
+          (string-append
+           wd "../tests/modules/")
+          (string-append
+           wd "../tests/python-reference/modules/"))))
 
 (define (get-module-path)
   default-builtin-module-paths)
 
-(define python-path "/usr/local/bin/python3.2")
+(define python-path "/usr/bin/python/")
 (define (get-pypath)
   python-path)
 (define (set-pypath p)
   (set! python-path p))
-
-; lists->hash - given two parallel list produce a mutable hash mapping 
-; values from one to values in the other
-(define (lists->hash [l1 : (listof 'a)] [l2 : (listof 'b)]) : (hashof 'a 'b)
-  (local [(define h (make-hash empty))]
-    (begin
-      (map2 (lambda (k v) (hash-set! h k v))
-            l1 l2)
-      h)))
-
-(define (assign [name : symbol] [expr : CExpr]) : CExpr
-  (CAssign (CId name (GlobalId))
-           expr))
 
 (define (list-subtract [big : (listof 'a) ] [small : (listof 'a)] ) : (listof 'a)
   (local
@@ -90,12 +79,6 @@
     [(= 0 i) (cons val (rest l))]
     [else (cons (first l) (list-replace (- i 1) val (rest l)))]))
 
-(define (immutable-hash-copy h)
-  (let ([r (hash empty)])
-    (begin
-      (hash-for-each h (lambda (k v) (set! r (hash-set r k v))))
-      r)))
-
 (define (seq-ops (ops : (listof CExpr))) : CExpr
   (cond 
     [(= 1 (length ops)) (first ops)]
@@ -109,54 +92,9 @@
                  [dict : (hashof 'symbol Address)]) : CVal
   (VObjectClass antecedent mval dict (none)))
 
-
-; Macro to match varargs
-; Example:
-;
-; (match-varargs 'args
-;   [() (CObject (gid '%num) (some (MetaNum 0)))]
-;   [('a) (CId 'a (LocalId))]
-;   [('a 'b) (CBuiltinPrim 'num+ (CId 'a (LocalId)) (CId 'b (LocalId)))])
-;
-(define-syntax (match-varargs x)
-  (syntax-case x ()
-    [(match-varargs 'args [vars body])
-     #'(if-varargs 'args vars body)]
-    [(match-varargs 'args [vars1 body1] [vars2 body2])
-     #'(if-varargs 'args vars1 body1
-                 (if-varargs 'args vars2 body2))]
-    [(match-varargs 'args [vars1 body1] [vars2 body2] [vars3 body3])
-     #'(if-varargs 'args vars1 body1
-                 (if-varargs 'args vars2 body2
-                             (if-varargs 'args vars3 body3)))]))
-
-; Helper macro used in implementing match-varargs
-(define-syntax (if-varargs x)
-  (syntax-case x ()
-    [(if-varargs 'args vars body)
-     #'(if-varargs 'args vars body (make-exception 'TypeError "argument mismatch"))]
-    [(if-varargs 'args () body else-part)
-     #'(CIf ; Did we get 0 args?
-        (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
-        body
-        else-part)]
-    [(if-varargs 'args (a) body else-part)
-     #'(CIf ; Did we get 1 args?
-        (CBuiltinPrim 'num= (list (py-len 'args) (py-num 1)))
-        (CLet a (LocalId) (py-getitem 'args 0)
-              body)
-        else-part)]
-    [(if-varargs 'args (a b) body else-part)
-     #'(CIf ; Did we get 2 args?
-        (CBuiltinPrim 'num= (list (py-len 'args) (py-num 2)))
-        (CLet a (LocalId) (py-getitem 'args 0)
-              (CLet b (LocalId) (py-getitem 'args 1)
-                    body))
-        else-part)]))
-
 (define-syntax (check-types-pred x)
   (syntax-case x ()
-    [(check-types args env sto tpred1? body)
+    [(_ args env sto tpred1? body)
      (with-syntax ([mval1 (datum->syntax x 'mval1)])
        #'(let ([arg1 (first args)])
            (if (VObjectClass? arg1)
@@ -167,7 +105,7 @@
                        body)
                      (none)))
                (none))))]
-    [(check-types args env sto tpred1? tpred2? body)
+    [(_ args env sto tpred1? tpred2? body)
      (with-syntax ([mval1 (datum->syntax x 'mval1)]
                    [mval2 (datum->syntax x 'mval2)])
        #'(let ([arg1 (first args)]
@@ -182,62 +120,29 @@
                            [mval2 (some-v mayb-mval2)])
                        body)
                      (none)))
-               (none))))]))
-
-;; the copypasta here is bad but we aren't clever enough with macros
-(define-syntax (check-types x)
-  (syntax-case x ()
-    [(check-types args env sto t1 body)
-     (with-syntax ([mval1 (datum->syntax x 'mval1)])
-       #'(let ([arg1 (first args)])
-           (if (and (VObjectClass? arg1)
-                    (object-is? arg1 t1 env sto))
-               (let ([mayb-mval1 (VObjectClass-mval arg1)])
-                 (if (some? mayb-mval1)
-                     (let ([mval1 (some-v mayb-mval1)])
-                       body)
-                     (none)))
                (none))))]
-    [(check-types args env sto t1 t2 body)
-     (with-syntax ([mval1 (datum->syntax x 'mval1)]
-                   [mval2 (datum->syntax x 'mval2)])
-       #'(let ([arg1 (first args)]
-               [arg2 (second args)])
-           (if (and (VObjectClass? arg1) (VObjectClass? arg2)
-                    (object-is? arg1 t1 env sto)
-                    (object-is? arg2 t2 env sto))
-               (let ([mayb-mval1 (VObjectClass-mval arg1)]
-                     [mayb-mval2 (VObjectClass-mval arg2)])
-                 (if (and (some? mayb-mval1) (some? mayb-mval2))
-                     (let ([mval1 (some-v mayb-mval1)]
-                           [mval2 (some-v mayb-mval2)])
-                       body)
-                     (none)))
-               (none))))]
-    [(check-types args env sto t1 t2 t3 body)
+    [(_ args env sto tpred1? tpred2? tpred3? body)
      (with-syntax ([mval1 (datum->syntax x 'mval1)]
                    [mval2 (datum->syntax x 'mval2)]
                    [mval3 (datum->syntax x 'mval3)])
        #'(let ([arg1 (first args)]
                [arg2 (second args)]
                [arg3 (third args)])
-           (if (and (VObjectClass? arg1) (VObjectClass? arg2)
-                    (VObjectClass? arg3)
-                    (object-is? arg1 t1 env sto)
-                    (object-is? arg2 t2 env sto)
-                    (object-is? arg3 t3 env sto))
+           (if (and (VObjectClass? arg1) (VObjectClass? arg2) (VObjectClass? arg3))
                (let ([mayb-mval1 (VObjectClass-mval arg1)]
                      [mayb-mval2 (VObjectClass-mval arg2)]
                      [mayb-mval3 (VObjectClass-mval arg3)])
-                 (if (and (some? mayb-mval1) 
-                          (some? mayb-mval2)
-                          (some? mayb-mval3))
+                 (if (and (some? mayb-mval1) (some? mayb-mval2) (some? mayb-mval3)
+                          (tpred1? (some-v (VObjectClass-mval arg1)))
+                          (tpred2? (some-v (VObjectClass-mval arg2)))
+                          (tpred3? (some-v (VObjectClass-mval arg3))))
                      (let ([mval1 (some-v mayb-mval1)]
                            [mval2 (some-v mayb-mval2)]
                            [mval3 (some-v mayb-mval3)])
                        body)
                      (none)))
                (none))))]))
+
 
 ;; returns true if the given o is an object of the given class or somehow a
 ;; subclass of that one. Modified to look at __mro__ for multiple inheritance
@@ -356,7 +261,7 @@
                                          (MetaTuple-v
                                            (some-v
                                              (VObjectClass-mval
-                                               (fetch (some-v args-loc) sto)))))
+                                               (fetch-once (some-v args-loc) sto)))))
                                     " ")
                                   ""))]
     (if print-name
@@ -440,21 +345,6 @@
     (set! false-val falsedummy)
     (set! vnone nonedummy)))
 
-(define (get-optionof-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : (optionof CVal)
-  (begin ;(display n) (display " -- ") (display c) (display "\n") (display e) (display "\n\n")
-  (type-case CVal c
-    [VObjectClass (antecedent mval d class) 
-                    (let ([w (hash-ref (VObjectClass-dict c) n)])
-              (type-case (optionof Address) w
-                [some (w) (some (fetch w s))]
-                [none () (let ([mayb-base (lookup antecedent e)])
-                           (if (some? mayb-base)
-                             (let ([base (fetch (some-v mayb-base) s)])
-                                 (get-optionof-field n base e s))
-                                           (none)))]))]
-    [else (error 'interp "Not an object with functions.")])))
-
-
 (define (make-set [vals : (listof CVal)]) : Set
   (foldl (lambda (elt st)
                  (set-add st elt))
@@ -466,8 +356,11 @@
   (foldr (lambda (e1 e2) (or e1 e2)) #f bs))
 
 
-
 ;; syntactic sugars to avoid writing long expressions in the core language
+(define (assign [name : symbol] [expr : CExpr]) : CExpr
+  (CAssign (CId name (GlobalId))
+           expr))
+
 (define (py-num [n : number])
   (CObject (gid '%num) (some (MetaNum n))))
 
@@ -523,20 +416,10 @@
         (gid '%float))
     (some (MetaNum n))))
 
-(define (Num num)
-  (make-builtin-num num))
-
 (define-syntax (Construct stx)
   (syntax-case stx ()
     [(_ class arg ...)
      #'(CApp (CGetField class '__init__) (list arg ...) (none))]))
-
-(test (Let 'x (CNone) (make-builtin-str "foo"))
-      (CLet 'x (LocalId) (CNone)
-        (make-builtin-str "foo")))
-
-(test (Prim 'num< (make-builtin-str "foo") (make-builtin-str "bar"))
-      (CBuiltinPrim 'num< (list (make-builtin-str "foo") (make-builtin-str "bar"))))
 
 ;; strip the CLet in CModule
 (define (get-module-body (es : CExpr)) : CExpr
@@ -545,3 +428,4 @@
     [CLet (x type bind body)
           (get-module-body body)]   
     [else es]))
+

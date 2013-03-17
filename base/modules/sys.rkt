@@ -14,6 +14,8 @@
                     (map (lambda (x)
                            (make-builtin-str x))
                          (get-module-path))))
+    (CAssign (CGetField sys-id '__name__)
+             (make-builtin-str "sys"))
     (CAssign (CGetField sys-id 'modules)
              (CApp (CId '%dict (GlobalId))
                    (list
