@@ -5,7 +5,6 @@
 (require [opaque-type-in racket/set [Set set?]])
 (require
  (typed-in racket/string (string-join : ((listof string) string -> string)))
- (typed-in racket/base (hash-for-each : ((hashof 'a 'b) ('c 'd -> 'e) -> void)))
  (typed-in racket/base (hash->list : ((hashof 'a 'b)  -> (listof 'c))))
  (typed-in racket/base (number->string : (number -> string)))
  (typed-in racket/base (car : (('a * 'b)  -> 'a)))
@@ -50,19 +49,6 @@
 (define (set-pypath p)
   (set! python-path p))
 
-; lists->hash - given two parallel list produce a mutable hash mapping 
-; values from one to values in the other
-(define (lists->hash [l1 : (listof 'a)] [l2 : (listof 'b)]) : (hashof 'a 'b)
-  (local [(define h (make-hash empty))]
-    (begin
-      (map2 (lambda (k v) (hash-set! h k v))
-            l1 l2)
-      h)))
-
-(define (assign [name : symbol] [expr : CExpr]) : CExpr
-  (CAssign (CId name (GlobalId))
-           expr))
-
 (define (list-subtract [big : (listof 'a) ] [small : (listof 'a)] ) : (listof 'a)
   (local
    [(define (list-remove [l : (listof 'a) ] [e : 'a]) : (listof 'a)
@@ -90,12 +76,6 @@
     [(= 0 i) (cons val (rest l))]
     [else (cons (first l) (list-replace (- i 1) val (rest l)))]))
 
-(define (immutable-hash-copy h)
-  (let ([r (hash empty)])
-    (begin
-      (hash-for-each h (lambda (k v) (set! r (hash-set r k v))))
-      r)))
-
 (define (seq-ops (ops : (listof CExpr))) : CExpr
   (cond 
     [(= 1 (length ops)) (first ops)]
@@ -108,7 +88,6 @@
 (define (VObject [antecedent : symbol] [mval : (optionof MetaVal)]
                  [dict : (hashof 'symbol Address)]) : CVal
   (VObjectClass antecedent mval dict (none)))
-
 
 (define-syntax (check-types-pred x)
   (syntax-case x ()
@@ -363,21 +342,6 @@
     (set! false-val falsedummy)
     (set! vnone nonedummy)))
 
-(define (get-optionof-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : (optionof CVal)
-  (begin ;(display n) (display " -- ") (display c) (display "\n") (display e) (display "\n\n")
-  (type-case CVal c
-    [VObjectClass (antecedent mval d class) 
-                    (let ([w (hash-ref (VObjectClass-dict c) n)])
-              (type-case (optionof Address) w
-                [some (w) (some (fetch w s))]
-                [none () (let ([mayb-base (lookup antecedent e)])
-                           (if (some? mayb-base)
-                             (let ([base (fetch (some-v mayb-base) s)])
-                                 (get-optionof-field n base e s))
-                                           (none)))]))]
-    [else (error 'interp "Not an object with functions.")])))
-
-
 (define (make-set [vals : (listof CVal)]) : Set
   (foldl (lambda (elt st)
                  (set-add st elt))
@@ -389,8 +353,11 @@
   (foldr (lambda (e1 e2) (or e1 e2)) #f bs))
 
 
-
 ;; syntactic sugars to avoid writing long expressions in the core language
+(define (assign [name : symbol] [expr : CExpr]) : CExpr
+  (CAssign (CId name (GlobalId))
+           expr))
+
 (define (py-num [n : number])
   (CObject (gid '%num) (some (MetaNum n))))
 
@@ -446,20 +413,10 @@
         (gid '%float))
     (some (MetaNum n))))
 
-(define (Num num)
-  (make-builtin-num num))
-
 (define-syntax (Construct stx)
   (syntax-case stx ()
     [(_ class arg ...)
      #'(CApp (CGetField class '__init__) (list arg ...) (none))]))
-
-(test (Let 'x (CNone) (make-builtin-str "foo"))
-      (CLet 'x (LocalId) (CNone)
-        (make-builtin-str "foo")))
-
-(test (Prim 'num< (make-builtin-str "foo") (make-builtin-str "bar"))
-      (CBuiltinPrim 'num< (list (make-builtin-str "foo") (make-builtin-str "bar"))))
 
 ;; strip the CLet in CModule
 (define (get-module-body (es : CExpr)) : CExpr
@@ -468,3 +425,4 @@
     [CLet (x type bind body)
           (get-module-body body)]   
     [else es]))
+

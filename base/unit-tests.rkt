@@ -10,14 +10,6 @@
          (typed-in racket (format : (string 'a -> string))))
 
 
-(test (lists->hash (list "a" "b" "c") (list 1 2 3))
-      (let ([h (make-hash empty)])
-        (begin
-          (hash-set! h "a" 1)
-          (hash-set! h "b" 2)
-          (hash-set! h "c" 3) 
-          h)))
-
 (test (list-subtract (list 'a 'b 'c 'd 'e) (list 'c 'e)) (list 'a 'b 'd))
 
 (test/exn (chr "hi") "cannot convert hi into a single character")
@@ -59,4 +51,11 @@
            [else (error 'pyexpr-modify-tree (format "pyexpr-modify-tree: Not a PyStr ~a" e))])))
       (LexTuple (list (PyLexId 'ji 'none) (LexTuple (list (PyLexId 'yo 'none)))))
       )
+
+(test (Let 'x (CNone) (make-builtin-str "foo"))
+      (CLet 'x (LocalId) (CNone)
+        (make-builtin-str "foo")))
+
+(test (Prim 'num< (make-builtin-str "foo") (make-builtin-str "bar"))
+      (CBuiltinPrim 'num< (list (make-builtin-str "foo") (make-builtin-str "bar"))))
 
