@@ -529,7 +529,8 @@
                                                       (list new-env) new-sto stk)
                                       (lambda (v-module s-module)
                                         (begin ;(pprint v-module)
-                                          (v*s (VObject '$module (none) module-attr) s-module))))))])))]
+                                          (alloc-result (VObject '$module (none) module-attr)
+                                                        s-module))))))])))]
     
     [CBreak () (Break sto)]
     [CContinue () (Continue sto)])))
