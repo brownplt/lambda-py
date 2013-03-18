@@ -132,10 +132,10 @@ ParselTongue.
     [VPointer (a) (is-fun? (fetch-once a sto))]
     [else false]))
 
-(define (get-fun-mval val sto)
+(define (get-fun-mval [val : CVal] [sto : Store]) : MetaVal
   (cond
     [(is-fun-ptr? val sto) (some-v (VObjectClass-mval (fetch-ptr val sto)))]
-    [else (error 'get-fun-mval (format "Not a function value: ~a\n" (cons val (fetch-ptr val sto))))]))
+    [else (error 'get-fun-mval (format "Not a function value: ~a\n" (list val (fetch-ptr val sto))))]))
 
 ;; fetch only once in the store
 (define (fetch-once [w : Address] [sto : Store]) : CVal
@@ -144,7 +144,7 @@ ParselTongue.
              [none () (error 'interp
                              (string-append "No value at address " (Address->string w)))]))
 
-(define (fetch-ptr val sto)
+(define (fetch-ptr [val : CVal] [sto : Store] ) : CVal
   (type-case CVal val
     [VPointer (a) (fetch-once a sto)]
     [else (error 'interp (string-append "fetch-ptr got a non-VPointer: " (to-string val)))]))
