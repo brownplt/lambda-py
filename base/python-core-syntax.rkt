@@ -7,7 +7,8 @@ ParselTongue.
 
 |#
 
-(require (typed-in racket/base (number->string : (number -> string))))
+(require (typed-in racket/base (number->string : (number -> string)))
+         (typed-in racket/base (format : (string 'a -> string))))
 (require [opaque-type-in racket/set [Set set?]])
 
 (define-type CExpr
@@ -15,7 +16,6 @@ ParselTongue.
   [CTrue]
   [CFalse]
   [CNone]
-  [CClass (name : symbol)]
   [CObject (class : CExpr) (bval : (optionof MetaVal))]
   [CGetField (value : CExpr) (attr : symbol)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
@@ -27,8 +27,6 @@ ParselTongue.
   [CFunc (args : (listof symbol)) (varargs : (optionof symbol)) (body : CExpr) (opt-class : (optionof symbol))] ; class name for methods
   [CWhile (test : CExpr) (body : CExpr) (orelse : CExpr)]
   [CReturn (value : CExpr)]
-  [CPrim1 (prim : symbol) (arg : CExpr)]
-  [CPrim2 (prim : symbol) (arg1 : CExpr) (arg2 : CExpr)]
   [CBuiltinPrim (op : symbol) (args : (listof CExpr))]
   [CList (class : CExpr) (values : (listof CExpr))]
   [CTuple (class : CExpr) (values : (listof CExpr))]
@@ -58,19 +56,19 @@ ParselTongue.
                 (dict : object-dict) (class : (optionof CVal))]
   [VUndefined]
   [VSym (s : symbol)]
-  [VPointer (a : Address)]
-  [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr) (opt-class : (optionof symbol))]) ; class name for methods
+  [VPointer (a : Address)])
 
 (define-type MetaVal
+             [MetaNone]
              [MetaNum (n : number)]
              [MetaStr (s : string)]
              [MetaList (v : (listof CVal))]
              [MetaTuple (v : (listof CVal))]
-             [MetaDict (contents : (hashof CVal CVal))]
-             [MetaCode (e : CExpr) (filename : string) (globals : (listof symbol))]
-             [MetaClass (c : symbol)]
              [MetaSet (elts : Set)]
-             [MetaNone]
+             [MetaDict (contents : (hashof CVal CVal))]
+             [MetaClass (c : symbol)]
+             [MetaClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr) (opt-class : (optionof symbol))] ; class name for methods
+             [MetaCode (e : CExpr) (filename : string) (globals : (listof symbol))]
              [MetaPort (p : port)])
 
 ;; env is a listof hashof's so there are deliniations between closures
@@ -125,10 +123,19 @@ ParselTongue.
     [VPointer (a) (VObjectClass? (fetch-once a sto))]
     [else false]))
 
-(define (is-func-ptr? val sto)
+(define (is-fun? v)
+  (and (VObjectClass? v) (some? (VObjectClass-mval v))
+           (MetaClosure? (some-v (VObjectClass-mval v)))))
+
+(define (is-fun-ptr? val sto)
   (type-case CVal val
-    [VPointer (a) (VClosure? (fetch-once a sto))]
+    [VPointer (a) (is-fun? (fetch-once a sto))]
     [else false]))
+
+(define (get-fun-mval [val : CVal] [sto : Store]) : MetaVal
+  (cond
+    [(is-fun-ptr? val sto) (some-v (VObjectClass-mval (fetch-ptr val sto)))]
+    [else (error 'get-fun-mval (format "Not a function value: ~a\n" (list val (fetch-ptr val sto))))]))
 
 ;; fetch only once in the store
 (define (fetch-once [w : Address] [sto : Store]) : CVal
@@ -137,7 +144,7 @@ ParselTongue.
              [none () (error 'interp
                              (string-append "No value at address " (Address->string w)))]))
 
-(define (fetch-ptr val sto)
+(define (fetch-ptr [val : CVal] [sto : Store] ) : CVal
   (type-case CVal val
     [VPointer (a) (fetch-once a sto)]
     [else (error 'interp (string-append "fetch-ptr got a non-VPointer: " (to-string val)))]))

@@ -65,6 +65,7 @@ that calls the primitive `print`.
                      "pylib/dict.py"
                      "pylib/set.py"
                      "pylib/type.py"
+                     "pylib/function.py"
                      "pylib/method.py"
                      "pylib/super.py"
                      "pylib/range.py"

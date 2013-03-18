@@ -129,14 +129,13 @@
 (define (scope-phase [expr : PyExpr] ) : LexExpr
        (let ((replaced-locals (replace-all-locals  (replace-all-instance (pre-desugar expr)) empty empty)))
          (let ((fully-transformed (make-all-global replaced-locals))) 
-           (remove-blocks
             (remove-unneeded-pypass
              (remove-nonlocal
               (remove-global
                (replace-lexmodule
                 (remove-unneeded-assigns
                  (process-syntax-errors
-                  (bind-locals fully-transformed))))))))))) ;surround every block with PyLet of locals
+                  (bind-locals fully-transformed)))))))))) ;surround every block with PyLet of locals
 
 (define (replace-lexmodule expr)
   (lexexpr-modify-tree expr
@@ -255,15 +254,6 @@
                 [(empty? (rest filtered-seq)) (remove-unneeded-pypass (first filtered-seq))]
                 [else (LexSeq (map remove-unneeded-pypass filtered-seq))]))]
        [else (default-recur)]))))
-
-(define (remove-blocks expr)
-  (lexexpr-modify-tree
-   expr
-   (lambda (x)
-     (type-case LexExpr x
-       [LexBlock (nls e) (remove-blocks e)]
-       [else (default-recur)]))))
-
 
 
 #;(define (assert-pyblock-exists expr)

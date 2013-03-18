@@ -20,8 +20,12 @@
    (list 
     (optimization-pass
      (let-phase
-      (post-desugar
-       expr))))))
+      (remove-blocks
+       (make-local-list
+        empty
+        (collapse-pyseq
+         (post-desugar
+          expr)))))))))
 
 (define (post-desugar [expr : LexExpr]) : LexExpr
     (local
@@ -123,7 +127,7 @@
                                    (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
                                    (set! list-of-functions (cons e list-of-functions))
                                    (LexLocalId (first list-of-identifiers) 'Load))]
-             [LexBlock (nls es) e]
+             ;[LexBlock (nls es) e]
              [LexClass (scope name bases body) e]
              [else (default-recur)]))))
       (define (generate-identifier )
@@ -146,18 +150,6 @@
                               (LexFuncVarArg name args sarg body (map recur decorators) (some class-expr)) ]
                [LexClass (scope name bases body) (LexClass scope name bases body)]
                [else (default-recur)])))))
-      #;(define (annotate-methods-with-class expr [classname : LexExpr])
-        (lexexpr-modify-tree
-         expr
-         (lambda (y)
-           (type-case LexExpr y
-             [LexFunc (name args defaults body decorators class)
-                      (LexFunc name args defaults body decorators (some classname))]
-             [LexFuncVarArg (name args sarg body decorators class)
-                            (LexFuncVarArg name args sarg body decorators (some classname)) ]
-             [LexClass (scope name bases body)
-                       (LexClass scope name bases (annotate-methods-with-class body name))]
-             [else (default-recur)]))))
       (define (split-instance-into-instance-locals expr)
         (introduce-locals
          (lexexpr-fold-tree expr (lambda (y)
@@ -208,8 +200,11 @@
          (lambda ([y : LexExpr])
            (type-case LexExpr y
              [LexClass (scope name bases body)
-                       (let ((body (hoist-functions (split-instance-into-instance-locals body))))
-                       ;(let ((body (identity body)))
+                       (let ((body
+                              (type-case LexExpr body
+                                [LexBlock (nls es) (LexBlock nls (hoist-functions (split-instance-into-instance-locals es)))]
+                                [else (error 'deal-with-class "Thing inside LexClass not a LexBlock!")])
+                              ))
                            (let ((class-expr (if (Instance-scoped? scope)
                                                  (LexDotField class-expr name)
                                                      class-expr)))
@@ -243,11 +238,14 @@
         (top-level-deal-with-class expr)))
 
 (define (let-phase [expr : LexExpr] ) : LexExpr
-(collapse-pyseq (cascade-undefined-globals (list-subtract
-                                            (begin
-                                              ;(display (extract-post-transform-globals expr))
-                                              (extract-post-transform-globals expr))
-                                            library-names) expr))) ;all globals, not just the current scope
+;(collapse-pyseq
+ (cascade-undefined-globals (list-subtract
+                             (begin
+                                        ;(display (extract-post-transform-globals expr))
+                               (extract-post-transform-globals expr))
+                             library-names) expr)
+ ;)
+) ;all globals, not just the current scope
 
 (define library-names (map (lambda (b) (bind-left b)) lib-function-dummies)) 
 
@@ -276,14 +274,107 @@
   expr)
 
 
+(define (non-lexpass exprs )
+  (filter (lambda (y) (not (LexPass? y))) exprs))
 
-(define (collapse-pyseq expr ) 
+(define (collapse-pyseq expr )
   (lexexpr-modify-tree
    expr 
    (lambda (x) (type-case LexExpr x
                  [LexSeq(lis)
-                        (LexSeq (flatten (map (lambda (y)
+                        (let ((new-es (non-lexpass (flatten (map (lambda (y)
                                                 (let ((e (collapse-pyseq y)))
                                                   (if (LexSeq? e) (LexSeq-es e) (list e))))
-                                              lis)))]
+                                              lis)))))
+                          (cond
+                           [(empty? new-es) (LexPass)]
+                           [(empty? (rest new-es)) (first new-es)]
+                           [else (LexSeq new-es)]))]
                  [else (default-recur)]))))
+
+(define (remove-blocks expr)
+  (lexexpr-modify-tree
+   expr
+   (lambda (x)
+     (type-case LexExpr x
+       [LexBlock (nls e) (remove-blocks e)]
+       [else (default-recur)]))))
+
+(define (collect-locals-in-scope expr starting-locals) : (listof symbol)
+  (flatten
+   (list
+    (lexexpr-fold-tree
+     expr
+     (lambda (y)
+       (type-case LexExpr y
+         [LexBlock (_ __) empty]
+         [LexLocalId (x ctx) (list x)]
+         [else (default-recur)])))
+    starting-locals)))
+
+(define (move-past-local-lets-helper [new-expr : LexExpr]
+                                     [listof-exprs : (listof LexExpr)]) :
+                                     (listof LexExpr)
+  (cond
+   [(empty? listof-exprs) (list new-expr)]
+   [(LexLocalLet? (first listof-exprs)) (cons (first listof-exprs)
+               (move-past-local-lets-helper new-expr (rest listof-exprs)))]
+   #;[(LexSeq? (first listof-exprs)) (cons
+                                    (LexSeq (move-past-local-lets-helper
+                                             new-expr
+                                             (LexSeq-es (first listof-exprs))))
+                                    (rest listof-exprs))]
+   [else (cons new-expr listof-exprs)]))
+
+(define (move-past-local-lets [new-expr : LexExpr]
+                              [potential-local-lets : LexExpr] ) : LexExpr
+  (type-case LexExpr potential-local-lets
+    [LexLocalLet (id bind body)
+                 (LexLocalLet id bind (move-past-local-lets new-expr body)) ]
+    [LexSeq (es) (LexSeq (move-past-local-lets-helper new-expr es))]
+    [else (LexSeq (list new-expr potential-local-lets))]))
+
+(define (move-past-LexExcept new-expr [potential-excepts : LexExpr])
+  (type-case LexExpr potential-excepts
+    [LexExcept (types body)
+               (LexExcept types (move-past-LexExcept new-expr body))]
+    [LexExceptAs (types name body)
+                 (LexExceptAs types name (move-past-LexExcept new-expr body))]
+    [LexTryFinally (try finally) (LexTryFinally (move-past-LexExcept new-expr try)
+                                                (move-past-LexExcept new-expr finally))]
+    [else (cond
+           [(LexPass? potential-excepts) new-expr]
+           [else (LexSeq (list new-expr (begin
+                                   ;(display (string-append (to-string potential-excepts) "\n"))
+                                   potential-excepts)))])]))
+
+(define (make-local-list [starting-locals : (listof symbol)]
+                         [expr : LexExpr] ) : LexExpr
+  (lexexpr-modify-tree
+   expr
+   (lambda (y)
+     (type-case LexExpr y
+       [LexBlock (nls body)
+                 (let ((locals (collect-locals-in-scope body starting-locals)))
+                   (LexBlock nls (move-past-local-lets (LexInScopeLocals locals)
+                                               (make-local-list locals body))))]
+       [LexTryExceptElse (try except el)
+                         (LexTryExceptElse
+                          (make-local-list starting-locals try)
+                          (map (lambda (y)
+                                 (begin
+                                   (move-past-LexExcept
+                                    (LexInScopeLocals starting-locals)
+                                    (make-local-list starting-locals y))
+                                 ;(make-local-list starting-locals y)
+                                   )) except)
+                          (make-local-list starting-locals el))]
+       [LexTryFinally (try finally)
+                      (LexTryFinally
+                       (make-local-list starting-locals try)
+                       (LexSeq (list
+                                (LexInScopeLocals starting-locals)
+                                (make-local-list starting-locals finally)))
+                       )]
+       [else (default-recur)]))))
+

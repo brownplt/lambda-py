@@ -12,7 +12,7 @@ class type(object):
       if ___delta("type-uniqbases", bases):
         cls.__bases__ = bases
         try:
-          cls.__mro__ = ___delta("type-buildmro", bases)
+          cls.__mro__ = ___delta("type-buildmro", (cls,), bases)
         except:
           raise TypeError("cannot create a consisten method resolution order")
         else:

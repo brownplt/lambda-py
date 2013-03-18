@@ -28,9 +28,10 @@
 
              (def 'object '__eq__
                   (CFunc (list 'self 'other) (none)
-                         (CReturn (CPrim2 'Is
+                         (CReturn (CBuiltinPrim 'Is
+                                    (list
                                           (CId 'self (LocalId))
-                                          (CId 'other (LocalId))))
+                                          (CId 'other (LocalId)))))
                          (some 'object)))
 
              (def 'object '__str__ 
@@ -41,9 +42,10 @@
 
              (def 'object '__cmp__
                   (CFunc (list 'self 'other) (none)
-                         (CReturn (CIf (CPrim2 'Is
+                         (CReturn (CIf (CBuiltinPrim 'Is
+                                          (list
                                                (CId 'self (LocalId))
-                                               (CId 'other (LocalId)))
+                                               (CId 'other (LocalId))))
                                        (make-builtin-num 0)
                                        (make-builtin-num -1)))
                          (some 'object)))

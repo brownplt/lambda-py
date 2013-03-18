@@ -42,13 +42,9 @@ primitives here.
 (define (print arg)
   (display (string-append (pretty arg) "\n")))
 
-(define (python-prim1 op arg)
-  (case op
-    [(print) (begin (print arg) arg)]))
-
 (define (is-func? argvs env sto)
   (cond
-    [(VClosure? (first argvs)) (some true-val)]
+    [(is-fun? (first argvs)) (some true-val)]
     [(and (VObjectClass? (first argvs))
           (symbol=? (VObjectClass-antecedent (first argvs)) 'method))
      (some true-val)]
@@ -293,6 +289,18 @@ primitives here.
     ['code-str (prim-alloc code-str argvs)]
     ['code-globals (prim-alloc code-globals argvs)]
 
-    ['compile (prim-alloc compile argvs)]
-    
+    ['compile (prim-alloc compile (fetch-heads argvs argsptrs))];argvs)]
+
+    ['print (begin (print (first argvs)) (v*s (first argsptrs) sto))]
+
+    ['Is (if (is? (first argsptrs)
+                  (second argsptrs) sto)
+             (v*s true-val sto)
+             (v*s false-val sto))]
+    ['IsNot (if (not (is? (first argsptrs)
+                  (second argsptrs) sto))
+             (v*s true-val sto)
+             (v*s false-val sto))]
+ 
     [else (error 'prim (format "Missed primitive: ~a" op))]))))
+

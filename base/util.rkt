@@ -144,23 +144,26 @@
                (none))))]))
 
 
-;; returns true if the given o is an object of the given class or somehow a
-;; subclass of that one. Modified to look at __mro__ for multiple inheritance
-;; and to use the class object instead of the class name.
-;; Preseved for compatibility with check-types macro, it should be avoided for other uses.
-(define (object-is? [o : CVal] [c : symbol] [env : Env] [s : Store]) : boolean
-  (let ([obj-cls (get-class o env s)]
-        [cls (fetch-once (some-v (lookup c env)) s)])
-    (member cls (get-mro obj-cls (none) s))))
+;; object-is?: returns true if the given o is an object of the given class or somehow a
+;; subclass of that one, it uses __mro__ field for multiple inheritance.
+;; Reserved for builtin classes, cls should be an id in the builtin scope (%xxx).
+(define (object-is? [obj : CVal] [cls : symbol] [env : Env] [sto : Store]) : boolean
+  (type-case (optionof Address) (lookup cls env)
+    [some (w_cls)
+          (let ([obj-cls (get-class obj env sto)]
+                [cls (fetch-once w_cls sto)])
+            (member cls (get-mro obj-cls (none) sto)))]
+    [none ()
+          (error 'object-is? (string-append "class not found in env: "
+                                            (symbol->string cls)))]))
 
 ;; get-mro: fetch __mro__ field as a list of classes, filtered up to thisclass if given
-;; and prepended with cls to avoid self reference in __mro__
 (define (get-mro [cls : CVal] 
                  [thisclass : (optionof CVal)]
                  [sto : Store]) : (listof CVal)
   (type-case (optionof Address) (hash-ref (VObjectClass-dict (fetch-ptr cls sto)) '__mro__)
-    [some (w) (let ([mro (cons cls (MetaTuple-v (some-v (VObjectClass-mval
-                                                  (fetch-ptr (fetch-once w sto) sto)))))])
+    [some (w) (let ([mro (MetaTuple-v (some-v (VObjectClass-mval
+                                               (fetch-ptr (fetch-once w sto) sto))))])
                 (if (none? thisclass)
                     mro
                     (if (> (length
@@ -210,7 +213,6 @@
                             (pretty-metaval (some-v mval))
                             "Can't print non-builtin object.")]
     [VSym (s) (symbol->string s)]
-    [VClosure (env args sarg body opt-class) "<function>"]
     [VUndefined () "Undefined"]
     [VPointer (a) (string-append "Pointer to address " (number->string a))]))
 
@@ -261,7 +263,8 @@
                                          (MetaTuple-v
                                            (some-v
                                              (VObjectClass-mval
-                                               (fetch-once (some-v args-loc) sto)))))
+                                               (fetch-ptr
+                                                (fetch-once (some-v args-loc) sto) sto)))))
                                     " ")
                                   ""))]
     (if print-name

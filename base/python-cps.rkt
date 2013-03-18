@@ -79,7 +79,6 @@
     [CId (x l) (const expr)]
     [CObject (c b) (const expr)]
     [CFunc (args varargs body opt-class) (const expr)]
-    [CClass (nm) (const (CClass nm))]
 
     [CGetField (val attr)
       (pylam (K R E B C)
@@ -116,22 +115,6 @@
         (pylam (V)
           (CLet x typ Vi
             (pyapp (cps body) Ki Ri Ei Bi Ci)))
-        Ri Ei Bi Ci))]
-
-    [CPrim1 (op e1)
-     (pylam (K R E B C)
-       (pyapp (cps e1)
-        (pylam (V)
-          (pyapp Ki (CPrim1 op Vi)))))] 
-
-    [CPrim2 (op e1 e2)
-     (pylam (K R E B C)
-       (pyapp (cps e1)
-        (pylam (V)
-          (pyapp (cps e2)
-           (pylam (V2)
-            (pyapp Ki (CPrim2 op Vi V2i)))
-           Ri Ei Bi Ci))
         Ri Ei Bi Ci))]
 
     [CBuiltinPrim (op args)
@@ -218,7 +201,18 @@
 
     [CTryExceptElse
      (try exn excepts els)
-     (error 'cps "TryExceptElse not written yet")]
+     (pylam (K R E B C)
+       (pyapp (cps try)
+         (pylam (V)
+            (pyapp (cps els)
+                  Ki Ri Ei Bi Ci))
+         Ri
+         (pylam (V)
+            (CLet exn (LocalId) Vi
+              (pyapp (cps excepts)
+                Ki Ri Ei Bi Ci)))
+         Bi
+         Ci))]
 
     [CTryFinally
      (try finally)
