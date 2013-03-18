@@ -274,10 +274,10 @@
   expr)
 
 
+(define (non-lexpass exprs )
+  (filter (lambda (y) (not (LexPass? y))) exprs))
 
 (define (collapse-pyseq expr )
-  (let (( non-lexpass (lambda ([exprs : (listof LexExpr)])
-                        (filter (lambda (y) (not (LexPass? y))) exprs))))
   (lexexpr-modify-tree
    expr 
    (lambda (x) (type-case LexExpr x
@@ -290,7 +290,7 @@
                            [(empty? new-es) (LexPass)]
                            [(empty? (rest new-es)) (first new-es)]
                            [else (LexSeq new-es)]))]
-                 [else (default-recur)])))))
+                 [else (default-recur)]))))
 
 (define (remove-blocks expr)
   (lexexpr-modify-tree
@@ -331,10 +331,25 @@
   (type-case LexExpr potential-local-lets
     [LexLocalLet (id bind body)
                  (LexLocalLet id bind (move-past-local-lets new-expr body)) ]
-    #;[LexSeq (es) (LexSeq (move-past-local-lets-helper new-expr es))]
+    [LexSeq (es) (LexSeq (move-past-local-lets-helper new-expr es))]
     [else (LexSeq (list new-expr potential-local-lets))]))
 
-(define (make-local-list starting-locals expr)
+(define (move-past-LexExcept new-expr [potential-excepts : LexExpr])
+  (type-case LexExpr potential-excepts
+    [LexExcept (types body)
+               (LexExcept types (move-past-LexExcept new-expr body))]
+    [LexExceptAs (types name body)
+                 (LexExceptAs types name (move-past-LexExcept new-expr body))]
+    [LexTryFinally (try finally) (LexTryFinally (move-past-LexExcept new-expr try)
+                                                (move-past-LexExcept new-expr finally))]
+    [else (cond
+           [(LexPass? potential-excepts) new-expr]
+           [else (LexSeq (list new-expr (begin
+                                   ;(display (string-append (to-string potential-excepts) "\n"))
+                                   potential-excepts)))])]))
+
+(define (make-local-list [starting-locals : (listof symbol)]
+                         [expr : LexExpr] ) : LexExpr
   (lexexpr-modify-tree
    expr
    (lambda (y)
@@ -343,5 +358,23 @@
                  (let ((locals (collect-locals-in-scope body starting-locals)))
                    (LexBlock nls (move-past-local-lets (LexInScopeLocals locals)
                                                (make-local-list locals body))))]
+       [LexTryExceptElse (try except el)
+                         (LexTryExceptElse
+                          (make-local-list starting-locals try)
+                          (map (lambda (y)
+                                 (begin
+                                   (move-past-LexExcept
+                                    (LexInScopeLocals starting-locals)
+                                    (make-local-list starting-locals y))
+                                 ;(make-local-list starting-locals y)
+                                   )) except)
+                          (make-local-list starting-locals el))]
+       [LexTryFinally (try finally)
+                      (LexTryFinally
+                       (make-local-list starting-locals try)
+                       (LexSeq (list
+                                (LexInScopeLocals starting-locals)
+                                (make-local-list starting-locals finally)))
+                       )]
        [else (default-recur)]))))
 
