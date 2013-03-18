@@ -7,7 +7,8 @@ ParselTongue.
 
 |#
 
-(require (typed-in racket/base (number->string : (number -> string))))
+(require (typed-in racket/base (number->string : (number -> string)))
+         (typed-in racket/base (format : (string 'a -> string))))
 (require [opaque-type-in racket/set [Set set?]])
 
 (define-type CExpr
@@ -55,19 +56,19 @@ ParselTongue.
                 (dict : object-dict) (class : (optionof CVal))]
   [VUndefined]
   [VSym (s : symbol)]
-  [VPointer (a : Address)]
-  [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr) (opt-class : (optionof symbol))]) ; class name for methods
+  [VPointer (a : Address)])
 
 (define-type MetaVal
+             [MetaNone]
              [MetaNum (n : number)]
              [MetaStr (s : string)]
              [MetaList (v : (listof CVal))]
              [MetaTuple (v : (listof CVal))]
-             [MetaDict (contents : (hashof CVal CVal))]
-             [MetaCode (e : CExpr) (filename : string) (globals : (listof symbol))]
-             [MetaClass (c : symbol)]
              [MetaSet (elts : Set)]
-             [MetaNone]
+             [MetaDict (contents : (hashof CVal CVal))]
+             [MetaClass (c : symbol)]
+             [MetaClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr) (opt-class : (optionof symbol))] ; class name for methods
+             [MetaCode (e : CExpr) (filename : string) (globals : (listof symbol))]
              [MetaPort (p : port)])
 
 ;; env is a listof hashof's so there are deliniations between closures
@@ -122,10 +123,19 @@ ParselTongue.
     [VPointer (a) (VObjectClass? (fetch-once a sto))]
     [else false]))
 
-(define (is-func-ptr? val sto)
+(define (is-fun? v)
+  (and (VObjectClass? v) (some? (VObjectClass-mval v))
+           (MetaClosure? (some-v (VObjectClass-mval v)))))
+
+(define (is-fun-ptr? val sto)
   (type-case CVal val
-    [VPointer (a) (VClosure? (fetch-once a sto))]
+    [VPointer (a) (is-fun? (fetch-once a sto))]
     [else false]))
+
+(define (get-fun-mval val sto)
+  (cond
+    [(is-fun-ptr? val sto) (some-v (VObjectClass-mval (fetch-ptr val sto)))]
+    [else (error 'get-fun-mval (format "Not a function value: ~a\n" (cons val (fetch-ptr val sto))))]))
 
 ;; fetch only once in the store
 (define (fetch-once [w : Address] [sto : Store]) : CVal

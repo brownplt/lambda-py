@@ -221,6 +221,8 @@
             (bind '%set (CUndefined))
             (bind 'type (CUndefined))
             (bind '%type (CUndefined))
+            (bind 'function (CUndefined))
+            (bind '%function (CUndefined))
             (bind 'super (CUndefined))
             (bind '%super (CUndefined))
             (bind 'method (CUndefined))

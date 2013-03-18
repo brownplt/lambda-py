@@ -60,11 +60,11 @@
          [else (Abnormal first-result)]))]))
 
 ;; common code to interpret function and method application, first argument must be a VClosure.
-(define (interp-vclosure [vfun : CVal] [arges : (listof CExpr)] 
+(define (interp-vclosure [vfun : MetaVal] [arges : (listof CExpr)] 
                          [stararg : (optionof CExpr)]
                          [env : Env] [sfun : Store] [stk : Stack]) : Result
-  (type-case CVal vfun
-    [VClosure (cenv argxs vararg body opt-class)
+  (type-case MetaVal vfun
+    [MetaClosure (cenv argxs vararg body opt-class)
               (type-case ResultList (interp-cascade arges sfun env stk)
                 [Abnormal (r) r]
                 [v*s/list (argvs-r sc)
@@ -110,10 +110,11 @@
   (lambda (vfun-ptr sfun)
     (let ([vfun (fetch-ptr vfun-ptr sfun)])
     (type-case CVal vfun
-      [VClosure (cenv argxs vararg body opt-class)
-                (interp-vclosure vfun arges stararg env sfun stk)]
-
       [VObjectClass (b mval d class)
+       (cond
+        [(and (some? mval) (MetaClosure? (some-v mval))) 
+         (interp-vclosure (some-v mval) arges stararg env sfun stk)]
+        [else
                   ;; This means we're calling an object, so apply its __call__ method.
                   ;; Class calls are now handled by type.__call__ method (Alejandro).
                   (local [(define __call__ (get-field '__call__ vfun-ptr env sfun))]
@@ -125,9 +126,8 @@
                              [(and (is-obj-ptr? vc sc) (object-is? (fetch-ptr vc sc) '%method env sc))
                               (local 
                                 [(define func
-                                   (fetch-ptr
-				     (fetch-once
-				       (some-v (hash-ref (VObjectClass-dict (fetch-ptr vc sc)) '__func__)) sc) sc))
+                                  (fetch-once
+                                   (some-v (hash-ref (VObjectClass-dict (fetch-ptr vc sc)) '__func__)) sc))
                                  (define w_self (hash-ref (VObjectClass-dict (fetch-ptr vc sc)) '__self__))
                                  (define id_self (new-id))
                                  (define m_arges (cons (CId id_self (LocalId)) arges))
@@ -138,10 +138,10 @@
                                 (begin
                                   ;(display (format "Method is: ~a" vc)) (display "\n")
                                   ;(display (format "Func is: ~a" func)) (display "\n")
-                                  (interp-vclosure func m_arges stararg m_env sc stk)))]
+                                  (interp-vclosure (get-fun-mval func sto) m_arges stararg m_env sc stk)))]
                              [else
                                ;; for unbound methods, use function application
-                               (interp-vclosure (fetch-ptr vc sc) arges stararg env sc stk)]))]
+                               (interp-vclosure (get-fun-mval vc sc) arges stararg env sc stk)]))]
                       [Return (vfun sfun) (return-exception env sfun)]
                       [Break (sfun) (break-exception env sfun)]
                       [Continue (sfun) (continue-exception env sfun)]
@@ -150,7 +150,7 @@
                                                              (symbol->string b)
                                                              " object is not callable")
                                                            env
-                                                           sto)]))]
+                                                           sto)]))])]
       [else (error 'interp "Not a closure or constructor.")]))))))
 
 (define (interp-while [test : CExpr] [body : CExpr] [orelse : CExpr]
@@ -380,10 +380,11 @@
 
     [CFunc (args sargs body opt-class) 
            (begin ;(display "func ") (display env) (display "\n\n")
-           (alloc-result (VClosure
-                  (cons (hash empty) env)
-                  ;(if (some? opt-class) (rest env) env)
-                  args sargs body opt-class)
+           (alloc-result (VObjectClass
+                  '%function
+                  (some (MetaClosure (cons (hash empty) env) args sargs body opt-class))
+                  (hash empty)
+                  (none))
                 sto))]
 
     [CReturn (value)
@@ -737,7 +738,6 @@
 
 (define (truthy? [val : CVal] sto) : boolean
   (type-case CVal val
-    [VClosure (e a s b o) true]
     [VObjectClass (a mval d class) (truthy-object? (VObjectClass a mval d class))]
     [VUndefined () false]
     [VSym (t) (equal? t 'true)]
@@ -786,7 +786,7 @@
                         ;(display (format "on field: ~a\n" fld))
                        (cond
                          ;; For functions, create method object bound to the object itself
-                         [(VClosure? (fetch-ptr value sto)) 
+                         [(is-fun-ptr? value sto)
                           (local [(define-values (meth sto-m) (mk-method w objptr env sto))]
                             (alloc-result meth sto-m))]
                          ;; for classmethod objects create method object bound to the object's class

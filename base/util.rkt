@@ -213,7 +213,6 @@
                             (pretty-metaval (some-v mval))
                             "Can't print non-builtin object.")]
     [VSym (s) (symbol->string s)]
-    [VClosure (env args sarg body opt-class) "<function>"]
     [VUndefined () "Undefined"]
     [VPointer (a) (string-append "Pointer to address " (number->string a))]))
 
