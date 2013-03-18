@@ -173,11 +173,19 @@ Example:
     [(list (or 'argument 'testlist_comp 'testlist 'test 'or_test 'and_test 'not_test 'comparison 'expr 'xor_expr 'and_expr 'shift_expr 'arith_expr 'term 'factor 'power) expr)
      (expr->ast expr expr-ctx)]
     
-    [(list 'comparison (and (not (cons 'comparison _)) expr1) comp-op (and (not (cons 'comparison _)) expr2))
+    ;; Single item is caught above.
+    [(list 'comparison expr1 rest ...)
+     (let ((ops (every-other rest))
+	   (exprs (every-other (cdr rest))))
+       (ast 'nodetype "Compare"
+	    'left (expr->ast expr1 expr-ctx)
+	    'ops (map comp-op->ast ops)
+	    'comparators (map (lambda (e) (expr->ast e expr-ctx)) exprs)))]
+#|    [(list 'comparison (and (not (cons 'comparison _)) expr1) comp-op (and (not (cons 'comparison _)) expr2))
      (ast 'nodetype "Compare"
 	  'left (expr->ast expr1 expr-ctx)
 	  'ops (list (comp-op->ast comp-op))
-	  'comparators (list (expr->ast expr2 expr-ctx)))]
+	  'comparators (list (expr->ast expr2 expr-ctx)))]|#
 
     [(list (and lhs (or 'term 'arith_expr 'expr 'xor_expr 'and_expr 'shift_expr)) 
 	   expr1 rest ...)
@@ -214,11 +222,11 @@ Example:
 			       [("or") "Or"] 
 			       [("and") "And"] 
 			       [else (error "Bad boolean op")]))
-	    'values (map (lambda (e) (expr->ast e "Load")) exprs)))]
+	    'values (map (lambda (e) (expr->ast e expr-ctx)) exprs)))]
 
     #| Calls - see trailer->ast-list |#
     ;; TODO: Multiple trailers in conjuction with exponentiation
-    [(list 'power func (and (cons 'trailer _) (app trailer->ast-list arglist)))
+    [(list 'power func (and (list 'trailer "(" _ ...) (app trailer->ast-list arglist)))
      (ast 'nodetype "Call"
 	  'args arglist
 	  'kwargs #\nul
