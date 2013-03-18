@@ -529,7 +529,7 @@
                                         ; interpret the code in module, raise any exception as it is
                                         ; ImportError should be handled in __import__
                                         ; TODO: filter the built-in functions instead of interpreting python-lib again
-                       (begin ;(display new-env)
+                       (begin ;(pprint global-var)
                               (handle-result env (interp-env (CModule (CNone) xcode)
                                                              (list new-env) new-sto stk)
                                              (lambda (v-module s-module)

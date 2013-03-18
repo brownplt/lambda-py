@@ -334,4 +334,80 @@ class TestCase(object):
 
         raise self.failureException(None)
 
-    
+    def assertEqual(self, first, second):
+        if not first == second:
+            raise self.failureException(None)
+
+    def assertNotEqual(self, first, second):
+        if not first != second:
+            raise self.failureException(None)
+
+    def assertIn(self, member, container):
+        if member not in container:
+            self.fail("assertIn Error")
+
+    def assertNotIn(self, member, container):
+        if member in container:
+            self.fail("assertNotIn Error")
+
+    def assertIs(self, expr1, expr2):
+        if expr1 is not expr2:
+            self.fail("assertIs Error")
+
+    def assertIsNot(self, expr1, expr2):
+        if expr1 is expr2:
+            self.fail("assertIsNot Error")
+
+    def assertIsInstance(self, obj, cls):
+        if not isinstance(obj, cls):
+            self.fail("assertIsInstance Error")
+
+    def assertNotIsInstance(self, obj, cls):
+        if isinstance(obj, cls):
+            self.fail("assertNotIsInstance Error")
+
+
+class TestProgram(object):
+    """A command-line program that runs a set of tests; this is primarily
+       for making test modules conveniently executable.
+    """
+    # defaults for testing
+    failfast = catchbreak = buffer = progName = warnings = None
+
+    def __init__(self)
+        module='__main__'
+        if isinstance(module, str):
+            self.module = __import__(module)
+            for part in module.split('.')[1:]:
+                self.module = getattr(self.module, part)
+        else:
+            self.module = module
+
+        self.exit = None
+        self.failfast = None
+        self.catchbreak = None
+        self.verbosity = 1
+        self.buffer = None
+        self.warnings = None
+        self.defaultTest = None
+        self.testRunner = None
+        self.testLoader = loader.defaultTestLoader
+        self.progName = os.path.basename(argv[0])
+        self.runTests()
+
+    def createTests(self):
+        if self.testNames is None:
+            self.test = self.testLoader.loadTestsFromModule(self.module)
+        else:
+            self.test = self.testLoader.loadTestsFromNames(self.testNames,
+                                                           self.module)
+
+    def runTests(self):
+        if self.testRunner is None:
+            self.testRunner = runner.TextTestRunner
+        testRunner = self.testRunner
+        self.result = testRunner.run(self.test) # TODO, create self.test before
+        if self.exit:
+            sys.exit(not self.result.wasSuccessful())
+
+main = TestProgram
