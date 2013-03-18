@@ -207,8 +207,13 @@
                                            (first assigns) (rest assigns))))]
                   ; The others become a CAssign.
                   [else
-                   (local [(define targets-r (map rec-desugar targets))
-                           (define value-r (rec-desugar value))]
+                   (local [
+                     (define (target-desugar target)
+                      (type-case LexExpr target
+                        [LexDotField (obj fld) (CGetField (rec-desugar obj) fld)]
+                        [else (rec-desugar target)]))
+                     (define targets-r (map target-desugar targets))
+                     (define value-r (rec-desugar value))]
                           (foldl (lambda (t so-far)
                                    (CSeq so-far (CAssign t value-r)))
                                  (CAssign (first targets-r) value-r)
@@ -495,7 +500,9 @@
       [LexInstanceId (x ctx)
                      (error 'desugar "should not encounter an instance ID!")]
 
-      [LexDotField (value attr) (CGetField (rec-desugar value) attr)]
+      [LexDotField (value attr)
+       (CGetAttr (rec-desugar value) (make-builtin-str (symbol->string attr)))]
+      [LexExprField (value attr) (CGetAttr (rec-desugar value) (rec-desugar attr))]
 
       [LexTryExceptElse (try excepts orelse)
                         (local [(define try-r (rec-desugar try))
@@ -553,7 +560,7 @@
                                             (LexAssign (list (LexLocalId x ctx)) (LexUndefined)))]
                        [LexGlobalId (x ctx) (rec-desugar
                                             (LexAssign (list (LexGlobalId x ctx)) (LexUndefined)))]
-                       [else (error 'desugar "We don't know how to delete this yet.")]))
+                       [else (error 'desugar (string-append "We don't know how to delete this yet: " (to-string target)))]))
                   (define (make-sequence [exprs : (listof CExpr)] )
                      (cond
                       [(empty? exprs) (error 'make-sequence "went too far")]

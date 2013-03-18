@@ -41,6 +41,7 @@
   ; classes and objects 
   [LexClass (scope : LocalOrGlobal) (name : symbol) (bases : LexExpr) (body : LexExpr)]
   [LexDotField (value : LexExpr) (attr : symbol)]
+  [LexExprField (value : LexExpr) (attr : LexExpr)]
 
   ; operations
   [LexBinOp (left : LexExpr) (op : symbol) (right : LexExpr)] ;op = 'Add | 'Sub | etc

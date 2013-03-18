@@ -18,6 +18,7 @@ ParselTongue.
   [CNone]
   [CObject (class : CExpr) (bval : (optionof MetaVal))]
   [CGetField (value : CExpr) (attr : symbol)]
+  [CGetAttr (value : CExpr) (attr : CExpr)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
   [CAssign (target : CExpr) (value : CExpr)]
   [CIf (test : CExpr) (then : CExpr) (else : CExpr)]
