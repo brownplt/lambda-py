@@ -241,7 +241,7 @@ primitives here.
 
     ;exceptions
     ['exception-str (alloc-result 
-                     (let ([arg (first argvs)])
+                     (let ([arg (first argsptrs)])
                       (VObject 'str
                         (some (MetaStr
                                 (pretty-exception arg sto #f)))

@@ -151,15 +151,18 @@ ParselTongue.
 
 (define (mk-exception [type : symbol] [arg : string] [env : Env] [sto : Store]) : Result
   (local [(define exn-loc (new-loc))
+          (define arg-loc (new-loc))
           (define args-loc (new-loc))
           (define args-field-loc (new-loc))
           (define cls (fetch-once (some-v (lookup type env)) sto))
-          (define args (list (VObjectClass 'str (some (MetaStr arg)) (hash empty) (none))))]
+          (define arg-val (VObjectClass 'str (some (MetaStr arg)) (hash empty) (none)))]
     (Exception
       (VPointer exn-loc)
       (hash-set
         (hash-set
-          (hash-set sto args-loc (VObjectClass 'tuple (some (MetaTuple args)) (hash empty) (none)))
+          (hash-set
+           (hash-set sto arg-loc arg-val)
+           args-loc (VObjectClass 'tuple (some (MetaTuple (list (VPointer arg-loc)))) (hash empty) (none)))
           args-field-loc (VPointer args-loc))
         exn-loc
         (VObjectClass 'exception (none) (hash-set (hash empty) 'args args-field-loc) (some cls))))))
