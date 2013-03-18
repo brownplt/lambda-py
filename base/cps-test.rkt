@@ -196,3 +196,16 @@
 ;; can be asserted.
 (test (cps-eval (CTryFinally (CSym 'foo) (CSym 'bar)))
       (VSym 'foo))
+
+
+(test (cps-eval (CTryExceptElse (CRaise (some (CSym 'foo)))
+                                'exn
+                                (Id 'exn)
+                                (CSym 'bar)))
+      (VSym 'foo))
+
+(test (cps-eval (CTryExceptElse (CSym 'foo)
+                                'exn
+                                (Id 'exn)
+                                (CSym 'bar)))
+      (VSym 'bar))

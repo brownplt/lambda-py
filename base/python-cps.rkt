@@ -201,7 +201,18 @@
 
     [CTryExceptElse
      (try exn excepts els)
-     (error 'cps "TryExceptElse not written yet")]
+     (pylam (K R E B C)
+       (pyapp (cps try)
+         (pylam (V)
+            (pyapp (cps els)
+                  Ki Ri Ei Bi Ci))
+         Ri
+         (pylam (V)
+            (CLet exn (LocalId) Vi
+              (pyapp (cps excepts)
+                Ki Ri Ei Bi Ci)))
+         Bi
+         Ci))]
 
     [CTryFinally
      (try finally)
