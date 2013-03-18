@@ -78,7 +78,7 @@
    (pretty-write (get-surface-syntax (current-input-port))))
 
   ("--get-lexical-syntax" "Get surface syntax python"
-    (get-lexical-syntax (current-input-port)))
+   (pretty-write (get-lexical-syntax (current-input-port))))
 
   ("--get-core-syntax" "Get desugared python"
    (pretty-write (get-core-syntax (current-input-port))))
