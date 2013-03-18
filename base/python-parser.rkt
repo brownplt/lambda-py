@@ -28,7 +28,7 @@ Example:
 ;; Some cases are very specific to covered set of python reference tests at the moment.
 
 (define (parse-python port)
-  (py-ragg->python-ast (syntax->datum (parse (get-python-lexer port)))))
+  (module->ast (syntax->datum (parse (get-python-lexer port)))))
 
 (define ast hasheq)
 
@@ -43,62 +43,29 @@ Example:
        'kw_defaults '()
        'kwonlyargs '()))
 
-;; Takes two strings. If they are the same, return ast as if it is a one-word op.
-;; Only changes the result for "is not".
-(define (comp-op->python-ast comp-op)
-  (ast 'nodetype
-       (match (cdr comp-op)
-	 [`("<") "Lt"]
-	 [`(">") "Gt"]
-	 [`("==") "Eq"]
-	 [`(">=") "GtE"]
-	 [`("<=") "LtE"]
-	 [`("!=") "NotEq"]
-	 [`("in") "In"]
-	 [`("not" "in") "NotIn"]
-	 [`("<>") (error "<> operator is not supported.")]
-	 [`("is") "Is"]
-	 [`("is" "not") "IsNot"])))
 
-(define (suite->ast-list suite)
-  (match suite
-    [(list 'suite stmt) 
-     (list (py-ragg->python-ast stmt))]
-    [(list 'suite "NEWLINE" "INDENT" stmts ... "DEDENT")
-     (map py-ragg->python-ast stmts)]))
-
-;; trailer: line to list of args 
-;; Currently positional args only
-(define (trailer->ast-list trailer)
-  (local ((define (more-args arg-lst acc)
-	    (match arg-lst
-	      [(list) (reverse acc)]
-	      [(list arg) (reverse (cons (expr->python-ast arg "Load") acc))]
-	      [(list arg "," rest ...) (more-args rest (cons (expr->python-ast arg "Load") acc))])))
-	 (match trailer
-	   [(list 'trailer "(" ")") '()]
-	   [(list 'trailer "(" (list 'arglist rest ...) ")") (more-args rest '())]
-	   [_ (error "Unsupported trailer (arglist) shape")])))
-	       
-
-;; Transform most of the non-expression grammar from ragg into the ast (hasheq symbol->various) format
-(define (py-ragg->python-ast py-ragg)
+(define (module->ast py-ragg)
   (match py-ragg
     [(list 'file_input stmts ...)
      (ast 'nodetype "Module"
-	   'body (map py-ragg->python-ast stmts))]
-    
-    [(list (or 'stmt 'flow_stmt 'small_stmt 'compound_stmt) stmt) 
-     (py-ragg->python-ast stmt)]
+	   'body (map stmt->ast stmts))]
+    [_ (error "Only file_input is supported.")]))
 
-    [(list 'simple_stmt stmt NEWLINE) (py-ragg->python-ast stmt)] ; Todo: simple-stmt-multi.py
+
+;; Transform most of the non-expression grammar from ragg into the ast (hasheq symbol->various) format
+(define (stmt->ast py-ragg)
+  (match py-ragg
+    [(list (or 'stmt 'flow_stmt 'small_stmt 'compound_stmt) stmt) 
+     (stmt->ast stmt)]
+
+    [(list 'simple_stmt stmt NEWLINE) (stmt->ast stmt)] ; Todo: simple-stmt-multi.py
     
     ; TODO: Allow only assignments to those allowed by http://docs.python.org/3.2/reference/simple_stmts.html#assignment-statements
-    ;; expr_stmt TODO: multiple targets, multiple values? (in expr->python-ast ?)
+    ;; expr_stmt TODO: multiple targets, multiple values? (in expr->ast ?)
     [(list 'expr_stmt testlist "=" val)
      (ast 'nodetype "Assign"
-	   'targets (list (expr->python-ast testlist "Store"))
-	   'value (expr->python-ast val "Load"))]
+	   'targets (list (expr->ast testlist "Store"))
+	   'value (expr->ast val "Load"))]
 
     [(list 'expr_stmt testlist (list 'augassign op) val)
      (ast 'nodetype "AugAssign"
@@ -115,21 +82,21 @@ Example:
 			       [("**=") "Pow"]
 			       [("//=") "FloorDiv"]
 			       [else (error "Unrecognized augassign op")]))
-	  'target (expr->python-ast testlist "Store")
-	  'value (expr->python-ast val "Load"))]
+	  'target (expr->ast testlist "Store")
+	  'value (expr->ast val "Load"))]
 
     [(list 'expr_stmt val)
      (ast 'nodetype "Expr"
-	  'value (expr->python-ast val "Load"))]
+	  'value (expr->ast val "Load"))]
 
     [(list 'return_stmt "return" val)
      (ast 'nodetype "Return"
-	  'value (expr->python-ast val "Load"))]
+	  'value (expr->ast val "Load"))]
 
     ;; raise_stmt TODO: from clause
     [(list 'raise_stmt "raise" exc)
      (ast 'nodetype "Raise"
-	  'exc (expr->python-ast exc "Load")
+	  'exc (expr->ast exc "Load")
 	  'cause #\nul)]
 
     [(list 'pass_stmt "pass")
@@ -138,7 +105,7 @@ Example:
     ;; assert_stmt TODO: msg
     [(list 'assert_stmt "assert" expr)
      (ast 'nodetype "Assert"
-	  'test (expr->python-ast expr "Load")
+	  'test (expr->ast expr "Load")
 	  'msg #\nul)]
 
     ;; global_stmt TODO: multiple names
@@ -150,12 +117,12 @@ Example:
     [(list 'if_stmt "if" test ":" suite)
      (ast 'nodetype "If"
 	  'orelse '()
-	  'test (expr->python-ast test "Load")
+	  'test (expr->ast test "Load")
 	  'body (suite->ast-list suite))]
     
     [(list 'if_stmt "if" test ":" suite1 "else" ":" suite2)
      (ast 'nodetype "If"
-	  'test (expr->python-ast test "Load")
+	  'test (expr->ast test "Load")
 	  'body (suite->ast-list suite1)
 	  'orelse (suite->ast-list suite2))]
     
@@ -169,7 +136,7 @@ Example:
 	  'handlers (list (ast 'nodetype "ExceptHandler"
 			       'name #\nul
 			       'body (suite->ast-list except-suite)
-			       'type (expr->python-ast except-expr "Load"))))]
+			       'type (expr->ast except-expr "Load"))))]
      
     ;; funcdef TODO: Almost everything
     [`(funcdef "def" (name . ,name) (parameters "(" ")") ":" ,suite)
@@ -196,62 +163,78 @@ Example:
      (pretty-write py-ragg)
      (error (string-append "Unhandled grammar"))]))
 
-;; Destructure ragg python expressions to python-ast with ctx value appropriate to the statement, expression, and position.
+;; Destructure ragg python expressions to python ast with ctx value appropriate to the statement, expression, and position.
 ;; I believe the expr-ctx passed on will inherently be "Load" in almost all cases, 
 ;; but I'm passing expr-ctx forward until I'm sure
-(define (expr->python-ast py-ragg expr-ctx)
+(define (expr->ast py-ragg expr-ctx)
   (match py-ragg
 
     #| Expression fallthroughs... |#
     [(list (or 'argument 'testlist_comp 'testlist 'test 'or_test 'and_test 'not_test 'comparison 'expr 'xor_expr 'and_expr 'shift_expr 'arith_expr 'term 'factor 'power) expr)
-     (expr->python-ast expr expr-ctx)]
+     (expr->ast expr expr-ctx)]
     
     [(list 'comparison (and (not (cons 'comparison _)) expr1) comp-op (and (not (cons 'comparison _)) expr2))
      (ast 'nodetype "Compare"
-	  'left (expr->python-ast expr1 expr-ctx)
-	  'ops (list (comp-op->python-ast comp-op))
-	  'comparators (list (expr->python-ast expr2 expr-ctx)))]
+	  'left (expr->ast expr1 expr-ctx)
+	  'ops (list (comp-op->ast comp-op))
+	  'comparators (list (expr->ast expr2 expr-ctx)))]
 
-    [(list (or 'arith_expr 'term) expr1 op expr2)
-     (ast 'nodetype "BinOp"
-	  'left (expr->python-ast expr1 expr-ctx)
-	  'right (expr->python-ast expr2 expr-ctx)
-	  'op (ast 'nodetype (case op 
-			       [("+") "Add"] 
-			       [("-") "Sub"]
-			       [("/") "Div"]
-			       [("*") "Mult"]
-			       [("%") "Mod"]
-			       [("//") "FloorDiv"]
-			       [else (error "Bad arith_expr/term op")])))]
+    [(list (and lhs (or 'term 'arith_expr 'expr 'xor_expr 'and_expr 'shift_expr)) 
+	   expr1 rest ...)
+     (let ((ops (every-other rest))
+	   (exprs (if (null? rest) '() (every-other (cdr rest)))))
+       (foldl (lambda (op right-expr left-ast)
+		(ast 'nodetype "BinOp"
+		     'left left-ast
+		     'right (expr->ast right-expr expr-ctx)
+		     'op (ast 'nodetype (case op 
+					  [("+") "Add"] 
+					  [("-") "Sub"]
+					  [("/") "Div"]
+					  [("*") "Mult"]
+					  [("%") "Mod"]
+					  [("//") "FloorDiv"]
+					  [("|") "BitOr"]
+					  [("^") "BitXor"]
+					  [("&") "BitAnd"]
+					  [("<<") "LShift"]
+					  [(">>") "RShift"]
+					  [else (error "Bad arith/term op")]))))
+	      (expr->ast expr1 expr-ctx)
+	      ops
+	      exprs))]
 
-    [(list (or 'and_test 'or_test) expr1 op expr2)
-     (ast 'nodetype "BoolOp"
-	  'op (ast 'nodetype (case op 
+    ;; TODO: Exponention in power, below (binds other way)
+
+    ;; Single item right hand sides should be caught in the fallthrough clause above.
+    [(list (or 'and_test 'or_test) rest ...)
+     (let ((exprs (every-other rest)))
+       (ast 'nodetype "BoolOp"
+	    'op (ast 'nodetype (case (second rest)
 			       [("or") "Or"] 
 			       [("and") "And"] 
 			       [else (error "Bad boolean op")]))
-	  'values (list (expr->python-ast expr1 expr-ctx)
-			(expr->python-ast expr2 expr-ctx)))]
+	    'values (map (lambda (e) (expr->ast e "Load")) exprs)))]
 
     #| Calls - see trailer->ast-list |#
+    ;; TODO: Multiple trailers in conjuction with exponentiation
     [(list 'power func (and (cons 'trailer _) (app trailer->ast-list arglist)))
      (ast 'nodetype "Call"
 	  'args arglist
 	  'kwargs #\nul
 	  'starargs #\nul
 	  'keywords '()
-	  'func (expr->python-ast func "Load"))]
+	  'func (expr->ast func "Load"))]
 
     [(list 'not_test "not" expr)
      (ast 'nodetype "UnaryOp"
 	  'op (ast 'nodetype "Not")
-	  'operand (expr->python-ast expr expr-ctx))]
+	  'operand (expr->ast expr expr-ctx))]
     
     [(list 'factor "-" expr)
      (ast 'nodetype "UnaryOp"
 	  'op (ast 'nodetype "USub")
-	  'operand (expr->python-ast expr expr-ctx))]
+	  'operand (expr->ast expr expr-ctx))]
 
     ; Note expr-ctx (this may be wrong)
     ; Cons here is from token construction in the lexer
@@ -275,14 +258,56 @@ Example:
     #| Dict - Temporary single item form... |#
     [(list 'atom "{" (list 'dictorsetmaker key ":" value) "}")
      (ast 'nodetype "Dict"
-	  'keys (list (expr->python-ast key expr-ctx))
-	  'values (list (expr->python-ast value expr-ctx)))]
+	  'keys (list (expr->ast key expr-ctx))
+	  'values (list (expr->ast value expr-ctx)))]
     
     ;; No tuples for now
     [(list 'atom "(" expr ")")
-     (expr->python-ast expr expr-ctx)]
+     (expr->ast expr expr-ctx)]
 
     [_ 
      (display "=== Unhandled expression ===\n")
      (pretty-write py-ragg)
      (error (string-append "Unhandled expression"))]))
+
+;; Takes two strings. If they are the same, return ast as if it is a one-word op.
+;; Only changes the result for "is not".
+(define (comp-op->ast comp-op)
+  (ast 'nodetype
+       (match (cdr comp-op)
+	 [`("<") "Lt"]
+	 [`(">") "Gt"]
+	 [`("==") "Eq"]
+	 [`(">=") "GtE"]
+	 [`("<=") "LtE"]
+	 [`("!=") "NotEq"]
+	 [`("in") "In"]
+	 [`("not" "in") "NotIn"]
+	 [`("<>") (error "<> operator is not supported.")]
+	 [`("is") "Is"]
+	 [`("is" "not") "IsNot"])))
+
+(define (suite->ast-list suite)
+  (match suite
+    [(list 'suite stmt) 
+     (list (stmt->ast stmt))]
+    [(list 'suite "NEWLINE" "INDENT" stmts ... "DEDENT")
+     (map stmt->ast stmts)]))
+
+;; trailer: line to list of args 
+;; Currently positional args only
+(define (trailer->ast-list trailer)
+  (local ((define (more-args arg-lst acc)
+	    (match arg-lst
+	      [(list) (reverse acc)]
+	      [(list arg) (reverse (cons (expr->ast arg "Load") acc))]
+	      [(list arg "," rest ...) (more-args rest (cons (expr->ast arg "Load") acc))])))
+	 (match trailer
+	   [(list 'trailer "(" ")") '()]
+	   [(list 'trailer "(" (list 'arglist rest ...) ")") (more-args rest '())]
+	   [_ (error "Unsupported trailer (arglist) shape")])))
+
+(define (every-other lst)
+  (cond [(null? lst) '()]
+	[(null? (cdr lst)) (list (car lst))]
+	[else (cons (car lst) (every-other (cddr lst)))]))
