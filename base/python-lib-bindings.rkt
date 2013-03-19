@@ -63,7 +63,7 @@
   (CFunc (list 'self) (none)
     (CReturn
       (CApp
-        (CGetField
+        (py-getfield
           (CId 'self (LocalId))
           '__len__)
         (list)
@@ -74,7 +74,7 @@
   (CFunc (list 'self) (none)
     (CReturn
       (CApp
-        (CGetField
+        (py-getfield
           (CId 'self (LocalId))
           '__min__)
         (list)
@@ -85,7 +85,7 @@
   (CFunc (list 'self) (none)
     (CReturn
       (CApp
-        (CGetField
+        (py-getfield
           (CId 'self (LocalId))
           '__max__)
         (list)
@@ -96,7 +96,7 @@
   (CFunc (list 'self) (none)
     (CReturn
       (CApp
-        (CGetField
+        (py-getfield
           (CId 'self (LocalId))
           '__abs__)
         (list)
