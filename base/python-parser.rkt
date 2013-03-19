@@ -43,6 +43,17 @@ Example:
        'kw_defaults '()
        'kwonlyargs '()))
 
+#|
+Some pseudo-types used in function names to help make this legible...
+
+(define (stmt? sexp)
+  (any expression that can be derived starting with stmt))
+
+(define (expr? sexp)
+  (any expression that can be derived starting with testlist (probably)))
+
+trailer, comp-op, suite and others should match their car.
+|#
 
 (define (module->ast py-ragg)
   (match py-ragg
@@ -60,7 +71,7 @@ Example:
 
     [(list 'simple_stmt stmt NEWLINE) (stmt->ast stmt)] ; Todo: simple-stmt-multi.py
     
-    ; TODO: Allow only assignments to those allowed by http://docs.python.org/3.2/reference/simple_stmts.html#assignment-statements
+    ;; TODO: Allow only assignments to those allowed by http://docs.python.org/3.2/reference/simple_stmts.html#assignment-statements
     ;; expr_stmt TODO: multiple targets, multiple values? (in expr->ast ?)
     [(list 'expr_stmt testlist "=" val)
      (ast 'nodetype "Assign"
@@ -165,7 +176,7 @@ Example:
 
 ;; Destructure ragg python expressions to python ast with ctx value appropriate to the statement, expression, and position.
 ;; I believe the expr-ctx passed on will inherently be "Load" in almost all cases, 
-;; but I'm passing expr-ctx forward until I'm sure
+;; but I'm passing expr-ctx forward until I'm sure.
 (define (expr->ast py-ragg expr-ctx)
   (match py-ragg
 
@@ -181,11 +192,6 @@ Example:
 	    'left (expr->ast expr1 expr-ctx)
 	    'ops (map comp-op->ast ops)
 	    'comparators (map (lambda (e) (expr->ast e expr-ctx)) exprs)))]
-#|    [(list 'comparison (and (not (cons 'comparison _)) expr1) comp-op (and (not (cons 'comparison _)) expr2))
-     (ast 'nodetype "Compare"
-	  'left (expr->ast expr1 expr-ctx)
-	  'ops (list (comp-op->ast comp-op))
-	  'comparators (list (expr->ast expr2 expr-ctx)))]|#
 
     [(list (and lhs (or 'term 'arith_expr 'expr 'xor_expr 'and_expr 'shift_expr)) 
 	   expr1 rest ...)
@@ -212,8 +218,6 @@ Example:
 	      ops
 	      exprs))]
 
-    ;; TODO: Exponention in power, below (binds other way)
-
     ;; Single item right hand sides should be caught in the fallthrough clause above.
     [(list (or 'and_test 'or_test) rest ...)
      (let ((exprs (every-other rest)))
@@ -224,8 +228,21 @@ Example:
 			       [else (error "Bad boolean op")]))
 	    'values (map (lambda (e) (expr->ast e expr-ctx)) exprs)))]
 
-    #| Calls - see trailer->ast-list |#
-    ;; TODO: Multiple trailers in conjuction with exponentiation
+    ;; TODO: Exponentiation in conjuction
+    ;; Set expr-ctx as ctx on last of trailers... Pass "Load" to interiors
+    ;; Single fall-through expression is at the top with the rest.
+    [(and (list 'power val trailers ... last-trailer)
+	  (not (list _ ... "**" _)))
+     (wrap-with-trailer 
+      last-trailer 
+      expr-ctx
+      (foldl 
+       (lambda (trailer left-ast)
+	 (wrap-with-trailer trailer "Load" left-ast))
+       (expr->ast val "Load")
+       trailers))]
+
+#|
     [(list 'power func (and (list 'trailer "(" _ ...) (app trailer->ast-list arglist)))
      (ast 'nodetype "Call"
 	  'args arglist
@@ -233,6 +250,7 @@ Example:
 	  'starargs #\nul
 	  'keywords '()
 	  'func (expr->ast func "Load"))]
+|#
 
     [(list 'not_test "not" expr)
      (ast 'nodetype "UnaryOp"
@@ -244,14 +262,14 @@ Example:
 	  'op (ast 'nodetype "USub")
 	  'operand (expr->ast expr expr-ctx))]
 
-    ; Note expr-ctx (this may be wrong)
-    ; Cons here is from token construction in the lexer
+    ;; Note expr-ctx (this may be wrong)
+    ;; Cons here is from token construction in the lexer
     [(list 'atom (cons 'name name))
      (ast 'nodetype "Name"
 	   'id name
 	   'ctx (ast 'nodetype expr-ctx))]
 
-    ; Cons here is from token construction in the lexer
+    ;; Cons here is from token construction in the lexer
     [(list 'atom (cons type val))
      (if (equal? expr-ctx "Store")
 	 (error "Cannot store to a literal")
@@ -268,6 +286,18 @@ Example:
      (ast 'nodetype "Dict"
 	  'keys (list (expr->ast key expr-ctx))
 	  'values (list (expr->ast value expr-ctx)))]
+
+    ;; temporary empty form
+    [(list 'atom "[" "]")
+     (ast 'nodetype "List"
+	  'elts '()
+	  'ctx (ast 'nodetype "Load"))]
+    
+    ;; Temporary single item form
+    [(list 'atom "[" (list 'listmaker expr) "]")
+     (ast 'nodetype "List"
+	  'ctx (ast 'nodetype "Load")
+	  'elts (list (expr->ast expr "Load")))]
     
     ;; No tuples for now
     [(list 'atom "(" expr ")")
@@ -302,18 +332,44 @@ Example:
     [(list 'suite "NEWLINE" "INDENT" stmts ... "DEDENT")
      (map stmt->ast stmts)]))
 
-;; trailer: line to list of args 
-;; Currently positional args only
-(define (trailer->ast-list trailer)
-  (local ((define (more-args arg-lst acc)
+;; string * trailer * ast -> ast
+;; Only handles function calls with positional args
+;; 
+(define (wrap-with-trailer trailer expr-ctx left-ast)
+  (local ((define (call-ast arglist)
+	    (ast 'nodetype "Call"
+		 'args arglist
+		 'kwargs #\nul
+		 'starargs #\nul
+		 'keywords '()
+		 'func left-ast))
+	  (define (attr-ast attr)
+	    (ast 'nodetype "Attribute"
+		 'ctx (ast 'nodetype expr-ctx)
+		 'attr attr
+		 'value left-ast))
+	  (define (subscript-index-ast index)
+	    (ast 'nodetype "Subscript"
+		 'ctx (ast 'nodetype expr-ctx)
+		 'value left-ast
+		 'slice (ast 'nodetype "Index"
+			     'value index)))
+	  (define (more-args arg-lst acc)
 	    (match arg-lst
 	      [(list) (reverse acc)]
 	      [(list arg) (reverse (cons (expr->ast arg "Load") acc))]
 	      [(list arg "," rest ...) (more-args rest (cons (expr->ast arg "Load") acc))])))
 	 (match trailer
-	   [(list 'trailer "(" ")") '()]
-	   [(list 'trailer "(" (list 'arglist rest ...) ")") (more-args rest '())]
-	   [_ (error "Unsupported trailer (arglist) shape")])))
+	   [`(trailer "(" ")") (call-ast '())]
+	   ;; arglist TODO... Almost everything
+	   [`(trailer "(" (arglist ,rest ...) ")") (call-ast (more-args rest '()))]
+	   [`(trailer "." (name . ,name)) (attr-ast name)]
+	   ;; subscriptlist TODO... "...", multiple indexes, slices
+	   [`(trailer "[" (subscriptlist (subscript ,index)) "]") (subscript-index-ast (expr->ast index expr-ctx))]
+	   [_ 
+	    (display "=== Unhandled trailer ===\n")
+	    (pretty-write trailer)
+	    (error "Unsupported trailer (arglist) shape")])))
 
 (define (every-other lst)
   (cond [(null? lst) '()]
