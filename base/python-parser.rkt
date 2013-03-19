@@ -32,8 +32,12 @@ Example:
 
 (define ast hasheq)
 
-(define (args arg-list)
-  (ast 'args arg-list
+(define (args-ast arg-name-list)
+  (ast 'args (map (lambda (n)
+		    (ast 'nodetype "arg"
+			 'annotation #\nul
+			 'arg n))
+		  arg-name-list)
        'defaults '()
        'nodetype "arguments"
        'vararg #\nul
@@ -149,20 +153,42 @@ trailer, comp-op, suite and others should match their car.
 			       'body (suite->ast-list except-suite)
 			       'type (expr->ast except-expr "Load"))))]
      
-    ;; funcdef TODO: Almost everything
-    [`(funcdef "def" (name . ,name) (parameters "(" ")") ":" ,suite)
+    ;; funcdef TODO: Almost everything 
+    [`(funcdef "def" 
+	       (name . ,name) 
+	       (parameters "(" (varargslist (fpdef (name . ,args)) ...) ")") ":" ,suite)
      (ast 'nodetype "FunctionDef"
 	  'body (suite->ast-list suite)
-	  'args (args '())
+	  'args (args-ast args)
 	  'name name
 	  'returns #\nul
 	  'decorator_list '())]
 
-    ;; classdef TODO: Almost everything
+    [`(funcdef "def" 
+	       (name . ,name) 
+	       (parameters "(" ")") ":" ,suite)
+     (ast 'nodetype "FunctionDef"
+	  'body (suite->ast-list suite)
+	  'args (args-ast '())
+	  'name name
+	  'returns #\nul
+	  'decorator_list '())]
+
+    ;; classdef, no supertypes
     [`(classdef "class" (name . ,name) ":" ,suite)
      (ast 'nodetype "ClassDef"
 	  'body (suite->ast-list suite)
 	  'bases '()
+	  'name name
+	  'decorator_list '()
+	  'kwargs #\nul
+	  'starargs #\nul
+	  'keywords '())]
+
+    [`(classdef "class" (name . ,name) "(" ,supertypes ... ")" ":" ,suite)
+     (ast 'nodetype "ClassDef"
+	  'body (suite->ast-list suite)
+	  'bases (more-args supertypes '())
 	  'name name
 	  'decorator_list '()
 	  'kwargs #\nul
@@ -241,16 +267,6 @@ trailer, comp-op, suite and others should match their car.
 	 (wrap-with-trailer trailer "Load" left-ast))
        (expr->ast val "Load")
        trailers))]
-
-#|
-    [(list 'power func (and (list 'trailer "(" _ ...) (app trailer->ast-list arglist)))
-     (ast 'nodetype "Call"
-	  'args arglist
-	  'kwargs #\nul
-	  'starargs #\nul
-	  'keywords '()
-	  'func (expr->ast func "Load"))]
-|#
 
     [(list 'not_test "not" expr)
      (ast 'nodetype "UnaryOp"
@@ -354,11 +370,7 @@ trailer, comp-op, suite and others should match their car.
 		 'value left-ast
 		 'slice (ast 'nodetype "Index"
 			     'value index)))
-	  (define (more-args arg-lst acc)
-	    (match arg-lst
-	      [(list) (reverse acc)]
-	      [(list arg) (reverse (cons (expr->ast arg "Load") acc))]
-	      [(list arg "," rest ...) (more-args rest (cons (expr->ast arg "Load") acc))])))
+)
 	 (match trailer
 	   [`(trailer "(" ")") (call-ast '())]
 	   ;; arglist TODO... Almost everything
@@ -375,3 +387,9 @@ trailer, comp-op, suite and others should match their car.
   (cond [(null? lst) '()]
 	[(null? (cdr lst)) (list (car lst))]
 	[else (cons (car lst) (every-other (cddr lst)))]))
+
+(define (more-args arg-lst acc)
+  (match arg-lst
+    [(list) (reverse acc)]
+    [(list arg) (reverse (cons (expr->ast arg "Load") acc))]
+    [(list arg "," rest ...) (more-args rest (cons (expr->ast arg "Load") acc))]))
