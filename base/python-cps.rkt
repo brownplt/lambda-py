@@ -153,7 +153,11 @@
 
     [CRaise (val)
      (type-case (optionof CVal) val
-       [none () (error 'cps "Haven't handled empty raises yet")]
+       [none () (pylam (K R E B C)
+                  (pyapp (cps (make-exception
+                               '$Reraise
+                               "Try to reraise active exception"))
+                         Ei Ri Ei Bi Ci))]
        [some (v)
              (pylam (K R E B C) (pyapp (cps v) Ei Ri Ei Bi Ci))])]
 
@@ -177,11 +181,9 @@
                (pylam (V)
 		(CSeq
                  (CNone)
-		 ;(pyapp (gid 'print) (CSym 'test-continuation))
                 (CIf Vi
 		  (CSeq
                    (CNone)
-		   ;(pyapp (gid 'print) (CSym 'body-of-while))
                   (pyapp (cps body)
                     (pylam (V2) (pyapp (Id '-while) Ki Ri Ei Bi Ci))
                     Ri Ei Bi Ci))
@@ -192,7 +194,6 @@
             (pylam (V)
 	      (CSeq
                (CNone)
-	       ;(pyapp (gid 'print) (CSym 'continue-continuation))
               (pyapp
                (Id '-while)
                Ki Ri Ei Ki ;; NOTE(joe): Break becomes the "normal" continuation Ki
@@ -208,9 +209,18 @@
                   Ki Ri Ei Bi Ci))
          Ri
          (pylam (V)
+            ;; TODO(dbp): check that this is an exception
             (CLet exn (LocalId) Vi
               (pyapp (cps excepts)
-                Ki Ri Ei Bi Ci)))
+                Ki Ri
+                (pylam (V2)
+                  (CIf
+                   (pyapp (gid '%isinstance)
+                          V2i
+                          (gid '$Reraise))
+                   (pyapp Ei Vi)
+                   (pyapp Ei V2i)))
+                Bi Ci)))
          Bi
          Ci))]
 
