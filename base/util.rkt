@@ -368,12 +368,12 @@
   (CObject (gid '%num) (some (MetaNum n))))
 
 (define (py-len name)
-  (CApp (CGetField (CId name (LocalId)) '__len__)
+  (CApp (py-getfield (CId name (LocalId)) '__len__)
         (list)
         (none)))
 
 (define (py-getitem name index)
-  (CApp (CGetField (CId name (LocalId)) '__getitem__)
+  (CApp (py-getfield (CId name (LocalId)) '__getitem__)
         (list (CObject (gid '%num) (some (MetaNum index))))
         (none)))
 
@@ -388,7 +388,7 @@
      (CApp fun (list arg ...) (none))]))
 
 (define (pyget val fld)
-  (pyapp (CGetField val '__getitem__)
+  (pyapp (py-getfield val '__getitem__)
                fld))
 
 (define (Id x)
@@ -405,7 +405,7 @@
 
 (define-syntax (Method stx)
   (syntax-case stx ()
-    [(_ obj name arg ...) #'(CApp (CGetField obj name) (list arg ...) (none))]))
+    [(_ obj name arg ...) #'(CApp (py-getfield obj name) (list arg ...) (none))]))
 
 
  
@@ -422,7 +422,7 @@
 (define-syntax (Construct stx)
   (syntax-case stx ()
     [(_ class arg ...)
-     #'(CApp (CGetField class '__init__) (list arg ...) (none))]))
+     #'(CApp (py-getfield class '__init__) (list arg ...) (none))]))
 
 ;; strip the CLet in CModule
 (define (get-module-body (es : CExpr)) : CExpr
@@ -432,3 +432,6 @@
           (get-module-body body)]   
     [else es]))
 
+;; sintactic sugar to get a field from an object
+(define (py-getfield [value : CExpr] [attr : symbol]) : CExpr
+  (CGetAttr value (make-builtin-str (symbol->string attr))))
