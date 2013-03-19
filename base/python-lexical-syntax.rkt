@@ -30,6 +30,9 @@
                           (orelse : LexExpr)]
   [LexTryFinally (try : LexExpr) (finally : LexExpr)]
 
+  ;yield
+  [LexYield (expr : LexExpr)]
+
   ;loops 
   [LexWhile (test : LexExpr) (body : LexExpr) (orelse : LexExpr)]
   [LexFor (target : LexExpr) (iter : LexExpr) (body : LexExpr)]

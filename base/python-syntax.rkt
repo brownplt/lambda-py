@@ -23,6 +23,9 @@
   [PyTryExceptElse (try : PyExpr) (except : (listof PyExpr)) (orelse : PyExpr)]
   [PyTryFinally (try : PyExpr) (finally : PyExpr)]
 
+  ; yield
+  [PyYield (expr : PyExpr)]
+
   ;loops 
   [PyWhile (test : PyExpr) (body : PyExpr) (orelse : PyExpr)]
   [PyFor (target : PyExpr) (iter : PyExpr) (body : PyExpr)]

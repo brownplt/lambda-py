@@ -69,6 +69,8 @@
               [PyTryFinally (try finally)
                             (LexTryFinally (recur try)
                                            (recur finally))]
+              ; yield
+              [PyYield (expr) (LexYield (recur expr))]
                                         ;loops 
               [PyWhile (test body orelse)
                        (LexWhile (recur test) (recur body) (recur orelse))]
@@ -183,6 +185,8 @@
               [LexTryFinally (try finally)
                              (LexTryFinally (recur try)
                                             (recur finally))]
+              ; yield
+              [LexYield (expr) (LexYield (recur expr))]
                                         ;loops 
               [LexWhile (test body orelse)
                        (LexWhile (recur test) (recur body) (recur orelse))]
@@ -298,6 +302,9 @@
                             (flatten (list
                                        (list (recur try))
                                        (list (recur finally))))]
+              ; yield
+              [PyYield (expr) (flatten (recur expr))]
+
                                         ;loops 
               [PyWhile (test body orelse)
                        (flatten (list (recur test) (recur body) (recur orelse)))]
@@ -413,6 +420,8 @@
                              (flatten (list
                                         (list (recur try))
                                         (list (recur finally))))]
+              ; yield
+              [LexYield (expr) (flatten (recur expr))]
                                         ;loops 
               [LexWhile (test body orelse)
                        (flatten (list (recur test) (recur body) (recur orelse)))]

@@ -545,7 +545,8 @@
                                                         s-module))))))])))]
     
     [CBreak () (Break sto)]
-    [CContinue () (Continue sto)])))
+    [CContinue () (Continue sto)]
+    [CYield (e) (error 'interp "Got to CYield; should not be possible, as yields should go away")])))
 
 (define (assign-to-id [id : CExpr] [value : CVal] [env : Env] [sto : Store]) : Result
   (local [(define mayb-loc 

@@ -250,6 +250,7 @@
                               (none)
                               (some expr-r))))]
 
+      [LexYield (expr) (CYield (rec-desugar expr))]
 
       ;; assert check is always enabled, it doesn't test __debug__ builtin variable.
       [LexAssert (test msg)
