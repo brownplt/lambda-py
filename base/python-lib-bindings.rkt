@@ -62,7 +62,7 @@
 (define len-lambda
   (CFunc (list 'self) (none)
     (CReturn
-      (CApp
+      (py-app
         (py-getfield
           (CId 'self (LocalId))
           '__len__)
@@ -73,7 +73,7 @@
 (define min-lambda
   (CFunc (list 'self) (none)
     (CReturn
-      (CApp
+      (py-app
         (py-getfield
           (CId 'self (LocalId))
           '__min__)
@@ -84,7 +84,7 @@
 (define max-lambda
   (CFunc (list 'self) (none)
     (CReturn
-      (CApp
+      (py-app
         (py-getfield
           (CId 'self (LocalId))
           '__max__)
@@ -95,7 +95,7 @@
 (define abs-lambda
   (CFunc (list 'self) (none)
     (CReturn
-      (CApp
+      (py-app
         (py-getfield
           (CId 'self (LocalId))
           '__abs__)

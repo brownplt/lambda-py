@@ -45,7 +45,6 @@ primitives here.
 (define (is-func? argvs env sto)
   (cond
     [(is-fun? (first argvs)) (some true-val)]
-    [(object-is? (first argvs) '%method env sto) (some true-val)]
     [else (some false-val)]))
 
 (define (num+ args env sto)

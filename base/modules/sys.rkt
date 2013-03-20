@@ -17,7 +17,7 @@
     (CAssign (CGetField sys-id '__name__)
              (make-builtin-str "sys"))
     (CAssign (CGetField sys-id 'modules)
-             (CApp (CId '%dict (GlobalId))
+             (py-app (CId '%dict (GlobalId))
                    (list
                     (CList (CId '%list (GlobalId))
                            (list

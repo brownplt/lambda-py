@@ -26,7 +26,7 @@
                   (CFunc (list 'self) (some 'args)
                         (CIf (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
                              (CReturn (py-num 0))
-                             (CReturn (CApp (py-getfield (py-getitem 'args 0) '__int__)
+                             (CReturn (py-app (py-getfield (py-getitem 'args 0) '__int__)
                                             (list)
                                             (none))))
                         (some 'int)))
@@ -54,7 +54,7 @@
                   (CFunc (list 'self) (some 'args)
                         (CIf (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
                              (CReturn (py-num 0))
-                             (CReturn (CApp (py-getfield (py-getitem 'args 0) '__float__)
+                             (CReturn (py-app (py-getfield (py-getitem 'args 0) '__float__)
                                             (list)
                                             (none))))
                          (some 'float)))
@@ -103,7 +103,7 @@
              
              (def 'num '__div__ 
                   (CFunc (list 'self 'other)  (none)
-                         (CIf (CApp (py-getfield (CId 'other (LocalId)) '__eq__) 
+                         (CIf (py-app (py-getfield (CId 'other (LocalId)) '__eq__) 
                                     (list (make-builtin-num 0))
                                     (none))
 ;
@@ -117,7 +117,7 @@
              
              (def 'num '__floordiv__ 
                   (CFunc (list 'self 'other)  (none)
-                         (CIf (CApp (py-getfield (CId 'other (LocalId)) '__eq__) 
+                         (CIf (py-app (py-getfield (CId 'other (LocalId)) '__eq__) 
                                     (list (make-builtin-num 0))
                                     (none))
                               (CRaise (some (make-exception 'ZeroDivisionError
@@ -130,7 +130,7 @@
              
              (def 'num '__mod__ 
                   (CFunc (list 'self 'other)  (none)
-                         (CIf (CApp (py-getfield (CId 'other (LocalId)) '__eq__) 
+                         (CIf (py-app (py-getfield (CId 'other (LocalId)) '__eq__) 
                                     (list (make-builtin-num 0))
                                     (none))
                               (CRaise (some (make-exception 'ZeroDivisionError
