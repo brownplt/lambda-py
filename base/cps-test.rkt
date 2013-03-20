@@ -3,6 +3,7 @@
 (require
   "util.rkt"
   "builtins/num.rkt"
+  "builtins/str.rkt"
   "python-lib.rkt"
   "python-core-syntax.rkt"
   "python-interp.rkt"
@@ -209,3 +210,14 @@
                                 (Id 'exn)
                                 (CSym 'bar)))
       (VSym 'bar))
+
+(test (MetaStr-s (some-v (VObjectClass-mval
+      (cps-eval (CTryExceptElse
+                 (CTryExceptElse (CRaise (some (make-builtin-str "foo")))
+                                 'exn
+                                 (CRaise (none))
+                                 (CSym 'bar))
+                 'exn
+                 (Id 'exn)
+                 (CSym 'goo))))))
+      "foo")

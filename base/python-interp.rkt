@@ -273,11 +273,28 @@
     [CUndefined () (v*s (VUndefined) sto)]
 
     [CGetField (value attr)
-    (begin
-      ;(display "Getting field ") (display attr) (display "from: \n") (display value)
-      ;(display "\n\n")
-               (handle-result env (interp-env value env sto stk)
-                          (lambda (vval sval) (get-field attr vval env sval))))]
+               (error 'interp-env "CGetField is supported only as target for CAssign")]
+    [CGetAttr (value attr)
+     (begin
+     ;(display "CGetAttr ") (display attr) (display "from: \n") (display value)
+     ;(display "\n\n")
+     (handle-result env (interp-env value env sto stk)
+      (lambda (vval sval)
+       (handle-result env (interp-env attr env sval stk)
+        (lambda (vattr sattr)
+          (cond
+            [(and (is-obj-ptr? vval sattr) (is-obj-ptr? vattr sattr))
+             (type-case CVal (fetch-ptr vval sattr)
+              [VObjectClass (_ __ the-dict ___)
+               (type-case CVal (fetch-ptr vattr sattr)
+                [VObjectClass (_ mval __ ___)
+                 (type-case MetaVal (some-v mval)
+                  [MetaStr (the-field)
+                    (get-field (string->symbol the-field) vval env sattr)]
+                  [else (mk-exception 'TypeError (format "Non-string in field lookup: ~a" vattr) env sto)])]
+                [else (error 'interp "is-obj-ptr? must have lied about the field in field lookup")])]
+              [else (mk-exception 'TypeError (format "Non-object in field lookup: ~a" vval) env sto)])]
+            [else (error 'interp (format "Non-object pointers in get-field: ~a" (cons vval vattr)))]))))))]
 			
     [CSeq (e1 e2) (type-case Result (interp-env e1 env sto stk)
                     [v*s (v1 s1) (interp-env e2 env s1 stk)]
@@ -526,7 +543,8 @@
                                                         s-module))))))])))]
     
     [CBreak () (Break sto)]
-    [CContinue () (Continue sto)])))
+    [CContinue () (Continue sto)]
+    [CYield (e) (error 'interp "Got to CYield; should not be possible, as yields should go away")])))
 
 (define (assign-to-id [id : CExpr] [value : CVal] [env : Env] [sto : Store]) : Result
   (local [(define mayb-loc 

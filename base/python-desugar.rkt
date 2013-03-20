@@ -199,7 +199,7 @@
                                         [desugared-value
                                          (rec-desugar value)]
                                         [target-id (new-id)])
-                                 (CApp (CGetField desugared-target '__setitem__)
+                                 (CApp (py-getfield desugared-target '__setitem__)
                                         (list 
                                               desugared-slice
                                               desugared-value)
@@ -211,7 +211,7 @@
                                    (define assigns
                                      (map2 (λ (t n) 
                                              (CAssign t (CApp
-                                                         (CGetField (CId '$tuple_result (LocalId)) 
+                                                         (py-getfield (CId '$tuple_result (LocalId)) 
                                                                     '__getitem__)
                                                          (list (make-builtin-num n))
                                                          (none))))
@@ -222,8 +222,13 @@
                                            (first assigns) (rest assigns))))]
                   ; The others become a CAssign.
                   [else
-                   (local [(define targets-r (map rec-desugar targets))
-                           (define value-r (rec-desugar value))]
+                   (local [
+                     (define (target-desugar target)
+                      (type-case LexExpr target
+                        [LexDotField (obj fld) (CGetField (rec-desugar obj) fld)]
+                        [else (rec-desugar target)]))
+                     (define targets-r (map target-desugar targets))
+                     (define value-r (rec-desugar value))]
                           (foldl (lambda (t so-far)
                                    (CSeq so-far (CAssign t value-r)))
                                  (CAssign (first targets-r) value-r)
@@ -260,6 +265,7 @@
                               (none)
                               (some expr-r))))]
 
+      [LexYield (expr) (CYield (rec-desugar expr))]
 
       ;; assert check is always enabled, it doesn't test __debug__ builtin variable.
       [LexAssert (test msg)
@@ -283,52 +289,52 @@
                        (define right-r (rec-desugar right))
                        (define right-c right-r)] 
                  (case op 
-                   ['Add (CApp (CGetField left-c '__add__) 
+                   ['Add (CApp (py-getfield left-c '__add__) 
                                (list right-c)
                                (none))]
-                   ['Sub (CApp (CGetField left-c '__sub__) 
+                   ['Sub (CApp (py-getfield left-c '__sub__) 
                                (list right-c)
                                (none))]
-                   ['Mult (CApp (CGetField left-c '__mult__)
+                   ['Mult (CApp (py-getfield left-c '__mult__)
                                 (list right-c)
                                 (none))]
-                   ['Div (CApp (CGetField left-c '__div__)
+                   ['Div (CApp (py-getfield left-c '__div__)
                                (list right-c)
                                (none))]
-                   ['FloorDiv (CApp (CGetField left-c '__floordiv__)
+                   ['FloorDiv (CApp (py-getfield left-c '__floordiv__)
                                     (list right-c)
                                     (none))]
-                   ['Mod (CApp (CGetField left-c '__mod__)
+                   ['Mod (CApp (py-getfield left-c '__mod__)
                                (list right-c)
                                (none))]
-                   ['BitAnd (CApp (CGetField left-c '__and__)
+                   ['BitAnd (CApp (py-getfield left-c '__and__)
                                   (list right-c)
                                   (none))]
-                   ['BitOr (CApp (CGetField left-c '__or__)
+                   ['BitOr (CApp (py-getfield left-c '__or__)
                                  (list right-c)
                                  (none))]
-                   ['BitXor (CApp (CGetField left-c '__xor__)
+                   ['BitXor (CApp (py-getfield left-c '__xor__)
                                   (list right-c)
                                   (none))]
-                   ['Eq (CApp (CGetField left-c '__eq__)
+                   ['Eq (CApp (py-getfield left-c '__eq__)
                               (list right-c)
                               (none))]
-                   ['Gt (CApp (CGetField left-c '__gt__)
+                   ['Gt (CApp (py-getfield left-c '__gt__)
                               (list right-c)
                               (none))]
-                   ['Lt (CApp (CGetField left-c '__lt__)
+                   ['Lt (CApp (py-getfield left-c '__lt__)
                               (list right-c)
                               (none))]
-                   ['LtE (CApp (CGetField left-c '__lte__)
+                   ['LtE (CApp (py-getfield left-c '__lte__)
                                (list right-c)
                                (none))]
-                   ['GtE (CApp (CGetField left-c '__gte__)
+                   ['GtE (CApp (py-getfield left-c '__gte__)
                                (list right-c)
                                (none))]
                    ['NotEq (rec-desugar (LexUnaryOp 'Not (LexBinOp left 'Eq right)))]
                    ['In (CApp (CFunc (list 'container 'test) (none)
                                      (CLet '__infunc__ (LocalId)
-                                           (CGetField (CId 'container (LocalId))
+                                           (py-getfield (CId 'container (LocalId))
                                                       '__in__)
                                            (CIf (CId '__infunc__ (LocalId))
                                                 (CReturn
@@ -356,7 +362,7 @@
                     ['USub (rec-desugar (LexBinOp (LexNum 0) 'Sub operand))]
                     ['UAdd (rec-desugar (LexBinOp (LexNum 0) 'Add operand))]
                     ['Invert (local [(define roperand (rec-desugar operand))]
-                               (CApp (CGetField roperand '__invrt__)
+                               (CApp (py-getfield roperand '__invrt__)
                                      (list)
                                      (none)))]
                     [else (CBuiltinPrim op (list (rec-desugar operand)))])]
@@ -451,7 +457,7 @@
                                (CLet left-id
                                      (LocalId)
                                      left-r
-                                     (CApp (CGetField left-var
+                                     (CApp (py-getfield left-var
                                                       '__slice__)
 
                                            (list slice-low
@@ -464,7 +470,7 @@
                                      left-r
                                      (CSeq
                                       (CTryExceptElse
-                                       (CGetField (CId left-id (LocalId))
+                                       (py-getfield (CId left-id (LocalId))
                                                       '__getitem__)
                                        exn-id
                                        (default-except-handler
@@ -473,7 +479,7 @@
                                                          'TypeError
                                                          "object is not subscriptable"))))
                                        (CNone))
-                                      (CApp (CGetField (CId left-id (LocalId))
+                                      (CApp (py-getfield (CId left-id (LocalId))
                                                        '__getitem__)
                                             (list slice-r)
                                             (none) ;TODO: not sure what to do with stararg.
@@ -510,7 +516,8 @@
       [LexInstanceId (x ctx)
                      (error 'desugar "should not encounter an instance ID!")]
 
-      [LexDotField (value attr) (CGetField (rec-desugar value) attr)]
+      [LexDotField (value attr) (py-getfield (rec-desugar value) attr)]
+      [LexExprField (value attr) (CGetAttr (rec-desugar value) (rec-desugar attr))]
 
       [LexTryExceptElse (try excepts orelse)
                         (local [(define try-r (rec-desugar try))
@@ -559,7 +566,7 @@
                                               [target-id (new-id)]
                                               [target-var (CId target-id (LocalId))])
                                        (CLet target-id (LocalId) desugared-target
-                                             (CApp (CGetField target-var
+                                             (CApp (py-getfield target-var
                                                               '__delitem__)
                                                    (list 
                                                     desugared-slice)
@@ -568,7 +575,7 @@
                                             (LexAssign (list (LexLocalId x ctx)) (LexUndefined)))]
                        [LexGlobalId (x ctx) (rec-desugar
                                             (LexAssign (list (LexGlobalId x ctx)) (LexUndefined)))]
-                       [else (error 'desugar "We don't know how to delete this yet.")]))
+                       [else (error 'desugar (string-append "We don't know how to delete this yet: " (to-string target)))]))
                   (define (make-sequence [exprs : (listof CExpr)] )
                      (cond
                       [(empty? exprs) (error 'make-sequence "went too far")]

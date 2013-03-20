@@ -69,6 +69,8 @@
               [PyTryFinally (try finally)
                             (LexTryFinally (recur try)
                                            (recur finally))]
+              ; yield
+              [PyYield (expr) (LexYield (recur expr))]
                                         ;loops 
               [PyWhile (test body orelse)
                        (LexWhile (recur test) (recur body) (recur orelse))]
@@ -183,6 +185,8 @@
               [LexTryFinally (try finally)
                              (LexTryFinally (recur try)
                                             (recur finally))]
+              ; yield
+              [LexYield (expr) (LexYield (recur expr))]
                                         ;loops 
               [LexWhile (test body orelse)
                        (LexWhile (recur test) (recur body) (recur orelse))]
@@ -197,6 +201,7 @@
               [LexClass (scope name bases body)
                        (LexClass scope name (recur bases) (recur body))]
               [LexDotField (value attr) (LexDotField (recur value) attr)]
+              [LexExprField (value attr) (LexExprField (recur value) (recur attr))]
 
                                         ; operations
               [LexBinOp (left op right) (LexBinOp (recur left) op (recur right))] 
@@ -297,6 +302,9 @@
                             (flatten (list
                                        (list (recur try))
                                        (list (recur finally))))]
+              ; yield
+              [PyYield (expr) (flatten (recur expr))]
+
                                         ;loops 
               [PyWhile (test body orelse)
                        (flatten (list (recur test) (recur body) (recur orelse)))]
@@ -412,6 +420,8 @@
                              (flatten (list
                                         (list (recur try))
                                         (list (recur finally))))]
+              ; yield
+              [LexYield (expr) (flatten (recur expr))]
                                         ;loops 
               [LexWhile (test body orelse)
                        (flatten (list (recur test) (recur body) (recur orelse)))]
@@ -427,6 +437,7 @@
               [LexClass (scope name bases body)
                        (flatten (list (recur bases) (recur body)))]
               [LexDotField (value attr)  (recur value)]
+              [LexExprField (value attr)  (flatten (list (recur value) (recur attr)))]
 
                                         ; operations
               [LexBinOp (left op right) (flatten (list (recur left) (recur right)))] 

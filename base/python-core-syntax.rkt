@@ -17,7 +17,8 @@ ParselTongue.
   [CFalse]
   [CNone]
   [CObject (class : CExpr) (bval : (optionof MetaVal))]
-  [CGetField (value : CExpr) (attr : symbol)]
+  [CGetField (value : CExpr) (attr : symbol)] ; Only supported as target for assignment
+  [CGetAttr (value : CExpr) (attr : CExpr)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
   [CAssign (target : CExpr) (value : CExpr)]
   [CIf (test : CExpr) (then : CExpr) (else : CExpr)]
@@ -34,6 +35,7 @@ ParselTongue.
   [CRaise (expr : (optionof CExpr))]
   [CTryExceptElse (try : CExpr) (exn-id : symbol) (excepts : CExpr) (orelse : CExpr)]
   [CTryFinally (try : CExpr) (finally : CExpr)]
+  [CYield (expr : CExpr)]
   [CUndefined]
   [CBreak]
   [CContinue]
