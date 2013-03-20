@@ -22,6 +22,9 @@
 (define (python-test-runner _ port)
   (run-python port))
 
+(define (python-test-runner-nopy _ port)
+  (run-python-nopy port))
+
 (define (run-python port)
   (interp
     (python-lib
@@ -84,7 +87,7 @@
       (desugar
         (new-scope-phase
 	 (get-structured-python
-	   (parse-python (get-python-lexer port))))))))
+	   (parse-python port)))))))
 
 
 (command-line
@@ -121,15 +124,15 @@
   ("--get-parse-tree" "Get AST from experimental parser"
    (pretty-write (get-parse-tree (current-input-port))))
 
-  ("--get-ragg-sexp" "Get AST from experimental parser"
-   (pretty-write (get-ragg-sexp (current-input-port))))
-
   ("--interp-nopy" "Interpret stdin as python"
    (run-python-nopy (current-input-port)))
 
   
   ("--test" dirname "Run all tests in dirname"
    (display (results-summary (run-tests (mk-proc-eval/silent python-test-runner) dirname))))
+
+  ("--test-nopy" dirname "Run all tests in dirname using racket lexer/parser"
+   (display (results-summary (run-tests (mk-proc-eval/silent python-test-runner-nopy) dirname))))
 
   ("--test-py" dirname "Run all tests in dirname using python"
    (display (results-summary (run-tests (mk-python-cmdline-eval (get-pypath)) dirname))))

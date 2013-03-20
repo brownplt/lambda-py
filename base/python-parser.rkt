@@ -27,6 +27,19 @@ Example:
 ;; Unless noted, unmatched cases are unhandled and matched cases are thought to be correct.
 ;; Some cases are very specific to covered set of python reference tests at the moment.
 
+#|
+Some pseudo-types used in function names to help make this legible...
+
+(define (stmt? sexp)
+  (any expression that can be derived starting with stmt))
+
+(define (expr? sexp)
+  (any expression that can be derived starting with testlist (probably)))
+
+trailer, comp-op, suite and others should match their car.
+|#
+
+
 (define (parse-python port)
   (module->ast (syntax->datum (parse (get-python-lexer port)))))
 
@@ -46,18 +59,6 @@ Example:
        'varargannotation #\nul
        'kw_defaults '()
        'kwonlyargs '()))
-
-#|
-Some pseudo-types used in function names to help make this legible...
-
-(define (stmt? sexp)
-  (any expression that can be derived starting with stmt))
-
-(define (expr? sexp)
-  (any expression that can be derived starting with testlist (probably)))
-
-trailer, comp-op, suite and others should match their car.
-|#
 
 (define (module->ast py-ragg)
   (match py-ragg
@@ -379,18 +380,15 @@ trailer, comp-op, suite and others should match their car.
 		 'value left-ast
 		 'slice (ast 'nodetype "Index"
 			     'value index))))
-#|	 (define (subscript->ast |#
 	 (match trailer
 	   [`(trailer "(" ")") (call-ast '())]
 	   ;; arglist TODO... Almost everything
 	   [`(trailer "(" (arglist ,rest ...) ")") (call-ast (more-args rest '()))]
 	   [`(trailer "." (name . ,name)) (attr-ast name)]
-	   ;; subscriptlist TODO... "...", multiple indexes, slices
+	   ;; subscriptlist TODO... "...", multiple indexes, multiple indexes w/slices
 	   [`(trailer "[" (subscriptlist (subscript ,index)) "]") 
 	    (subscript-index-ast (expr->ast index "Load"))]
 	   
-	   ;; I am not yet enlightened.
-	   ;; TODO: The general case
 	   [`(trailer "[" (subscriptlist (subscript ":" (sliceop ":"))) "]")
 	    (subscript-slice-ast #\nul #\nul #\nul)]
 	   [`(trailer "[" (subscriptlist (subscript ,start ":" (sliceop ":"))) "]")
