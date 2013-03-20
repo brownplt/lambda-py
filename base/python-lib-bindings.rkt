@@ -154,7 +154,7 @@
         (bind 'abs (assign 'abs abs-lambda))
 
         (bind 'locals (assign 'locals locals-lambda))
-		(bind '%locals (assign '%locals (CFunc empty empty (CReturn (CNone)) (none))))
+		(bind '%locals (assign '%locals (CFunc empty (none) (CReturn (CNone)) (none))))
 
         (bind 'BaseException base-exception)
         (bind 'Exception (assign 'Exception (make-exception-class 'Exception)))
