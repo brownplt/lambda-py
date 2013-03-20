@@ -434,4 +434,9 @@
 
 ;; sintactic sugar to get a field from an object
 (define (py-getfield [value : CExpr] [attr : symbol]) : CExpr
-  (CGetAttr value (make-builtin-str (symbol->string attr))))
+  (cond
+    ;; special attribute __class__
+    [(eq? attr '__class__)
+     (CBuiltinPrim '$class (list value))]
+    [else
+     (CGetAttr value (make-builtin-str (symbol->string attr)))]))

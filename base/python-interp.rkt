@@ -609,9 +609,6 @@
                     (symbol->string n))
                    e
                    s)]
-     ;; special attribute __class__
-    [(eq? n '__class__)
-     (v*s (get-class (fetch-ptr cptr s) e s) s)]
     [(is-special-method? n)
      ;; special methods are looked for in the class
      (get-field-from-obj n cptr (none) e s)]
@@ -775,8 +772,8 @@
          ;(display " ") (display (fetch-ptr objptr sto)) (display "\n\n")
   (let ([obj (fetch-ptr objptr sto)])
     (cond
-      ;; for method objects, __call__ attribute is the object itself
-      [(and (object-is? obj '%method env sto) (equal? fld '__call__))
+      ;; for function and method objects, __call__ attribute is the object itself
+      [(and (or (is-fun? obj) (object-is? obj '%method env sto)) (equal? fld '__call__))
        (v*s objptr sto)]
       ;; special lookup handling for initialized super object
       [(and (object-is? obj '%super env sto)
