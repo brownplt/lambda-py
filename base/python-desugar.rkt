@@ -69,6 +69,21 @@
      (DResult-env body))))
 |#
 
+(define (desugar-locals [ids : (listof symbol)]) : LexExpr
+  (LexAssign (list (LexGlobalId '%locals 'Store)) 
+			 (LexFunc 'locals empty empty 
+					  (LexReturn 
+					   (LexDict 
+						(map (lambda (y) (LexStr (symbol->string y))) ids)
+						(map (lambda (y) (LexTryExceptElse 
+										  (LexLocalId y 'load) 
+										  (list 
+										   (LexExcept 
+											(list (LexGlobalId 'UnboundLocalError 'Load))
+											(LexStr "this isn't actually bound right now")))
+										  (LexPass))) ids)))
+					  empty (none))))
+
 (define (desugar-for [target : LexExpr] [iter : LexExpr]
                      [body : LexExpr]) : CExpr
   (local [(define iter-id (new-id))]
@@ -237,7 +252,7 @@
       [LexLocalLet (x bind body) (CLet x (LocalId) (rec-desugar bind) (rec-desugar body))]
       ;hopefully this will come in handy for whatever we decide to do with locals
       ;right now it's just a stub.
-      [LexInScopeLocals (ids) (rec-desugar (LexPass))]
+      ;[LexInScopeLocals (ids) (rec-desugar (desugar-locals ids))]
       [LexUndefined () (CUndefined)]  
       [LexRaise (expr) (local [(define expr-r
                                  (if (or (LexLocalId? expr) (LexGlobalId? expr))

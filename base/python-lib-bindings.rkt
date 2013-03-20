@@ -105,8 +105,7 @@
 
 (define locals-lambda
   (CFunc (list) (none)
-         (CReturn
-          (CBuiltinPrim '$locals empty))
+         (CReturn (CApp (CId '%locals (GlobalId)) (list) (none)))
          (none)))
 
 ;; TODO: if source contains null bytes, it should raise TypeError
@@ -155,6 +154,7 @@
         (bind 'abs (assign 'abs abs-lambda))
 
         (bind 'locals (assign 'locals locals-lambda))
+		(bind '%locals (assign '%locals (CFunc empty (none) (CReturn (CNone)) (none))))
 
         (bind 'BaseException base-exception)
         (bind 'Exception (assign 'Exception (make-exception-class 'Exception)))
