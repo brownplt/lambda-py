@@ -72,6 +72,15 @@
       (pylam (K R E B C) (pyapp (Id K) v)))
   ]
   (type-case CExpr expr
+    ;; NOTE(dbp): yield is a special case, and isn't really getting CPSd at all; instead
+    ;; it is glueing together the generator, exploiting what it knows about the environment
+    ;; that this CPSd code is in.
+    [CYield (expr)
+      (pylam (K R E B C)
+        (pyapp (cps expr)
+          (pylam (V)
+            (CSeq (CAssign (CGetField (Id 'self) '%resume) Ki)
+                  (CReturn Vi)))))]
     [CSym (s) (const expr)]
     [CTrue () (const expr)]
     [CFalse () (const expr)]
@@ -296,3 +305,156 @@
                  [VPointer (p) (fetch-once p s)]
                  [else v])]
     [else (error 'cps-eval (format "Abnormal return: ~a" result))])))
+
+
+(define (has-yield? [expr : CExpr])
+  (type-case CExpr expr
+    [CSeq (e1 e2)
+          (or (has-yield? e1)
+              (has-yield? e2))]
+    [CAssign (target value)
+             (or (has-yield? target)
+                 (has-yield? value))]
+    [CIf (test then els)
+         (or (has-yield? test)
+             (has-yield? then)
+             (has-yield? els))]
+    [CLet (x type bind body)
+          (or (has-yield? bind) (has-yield? body))]
+    [CApp (fun args stararg)
+          (or (has-yield? fun)
+                (foldr (lambda (a b) (or a b)) false (map has-yield? args))
+                (if (some? stararg) (has-yield? (some-v stararg)) false))]
+    [CWhile (test body orelse)
+            (or (has-yield? test)
+                (has-yield? body)
+                (has-yield? orelse))]
+    [CRaise (expr) (if (some? expr) (has-yield? (some-v expr)) false)]
+    [CTryExceptElse (try exn-id excepts orelse)
+                    (or (has-yield? try)
+                        (has-yield? excepts)
+                        (has-yield? orelse))]
+    [CTryFinally (try finally) (or (has-yield? try)
+                                   (has-yield? finally))]
+    [CModule (prelude body) (or (has-yield? prelude)
+                                (has-yield? body))]
+    [CConstructModule (source)
+                      (has-yield? source)]
+    [CYield (expr) true]
+    ;; functions and primitive values; yields don't go past functions,
+    ;; and primitive values can't have them.
+    [else false]))
+
+(define (desugar-generators [expr : CExpr])
+  (type-case CExpr expr
+    ;; Func is the interesting case; if it has a yield, create a generator object.
+    [CFunc
+     (args varargs body opt-class)
+     (if (has-yield? body)
+         (let [(kill-generator (CAssign (CGetField (Id 'self) '__next__)
+                                                    (CFunc
+                                                     (list 'self) (none)
+                                                     (CRaise (some (make-exception
+                                                                    'StopIteration
+                                                                    "generator terminated")))
+                                                     ;; NOTE(dbp): is this the right symbol?
+                                                     (some '%generator))))]
+         (CFunc
+          (args
+           varargs
+           (CReturn (pyapp (gid '%generator)
+                           ;; NOTE(dbp): we pass in an initializing function and
+                           ;; a __next__ function.
+                           (CFunc (list 'self) (none)
+                                  (CAssign (CGetField (Id 'self) '%resume)
+                                          (pyapp
+                                           (cps body)
+                                           ;; NOTE(dbp):
+                                           ;; if we ever end, this is a StopIteration exception,
+                                           ;; and we kill the generator
+                                           (pylam
+                                            (V)
+                                            (CSeq
+                                             kill-generator
+                                             (CRaise (some (make-exception 'StopIteration
+                                                                           "generator terminated")))))
+                                          ;; NOTE(dbp): return inside generators is illegal...
+                                          ;; so in a sense our even handling this case is a little
+                                          ;; odd...
+                                         (pylam
+                                          (V)
+                                          (CSeq
+                                           kill-generator
+                                          (CRaise (some
+                                                   (make-exception 'SyntaxError
+                                                                   "return in generator - bad!")))))
+                                         ;; NOTE(dbp):
+                                         ;; an uncaught exception within the generator propogates
+                                         ;; it and kills the generator (see gen-exception.py test)
+                                         (pylam
+                                          (V)
+                                          (CSeq
+                                           kill-generator
+                                           (CRaise (some Vi))))
+                                         ;; break and continue are illegal (SyntaxErrors).
+                                         ;; they should not get here; if they do, we are
+                                         ;; seriously hosed. For now, just kill the generator,
+                                         ;; but really, more serious measures should be made.
+                                         (pylam
+                                          (V)
+                                          (CSeq
+                                           kill-generator
+                                          (CRaise (some
+                                                   (make-exception 'SyntaxError
+                                                                   "break outside of loop - bad!")))))
+                                         (pylam
+                                          (V)
+                                          (CRaise (some
+                                                   (make-exception 'SyntaxError
+                                                                   "continue outside of loop - bad!")))))))
+                           ;; TODO(dbp): handle passing arguments back to the generator
+                           (CFunc (list 'self) (none)
+                                  (pyapp (CGetField (Id 'self) '%resume)
+                                         (Id 'self)
+                                         (CNone))
+                                  (some '%generator)))
+
+                    (none)))))
+         (CFunc args varargs (desugar-generators body) opt-class))]
+    ;; All the rest is pure recursion
+    [CSeq (e1 e2)
+          (CSeq (desugar-generators e1)
+                (desugar-generators e2))]
+    [CAssign (target value)
+             (CAssign (desugar-generators target)
+                      (desugar-generators value))]
+    [CIf (test then els)
+         (CIf (desugar-generators test)
+              (desugar-generators then)
+              (desugar-generators els))]
+    [CLet (x type bind body)
+          (CLet x type (desugar-generators bind) (desugar-generators body))]
+    [CApp (fun args stararg)
+          (CApp (desugar-generators fun)
+                (map desugar-generators args)
+                (if (some? stararg) (some (desugar-generators (some-v stararg))) stararg))]
+    [CWhile (test body orelse)
+            (CWhile (desugar-generators test)
+                    (desugar-generators body)
+                    (desugar-generators orelse))]
+    [CRaise (expr) (if (some? expr)
+                       (CRaise (some (desugar-generators (some-v expr))))
+                       (CRaise expr))]
+    [CTryExceptElse (try exn-id excepts orelse)
+                    (CTryExceptElse (desugar-generators try)
+                                    exn-id
+                                    (desugar-generators excepts)
+                                    (desugar-generators orelse))]
+    [CTryFinally (try finally) (CTryFinally (desugar-generators try)
+                                            (desugar-generators finally))]
+    [CModule (prelude body) (CModule (desugar-generators prelude)
+                                     (desugar-generators body))]
+    [CConstructModule (source)
+                      (CConstructModule (desugar-generators source))]
+    [CYield (expr) (error 'desugar-generators "Should not have been able to get a CYield")]
+    [else expr]))

@@ -78,6 +78,7 @@ that calls the primitive `print`.
                      "pylib/file.py"
                      "pylib/isinstance.py"
                      "pylib/callable.py"
+                     "pylib/generator.py"
                      "py-prelude.py"
                     ))))
          (some-v pylib-programs))]

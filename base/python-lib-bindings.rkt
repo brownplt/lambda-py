@@ -238,6 +238,8 @@
             (bind '__import__ (CUndefined))
             (bind 'callable (CUndefined))
             (bind '%callable (CUndefined))
+            (bind 'generator (CUndefined))
+            (bind '%generator (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))
