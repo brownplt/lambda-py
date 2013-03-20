@@ -130,12 +130,11 @@
        (let ((replaced-locals (replace-all-locals  (replace-all-instance (pre-desugar expr)) empty empty)))
          (let ((fully-transformed (make-all-global replaced-locals))) 
             (remove-unneeded-pypass
-             (remove-nonlocal
               (remove-global
                (replace-lexmodule
                 (remove-unneeded-assigns
                  (process-syntax-errors
-                  (bind-locals fully-transformed)))))))))) ;surround every block with PyLet of locals
+                  (bind-locals fully-transformed))))))))) ;surround every block with PyLet of locals
 
 (define (replace-lexmodule expr)
   (lexexpr-modify-tree expr
@@ -234,13 +233,6 @@
        [PyLexGlobal(y) (LexPass)]
        [else (default-recur)]))))
 
-(define (remove-nonlocal expr)
-  (lexexpr-modify-tree
-   expr
-   (lambda (x)
-     (type-case LexExpr x
-       [PyLexNonLocal(y) (LexPass)]
-       [else (default-recur)]))))
 
 (define (remove-unneeded-pypass expr)
   (lexexpr-modify-tree

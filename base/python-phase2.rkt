@@ -18,14 +18,17 @@
 (define (phase2 expr)
   (LexModule
    (list 
+	;(LexInScopeLocals empty)
+	;(phase2-locals empty)
     (optimization-pass
      (let-phase
-      (remove-blocks
-       (make-local-list
-        empty
-        (collapse-pyseq
-         (post-desugar
-          expr)))))))))
+	  (remove-nonlocal
+	   (remove-blocks
+		(make-local-list
+		 empty
+		 (collapse-pyseq
+		  (post-desugar
+		   expr))))))))))
 
 (define (post-desugar [expr : LexExpr]) : LexExpr
     (local
@@ -292,6 +295,15 @@
                            [else (LexSeq new-es)]))]
                  [else (default-recur)]))))
 
+(define (remove-nonlocal expr)
+  (lexexpr-modify-tree
+   expr
+   (lambda (x)
+     (type-case LexExpr x
+       [PyLexNonLocal(y) (LexPass)]
+       [else (default-recur)]))))
+
+
 (define (remove-blocks expr)
   (lexexpr-modify-tree
    expr
@@ -309,8 +321,10 @@
        (type-case LexExpr y
          [LexBlock (_ __) empty]
          [LexLocalId (x ctx) (list x)]
+		 [PyLexNonLocal (ids) ids]
          [else (default-recur)])))
     starting-locals)))
+
 
 (define (move-past-local-lets-helper [new-expr : LexExpr]
                                      [listof-exprs : (listof LexExpr)]) :
@@ -348,15 +362,35 @@
                                    ;(display (string-append (to-string potential-excepts) "\n"))
                                    potential-excepts)))])]))
 
+
+;this is the same a desugar-locals.  I'm moving things directly into this file.
+;largely for ease of testing (I can read this code; desugared code not so much)
+(define (phase2-locals [ids : (listof symbol)]) : LexExpr
+  (LexAssign (list (LexGlobalId '%locals 'Store)) 
+			 (LexFunc 'locals empty empty 
+					  (LexReturn 
+					   (LexDict 
+						(map (lambda (y) (LexStr (symbol->string y))) ids)
+						(map (lambda (y) (LexTryExceptElse 
+										  (LexLocalId y 'load) 
+										  (list 
+										   (LexExcept 
+											(list (LexGlobalId 'UnboundLocalError 'Load))
+											(LexStr "this isn't actually bound right now")))
+										  (LexPass))) ids)))
+					  empty (none))))
+
+
 (define (make-local-list [starting-locals : (listof symbol)]
                          [expr : LexExpr] ) : LexExpr
-  (lexexpr-modify-tree
+expr
+                         #;(lexexpr-modify-tree
    expr
    (lambda (y)
      (type-case LexExpr y
        [LexBlock (nls body)
                  (let ((locals (collect-locals-in-scope body starting-locals)))
-                   (LexBlock nls (move-past-local-lets (LexInScopeLocals locals)
+                   (LexBlock nls (move-past-local-lets (phase2-locals locals)
                                                (make-local-list locals body))))]
        [LexTryExceptElse (try except el)
                          (LexTryExceptElse
@@ -364,7 +398,7 @@
                           (map (lambda (y)
                                  (begin
                                    (move-past-LexExcept
-                                    (LexInScopeLocals starting-locals)
+                                    (phase2-locals starting-locals)
                                     (make-local-list starting-locals y))
                                  ;(make-local-list starting-locals y)
                                    )) except)
@@ -373,7 +407,7 @@
                       (LexTryFinally
                        (make-local-list starting-locals try)
                        (LexSeq (list
-                                (LexInScopeLocals starting-locals)
+                                (phase2-locals starting-locals)
                                 (make-local-list starting-locals finally)))
                        )]
        [else (default-recur)]))))
