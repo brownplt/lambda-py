@@ -201,6 +201,7 @@ trailer, comp-op, suite and others should match their car.
      (error (string-append "Unhandled grammar"))]))
 
 ;; Destructure ragg python expressions to python ast with ctx value appropriate to the statement, expression, and position.
+;; I'm assuming for now that this will handle testlist *and* test, in all cases.
 ;; I believe the expr-ctx passed on will inherently be "Load" in almost all cases, 
 ;; but I'm passing expr-ctx forward until I'm sure.
 (define (expr->ast py-ragg expr-ctx)
@@ -350,7 +351,7 @@ trailer, comp-op, suite and others should match their car.
 
 ;; string * trailer * ast -> ast
 ;; Only handles function calls with positional args
-;; 
+;; Assume for now that expr-ctx will always be valid.
 (define (wrap-with-trailer trailer expr-ctx left-ast)
   (local ((define (call-ast arglist)
 	    (ast 'nodetype "Call"
@@ -364,20 +365,44 @@ trailer, comp-op, suite and others should match their car.
 		 'ctx (ast 'nodetype expr-ctx)
 		 'attr attr
 		 'value left-ast))
+	  (define (subscript-slice-ast lower upper step)
+	    (ast 'nodetype "Subscript"
+		 'value left-ast
+		 'ctx (ast 'nodetype expr-ctx)
+		 'slice (ast 'nodetype "Slice"
+			     'lower lower
+			     'upper upper
+			     'step step)))
 	  (define (subscript-index-ast index)
 	    (ast 'nodetype "Subscript"
 		 'ctx (ast 'nodetype expr-ctx)
 		 'value left-ast
 		 'slice (ast 'nodetype "Index"
-			     'value index)))
-)
+			     'value index))))
+#|	 (define (subscript->ast |#
 	 (match trailer
 	   [`(trailer "(" ")") (call-ast '())]
 	   ;; arglist TODO... Almost everything
 	   [`(trailer "(" (arglist ,rest ...) ")") (call-ast (more-args rest '()))]
 	   [`(trailer "." (name . ,name)) (attr-ast name)]
 	   ;; subscriptlist TODO... "...", multiple indexes, slices
-	   [`(trailer "[" (subscriptlist (subscript ,index)) "]") (subscript-index-ast (expr->ast index expr-ctx))]
+	   [`(trailer "[" (subscriptlist (subscript ,index)) "]") 
+	    (subscript-index-ast (expr->ast index "Load"))]
+	   
+	   ;; I am not yet enlightened.
+	   ;; TODO: The general case
+	   [`(trailer "[" (subscriptlist (subscript ":" (sliceop ":"))) "]")
+	    (subscript-slice-ast #\nul #\nul #\nul)]
+	   [`(trailer "[" (subscriptlist (subscript ,start ":" (sliceop ":"))) "]")
+	    (subscript-slice-ast (expr->ast start "Load") #\nul #\nul)]
+	   [`(trailer "[" (subscriptlist (subscript ":" (sliceop ":" ,step))) "]" )
+	    (subscript-slice-ast #\nul #\nul (expr->ast step "Load"))]
+	   [`(trailer "[" (subscriptlist (subscript ,lower ":" (sliceop ":" ,step))) "]")
+	    (subscript-slice-ast (expr->ast lower "Load") #\nul (expr->ast step "Load"))]
+	   [`(trailer "[" (subscriptlist (subscript ,lower ":" ,upper (sliceop ":"))) "]")
+	    (subscript-slice-ast (expr->ast lower "Load") (expr->ast upper "Load") #\nul)] 
+	   [`(trailer "[" (subscriptlist (subscript ,lower ":" ,upper (sliceop ":" ,step))) "]")
+	    (subscript-slice-ast (expr->ast lower "Load") (expr->ast upper "Load") (expr->ast step "Load"))]
 	   [_ 
 	    (display "=== Unhandled trailer ===\n")
 	    (pretty-write trailer)
