@@ -34,9 +34,9 @@ Some pseudo-types used in function names to help make this legible...
   (any expression that can be derived starting with stmt))
 
 (define (expr? sexp)
-  (any expression that can be derived starting with testlist (probably)))
+  (any expression that can be derived starting with testlist_star_expr (probably)))
 
-trailer, comp-op, suite and others should match their car.
+trailer, comp-op, suite and others should match their car
 |#
 
 
@@ -326,11 +326,24 @@ trailer, comp-op, suite and others should match their car.
 	  'elts '()
 	  'ctx (ast 'nodetype "Load"))]
 
-    [(list 'atom "[" (list 'testlist_comp exprs ...) "]")
+    [(list 'atom "[" 
+	   (and (or (list 'testlist_comp _)
+		    (list 'testlist_comp _ "," _ ...))
+		(list 'testlist_comp exprs ...)) "]")
      (ast 'nodetype "List"
 	  'ctx (ast 'nodetype "Load")
 	  'elts (arglist->ast-list exprs '()))]
     
+    ;; TODO: comp_iter/comp_if (via fold?)
+    [(list 'atom "[" (list 'testlist_comp result-expr
+			   (list 'comp_for "for" bound-list "in" source-expr)) "]")
+     (ast 'nodetype "ListComp"
+	  'elt (expr->ast result-expr "Load")
+	  'generators (list (ast 'nodetype "comprehension"
+				 'target (exprlist->ast bound-list "Store")
+				 'iter (expr->ast source-expr "Load")
+				 'ifs '())))]
+
     ;; No tuples for now
     [(list 'atom "(" expr ")")
      (expr->ast expr expr-ctx)]
@@ -431,3 +444,11 @@ trailer, comp-op, suite and others should match their car.
     [(list) (reverse acc)]
     [(list arg) (reverse (cons (expr->ast arg "Load") acc))]
     [(list arg "," rest ...) (arglist->ast-list rest (cons (expr->ast arg "Load") acc))]))
+
+(define (exprlist->ast lst expr-ctx)
+  (match lst
+    [(list 'exprlist expr) (expr->ast expr expr-ctx)]
+    [(list 'exprlist rest ...)
+     (ast 'nodetype "Tuple"
+	  'ctx (ast 'nodetype expr-ctx)
+	  'elts (map (lambda (e) (expr->ast e expr-ctx)) (every-other rest)))]))
