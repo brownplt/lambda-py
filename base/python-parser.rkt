@@ -2,7 +2,7 @@
 
 (require racket/match
 	 "python-lexer.rkt"
-	 "python-grammar.rkt")
+	 "python-grammar-3.2.rkt")
 
 (provide parse-python)
 
@@ -173,7 +173,7 @@ trailer, comp-op, suite and others should match their car.
     ;; funcdef TODO: Almost everything 
     [`(funcdef "def" 
 	       (name . ,name) 
-	       (parameters "(" (varargslist (fpdef (name . ,args)) ...) ")") ":" ,suite)
+	       (parameters "(" (typedargslist (tfpdef (name . ,args)) ...) ")") ":" ,suite)
      (ast 'nodetype "FunctionDef"
 	  'body (suite->ast-list suite)
 	  'args (args-ast args)
@@ -202,10 +202,10 @@ trailer, comp-op, suite and others should match their car.
 	  'starargs #\nul
 	  'keywords '())]
 
-    [`(classdef "class" (name . ,name) "(" ,supertypes ... ")" ":" ,suite)
+    [`(classdef "class" (name . ,name) "(" (arglist ,supertypes ...) ")" ":" ,suite)
      (ast 'nodetype "ClassDef"
 	  'body (suite->ast-list suite)
-	  'bases (more-args supertypes '())
+	  'bases (arglist->ast-list supertypes '())
 	  'name name
 	  'decorator_list '()
 	  'kwargs #\nul
@@ -225,7 +225,7 @@ trailer, comp-op, suite and others should match their car.
   (match py-ragg
 
     #| Expression fallthroughs... |#
-    [(list (or 'argument 'testlist_comp 'testlist 'test 'or_test 'and_test 'not_test 'comparison 'expr 'xor_expr 'and_expr 'shift_expr 'arith_expr 'term 'factor 'power) expr)
+    [(list (or 'argument 'testlist_comp 'testlist_star_expr 'testlist 'test 'or_test 'and_test 'not_test 'comparison 'expr 'xor_expr 'and_expr 'shift_expr 'arith_expr 'term 'factor 'power) expr)
      (expr->ast expr expr-ctx)]
     
     ;; Single item is caught above.
@@ -326,17 +326,10 @@ trailer, comp-op, suite and others should match their car.
 	  'elts '()
 	  'ctx (ast 'nodetype "Load"))]
 
-    ;; TODO: list_iter, list_if (fold)
-#|    
-    [(list 'atom "[" (list 'listmaker bound (list 'list_for "for" expr-list "in" test-list)) "]")
-     (
-      ; more-args expr-list
-      ; more-args test-list
-|#
-    [(list 'atom "[" (list 'listmaker exprs ...) "]")
+    [(list 'atom "[" (list 'testlist_comp exprs ...) "]")
      (ast 'nodetype "List"
 	  'ctx (ast 'nodetype "Load")
-	  'elts (more-args exprs '()))]
+	  'elts (arglist->ast-list exprs '()))]
     
     ;; No tuples for now
     [(list 'atom "(" expr ")")
@@ -404,7 +397,7 @@ trailer, comp-op, suite and others should match their car.
 	 (match trailer
 	   [`(trailer "(" ")") (call-ast '())]
 	   ;; arglist TODO... Almost everything
-	   [`(trailer "(" (arglist ,rest ...) ")") (call-ast (more-args rest '()))]
+	   [`(trailer "(" (arglist ,rest ...) ")") (call-ast (arglist->ast-list rest '()))]
 	   [`(trailer "." (name . ,name)) (attr-ast name)]
 	   ;; subscriptlist TODO... "...", multiple indexes, multiple indexes w/slices
 	   [`(trailer "[" (subscriptlist (subscript ,index)) "]") 
@@ -433,8 +426,8 @@ trailer, comp-op, suite and others should match their car.
 	[else (cons (car lst) (every-other (cddr lst)))]))
 
 ;; Turns a comma-separated list of exprs (expr first) to an ast list of exprs
-(define (more-args arg-lst acc)
+(define (arglist->ast-list arg-lst acc)
   (match arg-lst
     [(list) (reverse acc)]
     [(list arg) (reverse (cons (expr->ast arg "Load") acc))]
-    [(list arg "," rest ...) (more-args rest (cons (expr->ast arg "Load") acc))]))
+    [(list arg "," rest ...) (arglist->ast-list rest (cons (expr->ast arg "Load") acc))]))
