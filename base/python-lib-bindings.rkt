@@ -62,8 +62,8 @@
 (define len-lambda
   (CFunc (list 'self) (none)
     (CReturn
-      (CApp
-        (CGetField
+      (py-app
+        (py-getfield
           (CId 'self (LocalId))
           '__len__)
         (list)
@@ -73,8 +73,8 @@
 (define min-lambda
   (CFunc (list 'self) (none)
     (CReturn
-      (CApp
-        (CGetField
+      (py-app
+        (py-getfield
           (CId 'self (LocalId))
           '__min__)
         (list)
@@ -84,8 +84,8 @@
 (define max-lambda
   (CFunc (list 'self) (none)
     (CReturn
-      (CApp
-        (CGetField
+      (py-app
+        (py-getfield
           (CId 'self (LocalId))
           '__max__)
         (list)
@@ -95,8 +95,8 @@
 (define abs-lambda
   (CFunc (list 'self) (none)
     (CReturn
-      (CApp
-        (CGetField
+      (py-app
+        (py-getfield
           (CId 'self (LocalId))
           '__abs__)
         (list)
@@ -105,8 +105,7 @@
 
 (define locals-lambda
   (CFunc (list) (none)
-         (CReturn
-          (CBuiltinPrim '$locals empty))
+         (CReturn (CApp (CId '%locals (GlobalId)) (list) (none)))
          (none)))
 
 ;; TODO: if source contains null bytes, it should raise TypeError
@@ -155,6 +154,7 @@
         (bind 'abs (assign 'abs abs-lambda))
 
         (bind 'locals (assign 'locals locals-lambda))
+		(bind '%locals (assign '%locals (CFunc empty (none) (CReturn (CNone)) (none))))
 
         (bind 'BaseException base-exception)
         (bind 'Exception (assign 'Exception (make-exception-class 'Exception)))
@@ -238,6 +238,8 @@
             (bind '__import__ (CUndefined))
             (bind 'callable (CUndefined))
             (bind '%callable (CUndefined))
+            (bind 'generator (CUndefined))
+            (bind '%generator (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))

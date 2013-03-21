@@ -30,6 +30,9 @@
                           (orelse : LexExpr)]
   [LexTryFinally (try : LexExpr) (finally : LexExpr)]
 
+  ;yield
+  [LexYield (expr : LexExpr)]
+
   ;loops 
   [LexWhile (test : LexExpr) (body : LexExpr) (orelse : LexExpr)]
   [LexFor (target : LexExpr) (iter : LexExpr) (body : LexExpr)]
@@ -41,6 +44,7 @@
   ; classes and objects 
   [LexClass (scope : LocalOrGlobal) (name : symbol) (bases : LexExpr) (body : LexExpr)]
   [LexDotField (value : LexExpr) (attr : symbol)]
+  [LexExprField (value : LexExpr) (attr : LexExpr)]
 
   ; operations
   [LexBinOp (left : LexExpr) (op : symbol) (right : LexExpr)] ;op = 'Add | 'Sub | etc

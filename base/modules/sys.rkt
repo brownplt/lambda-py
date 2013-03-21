@@ -21,7 +21,7 @@
                     (CReturn (make-builtin-str "sys.exc_info"))
                     (none)))
     (CAssign (CGetField sys-id 'modules)
-             (CApp (CId '%dict (GlobalId))
+             (py-app (CId '%dict (GlobalId))
                    (list
                     (CList (CId '%list (GlobalId))
                            (list

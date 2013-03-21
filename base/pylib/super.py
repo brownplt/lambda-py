@@ -11,7 +11,7 @@ class super(object):
       self.__thisclass__ = ___delta("tuple-getitem", args, 0)
       self.__self__ = ___delta("tuple-getitem", args, 1)
       isinstance = ___id("%isinstance")
-      isinstance = ___id("%issublcass")
+      issubclass = ___id("%issubclass")
       if not (isinstance(self.__self__, self.__thisclass__) or
               issubclass(self.__self__, self.__thisclass__)):
         raise TypeError("super(type, obj): obj must be an instance or subtype of type")

@@ -18,6 +18,29 @@ structure that you define in python-syntax.rkt
 (define (nodetype->symbol nodejson)
   (string->symbol (hash-ref nodejson 'nodetype)))
 
+(define (parse-func name body decorator-list args)
+  (cond
+   ; varargs
+   [(string?  (hash-ref args 'vararg))
+    (PyFuncVarArg (string->symbol name)
+                  (map (lambda(arg) 
+                         (string->symbol (hash-ref arg 'arg))) 
+                       (hash-ref args 'args)) 
+                  (string->symbol (hash-ref args 'vararg))
+                  (get-structured-python body)
+                  (map get-structured-python decorator-list))]
+   ; regular function
+   [else
+    (PyFunc (string->symbol name)
+            (map (lambda(arg)
+                   (string->symbol (hash-ref arg 'arg)))
+                 (hash-ref args 'args))
+            (map (lambda(arg) 
+                   (get-structured-python arg))
+                 (hash-ref args 'defaults)) 
+            (get-structured-python body)
+            (map get-structured-python decorator-list))]))
+
 (define (get-structured-python pyjson)
   (begin
   (match pyjson
@@ -151,29 +174,19 @@ structure that you define in python-syntax.rkt
                  ('decorator_list decorator-list)
                  ('args args)
                  ('returns returns))
-     (cond
-      ; varargs
-      [(string?  (hash-ref args 'vararg))
-       (PyFuncVarArg (string->symbol name)
-               (map (lambda(arg) 
-                      (string->symbol (hash-ref arg 'arg))) 
-                    (hash-ref args 'args)) 
-               (string->symbol (hash-ref args 'vararg))
-             (get-structured-python body)
-             (map get-structured-python decorator-list))]
+     (parse-func name body decorator-list args)]
 
-      ; regular function
-      [else
-       (PyFunc (string->symbol name)
-               (map (lambda(arg)
-                      (string->symbol (hash-ref arg 'arg)))
-                    (hash-ref args 'args))
-               (map (lambda(arg) 
-                      (get-structured-python arg))
-                    (hash-ref args 'defaults)) 
-               (get-structured-python body)
-               (map get-structured-python decorator-list))])]
-
+    [(hash-table ('nodetype "FunctionDef")
+                 ('name name)
+                 ('body body)
+                 ('decorator_list decorator-list)
+                 ('args args))
+     (parse-func name body decorator-list args)]
+    
+    [(hash-table ('nodetype "Yield")
+                 ('value val))
+     (PyYield (get-structured-python val))]
+    
     [(hash-table ('nodetype "Return")
                  ('value value))
      (PyReturn (get-structured-python value))]
