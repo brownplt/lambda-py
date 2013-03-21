@@ -145,18 +145,68 @@ trailer, comp-op, suite and others should match their car
 	  'test (expr->ast test "Load")
 	  'body (suite->ast-list suite1)
 	  'orelse (suite->ast-list suite2))]
+
+    ;; TODO: Less bad
+    [(list 'try_stmt "try" ":" try-suite rest ...)
+     (local ((define (more-clauses lst handler-ast-list orelse-ast-list finalbody-ast-list)
+	       (if (null? lst)
+		   (let ((try-except-ast 
+			  (ast 'nodetype "TryExcept"
+			       'body (suite->ast-list try-suite)
+			       'orelse orelse-ast-list
+			       'handlers (reverse handler-ast-list))))
+		     (if (null? finalbody-ast-list) 
+			 try-except-ast
+			 (ast 'nodetype "TryFinally"
+			      'body (list try-except-ast)
+			      'finalbody finalbody-ast-list)))
+		   (match lst
+		     [(list "finally" ":" finally-suite rest ...)
+		      (more-clauses rest
+				    handler-ast-list
+				    orelse-ast-list
+				    (suite->ast-list finally-suite))]
+		     [(list "else" ":" else-suite rest ...)
+		      (more-clauses rest
+				    handler-ast-list
+				    (suite->ast-list else-suite)
+				    finalbody-ast-list)]
+		     [(list (list 'except_clause "except" test "as" (cons 'name e-name)) ":" handler-suite rest ...)
+		      (more-clauses rest
+				    (cons 
+				     (ast 'nodetype "ExceptHandler"
+					  'body (suite->ast-list handler-suite) 
+					  'name e-name
+					  'type (expr->ast test "Load"))
+				     handler-ast-list)
+				    orelse-ast-list
+				    finalbody-ast-list)]
+		     [(list (list 'except_clause "except" test) ":" handler-suite rest ...)
+		      (more-clauses rest
+				    (cons 
+				     (ast 'nodetype "ExceptHandler"
+					  'body (suite->ast-list handler-suite) 
+					  'name #\nul
+					  'type (expr->ast test "Load"))
+				     handler-ast-list)
+				    orelse-ast-list
+				    finalbody-ast-list)]
+		     [(list (list 'except_clause "except") ":" handler-suite rest ...)
+		      (more-clauses rest
+				    (cons 
+				     (ast 'nodetype "ExceptHandler"
+					  'body (suite->ast-list handler-suite) 
+					  'name #\nul
+					  'type #\nul)
+				     handler-ast-list)
+				    orelse-ast-list
+				    finalbody-ast-list)]))))
+	    (more-clauses rest '() '() '()))]
     
-    ;; try_stmt TODO: All, this is a very special case
-    [(list 'try_stmt "try" ":" try-suite 
-	   (list 'except_clause "except" except-expr) ":" except-suite
-	   "else" ":" else-suite)
-     (ast 'nodetype "TryExcept"
+    [(list 'try_stmt "try" ":" try-suite "finally" ":" finally-suite)
+     (ast 'nodetype "TryFinally"
 	  'body (suite->ast-list try-suite)
-	  'orelse (suite->ast-list else-suite)
-	  'handlers (list (ast 'nodetype "ExceptHandler"
-			       'name #\nul
-			       'body (suite->ast-list except-suite)
-			       'type (expr->ast except-expr "Load"))))]
+	  'finalbody (suite->ast-list finally-suite))]
 
     [(list 'while_stmt "while" test-expr ":" body-suite)
      (ast 'nodetype "While"
@@ -355,9 +405,15 @@ trailer, comp-op, suite and others should match their car
 				 'iter (expr->ast source-expr "Load")
 				 'ifs (list (expr->ast if-expr "Load")))))]
 
-    ;; No tuples for now
+    ;; TODO: Tuples
     [(list 'atom "(" expr ")")
      (expr->ast expr expr-ctx)]
+
+    ;; Temporary bare dict form...
+    [(list 'atom "{" "}")
+     (ast 'nodetype "Dict"
+	  'values '()
+	  'keys '())]
 
     [_ 
      (display "=== Unhandled expression ===\n")
