@@ -1,4 +1,6 @@
 #lang plai-typed/untyped
+(require "python-core-syntax.rkt")
+
 
 (define-type LocalOrGlobal
   [Locally-scoped]
@@ -106,6 +108,7 @@
   [LexNone]
   [LexBreak]
   [LexContinue]
+  [LexCore (expr : CExpr)]
 
   ; import, which desugar to asname = __import__("name")
   [LexImport (names : (listof string)) (asnames : (listof symbol))]

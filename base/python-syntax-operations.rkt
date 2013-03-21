@@ -195,6 +195,7 @@
               
                                         ; pass & assert
               [LexPass () (LexPass)]
+              [LexCore (e) (LexCore e)]
               [LexAssert (test msg) (LexAssert (recur test) (map recur msg))]              
               
                                         ; classes and objects 
@@ -430,6 +431,7 @@
               
                                         ; pass & assert
               [LexPass () empty]
+              [LexCore (_) empty]
               [LexAssert (test msg)
                     (flatten (list (list (recur test)) (map recur msg)))]
               
