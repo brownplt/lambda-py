@@ -59,12 +59,17 @@
              [Abnormal (r) rest-result]))]
          [else (Abnormal first-result)]))]))
 
-;; common code to interpret function and method application, first argument must be a VClosure.
-(define (interp-vclosure [vfun : MetaVal] [arges : (listof CExpr)] 
-                         [stararg : (optionof CExpr)]
-                         [env : Env] [sfun : Store] [stk : Stack]) : Result
-  (type-case MetaVal vfun
-    [MetaClosure (cenv argxs vararg body opt-class)
+(define (interp-capp [fun : CExpr] [arges : (listof CExpr)]
+                     [stararg : (optionof CExpr)]
+                     [env : Env] [sto : Store] [stk : Stack]) : Result
+  (begin ;(display "APP: ") (display fun) (display "\n") (display arges) (display "\n\n\n")
+         ;(display env) (display "\n\n")
+  (handle-result env (interp-env fun env sto stk)
+    (lambda (vfun sfun)
+    (begin
+      ;(display (format "Calling ~a\n" (fetch-ptr vc sc)))
+      (type-case MetaVal (get-fun-mval vfun sfun)
+        [MetaClosure (cenv argxs vararg body opt-class)
               (type-case ResultList (interp-cascade arges sfun env stk)
                 [Abnormal (r) r]
                 [v*s/list (argvs-r sc)
@@ -74,84 +79,31 @@
                                          (interp-env (some-v stararg) env sc stk))
                                        ;; todo: support other types
                                        ;; for star args
-                                       (define l (MetaTuple-v 
-                                                   (some-v 
-                                                     (VObjectClass-mval 
+                                       (define l (MetaTuple-v
+                                                   (some-v
+                                                     (VObjectClass-mval
                                                        (fetch-ptr (v*s-v sarg-r) (v*s-s sarg-r))))))]
-(begin ;(display (format "applying: ~a\n" vfun))
-       ;(display (format "starargs: ~a\n" (map (lambda (p) (fetch-ptr p (v*s-s sarg-r))) l)))
-                                 (bind-and-execute 
-                                   body opt-class argxs vararg 
-                                   (append argvs-r (map (lambda (v)
-                                                        (v*s v (v*s-s sarg-r)))
-                                                      l))
-                                   (append arges (map (lambda(x)
-                                                        (make-builtin-num 0))
-                                                      l))
-                                   env cenv (v*s-s sarg-r) stk))) 
-                               (bind-and-execute
-                                 body opt-class argxs vararg
-                                 argvs-r arges env
-                                 cenv sc stk)))]
+                                 (begin ;(display (format "applying: ~a\n" (get-fun-mval vfun sfun)))
+                                        ;(display (format "starargs: ~a\n"
+                                        ;                 (map (lambda (p) (fetch-ptr p (v*s-s sarg-r))) l)))
+                                 (bind-and-execute body opt-class argxs vararg
+                                                   (append argvs-r (map (lambda (v)
+                                                                          (v*s v (v*s-s sarg-r)))
+                                                                        l))
+                                                   (append arges (map (lambda(x)
+                                                                        (make-builtin-num 0))
+                                                                      l))
+                                                   env cenv (v*s-s sarg-r) stk)))
+                               (bind-and-execute body opt-class argxs vararg
+                                                 argvs-r arges env
+                                                 cenv sc stk)))]
                    (type-case Result result
                      [v*s (vb sb) (alloc-result vnone sb)]
                      [Return (vb sb) (v*s vb sb)]
                      [Break (sb) (break-exception env sb)]
                      [Continue (sb) (continue-exception env sb)]
                      [Exception (vb sb) (Exception vb sb)]))])]
-    [else (error 'interp (string-append "Not a closure: " (to-string vfun)))]))
-
-(define (interp-capp [fun : CExpr] [arges : (listof CExpr)] 
-                     [stararg : (optionof CExpr)]
-                     [env : Env] [sto : Store] [stk : Stack]) : Result
-  (begin ;(display "APP: ") (display fun) (display "\n") (display arges) (display "\n\n\n")
-         ;(display env) (display "\n\n")
- (handle-result env (interp-env fun env sto stk)
-  (lambda (vfun-ptr sfun)
-    (let ([vfun (fetch-ptr vfun-ptr sfun)])
-    (type-case CVal vfun
-      [VObjectClass (b mval d class)
-       (cond
-        [(and (some? mval) (MetaClosure? (some-v mval))) 
-         (interp-vclosure (some-v mval) arges stararg env sfun stk)]
-        [else
-                  ;; This means we're calling an object, so apply its __call__ method.
-                  ;; Class calls are now handled by type.__call__ method (Alejandro).
-                  (local [(define __call__ (get-field '__call__ vfun-ptr env sfun))]
-                    (type-case Result __call__
-                      [v*s (vc sc)
-                      (begin ;(display (format "Calling ~a\n" (fetch-ptr vc sc)))
-                           (cond
-                             ;; for bound methods use __func__ attribute and __self__
-                             [(and (is-obj-ptr? vc sc) (object-is? (fetch-ptr vc sc) '%method env sc))
-                              (local 
-                                [(define func
-                                  (fetch-once
-                                   (some-v (hash-ref (VObjectClass-dict (fetch-ptr vc sc)) '__func__)) sc))
-                                 (define w_self (hash-ref (VObjectClass-dict (fetch-ptr vc sc)) '__self__))
-                                 (define id_self (new-id))
-                                 (define m_arges (cons (CId id_self (LocalId)) arges))
-                                 ;; extend the environment with self to support self aliasing
-                                 (define m_env
-                                   (cons (hash-set (first env) id_self (some-v w_self)) 
-                                         (rest env)))]
-                                (begin
-                                  ;(display (format "Method is: ~a" vc)) (display "\n")
-                                  ;(display (format "Func is: ~a" func)) (display "\n")
-                                  (interp-vclosure (get-fun-mval func sto) m_arges stararg m_env sc stk)))]
-                             [else
-                               ;; for unbound methods, use function application
-                               (interp-vclosure (get-fun-mval vc sc) arges stararg env sc stk)]))]
-                      [Return (vfun sfun) (return-exception env sfun)]
-                      [Break (sfun) (break-exception env sfun)]
-                      [Continue (sfun) (continue-exception env sfun)]
-                      [Exception (vfun sfun) (mk-exception 'TypeError
-                                                           (string-append 
-                                                             (symbol->string b)
-                                                             " object is not callable")
-                                                           env
-                                                           sto)]))])]
-      [else (error 'interp "Not a closure or constructor.")]))))))
+        [else (error 'interp (string-append "Not a closure: " (to-string (get-fun-mval vfun sfun))))]))))))
 
 (define (interp-while [test : CExpr] [body : CExpr] [orelse : CExpr]
                       [env : Env] [sto : Store] [stk : Stack]) : Result
@@ -609,9 +561,6 @@
                     (symbol->string n))
                    e
                    s)]
-     ;; special attribute __class__
-    [(eq? n '__class__)
-     (v*s (get-class (fetch-ptr cptr s) e s) s)]
     [(is-special-method? n)
      ;; special methods are looked for in the class
      (get-field-from-obj n cptr (none) e s)]
@@ -775,8 +724,8 @@
          ;(display " ") (display (fetch-ptr objptr sto)) (display "\n\n")
   (let ([obj (fetch-ptr objptr sto)])
     (cond
-      ;; for method objects, __call__ attribute is the object itself
-      [(and (object-is? obj '%method env sto) (equal? fld '__call__))
+      ;; for function and method objects, __call__ attribute is the object itself
+      [(and (or (is-fun? obj) (object-is? obj '%method env sto)) (equal? fld '__call__))
        (v*s objptr sto)]
       ;; special lookup handling for initialized super object
       [(and (object-is? obj '%super env sto)

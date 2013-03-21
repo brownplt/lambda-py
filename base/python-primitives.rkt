@@ -45,9 +45,6 @@ primitives here.
 (define (is-func? argvs env sto)
   (cond
     [(is-fun? (first argvs)) (some true-val)]
-    [(and (VObjectClass? (first argvs))
-          (symbol=? (VObjectClass-antecedent (first argvs)) 'method))
-     (some true-val)]
     [else (some false-val)]))
 
 (define (num+ args env sto)

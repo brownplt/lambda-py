@@ -276,10 +276,11 @@
         pretty-args)))
 
 (define (make-exception [name : symbol] [error : string]) : CExpr
-  (CApp
-    (CId name (GlobalId))
-    (list (make-builtin-str error))
-    (none)))
+  (CLet '$call (LocalId) (py-getfield (CId name (GlobalId)) '__call__)
+        (CApp
+         (py-getfield (CId '$call (LocalId)) '__func__)
+         (list (py-getfield (CId '$call (LocalId)) '__self__) (make-builtin-str error))
+         (none))))
 
 (define (default-except-handler [id : symbol] [body : CExpr]) : CExpr
   (CIf (CApp (CId '%isinstance (GlobalId))
@@ -368,12 +369,12 @@
   (CObject (gid '%num) (some (MetaNum n))))
 
 (define (py-len name)
-  (CApp (py-getfield (CId name (LocalId)) '__len__)
+  (py-app (py-getfield (CId name (LocalId)) '__len__)
         (list)
         (none)))
 
 (define (py-getitem name index)
-  (CApp (py-getfield (CId name (LocalId)) '__getitem__)
+  (py-app (py-getfield (CId name (LocalId)) '__getitem__)
         (list (CObject (gid '%num) (some (MetaNum index))))
         (none)))
 
@@ -385,7 +386,7 @@
 (define-syntax pyapp
   (syntax-rules ()
     [(_ fun arg ...)
-     (CApp fun (list arg ...) (none))]))
+     (py-app fun (list arg ...) (none))]))
 
 (define (pyget val fld)
   (pyapp (py-getfield val '__getitem__)
@@ -405,7 +406,7 @@
 
 (define-syntax (Method stx)
   (syntax-case stx ()
-    [(_ obj name arg ...) #'(CApp (py-getfield obj name) (list arg ...) (none))]))
+    [(_ obj name arg ...) #'(py-app (py-getfield obj name) (list arg ...) (none))]))
 
 
  
@@ -422,7 +423,7 @@
 (define-syntax (Construct stx)
   (syntax-case stx ()
     [(_ class arg ...)
-     #'(CApp (py-getfield class '__init__) (list arg ...) (none))]))
+     #'(py-app (py-getfield class '__init__) (list arg ...) (none))]))
 
 ;; strip the CLet in CModule
 (define (get-module-body (es : CExpr)) : CExpr
@@ -432,6 +433,25 @@
           (get-module-body body)]   
     [else es]))
 
+;; sinctactic sugar to apply a function or method
+(define (py-app [fun : CExpr] [args : (listof CExpr)] [stararg : (optionof CExpr)]) : CExpr
+  (CLet '$fun (LocalId) fun
+        (CIf (CBuiltinPrim 'is-func? (list (CId '$fun (LocalId))))
+             (CApp (CId '$fun (LocalId)) args stararg)
+             (CTryExceptElse
+              (py-getfield (CId '$fun (LocalId)) '__call__)
+              '_ (CRaise (some (make-exception 'TypeError "object is not callable")))
+              (CLet '$call (LocalId) (py-getfield (CId '$fun (LocalId)) '__call__)
+                    (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
+                         (CApp (CId '$call (LocalId)) args stararg)
+                         (CApp (py-getfield (CId '$call (LocalId)) '__func__)
+                               (cons (py-getfield (CId '$call (LocalId)) '__self__) args) stararg)))))))
+
 ;; sintactic sugar to get a field from an object
 (define (py-getfield [value : CExpr] [attr : symbol]) : CExpr
-  (CGetAttr value (make-builtin-str (symbol->string attr))))
+  (cond
+    ;; special attribute __class__
+    [(eq? attr '__class__)
+     (CBuiltinPrim '$class (list value))]
+    [else
+     (CGetAttr value (make-builtin-str (symbol->string attr)))]))
