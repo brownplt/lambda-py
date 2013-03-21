@@ -382,7 +382,7 @@
      (CAssign (CId '%locals (GlobalId))
               (CFunc empty none
                      (CReturn
-                       (CApp (CId '%dict (GlobalId))
+                       (py-app (CId '%dict (GlobalId))
                              (list
                               (CList (CId '%list (GlobalId))
                                      (pairs->tupleargs
