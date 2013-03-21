@@ -1,6 +1,9 @@
 class generator(object):
-    def __init__(self, init, next):
+    def __init__(self, init):
         init(self)
-        self.__next__ = next
+
+    # TODO(dbp): handle return arguments
+    def __next__(self):
+        return self.___resume(None)
 
 ___assign("%generator", generator)

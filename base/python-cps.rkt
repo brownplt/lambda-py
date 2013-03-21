@@ -79,8 +79,10 @@
       (pylam (K R E B C)
         (pyapp (cps expr)
           (pylam (V)
-            (CSeq (CAssign (CGetField (Id 'self) '%resume) Ki)
-                  (CReturn Vi)))))]
+            (CSeq (CAssign (CGetField (Id 'self) '___resume) (pylam (V)
+                                                                    (CReturn (pyapp Ki Vi))))
+                  Vi))
+          Ri Ei Bi Ci))]
     [CSym (s) (const expr)]
     [CTrue () (const expr)]
     [CFalse () (const expr)]
@@ -353,21 +355,22 @@
      (if (has-yield? body)
          (let [(kill-generator (CAssign (CGetField (Id 'self) '__next__)
                                                     (CFunc
-                                                     (list 'self) (none)
+                                                     (list) (none)
                                                      (CRaise (some (make-exception
                                                                     'StopIteration
                                                                     "generator terminated")))
                                                      ;; NOTE(dbp): is this the right symbol?
                                                      (some '%generator))))]
          (CFunc
-          (args
-           varargs
-           (CReturn (pyapp (gid '%generator)
+          args
+          varargs
+          (CReturn (pyapp (gid '%generator)
                            ;; NOTE(dbp): we pass in an initializing function and
                            ;; a __next__ function.
                            (CFunc (list 'self) (none)
-                                  (CAssign (CGetField (Id 'self) '%resume)
-                                          (pyapp
+                                  (CAssign (CGetField (Id 'self) '___resume)
+                                          (CFunc (list 'arg) (none)
+                                           (CReturn (pyapp
                                            (cps body)
                                            ;; NOTE(dbp):
                                            ;; if we ever end, this is a StopIteration exception,
@@ -411,15 +414,10 @@
                                           (V)
                                           (CRaise (some
                                                    (make-exception 'SyntaxError
-                                                                   "continue outside of loop - bad!")))))))
-                           ;; TODO(dbp): handle passing arguments back to the generator
-                           (CFunc (list 'self) (none)
-                                  (pyapp (CGetField (Id 'self) '%resume)
-                                         (Id 'self)
-                                         (CNone))
-                                  (some '%generator)))
-
-                    (none)))))
+                                                                   "continue outside of loop - bad!"))))))
+                                           (none)))
+                                  (none))))
+         (none)))
          (CFunc args varargs (desugar-generators body) opt-class))]
     ;; All the rest is pure recursion
     [CSeq (e1 e2)

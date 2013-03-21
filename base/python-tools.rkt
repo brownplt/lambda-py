@@ -6,6 +6,7 @@
          "python-interp.rkt"
          "python-phases.rkt"
          "python-desugar.rkt"
+         "python-cps.rkt"
          "python-macros.rkt"
          "python-lib.rkt"
          "run-tests.rkt"
@@ -22,10 +23,11 @@
 (define (run-python port)
   (interp
     (python-lib
+     (desugar-generators
       (desugar
         (new-scope-phase
           (get-structured-python
-            (parse-python/port port (get-pypath))))))))
+            (parse-python/port port (get-pypath)))))))))
 
 (define (get-surface-syntax port)
   (get-structured-python
