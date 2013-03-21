@@ -344,6 +344,17 @@ trailer, comp-op, suite and others should match their car
 				 'iter (expr->ast source-expr "Load")
 				 'ifs '())))]
 
+    ;; Temporary single if form
+    [(list 'atom "[" (list 'testlist_comp result-expr
+			   (list 'comp_for "for" bound-list "in" source-expr 
+				 (list 'comp_iter (list 'comp_if "if" (list 'test_nocond if-expr))))) "]")
+     (ast 'nodetype "ListComp"
+	  'elt (expr->ast result-expr "Load")
+	  'generators (list (ast 'nodetype "comprehension"
+				 'target (exprlist->ast bound-list "Store")
+				 'iter (expr->ast source-expr "Load")
+				 'ifs (list (expr->ast if-expr "Load")))))]
+
     ;; No tuples for now
     [(list 'atom "(" expr ")")
      (expr->ast expr expr-ctx)]
