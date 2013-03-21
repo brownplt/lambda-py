@@ -1,11 +1,8 @@
 #lang racket
 
 (require racket/runtime-path)
-;(require (for-syntax racket/base))
 (provide python-libs)
 
-;;(define-runtime-path foo "pylib/none.py")
-;;(define python-libs '())
 (define-runtime-path-list python-libs '(
  "pylib/none.py"
  "pylib/bool.py"
