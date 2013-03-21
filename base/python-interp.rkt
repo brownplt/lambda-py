@@ -32,9 +32,9 @@
 (define (handle-result env result fun)
    (type-case Result result
      [v*s (v s) (fun v s)]
-     [Return (v s) (return-exception env env s)]
-     [Break (s) (break-exception env env s)]
-     [Continue (s) (continue-exception env env s)] 
+     [Return (v s) (return-exception env s)]
+     [Break (s) (break-exception env s)]
+     [Continue (s) (continue-exception env s)] 
      [Exception (v s) (Exception v s)]))
 
 (define (append3 a b c)
@@ -64,6 +64,9 @@
                      [env : Env] [sto : Store] [stk : Stack]) : Result
   (begin ;(display "APP: ") (display fun) (display "\n") (display arges) (display "\n\n\n")
          ;(display env) (display "\n\n")
+  ;; this is a check for a condition we can get because we run without types, and
+  ;; the error message is reasonably useless
+  (if (not (or (cons? arges) (empty? arges))) (error 'interp "CApp got a non-list as args")
   (handle-result env (interp-env fun env sto stk)
     (lambda (vfun sfun)
     (begin
@@ -103,7 +106,7 @@
                      [Break (sb) (break-exception env sb)]
                      [Continue (sb) (continue-exception env sb)]
                      [Exception (vb sb) (Exception vb sb)]))])]
-        [else (error 'interp (string-append "Not a closure: " (to-string (get-fun-mval vfun sfun))))]))))))
+        [else (error 'interp (string-append "Not a closure: " (to-string (get-fun-mval vfun sfun))))])))))))
 
 (define (interp-while [test : CExpr] [body : CExpr] [orelse : CExpr]
                       [env : Env] [sto : Store] [stk : Stack]) : Result
