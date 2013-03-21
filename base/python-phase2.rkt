@@ -19,7 +19,7 @@
   (LexModule
    (list 
 	;(LexInScopeLocals empty)
-	;(phase2-locals empty)
+	(phase2-locals empty)
     (optimization-pass
      (let-phase
 	  (remove-nonlocal
@@ -241,13 +241,13 @@
         (top-level-deal-with-class expr)))
 
 (define (let-phase [expr : LexExpr] ) : LexExpr
-;(collapse-pyseq
+(collapse-pyseq
  (cascade-undefined-globals (list-subtract
                              (begin
                                         ;(display (extract-post-transform-globals expr))
                                (extract-post-transform-globals expr))
                              library-names) expr)
- ;)
+ )
 ) ;all globals, not just the current scope
 
 (define library-names (map (lambda (b) (bind-left b)) lib-function-dummies)) 
@@ -333,11 +333,11 @@
    [(empty? listof-exprs) (list new-expr)]
    [(LexLocalLet? (first listof-exprs)) (cons (first listof-exprs)
                (move-past-local-lets-helper new-expr (rest listof-exprs)))]
-   #;[(LexSeq? (first listof-exprs)) (cons
-                                    (LexSeq (move-past-local-lets-helper
-                                             new-expr
-                                             (LexSeq-es (first listof-exprs))))
-                                    (rest listof-exprs))]
+   ;[(LexSeq? (first listof-exprs)) (cons
+   ;                                 (LexSeq (move-past-local-lets-helper
+   ;                                          new-expr
+   ;                                          (LexSeq-es (first listof-exprs))))
+   ;                                 (rest listof-exprs))]
    [else (cons new-expr listof-exprs)]))
 
 (define (move-past-local-lets [new-expr : LexExpr]
@@ -363,28 +363,43 @@
                                    potential-excepts)))])]))
 
 
+(define (pairs->tupleargs [keys : CExpr] [values : CExpr] )  : (listof CExpr)
+  (cond
+   [(empty? keys) empty]
+   [(cons? keys)
+    (cons (CTuple (CId '%tuple (GlobalId))
+                  (list (first keys)
+                        (first values)))
+          (pairs->tupleargs (rest keys) (rest values)))]))
+
+
+
 ;this is the same a desugar-locals.  I'm moving things directly into this file.
 ;largely for ease of testing (I can read this code; desugared code not so much)
 (define (phase2-locals [ids : (listof symbol)]) : LexExpr
-  (LexAssign (list (LexGlobalId '%locals 'Store)) 
-			 (LexFunc 'locals empty empty 
-					  (LexReturn 
-					   (LexDict 
-						(map (lambda (y) (LexStr (symbol->string y))) ids)
-						(map (lambda (y) (LexTryExceptElse 
-										  (LexLocalId y 'load) 
-										  (list 
-										   (LexExcept 
-											(list (LexGlobalId 'UnboundLocalError 'Load))
-											(LexStr "this isn't actually bound right now")))
-										  (LexPass))) ids)))
-					  empty (none))))
+  (begin
+    (LexCore
+     (CAssign (CId '%locals (GlobalId))
+              (CFunc empty none
+                     (CReturn
+                       (CApp (CId '%dict (GlobalId))
+                             (list
+                              (CList (CId '%list (GlobalId))
+                                     (pairs->tupleargs
+                                      (map (lambda (y) (make-builtin-str (symbol->string y))) ids)
+                                      (map (lambda (y) (CTryExceptElse 
+                                         (CId y (LocalId))
+                                         '%-%
+                                          (make-builtin-str "this isn't actually bound right now")
+                                         (CNone))) ids))))
+                             (none))
+                       
+                       ) (none) )))))
 
 
 (define (make-local-list [starting-locals : (listof symbol)]
                          [expr : LexExpr] ) : LexExpr
-expr
-                         #;(lexexpr-modify-tree
+                         (lexexpr-modify-tree
    expr
    (lambda (y)
      (type-case LexExpr y
