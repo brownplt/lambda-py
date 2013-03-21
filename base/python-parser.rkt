@@ -73,8 +73,12 @@ trailer, comp-op, suite and others should match their car.
   (match py-ragg
     [(list (or 'stmt 'flow_stmt 'small_stmt 'compound_stmt) stmt) 
      (stmt->ast stmt)]
+    
+    ;; sipmle_stmt TODO: Multiple statements, trailing semicolon
+    [(list 'simple_stmt stmt NEWLINE) (stmt->ast stmt)]
 
-    [(list 'simple_stmt stmt NEWLINE) (stmt->ast stmt)] ; Todo: simple-stmt-multi.py
+    [(list 'continue_stmt "continue") 
+     (ast 'nodetype "Continue")]
     
     ;; TODO: Allow only assignments to those allowed by http://docs.python.org/3.2/reference/simple_stmts.html#assignment-statements
     ;; expr_stmt TODO: multiple targets, multiple values? (in expr->ast ?)
@@ -153,7 +157,19 @@ trailer, comp-op, suite and others should match their car.
 			       'name #\nul
 			       'body (suite->ast-list except-suite)
 			       'type (expr->ast except-expr "Load"))))]
-     
+
+    [(list 'while_stmt "while" test-expr ":" body-suite)
+     (ast 'nodetype "While"
+	  'test (expr->ast test-expr "Load")
+	  'orelse '()
+	  'body (suite->ast-list body-suite))]
+
+    [(list 'while_stmt "while" test-expr ":" body-suite "else" ":" else-suite)
+     (ast 'nodetype "While"
+	  'test (expr->ast test-expr "Load")
+	  'orelse (suite->ast-list else-suite)
+	  'body (suite->ast-list body-suite))]
+
     ;; funcdef TODO: Almost everything 
     [`(funcdef "def" 
 	       (name . ,name) 
@@ -305,17 +321,22 @@ trailer, comp-op, suite and others should match their car.
 	  'keys (list (expr->ast key expr-ctx))
 	  'values (list (expr->ast value expr-ctx)))]
 
-    ;; temporary empty form
     [(list 'atom "[" "]")
      (ast 'nodetype "List"
 	  'elts '()
 	  'ctx (ast 'nodetype "Load"))]
-    
-    ;; Temporary single item form
-    [(list 'atom "[" (list 'listmaker expr) "]")
+
+    ;; TODO: list_iter, list_if (fold)
+#|    
+    [(list 'atom "[" (list 'listmaker bound (list 'list_for "for" expr-list "in" test-list)) "]")
+     (
+      ; more-args expr-list
+      ; more-args test-list
+|#
+    [(list 'atom "[" (list 'listmaker exprs ...) "]")
      (ast 'nodetype "List"
 	  'ctx (ast 'nodetype "Load")
-	  'elts (list (expr->ast expr "Load")))]
+	  'elts (more-args exprs '()))]
     
     ;; No tuples for now
     [(list 'atom "(" expr ")")
@@ -411,6 +432,7 @@ trailer, comp-op, suite and others should match their car.
 	[(null? (cdr lst)) (list (car lst))]
 	[else (cons (car lst) (every-other (cddr lst)))]))
 
+;; Turns a comma-separated list of exprs (expr first) to an ast list of exprs
 (define (more-args arg-lst acc)
   (match arg-lst
     [(list) (reverse acc)]
