@@ -1,3 +1,8 @@
+import sys
+
+def strclass(cls): #for debug
+    return "%s.%s" % (cls.__module__, cls.__name__)
+
 #------------Result---------------#
 class TestResult(object):
     def __init__(self):
@@ -53,7 +58,7 @@ class TextTestResult(TestResult):
     def startTest(self, test):
         super().startTest(test)
         if self.showAll:
-            print(" ... ")
+            print(test)
     def addSuccess(self, test):
         super().addSuccess(test)
         print("ok")
@@ -90,7 +95,6 @@ class BaseTestSuite(object):
             self.addTest(test)
 
     def addTest(self, test):
-        print(test)
         if not callable(test):
             raise TypeError(str(test) + ' is not callable')
         if isinstance(test, type) and issubclass(test,
@@ -121,12 +125,12 @@ class TextTestRunner(object):
     def run(self, test):
         "Run the given test case or test suite."
         result = self._makeResult()
+
         try:
             test(result) #invoke BaseTestSuite.__call__ then
         finally:
-            #TODO: print result
             print("Ran " + str(result.testsRun))
-        expectedFails = unexpectedSuccess = 0
+        expectedFails = unexpectedSuccesses = 0
         try:
             results = map(len, (result.expectedFailures,
                                 result.unexpectedSuccesses))
@@ -138,7 +142,7 @@ class TextTestRunner(object):
         infos = []
         if not result.wasSuccessful():
             print("FAILED")
-            failed, errored = len(result, failures), len(result.errors)
+            failed, errored = len(result.failures), len(result.errors)
             if failed:
                 infos.append("failures="+str(failed))
             if errored:
@@ -237,6 +241,11 @@ class TestCase(object):
         except AttributeError:
             if methodName != 'runTest':
                 raise ValueError("no such test method in" + self.__class__ + ":" + methodName)
+    def __str__(self): #for debug
+        return "%s (%s)" % (self._testMethodName, strclass(self.__class__))
+    def __call__(self, *args):
+        # important!
+        self.run(*args)
     def setUp(self): pass
     def tearDown(self): pass
     def run(self, *args):
@@ -245,6 +254,8 @@ class TestCase(object):
             result = TestResult()
         else:
             result = args[0]
+
+        result.startTest(self)
 
         testMethod = getattr(self, self._testMethodName)
 
@@ -274,12 +285,10 @@ class TestCase(object):
             #result.stopTest(self)
             pass
 
-    def _executeTestPart(self, *args):
-        "original one is _executeTestPart(self, function, outcome, isTest=False)"
-        function = args[0]
-        outcome = args[1]
-        if len(args) == 3:
-            isTest = args[2]
+    def _executeTestPart(self, function, outcome, *args):
+        "args is used to mark this trial as a test"
+        if len(args) == 1:
+            isTest = args[0]
         else:
             isTest = False
         try:
@@ -305,6 +314,78 @@ class TestCase(object):
         except:
             outcome.success = False
             outcome.errors.append(sys.exc_info())
+    # start assert Statement
+    def assertTrue(self, expr, *args):
+        if len(args) == 0:
+            msg = "assertTrue error"
+        else:
+            msg = args[0]
+        if not expr:
+            raise self.failureException(msg)
+    def assertFalse(self, expr, *args):
+        if len(args) == 0:
+            msg = "assertFalse error"
+        else:
+            msg = args[0]
+        if expr:
+            raise self.failureException(msg)
+
+    def assertRaises(self, e, f, *args):
+        try:
+            f(*args)
+        except e:
+            return
+        else:
+            raise self.failureException("assertRaises error")
+
+    def assertEqual(self, first, second, *args):
+        if len(args) == 0:
+            msg = "assertEqual Error"
+        else:
+            msg = args[0]
+        if not first == second:
+            raise self.failureException(msg)
+
+    def assertNotEqual(self, first, second, *args):
+        if len(args) == 0:
+            msg = "assertEqual Error"
+        else:
+            msg = args[0]
+        if first == second:
+            raise self.failureException(msg)
+
+    def assertIn(self, member, container, *args):
+        if len(args) == 0:
+            msg = "assertIn Error"
+        else:
+            msg = args[0]
+        if member not in container:
+            self.failureException(msg)
+
+    def assertNotIn(self, member, container, *args):
+        if len(args) == 0:
+            msg = "assertIn Error"
+        else:
+            msg = args[0]
+        if member not in container:
+            self.failureException(msg)
+
+    def assertIs(self, expr1, expr2, *args):
+        if len(args) == 0:
+            msg = "assertIs Error"
+        else:
+            msg = args[0]
+        if expr1 is not expr2:
+            self.failureException(msg)
+
+    def assertIsNot(self, expr1, expr2, *args):
+        if len(args) == 0:
+            msg = "assertIsNot Error"
+        else:
+            msg = args[0]
+        if expr1 is expr2:
+            self.failureException(msg)
+
 
 #------------main----------------
 class TestProgram(object):
