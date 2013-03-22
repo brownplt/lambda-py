@@ -3,11 +3,11 @@ class generator(object):
         init(self)
 
     # TODO(dbp): handle return arguments
-    def __next__(self):
-        # print("resume  is:")
-        # print(self.___resume)
-        # print(".")
-        return self.___resume(None)
+    def __next__(self, *args):
+        if len(args) > 0:
+            return self.___resume(args[0])
+        else:
+            return self.___resume(None)
 
     def __iter__(self):
         return self
