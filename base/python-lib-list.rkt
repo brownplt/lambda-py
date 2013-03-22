@@ -26,5 +26,7 @@
  "pylib/isinstance.py"
  "pylib/callable.py"
  "pylib/generator.py"
+ "pylib/object.py"
+ "pylib/attr.py"
  "py-prelude.py"))
   

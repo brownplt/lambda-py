@@ -40,5 +40,18 @@ class type(object):
 
   def __bool__(self): return True
 
-___assign("%type", type)
+  def __getattribute__(cls, key):
+    #print("type.__getattribute__"); print(cls); print(key)
+    val = ___getattr(cls, key)
+    #print(val)
+    val_cls = ___delta("$class", val)
+    #print(val_cls)
+    try:
+      get = ___getattr(val_cls, "__get__")
+      #print(get)
+    except:
+      return val
+    else:
+      return get(val, None, cls)
 
+___assign("%type", type)

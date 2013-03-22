@@ -240,6 +240,10 @@
             (bind '%callable (CUndefined))
             (bind 'generator (CUndefined))
             (bind '%generator (CUndefined))
+            (bind 'getattr (CUndefined))
+            (bind '%getattr (CUndefined))
+            (bind 'hasattr (CUndefined))
+            (bind '%hasattr (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))
