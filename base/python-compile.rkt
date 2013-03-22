@@ -22,7 +22,9 @@
 
 (define (get-global-names (es : CExpr)) : (listof symbol)
   (type-case CExpr es
-    (CModule (pre body) (get-global-names body))
+    (CModule (pre body)
+             ;skip %locals trick
+             (get-global-names (CSeq-e2 body)))
     (CLet (x type bind body)
           (cons x (get-global-names body)))
     (else (list))))
