@@ -14,7 +14,7 @@ ___assertEqual(10, next(g))
 ___assertEqual(11, next(g))
 ___assertEqual(12, next(g))
 ___assertEqual(13, next(g))
-___assertRaise(StopIteration, next, g)
+___assertRaises(StopIteration, next, g)
 
 def badfunc():
 	print("badfunction")
@@ -32,4 +32,4 @@ def genfunc2():
 g = genfunc2()
 ___assertEqual(0, next(g))
 ___assertEqual(2, next(g))
-___assertRaise(TypeError, next, g)
+___assertRaises(TypeError, next, g)

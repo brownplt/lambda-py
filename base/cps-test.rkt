@@ -222,3 +222,9 @@
                  (CSym 'goo))))))
       "foo")
 
+
+(test (MetaNum-n (some-v (VObjectClass-mval
+      (cps-eval (py-app (py-getfield (make-builtin-num 1) '__add__)
+                        (list (make-builtin-num 2))
+                        (none))))))
+      3)

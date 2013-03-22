@@ -403,6 +403,13 @@
     [(_ fun arg ...)
      (py-app fun (list arg ...) (none))]))
 
+;; NOTE(dbp): This is for application within CPS'd code, when we _know_ we have CFuncs
+(define-syntax pyapp-simple
+  (syntax-rules ()
+    [(_ fun arg ...)
+     (CApp fun (list arg ...) (none))]))
+
+
 (define (pyget val fld)
   (pyapp (py-getfield val '__getitem__)
                fld))
