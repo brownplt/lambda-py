@@ -13,7 +13,7 @@
 
 (define (set-str (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaSet?
-    (some (VObjectClass 'str (some (MetaStr (pretty-metaval mval1)))
+    (some (VObjectClass 'str (some (MetaStr (pretty-metaval mval1 sto)))
                         (hash empty) (some (second args))))))
 
 (define (set-len (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)

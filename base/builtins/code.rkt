@@ -33,7 +33,7 @@
    (check-types-pred args env sto MetaCode?
                 (some (VObject 'str
                                (some (MetaStr
-                                      (pretty-metaval mval1)))
+                                      (pretty-metaval mval1 sto)))
                                (hash empty)))))
 
 (define (code-globals (args : (listof CVal))

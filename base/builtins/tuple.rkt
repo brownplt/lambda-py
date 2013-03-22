@@ -67,7 +67,7 @@
   (check-types-pred args env sto MetaTuple?
                (some (VObjectClass 'str
                         (some (MetaStr
-                                (pretty-metaval mval1)))
+                                (pretty-metaval mval1 sto)))
                         (hash empty)
                         (some (second args))))))
 

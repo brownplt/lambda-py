@@ -363,14 +363,15 @@
                                    potential-excepts)))])]))
 
 
-(define (pairs->tupleargs [keys : CExpr] [values : CExpr] )  : (listof CExpr)
+(define (pairs->tupleargs [keys : (listof CExpr)] [values : (listof CExpr)] )  : (listof CExpr)
   (cond
    [(empty? keys) empty]
    [(cons? keys)
     (cons (CTuple (CId '%tuple (GlobalId))
                   (list (first keys)
                         (first values)))
-          (pairs->tupleargs (rest keys) (rest values)))]))
+          (pairs->tupleargs (rest keys) (rest values)))]
+   [else (error 'pairs->tupleargs "shouldn't get here")]))
 
 
 
@@ -380,7 +381,7 @@
   (begin
     (LexCore
      (CAssign (CId '%locals (GlobalId))
-              (CFunc empty none
+              (CFunc empty (none)
                      (CReturn
                        (py-app (CId '%dict (GlobalId))
                              (list

@@ -39,8 +39,8 @@ primitives here.
 
 ;(require (typed-in racket/base [display : (string -> void)]))
 
-(define (print arg)
-  (display (string-append (pretty arg) "\n")))
+(define (print arg sto)
+  (display (string-append (pretty arg sto) "\n")))
 
 (define (is-func? argvs env sto)
   (cond
@@ -288,7 +288,7 @@ primitives here.
 
     ['compile (prim-alloc compile (fetch-heads argvs argsptrs))];argvs)]
 
-    ['print (begin (print (first argvs)) (v*s (first argsptrs) sto))]
+    ['print (begin (print (first argvs) sto) (v*s (first argsptrs) sto))]
 
     ['Is (if (is? (first argsptrs)
                   (second argsptrs) sto)

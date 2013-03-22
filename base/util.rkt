@@ -157,7 +157,7 @@
           (error 'object-is? (string-append "class not found in env: "
                                             (symbol->string cls)))]))
 
-;; get-mro: fetch __mro__ field as a list of classes, filtered up to thisclass if given
+;; get-mro: fetch-ptr __mro__ field as a list of classes, filtered up to thisclass if given
 (define (get-mro [cls : CVal] 
                  [thisclass : (optionof CVal)]
                  [sto : Store]) : (listof CVal)
@@ -179,7 +179,7 @@
                             (format "No member ~a in class mro " (some-v thisclass))
                               (to-string mro))))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
-                                            (pretty cls)))]))
+                                            (pretty cls sto)))]))
 
 ;; option-map: unwrap the option, perform the function (if applicable), re-wrap.
 (define (option-map [fn : ('a -> 'b)] [thing : (optionof 'a)]) : (optionof 'b)
@@ -195,7 +195,7 @@
     (type-case (optionof CVal) w_class
       [some (cv) cv]
       [none () (error 'get-class (string-append "object without class " 
-                                                (pretty obj)))])))
+                                                (pretty obj sto)))])))
 
 
 (define (is? [v1 : CVal]
@@ -207,40 +207,42 @@
         (and (is-obj-ptr? v1 s) (is-obj-ptr? v2 s)
              (eq? (fetch-ptr v1 s) (fetch-ptr v2 s))))))
 
-(define (pretty arg)
+
+(define (pretty arg [sto : Store])
   (type-case CVal arg
     [VObjectClass (a mval d class) (if (some? mval)
-                            (pretty-metaval (some-v mval))
+                            (pretty-metaval (some-v mval) sto)
                             "Can't print non-builtin object.")]
     [VSym (s) (symbol->string s)]
     [VUndefined () "Undefined"]
-    [VPointer (a) (string-append "Pointer to address " (number->string a))]))
+    [VPointer (a) (pretty (fetch-ptr arg sto) sto)]))
 
-(define (pretty-metaval (mval : MetaVal)) : string
-  (type-case MetaVal mval
-    [MetaNum (n) (number->string n)]
-    [MetaStr (s) s]
-    [MetaClass (c) (string-append "<class "
-                     (string-append (symbol->string c)
-                                    ">"))]
-    [MetaList (v) (string-append
-                   (string-append "["
-                                  (string-join (map pretty v) ", "))
-                   "]")]
-    [MetaTuple (v) (string-append
-                   (string-append "("
-                                  (string-join (map pretty v) ", "))
-                   ")")]
-    [MetaDict (contents)
-              (string-append
+(define (pretty-metaval (mval : MetaVal) (sto : Store) ) : string
+  (let ((pretty (lambda (y) (pretty y sto))))
+    (type-case MetaVal mval
+      [MetaNum (n) (number->string n)]
+      [MetaStr (s) s]
+      [MetaClass (c) (string-append "<class "
+                                    (string-append (symbol->string c)
+                                                   ">"))]
+      [MetaList (v) (string-append
+                     (string-append "["
+                                    (string-join (map pretty v) ", "))
+                     "]")]
+      [MetaTuple (v) (string-append
+                      (string-append "("
+                                     (string-join (map pretty v) ", "))
+                      ")")]
+      [MetaDict (contents)
+                (string-append
               (string-append "{"
                              (string-join
-                               (map (lambda (pair)
+                              (map (lambda (pair)
                                       (string-append (pretty (car pair))
-                                        (string-append ": "
-                                                       (pretty (cdr pair)))))
-                                    (hash->list contents))
-                               ", "))
+                                                     (string-append ": "
+                                                                    (pretty (cdr pair)))))
+                                   (hash->list contents))
+                              ", "))
               "}")]
     [MetaCode (e filename code)
               "<code object>"]
@@ -251,10 +253,12 @@
                              (string-join (map pretty (set->list elts)) ", "))
               "}")]
     [else "builtin-value"]
-    ))
+    )))
 
 (define (pretty-exception [exnptr : CVal] [sto : Store] [print-name : boolean]) : string
-  (local [(define exn (fetch-ptr exnptr sto))
+  (let ((pretty (lambda (y) (pretty y sto))))
+  (local [
+          (define exn (fetch-ptr exnptr sto))
           (define name (symbol->string (VObjectClass-antecedent exn)))
           (define args-loc (hash-ref (VObjectClass-dict exn) 'args))
           (define pretty-args (if (some? args-loc)
@@ -273,7 +277,7 @@
                            (string-append ": "
                                           pretty-args))
             name)
-        pretty-args)))
+        pretty-args))))
 
 (define (make-exception [name : symbol] [error : string]) : CExpr
   (CLet '$call (LocalId) (py-getfield (CId name (GlobalId)) '__call__)

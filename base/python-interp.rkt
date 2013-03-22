@@ -560,7 +560,7 @@
     [(not (is-obj-ptr? cptr s))
      (mk-exception 'AttributeError
                    (string-append 
-                    (string-append (pretty cptr) " object has no attribute ")
+                    (string-append (pretty cptr (list (hash empty))) " object has no attribute ")
                     (symbol->string n))
                    e
                    s)]

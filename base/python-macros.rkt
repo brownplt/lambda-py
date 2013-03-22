@@ -4,7 +4,7 @@
          "python-lexical-syntax.rkt"
          "python-syntax-operations.rkt")
 
-(define (desugar-macros expr)
+(define (desugar-macros [expr : LexExpr])
   (lexexpr-modify-tree expr
     (lambda (expr)
       (type-case LexExpr expr
