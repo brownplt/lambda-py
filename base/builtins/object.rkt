@@ -119,6 +119,22 @@
                  [else true]))
    true))
 
+(define (metaval->string [mval : MetaVal])
+  (if (some? mval)
+      (type-case MetaVal (some-v mval)
+        [MetaNone () ":none"]
+        [MetaNum (n) ":num"]
+        [MetaStr (s) ":str"]
+        [MetaList (v) ":list"]
+        [MetaTuple (v) ":tuple"]
+        [MetaSet (elts) ":set"]
+        [MetaDict (c) ":dict"]
+        [MetaClass (c) ":class"]
+        [MetaClosure (env args vararg body cls) ":closure"]
+        [MetaCode (e filename globals) ":code"]
+        [MetaPort (p) ":port"])
+      ""))
+
 (define (obj-str (args : (listof CVal)) env sto) : (optionof CVal)
   (local [(define o (first args))]
          (type-case CVal o
@@ -134,6 +150,8 @@
                                                    (string-append 
                                                      (if (symbol=? ante 'none)
                                                        "Object"
-                                                       (symbol->string ante)) ">")))))
+                                                       (symbol->string ante))
+                                                     (string-append (metaval->string mval)
+                                                                    ">"))))))
                         (hash empty)))]
             [else (error 'obj-str "Non object")])))
