@@ -392,7 +392,7 @@
                                          (CId y (LocalId))
                                          '%-%
                                           (make-builtin-str "this isn't actually bound right now")
-                                         (CNone))) ids))))
+                                         (CId y (LocalId)))) ids))))
                              (none))
                        
                        ) (none) )))))
