@@ -64,4 +64,3 @@
     (new-scope-phase
       (get-structured-python
         (parse-python/port port (get-pypath))))))
-

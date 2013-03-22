@@ -5,7 +5,7 @@ def basic():
 g = basic()
 ___assertEqual(1, next(g))
 ___assertEqual(2, next(g))
-___assertRaise(StopIteration, next, g)
+___assertRaises(StopIteration, next, g)
 
 def f():
 	x = 0

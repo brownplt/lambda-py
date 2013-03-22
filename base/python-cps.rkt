@@ -21,9 +21,9 @@
 (define Bi (Id B))
 (define C (gensym 'continue))
 (define Ci (Id C))
-(define V (gensym 'value))
+(define V (gensym 'value-))
 (define Vi (Id V))
-(define V2 (gensym 'value))
+(define V2 (gensym 'value2-))
 (define V2i (Id V2))
 
 (define (cps-list exprs base-thunk)
@@ -79,9 +79,12 @@
       (pylam (K R E B C)
         (pyapp (cps expr)
           (pylam (V)
-            (CSeq (CAssign (CGetField (Id 'self) '___resume) (pylam (V)
-                                                                    (CReturn (pyapp Ki Vi))))
-                  Vi))
+            (CSeq (CAssign (CGetField (Id 'self) '___resume)
+                           (pylam (V)
+                                  (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s1\n"))
+                                        (pyapp Ki Vi))))
+                  (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s2\n"))
+                        Vi)))
           Ri Ei Bi Ci))]
     [CSym (s) (const expr)]
     [CTrue () (const expr)]
@@ -90,13 +93,29 @@
     [CId (x l) (const expr)]
     [CObject (c b) (const expr)]
     [CFunc (args varargs body opt-class) (const expr)]
+    [CUndefined () (const expr)]
 
     [CGetField (val attr)
       (pylam (K R E B C)
         (pyapp (cps val)
 	  (pylam (V)
-            (pyapp Ki (CGetField Vi attr)))
+                 (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s3\n"))
+            (pyapp Ki (CGetField Vi attr))))
 	  Ri Ei Bi Ci))]
+
+    [CGetAttr (val attr)
+      (pylam (K R E B C)
+        (pyapp (cps val)
+	  (pylam (V)
+            (pyapp (cps attr)
+              (pylam (V2)
+                     (CSeq (CNone) #;(pyapp (gid 'print) Vi)
+                           (CSeq (CNone) #;(pyapp (gid 'print) V2i)
+                                 (CSeq
+                                  (CNone) #;(pyapp (gid 'print) (CGetAttr Vi V2i))
+                (pyapp Ki (CGetAttr Vi V2i))))))
+              Ri Ei Bi Ci))
+          Ri Ei Bi Ci))]
     
     [CApp (fun args stararg)
      (pylam (K R E B C)
@@ -107,11 +126,14 @@
 	    args 
 	    (lambda (ids)
 	      (type-case (optionof CExpr) stararg
-	        [none () (CApp Vi ids (none))]
+	        [none () (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s5\n"))
+                               (CSeq (CNone) #;(pyapp (gid 'print) Vi)
+                               (CApp Vi ids (none))))]
 		[some (e)
 		  (pyapp (cps e)
 		    (pylam (V2)
-                           (CApp Vi ids (some V2i)))
+                           (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s6\n"))
+                           (CApp Vi ids (some V2i))))
 		  Ri Ei Bi Ci)])))
 	   Ki Ei Ri Bi Ci))
 	 Ri Ei Bi Ci))]
@@ -122,11 +144,15 @@
 
     [CLet (x typ bind body)
      (pylam (K R E B C)
-       (pyapp (cps bind)
-        (pylam (V)
-          (CLet x typ Vi
-            (pyapp (cps body) Ki Ri Ei Bi Ci)))
-        Ri Ei Bi Ci))]
+       (if (CUndefined? bind)
+           (CLet x typ bind
+                 (pyapp (cps body) Ki Ri Ei Bi Ci))
+           (pyapp (cps bind)
+                  (pylam (V)
+                         (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s7\n"))
+                               (CLet x typ Vi
+                                     (pyapp (cps body) Ki Ri Ei Bi Ci))))
+                  Ri Ei Bi Ci)))]
 
     [CBuiltinPrim (op args)
      (cps-list args (lambda (ids) (CBuiltinPrim op ids)))]
@@ -135,9 +161,10 @@
      (pylam (K R E B C)
        (pyapp (cps test)
         (pylam (V)
+               (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s8\n"))
           (CIf Vi
            (pyapp (cps then) Ki Ri Ei Bi Ci)
-           (pyapp (cps els) Ki Ri Ei Bi Ci)))
+           (pyapp (cps els) Ki Ri Ei Bi Ci))))
         Ri Ei Bi Ci))]
 
     [CSeq (e1 e2)
@@ -154,7 +181,8 @@
           (pyapp
            (cps rhs)
            (pylam (V)
-            (pyapp (Id K) (CAssign (CId x type) Vi)))
+            (pyapp Ki (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s9\n"))
+                                (CAssign (CId x type) Vi))))
            Ri Ei Bi Ci))]
        [CGetField (o a) (error 'cps "Assign to object nyi")]
        [else (error 'cps "CPS: got a non-id, non-obj in CAssign")])]
@@ -190,25 +218,20 @@
             (pylam (K R E B C)
               (pyapp (cps test)
                (pylam (V)
-		(CSeq
-                 (CNone)
-                (CIf Vi
-		  (CSeq
-                   (CNone)
-                  (pyapp (cps body)
+                      (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s10\n"))
+		(CIf Vi
+		  (pyapp (cps body)
                     (pylam (V2) (pyapp (Id '-while) Ki Ri Ei Bi Ci))
-                    Ri Ei Bi Ci))
+                    Ri Ei Bi Ci)
                   (pyapp (Id '-elsethunk)))))
                Ri Ei Bi Ci)))
           (CSeq
            (CAssign (Id '-continue)
             (pylam (V)
-	      (CSeq
-               (CNone)
-              (pyapp
+	      (pyapp
                (Id '-while)
                Ki Ri Ei Ki ;; NOTE(joe): Break becomes the "normal" continuation Ki
-               (Id '-continue)))))
+               (Id '-continue))))
            (pyapp (Id '-continue) (CSym 'nothing))))))))]
 
     [CTryExceptElse
@@ -221,6 +244,7 @@
          Ri
          (pylam (V)
             ;; TODO(dbp): check that this is an exception
+                (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s11\n"))
             (CLet exn (LocalId) Vi
               (pyapp (cps excepts)
                 Ki Ri
@@ -231,7 +255,7 @@
                           (gid '$Reraise))
                    (pyapp Ei Vi)
                    (pyapp Ei V2i)))
-                Bi Ci)))
+                Bi Ci))))
          Bi
          Ci))]
 
