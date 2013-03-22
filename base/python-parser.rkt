@@ -80,6 +80,9 @@ trailer, comp-op, suite and others should match their car
     [(list 'continue_stmt "continue") 
      (ast 'nodetype "Continue")]
     
+    [(list 'break_stmt "break")
+     (ast 'nodetype "Break")]
+    
     ;; TODO: Allow only assignments to those allowed by http://docs.python.org/3.2/reference/simple_stmts.html#assignment-statements
     ;; expr_stmt TODO: multiple targets, multiple values? (in expr->ast ?)
     [(list 'expr_stmt testlist "=" val)
@@ -220,6 +223,20 @@ trailer, comp-op, suite and others should match their car
 	  'orelse (suite->ast-list else-suite)
 	  'body (suite->ast-list body-suite))]
 
+    [(list 'for_stmt "for" bound-list "in" expr-list ":" body-suite "else" ":" else-suite)
+     (ast 'nodetype "For"
+	  'iter (expr->ast expr-list "Load")
+	  'target (exprlist->ast bound-list "Store")
+	  'body (suite->ast-list body-suite)
+	  'orelse (suite->ast-list else-suite))]
+
+    [(list 'for_stmt "for" bound-list "in" expr-list ":" body-suite)
+     (ast 'nodetype "For"
+	  'iter (expr->ast expr-list "Load")
+	  'target (exprlist->ast bound-list "Store")
+	  'body (suite->ast-list body-suite)
+	  'orelse '())]
+
     ;; funcdef TODO: Almost everything 
     [`(funcdef "def" 
 	       (name . ,name) 
@@ -236,7 +253,7 @@ trailer, comp-op, suite and others should match their car
 		    (error "Unhandled formal argument")])))
 	    (ast 'nodetype "FunctionDef"
 		 'body (suite->ast-list suite)
-		 'args (args-ast (more-args args))
+		 'args (args-ast (more-args args '()))
 		 'name name
 		 'returns #\nul
 		 'decorator_list '()))]
@@ -286,6 +303,12 @@ trailer, comp-op, suite and others should match their car
     #| Expression fallthroughs... |#
     [(list (or 'argument 'testlist_comp 'testlist_star_expr 'testlist 'test 'or_test 'and_test 'not_test 'comparison 'expr 'xor_expr 'and_expr 'shift_expr 'arith_expr 'term 'factor 'power) expr)
      (expr->ast expr expr-ctx)]
+
+    ;; Single item handled above. All others are tuples.
+    [(list 'testlist elements ...)
+     (ast 'nodetype "Tuple"
+	  'ctx (ast 'nodetype expr-ctx)
+	  'elts (map (lambda (e) (expr->ast e expr-ctx)) (every-other elements)))]
 
     [(list 'test t-expr "if" cond-expr "else" f-expr)
      (ast 'nodetype "IfExp"
