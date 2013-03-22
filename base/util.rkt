@@ -65,6 +65,17 @@
 (define (contains-char? [str : string] [c : char] ) : boolean
   (not (empty? (filter (lambda (x) (char=? x c)) (string->list str)))))
 
+(define (contains-str? [str : string] [s : string] ) : boolean
+  (local
+   [(define (hlpr [str : (listof char)] [s : (listof char)])
+      (cond
+       [(empty? s) true]
+       [(empty? str) false]
+       [(equal? (first s) (first str)) (hlpr (rest str) (rest s))]
+       [else (hlpr (rest str) s)]
+       ))]
+   (hlpr (string->list str) (string->list s))))
+
 (define (chr [str : string] ) : char
   (let ((strlist (string->list str)))
     (if (and (not (empty? strlist)) (empty? (rest strlist)))

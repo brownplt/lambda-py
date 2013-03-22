@@ -119,7 +119,7 @@
                  [else true]))
    true))
 
-(define (metaval->string [mval : MetaVal])
+(define (metaval->string [mval : (optionof MetaVal)])
   (if (some? mval)
       (type-case MetaVal (some-v mval)
         [MetaNone () ":none"]
