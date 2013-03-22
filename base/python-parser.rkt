@@ -223,13 +223,23 @@ trailer, comp-op, suite and others should match their car
     ;; funcdef TODO: Almost everything 
     [`(funcdef "def" 
 	       (name . ,name) 
-	       (parameters "(" (typedargslist (tfpdef (name . ,args)) ...) ")") ":" ,suite)
-     (ast 'nodetype "FunctionDef"
-	  'body (suite->ast-list suite)
-	  'args (args-ast args)
-	  'name name
-	  'returns #\nul
-	  'decorator_list '())]
+	       (parameters "(" (typedargslist ,args ...) ")") ":" ,suite)
+     (local ((define (more-args lst positional-arg-names)
+	       (match lst
+		 [`() (reverse positional-arg-names)]
+		 [`((tfpdef (name . ,arg-name)))
+		  (reverse (cons arg-name positional-arg-names))]
+		 [`((tfpdef (name . ,arg-name)) "," ,rest ...)
+		  (more-args rest (cons arg-name positional-arg-names))]
+		 [_ (display "=== Unhandled formal argument ===")
+		    (pretty-write lst)
+		    (error "Unhandled formal argument")])))
+	    (ast 'nodetype "FunctionDef"
+		 'body (suite->ast-list suite)
+		 'args (args-ast (more-args args))
+		 'name name
+		 'returns #\nul
+		 'decorator_list '()))]
 
     [`(funcdef "def" 
 	       (name . ,name) 
@@ -241,7 +251,6 @@ trailer, comp-op, suite and others should match their car
 	  'returns #\nul
 	  'decorator_list '())]
 
-    ;; classdef, no supertypes
     [`(classdef "class" (name . ,name) ":" ,suite)
      (ast 'nodetype "ClassDef"
 	  'body (suite->ast-list suite)
@@ -277,6 +286,12 @@ trailer, comp-op, suite and others should match their car
     #| Expression fallthroughs... |#
     [(list (or 'argument 'testlist_comp 'testlist_star_expr 'testlist 'test 'or_test 'and_test 'not_test 'comparison 'expr 'xor_expr 'and_expr 'shift_expr 'arith_expr 'term 'factor 'power) expr)
      (expr->ast expr expr-ctx)]
+
+    [(list 'test t-expr "if" cond-expr "else" f-expr)
+     (ast 'nodetype "IfExp"
+	  'test (expr->ast cond-expr "Load")
+	  'body (expr->ast t-expr "Load")
+	  'orelse (expr->ast f-expr "Load"))]
     
     ;; Single item is caught above.
     [(list 'comparison expr1 rest ...)
