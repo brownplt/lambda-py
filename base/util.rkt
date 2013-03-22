@@ -431,11 +431,18 @@
 
 ;; strip the CLet in CModule
 (define (get-module-body (es : CExpr)) : CExpr
-  (type-case CExpr es
-    [CModule (pre body) (get-module-body body)]
-    [CLet (x type bind body)
-          (get-module-body body)]   
-    [else es]))
+  (cond [(not (CModule? es))
+         (error 'get-module-body "internal error: get-module-body func received a non-module")]
+        [else
+         (local [(define local-func (CSeq-e1 (CModule-body es))) ; %locals trick
+                 (define real-body (CSeq-e2 (CModule-body es)))
+                 (define (strip-CLet e)
+                   (type-case CExpr e
+                              [CLet (x type bind body)
+                                    (strip-CLet body)]
+                              [else e]))]
+            (CSeq local-func
+                  (strip-CLet real-body)))]))
 
 ;; sinctactic sugar to apply a function or method
 (define (py-app [fun : CExpr] [args : (listof CExpr)] [stararg : (optionof CExpr)]) : CExpr

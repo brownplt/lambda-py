@@ -16,6 +16,10 @@
                          (get-module-path))))
     (CAssign (CGetField sys-id '__name__)
              (make-builtin-str "sys"))
+    (CAssign (CGetField sys-id 'exc_info)
+             (CFunc (list) (none)
+                    (CReturn (make-builtin-str "sys.exc_info"))
+                    (none)))
     (CAssign (CGetField sys-id 'modules)
              (py-app (CId '%dict (GlobalId))
                    (list
