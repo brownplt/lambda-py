@@ -155,3 +155,21 @@
                                                                     ">"))))))
                         (hash empty)))]
             [else (error 'obj-str "Non object")])))
+
+(define (obj-getattr (args : (listof CVal)) env sto) : (optionof CVal)
+  (if (= (length args) 2)
+      (type-case CVal (first args)
+        [VObjectClass (_ __ the-dict ___)
+          (type-case CVal (second args)
+            [VObjectClass (_ mval __ ___)
+              (type-case MetaVal (some-v mval)
+                [MetaStr (the-field)
+                  (type-case (optionof Address) (hash-ref
+                                                 the-dict
+                                                 (string->symbol the-field))
+                    [some (w) (some (fetch-once w sto))]
+                    [none () (none)])]
+                [else (none)])]
+            [else (none)])]
+        [else (none)])
+      (none)))

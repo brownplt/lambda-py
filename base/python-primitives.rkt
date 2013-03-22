@@ -232,6 +232,7 @@ primitives here.
 
     ;object 
     ['obj-str (prim-alloc obj-str argvs)]
+    ['obj-getattr (prim-noalloc obj-getattr argvs)]
 
     ;function
     ['is-func? (prim-noalloc is-func? argvs)]
