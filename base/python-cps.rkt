@@ -81,9 +81,9 @@
           (pylam (V)
             (CSeq (CAssign (CGetField (Id 'self) '___resume)
                            (pylam (V)
-                                  (CSeq (pyapp (gid 'print) (make-builtin-str "s1\n"))
+                                  (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s1\n"))
                                         (pyapp Ki Vi))))
-                  (CSeq (pyapp (gid 'print) (make-builtin-str "s2\n"))
+                  (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s2\n"))
                         Vi)))
           Ri Ei Bi Ci))]
     [CSym (s) (const expr)]
@@ -99,7 +99,7 @@
       (pylam (K R E B C)
         (pyapp (cps val)
 	  (pylam (V)
-                 (CSeq (pyapp (gid 'print) (make-builtin-str "s3\n"))
+                 (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s3\n"))
             (pyapp Ki (CGetField Vi attr))))
 	  Ri Ei Bi Ci))]
 
@@ -109,8 +109,11 @@
 	  (pylam (V)
             (pyapp (cps attr)
               (pylam (V2)
-                     (CSeq (pyapp (gid 'print) (make-builtin-str "s4\n"))
-                (pyapp Ki (CGetAttr Vi V2i))))
+                     (CSeq (CNone) #;(pyapp (gid 'print) Vi)
+                           (CSeq (CNone) #;(pyapp (gid 'print) V2i)
+                                 (CSeq
+                                  (CNone) #;(pyapp (gid 'print) (CGetAttr Vi V2i))
+                (pyapp Ki (CGetAttr Vi V2i))))))
               Ri Ei Bi Ci))
           Ri Ei Bi Ci))]
     
@@ -123,13 +126,13 @@
 	    args 
 	    (lambda (ids)
 	      (type-case (optionof CExpr) stararg
-	        [none () (CSeq (pyapp (gid 'print) (make-builtin-str "s5\n"))
-                               (CSeq (pyapp (gid 'print) Vi)
+	        [none () (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s5\n"))
+                               (CSeq (CNone) #;(pyapp (gid 'print) Vi)
                                (CApp Vi ids (none))))]
 		[some (e)
 		  (pyapp (cps e)
 		    (pylam (V2)
-                           (CSeq (pyapp (gid 'print) (make-builtin-str "s6\n"))
+                           (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s6\n"))
                            (CApp Vi ids (some V2i))))
 		  Ri Ei Bi Ci)])))
 	   Ki Ei Ri Bi Ci))
@@ -146,7 +149,7 @@
                  (pyapp (cps body) Ki Ri Ei Bi Ci))
            (pyapp (cps bind)
                   (pylam (V)
-                         (CSeq (pyapp (gid 'print) (make-builtin-str "s7\n"))
+                         (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s7\n"))
                                (CLet x typ Vi
                                      (pyapp (cps body) Ki Ri Ei Bi Ci))))
                   Ri Ei Bi Ci)))]
@@ -158,7 +161,7 @@
      (pylam (K R E B C)
        (pyapp (cps test)
         (pylam (V)
-               (CSeq (pyapp (gid 'print) (make-builtin-str "s8\n"))
+               (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s8\n"))
           (CIf Vi
            (pyapp (cps then) Ki Ri Ei Bi Ci)
            (pyapp (cps els) Ki Ri Ei Bi Ci))))
@@ -178,7 +181,7 @@
           (pyapp
            (cps rhs)
            (pylam (V)
-            (pyapp Ki (CSeq (pyapp (gid 'print) (make-builtin-str "s9\n"))
+            (pyapp Ki (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s9\n"))
                                 (CAssign (CId x type) Vi))))
            Ri Ei Bi Ci))]
        [CGetField (o a) (error 'cps "Assign to object nyi")]
@@ -215,7 +218,7 @@
             (pylam (K R E B C)
               (pyapp (cps test)
                (pylam (V)
-                      (CSeq (pyapp (gid 'print) (make-builtin-str "s10\n"))
+                      (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s10\n"))
 		(CIf Vi
 		  (pyapp (cps body)
                     (pylam (V2) (pyapp (Id '-while) Ki Ri Ei Bi Ci))
@@ -241,7 +244,7 @@
          Ri
          (pylam (V)
             ;; TODO(dbp): check that this is an exception
-                (CSeq (pyapp (gid 'print) (make-builtin-str "s11\n"))
+                (CSeq (CNone) #;(pyapp (gid 'print) (make-builtin-str "s11\n"))
             (CLet exn (LocalId) Vi
               (pyapp (cps excepts)
                 Ki Ri
