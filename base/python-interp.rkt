@@ -250,7 +250,7 @@
                   [else (mk-exception 'TypeError (format "Non-string in field lookup: ~a" vattr) env sto)])]
                 [else (error 'interp "is-obj-ptr? must have lied about the field in field lookup")])]
               [else (mk-exception 'TypeError (format "Non-object in field lookup: ~a" vval) env sto)])]
-            [else (error 'interp (format "Non-object pointers in get-field: ~a" (cons vval vattr)))]))))))]
+            [else (error 'interp (format "Non-object pointers in get-field: ~a" (list vval vattr)))]))))))]
 			
     [CSeq (e1 e2) (type-case Result (interp-env e1 env sto stk)
                     [v*s (v1 s1) (interp-env e2 env s1 stk)]
@@ -572,7 +572,7 @@
     [(not (is-obj-ptr? cptr s))
      (mk-exception 'AttributeError
                    (string-append 
-                    (string-append (pretty cptr (list (hash empty))) " object has no attribute ")
+                    (string-append (pretty cptr (hash empty)) " object has no attribute ")
                     (symbol->string n))
                    e
                    s)]
@@ -712,9 +712,9 @@
     [Return (vexpr sexpr)
      (raise-user-error (format "Unexpected return reached toplevel: ~a" vexpr))]
     [Break (sexpr)
-     (raise-user-error (format "Unexpected break reached toplevel"))]
+     (raise-user-error "Unexpected break reached toplevel")]
     [Continue (sexpr)
-     (raise-user-error (format "Unexpected continue reached toplevel"))]
+     (raise-user-error "Unexpected continue reached toplevel")]
     [Exception (vexpr sexpr)
                (raise-user-error (string-append (pretty-exception vexpr sexpr #t) ""))])))
 
