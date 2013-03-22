@@ -45,7 +45,7 @@
    (lambda (y)
      (type-case PyExpr y
        [PyClass (name bases body)
-                (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexUndefined))
+                (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexPass))
                               (LexClass (Unknown-scope) name
                                         (let ((desugared-bases (map pre-desugar bases)))
                                           (LexTuple (if (empty? desugared-bases)
@@ -152,7 +152,7 @@
                                 (es)
                                 (if (and ( = (length es) 2)
                                          (LexAssign? (first es))
-                                         (LexUndefined? (LexAssign-value (first es))))
+                                         (LexPass? (LexAssign-value (first es))))
                                     (let ((replace-scope
                                            (cond
                                             [(LexLocalId? (first (LexAssign-targets (first es))))
