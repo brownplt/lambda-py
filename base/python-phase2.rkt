@@ -378,6 +378,17 @@
 ;this is the same a desugar-locals.  I'm moving things directly into this file.
 ;largely for ease of testing (I can read this code; desugared code not so much)
 (define (phase2-locals [ids : (listof symbol)]) : LexExpr
+  (let ((ids (filter
+              (lambda (y)
+                (let ((str (symbol->string y)))
+                  (not
+                   (or (contains-char? str (chr "-"))
+                       (contains-str? str "__")
+                       (contains-char? str (chr "%"))
+                       (contains-char? str (chr "$"))
+                       )
+                  )
+                )) ids)))
   (begin
     (LexCore
      (CAssign (CId '%locals (GlobalId))
@@ -395,7 +406,7 @@
                                          (CId y (LocalId)))) ids))))
                              (none))
                        
-                       ) (none) )))))
+                       ) (none) ))))))
 
 
 (define (make-local-list [starting-locals : (listof symbol)]
