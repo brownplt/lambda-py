@@ -5,6 +5,8 @@
          "get-structured-python.rkt"
          "python-interp.rkt"
          "python-phases.rkt"
+         "python-phase2.rkt"
+         "python-phase1.rkt"
          "python-desugar.rkt"
          "python-cps.rkt"
          "python-macros.rkt"
@@ -34,6 +36,11 @@
    (parse-python/port port (get-pypath))))
 
 (define (get-lexical-syntax port)
+  (phase2-without-locals (scope-phase
+   (get-structured-python
+    (parse-python/port port (get-pypath))))))
+
+(define (get-lexical-syntax-with-locals port)
   (new-scope-phase
    (get-structured-python
     (parse-python/port port (get-pypath)))))

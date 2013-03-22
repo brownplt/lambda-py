@@ -17,18 +17,38 @@
 ;phase2 - desugaring to get rid of instance variables, decorators, and defaults.
 (define (phase2 expr)
   (LexModule
-   (list 
+   (list
+    (LexPass)
 	;(LexInScopeLocals empty)
-	(phase2-locals empty)
-    (optimization-pass
-     (let-phase
-	  (remove-nonlocal
-	   (remove-blocks
-		(make-local-list
-		 empty
-		 (collapse-pyseq
-		  (post-desugar
-		   expr))))))))))
+                                        ;(phase2-locals empty)
+    (replace-lexinscopelocals
+     (optimization-pass
+      (let-phase
+       (remove-nonlocal
+        (remove-blocks
+         (make-local-list
+          empty
+          (collapse-pyseq
+           (post-desugar
+            expr)))))))))))
+
+;;wholly and utterly for debugging.
+(define (phase2-without-locals expr)
+    (LexModule
+   (list
+    (LexPass)
+	;(LexInScopeLocals empty)
+                                        ;(phase2-locals empty)
+     (optimization-pass
+      (let-phase
+       (remove-nonlocal
+        (remove-blocks
+         (make-local-list
+          empty
+          (collapse-pyseq
+           (post-desugar
+            expr)))))))))
+  )
 
 (define (post-desugar [expr : LexExpr]) : LexExpr
     (local
@@ -361,6 +381,13 @@
    [else (error 'pairs->tupleargs "shouldn't get here")]))
 
 
+(define (replace-lexinscopelocals expr)
+  (lexexpr-modify-tree
+   expr
+   (lambda (y)
+     (type-case LexExpr y
+       [LexInScopeLocals (ids) (phase2-locals ids)]
+       [else (default-recur)]))))
 
 ;this is the same a desugar-locals.  I'm moving things directly into this file.
 ;largely for ease of testing (I can read this code; desugared code not so much)
@@ -416,7 +443,7 @@
              (block-recur (lambda (nls body preserved-locals)
                             (let ((locals (collect-locals-in-scope body starting-locals)))
                               (LexBlock nls (move-past-local-lets
-                                             (phase2-locals locals)
+                                             (LexInScopeLocals locals)
                                              (make-local-list preserved-locals body)))))))
          (let 
              ((body-logic (lambda (body pr)
@@ -450,7 +477,7 @@
                               (map (lambda (y)
                                      (begin
                                        (move-past-LexExcept
-                                        (phase2-locals starting-locals)
+                                        (LexInScopeLocals starting-locals)
                                         (make-local-list starting-locals y))
                                         ;(make-local-list starting-locals y)
                                        )) except)
@@ -459,7 +486,7 @@
                           (LexTryFinally
                            (make-local-list starting-locals try)
                            (LexSeq (list
-                                    (phase2-locals starting-locals)
+                                    (LexInScopeLocals starting-locals)
                                     (make-local-list starting-locals finally)))
                            )]
            [else (default-recur)]))))))
