@@ -116,6 +116,10 @@ trailer, comp-op, suite and others should match their car
      (ast 'nodetype "Return"
 	  'value (expr->ast val "Load"))]
 
+    [(list 'return_stmt "return")
+     (ast 'nodetype "Return"
+	  'value #\nul)]
+
     ;; raise_stmt TODO: from clause
     [(list 'raise_stmt "raise" exc)
      (ast 'nodetype "Raise"
@@ -161,7 +165,9 @@ trailer, comp-op, suite and others should match their car
 		     (if (null? finalbody-ast-list) 
 			 try-except-ast
 			 (ast 'nodetype "TryFinally"
-			      'body (list try-except-ast)
+			      'body (if (null? handler-ast-list)
+					(suite->ast-list try-suite)
+					(list try-except-ast))
 			      'finalbody finalbody-ast-list)))
 		   (match lst
 		     [(list "finally" ":" finally-suite rest ...)
@@ -305,7 +311,8 @@ trailer, comp-op, suite and others should match their car
      (expr->ast expr expr-ctx)]
 
     ;; Single item handled above. All others are tuples.
-    [(list 'testlist elements ...)
+    ;; Unhandled star_expr will be caught downwind.
+    [(list (or 'testlist_star_expr 'testlist) elements ...)
      (ast 'nodetype "Tuple"
 	  'ctx (ast 'nodetype expr-ctx)
 	  'elts (map (lambda (e) (expr->ast e expr-ctx)) (every-other elements)))]
@@ -458,8 +465,6 @@ trailer, comp-op, suite and others should match their car
      (pretty-write py-ragg)
      (error (string-append "Unhandled expression"))]))
 
-;; Takes two strings. If they are the same, return ast as if it is a one-word op.
-;; Only changes the result for "is not".
 (define (comp-op->ast comp-op)
   (ast 'nodetype
        (match (cdr comp-op)
