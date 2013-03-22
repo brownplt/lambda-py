@@ -20,16 +20,15 @@ This Repo
 
 base/
 
-  This contains the base implementation we'll be working from (thanks
-  Sumner, Andrew, and Nathan!).  It looks a lot like cs173-python; you
-  should have a look at that directory's README to get started
-  understanding that implementation.  This is the implementation folks
-  should start building from.
+  this contains our implementation of desugaring, interpreter
 
-scope/
+redex/
 
-  This contains the implementation of Kelvin and Victor (thanks guys!),
-  that has the model of scope we'll be attaching to the implementation
-  in base/.
+  this contains the semantic implementation of lambda-py
+
+tests/
+
+  this contains various tests - a regression suite in python-reference,
+  and other tests.
 
 
