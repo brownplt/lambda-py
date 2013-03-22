@@ -25,7 +25,7 @@
                 (> (length args) 0) (LexStr? (first args)))
            (LexBuiltinPrim (string->symbol (LexStr-s (first args))) (rest args))]
           [(and (LexGlobalId? fun) (equal? (LexGlobalId-x fun) '___getattr)
-                (= (length args) 2) (LexStr? (second args)))
+                (= (length args) 2))
            (LexExprField (first args) (second args))]
           [(and (LexGlobalId? fun) (equal? (LexGlobalId-x fun) '___prim2)
                 (= (length args) 3) (LexStr? (first args)))
