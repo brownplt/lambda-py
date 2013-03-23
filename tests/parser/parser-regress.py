@@ -26,6 +26,7 @@ def f():
 
     yield 1,2
     a = yield b,
+    yield
 
     d > e <= f is not g != h in i
 

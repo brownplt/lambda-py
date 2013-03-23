@@ -331,6 +331,10 @@ trailer, comp-op, suite and others should match their car
     [(list 'yield_expr "yield" expr)
      (ast 'nodetype "Yield"
           'value (expr->ast expr "Load"))]
+
+    [(list 'yield_expr "yield")
+     (ast 'nodetype "Yield"
+          'value #\nul)]
     
     ;; Single item is caught above.
     [(list 'comparison expr1 rest ...)
