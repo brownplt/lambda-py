@@ -113,3 +113,7 @@ def f():
     class q: pass
     class r(s,t): pass
     class u(v,w,): pass
+
+    import x
+    import y as z
+    from a import *

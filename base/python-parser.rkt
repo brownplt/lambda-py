@@ -162,6 +162,27 @@ trailer, comp-op, suite and others should match their car
           'body (suite->ast-list suite1)
           'orelse (suite->ast-list suite2))]
 
+    ;; import_stmt TODO: Everything
+    [`(import_stmt (import_name "import" (dotted_as_names (dotted_as_name (dotted_name (name . ,name))))))
+     (ast 'nodetype "Import"
+          'names (list (ast 'nodetype "alias"
+                            'name name
+                            'asname #\nul)))]
+
+    [`(import_stmt (import_name "import" (dotted_as_names (dotted_as_name (dotted_name (name . ,module-name)) "as" (name . ,as-name)))))
+     (ast 'nodetype "Import"
+          'names (list (ast 'nodetype "alias"
+                            'name module-name
+                            'asname as-name)))]
+
+    [`(import_stmt (import_from "from" (dotted_name (name . ,module-name)) "import" "*"))
+     (ast 'nodetype "ImportFrom"
+          'level 0
+          'module module-name
+          'names (list (ast 'nodetype "alias"
+                            'name "*"
+                            'asname #\nul)))]
+
     ;; TODO: Less bad
     [(list 'try_stmt "try" ":" try-suite rest ...)
      (local ((define (more-clauses lst handler-ast-list orelse-ast-list finalbody-ast-list)
@@ -573,6 +594,7 @@ trailer, comp-op, suite and others should match their car
         [else (cons (car lst) (every-other (cddr lst)))]))
 
 ;; Turns a comma-separated list of exprs (expr first) to an ast list of exprs
+;; TODO: comp_for case
 (define (arglist->ast-list arg-lst acc)
   (match arg-lst
     [(list) (reverse acc)]
