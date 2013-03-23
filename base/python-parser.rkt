@@ -2,7 +2,7 @@
 
 (require racket/match
          "python-lexer.rkt"
-         "python-grammar-3.2.rkt")
+         "python-grammar.rkt")
 
 (provide parse-python)
 
