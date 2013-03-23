@@ -329,7 +329,10 @@ Simple lexer, produces physical/other tokens.
 		     [(EOF)
 		      (if (> brace-depth 0)
 			  (error "File ended inside braces.")
-			  (error "Lines cannot end with EOF."))]
+			  ;; Seems like it should be an error by the spec... Maybe I read it wrong.
+			  (begin
+			    (set! state 'begin-line)
+			    (token 'NEWLINE "NEWLINE")))]
 		     [(PHYSICAL-NEWLINE)
 		      (if (> brace-depth 0)
 			  (continue)
