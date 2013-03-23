@@ -1,8 +1,8 @@
 #lang racket
 
 (require racket/match
-	 "python-lexer.rkt"
-	 "python-grammar-3.2.rkt")
+         "python-lexer.rkt"
+         "python-grammar-3.2.rkt")
 
 (provide parse-python)
 
@@ -45,15 +45,15 @@ trailer, comp-op, suite and others should match their car
 
 (define ast hasheq)
 
-(define (args-ast arg-name-list)
+(define (args-ast arg-name-list vararg)
   (ast 'args (map (lambda (n)
-		    (ast 'nodetype "arg"
-			 'annotation #\nul
-			 'arg n))
-		  arg-name-list)
+                    (ast 'nodetype "arg"
+                         'annotation #\nul
+                         'arg n))
+                  arg-name-list)
        'defaults '()
        'nodetype "arguments"
-       'vararg #\nul
+       'vararg vararg
        'kwargannotation #\nul
        'kwarg #\nul
        'varargannotation #\nul
@@ -64,7 +64,7 @@ trailer, comp-op, suite and others should match their car
   (match py-ragg
     [(list 'file_input stmts ...)
      (ast 'nodetype "Module"
-	   'body (map stmt->ast stmts))]
+          'body (map stmt->ast stmts))]
     [_ (error "Only file_input is supported.")]))
 
 
@@ -87,44 +87,44 @@ trailer, comp-op, suite and others should match their car
     ;; expr_stmt TODO: multiple targets, multiple values? (in expr->ast ?)
     [(list 'expr_stmt testlist "=" val)
      (ast 'nodetype "Assign"
-	   'targets (list (expr->ast testlist "Store"))
-	   'value (expr->ast val "Load"))]
+          'targets (list (expr->ast testlist "Store"))
+          'value (expr->ast val "Load"))]
 
     [(list 'expr_stmt testlist (list 'augassign op) val)
      (ast 'nodetype "AugAssign"
-	  'op (ast 'nodetype (case op 
-			       [("+=") "Add"]
-			       [("-=") "Sub"]
-			       [("*=") "Mult"]
-			       [("/=") "Div"]
-			       [("%=") "Mod"]
-			       [("&=") "BitAnd"]
-			       [("|=") "BitOr"]
-			       [("^=") "BitXor"]
-			       [(">>=") "RShift"]
-			       [("**=") "Pow"]
-			       [("//=") "FloorDiv"]
-			       [else (error "Unrecognized augassign op")]))
-	  'target (expr->ast testlist "Store")
-	  'value (expr->ast val "Load"))]
+          'op (ast 'nodetype (case op 
+                               [("+=") "Add"]
+                               [("-=") "Sub"]
+                               [("*=") "Mult"]
+                               [("/=") "Div"]
+                               [("%=") "Mod"]
+                               [("&=") "BitAnd"]
+                               [("|=") "BitOr"]
+                               [("^=") "BitXor"]
+                               [(">>=") "RShift"]
+                               [("**=") "Pow"]
+                               [("//=") "FloorDiv"]
+                               [else (error "Unrecognized augassign op")]))
+          'target (expr->ast testlist "Store")
+          'value (expr->ast val "Load"))]
 
     [(list 'expr_stmt val)
      (ast 'nodetype "Expr"
-	  'value (expr->ast val "Load"))]
+          'value (expr->ast val "Load"))]
 
     [(list 'return_stmt "return" val)
      (ast 'nodetype "Return"
-	  'value (expr->ast val "Load"))]
+          'value (expr->ast val "Load"))]
 
     [(list 'return_stmt "return")
      (ast 'nodetype "Return"
-	  'value #\nul)]
+          'value #\nul)]
 
     ;; raise_stmt TODO: from clause
     [(list 'raise_stmt "raise" exc)
      (ast 'nodetype "Raise"
-	  'exc (expr->ast exc "Load")
-	  'cause #\nul)]
+          'exc (expr->ast exc "Load")
+          'cause #\nul)]
 
     [(list 'pass_stmt "pass")
      (ast 'nodetype "Pass")]
@@ -132,167 +132,157 @@ trailer, comp-op, suite and others should match their car
     ;; assert_stmt TODO: msg
     [(list 'assert_stmt "assert" expr)
      (ast 'nodetype "Assert"
-	  'test (expr->ast expr "Load")
-	  'msg #\nul)]
+          'test (expr->ast expr "Load")
+          'msg #\nul)]
 
     ;; global_stmt TODO: multiple names
     [(list 'global_stmt "global" (cons 'name name))
      (ast 'nodetype "Global"
-	  'names (list name))]
+          'names (list name))]
 
     ;; if_stmt TODO: multiple elif and opt. else
     [(list 'if_stmt "if" test ":" suite)
      (ast 'nodetype "If"
-	  'orelse '()
-	  'test (expr->ast test "Load")
-	  'body (suite->ast-list suite))]
+          'orelse '()
+          'test (expr->ast test "Load")
+          'body (suite->ast-list suite))]
     
     [(list 'if_stmt "if" test ":" suite1 "else" ":" suite2)
      (ast 'nodetype "If"
-	  'test (expr->ast test "Load")
-	  'body (suite->ast-list suite1)
-	  'orelse (suite->ast-list suite2))]
+          'test (expr->ast test "Load")
+          'body (suite->ast-list suite1)
+          'orelse (suite->ast-list suite2))]
 
     ;; TODO: Less bad
     [(list 'try_stmt "try" ":" try-suite rest ...)
      (local ((define (more-clauses lst handler-ast-list orelse-ast-list finalbody-ast-list)
-	       (if (null? lst)
-		   (let ((try-except-ast 
-			  (ast 'nodetype "TryExcept"
-			       'body (suite->ast-list try-suite)
-			       'orelse orelse-ast-list
-			       'handlers (reverse handler-ast-list))))
-		     (if (null? finalbody-ast-list) 
-			 try-except-ast
-			 (ast 'nodetype "TryFinally"
-			      'body (if (null? handler-ast-list)
-					(suite->ast-list try-suite)
-					(list try-except-ast))
-			      'finalbody finalbody-ast-list)))
-		   (match lst
-		     [(list "finally" ":" finally-suite rest ...)
-		      (more-clauses rest
-				    handler-ast-list
-				    orelse-ast-list
-				    (suite->ast-list finally-suite))]
-		     [(list "else" ":" else-suite rest ...)
-		      (more-clauses rest
-				    handler-ast-list
-				    (suite->ast-list else-suite)
-				    finalbody-ast-list)]
-		     [(list (list 'except_clause "except" test "as" (cons 'name e-name)) ":" handler-suite rest ...)
-		      (more-clauses rest
-				    (cons 
-				     (ast 'nodetype "ExceptHandler"
-					  'body (suite->ast-list handler-suite) 
-					  'name e-name
-					  'type (expr->ast test "Load"))
-				     handler-ast-list)
-				    orelse-ast-list
-				    finalbody-ast-list)]
-		     [(list (list 'except_clause "except" test) ":" handler-suite rest ...)
-		      (more-clauses rest
-				    (cons 
-				     (ast 'nodetype "ExceptHandler"
-					  'body (suite->ast-list handler-suite) 
-					  'name #\nul
-					  'type (expr->ast test "Load"))
-				     handler-ast-list)
-				    orelse-ast-list
-				    finalbody-ast-list)]
-		     [(list (list 'except_clause "except") ":" handler-suite rest ...)
-		      (more-clauses rest
-				    (cons 
-				     (ast 'nodetype "ExceptHandler"
-					  'body (suite->ast-list handler-suite) 
-					  'name #\nul
-					  'type #\nul)
-				     handler-ast-list)
-				    orelse-ast-list
-				    finalbody-ast-list)]))))
-	    (more-clauses rest '() '() '()))]
+               (if (null? lst)
+                   (let ((try-except-ast 
+                          (ast 'nodetype "TryExcept"
+                               'body (suite->ast-list try-suite)
+                               'orelse orelse-ast-list
+                               'handlers (reverse handler-ast-list))))
+                     (if (null? finalbody-ast-list) 
+                         try-except-ast
+                         (ast 'nodetype "TryFinally"
+                              'body (if (null? handler-ast-list)
+                                        (suite->ast-list try-suite)
+                                        (list try-except-ast))
+                              'finalbody finalbody-ast-list)))
+                   (match lst
+                     [(list "finally" ":" finally-suite rest ...)
+                      (more-clauses rest
+                                    handler-ast-list
+                                    orelse-ast-list
+                                    (suite->ast-list finally-suite))]
+                     [(list "else" ":" else-suite rest ...)
+                      (more-clauses rest
+                                    handler-ast-list
+                                    (suite->ast-list else-suite)
+                                    finalbody-ast-list)]
+                     [(list (list 'except_clause "except" test "as" (cons 'name e-name)) ":" handler-suite rest ...)
+                      (more-clauses rest
+                                    (cons 
+                                     (ast 'nodetype "ExceptHandler"
+                                          'body (suite->ast-list handler-suite) 
+                                          'name e-name
+                                          'type (expr->ast test "Load"))
+                                     handler-ast-list)
+                                    orelse-ast-list
+                                    finalbody-ast-list)]
+                     [(list (list 'except_clause "except" test) ":" handler-suite rest ...)
+                      (more-clauses rest
+                                    (cons 
+                                     (ast 'nodetype "ExceptHandler"
+                                          'body (suite->ast-list handler-suite) 
+                                          'name #\nul
+                                          'type (expr->ast test "Load"))
+                                     handler-ast-list)
+                                    orelse-ast-list
+                                    finalbody-ast-list)]
+                     [(list (list 'except_clause "except") ":" handler-suite rest ...)
+                      (more-clauses rest
+                                    (cons 
+                                     (ast 'nodetype "ExceptHandler"
+                                          'body (suite->ast-list handler-suite) 
+                                          'name #\nul
+                                          'type #\nul)
+                                     handler-ast-list)
+                                    orelse-ast-list
+                                    finalbody-ast-list)]))))
+            (more-clauses rest '() '() '()))]
     
     [(list 'try_stmt "try" ":" try-suite "finally" ":" finally-suite)
      (ast 'nodetype "TryFinally"
-	  'body (suite->ast-list try-suite)
-	  'finalbody (suite->ast-list finally-suite))]
+          'body (suite->ast-list try-suite)
+          'finalbody (suite->ast-list finally-suite))]
 
     [(list 'while_stmt "while" test-expr ":" body-suite)
      (ast 'nodetype "While"
-	  'test (expr->ast test-expr "Load")
-	  'orelse '()
-	  'body (suite->ast-list body-suite))]
+          'test (expr->ast test-expr "Load")
+          'orelse '()
+          'body (suite->ast-list body-suite))]
 
     [(list 'while_stmt "while" test-expr ":" body-suite "else" ":" else-suite)
      (ast 'nodetype "While"
-	  'test (expr->ast test-expr "Load")
-	  'orelse (suite->ast-list else-suite)
-	  'body (suite->ast-list body-suite))]
+          'test (expr->ast test-expr "Load")
+          'orelse (suite->ast-list else-suite)
+          'body (suite->ast-list body-suite))]
 
     [(list 'for_stmt "for" bound-list "in" expr-list ":" body-suite "else" ":" else-suite)
      (ast 'nodetype "For"
-	  'iter (expr->ast expr-list "Load")
-	  'target (exprlist->ast bound-list "Store")
-	  'body (suite->ast-list body-suite)
-	  'orelse (suite->ast-list else-suite))]
+          'iter (expr->ast expr-list "Load")
+          'target (exprlist->ast bound-list "Store")
+          'body (suite->ast-list body-suite)
+          'orelse (suite->ast-list else-suite))]
 
     [(list 'for_stmt "for" bound-list "in" expr-list ":" body-suite)
      (ast 'nodetype "For"
-	  'iter (expr->ast expr-list "Load")
-	  'target (exprlist->ast bound-list "Store")
-	  'body (suite->ast-list body-suite)
-	  'orelse '())]
+          'iter (expr->ast expr-list "Load")
+          'target (exprlist->ast bound-list "Store")
+          'body (suite->ast-list body-suite)
+          'orelse '())]
 
     ;; funcdef TODO: Almost everything 
     [`(funcdef "def" 
-	       (name . ,name) 
-	       (parameters "(" (typedargslist ,args ...) ")") ":" ,suite)
-     (local ((define (more-args lst positional-arg-names)
-	       (match lst
-		 [`() (reverse positional-arg-names)]
-		 [`((tfpdef (name . ,arg-name)))
-		  (reverse (cons arg-name positional-arg-names))]
-		 [`((tfpdef (name . ,arg-name)) "," ,rest ...)
-		  (more-args rest (cons arg-name positional-arg-names))]
-		 [_ (display "=== Unhandled formal argument ===")
-		    (pretty-write lst)
-		    (error "Unhandled formal argument")])))
-	    (ast 'nodetype "FunctionDef"
-		 'body (suite->ast-list suite)
-		 'args (args-ast (more-args args '()))
-		 'name name
-		 'returns #\nul
-		 'decorator_list '()))]
+               (name . ,name) 
+               (parameters "(" (typedargslist ,args ...) ")") ":" ,suite)
+     (ast 'nodetype "FunctionDef"
+          'body (suite->ast-list suite)
+          'args (more-args args '() #\nul)
+          'name name
+          'returns #\nul
+          'decorator_list '())]
 
     [`(funcdef "def" 
-	       (name . ,name) 
-	       (parameters "(" ")") ":" ,suite)
+               (name . ,name) 
+               (parameters "(" ")") ":" ,suite)
      (ast 'nodetype "FunctionDef"
-	  'body (suite->ast-list suite)
-	  'args (args-ast '())
-	  'name name
-	  'returns #\nul
-	  'decorator_list '())]
+          'body (suite->ast-list suite)
+          'args (args-ast '() #\nul)
+          'name name
+          'returns #\nul
+          'decorator_list '())]
 
     [`(classdef "class" (name . ,name) ":" ,suite)
      (ast 'nodetype "ClassDef"
-	  'body (suite->ast-list suite)
-	  'bases '()
-	  'name name
-	  'decorator_list '()
-	  'kwargs #\nul
-	  'starargs #\nul
-	  'keywords '())]
+          'body (suite->ast-list suite)
+          'bases '()
+          'name name
+          'decorator_list '()
+          'kwargs #\nul
+          'starargs #\nul
+          'keywords '())]
 
     [`(classdef "class" (name . ,name) "(" (arglist ,supertypes ...) ")" ":" ,suite)
      (ast 'nodetype "ClassDef"
-	  'body (suite->ast-list suite)
-	  'bases (arglist->ast-list supertypes '())
-	  'name name
-	  'decorator_list '()
-	  'kwargs #\nul
-	  'starargs #\nul
-	  'keywords '())]
+          'body (suite->ast-list suite)
+          'bases (arglist->ast-list supertypes '())
+          'name name
+          'decorator_list '()
+          'kwargs #\nul
+          'starargs #\nul
+          'keywords '())]
 
     [_ 
      (display "=== Unhandled grammar ===\n")
@@ -314,151 +304,168 @@ trailer, comp-op, suite and others should match their car
     ;; Unhandled star_expr will be caught downwind.
     [(list (or 'testlist_star_expr 'testlist) elements ...)
      (ast 'nodetype "Tuple"
-	  'ctx (ast 'nodetype expr-ctx)
-	  'elts (map (lambda (e) (expr->ast e expr-ctx)) (every-other elements)))]
+          'ctx (ast 'nodetype expr-ctx)
+          'elts (map (lambda (e) (expr->ast e expr-ctx)) (every-other elements)))]
 
     [(list 'test t-expr "if" cond-expr "else" f-expr)
      (ast 'nodetype "IfExp"
-	  'test (expr->ast cond-expr "Load")
-	  'body (expr->ast t-expr "Load")
-	  'orelse (expr->ast f-expr "Load"))]
+          'test (expr->ast cond-expr "Load")
+          'body (expr->ast t-expr "Load")
+          'orelse (expr->ast f-expr "Load"))]
+
+    ;; TODOs are in more-args, shared with funcdef
+    [(list (or 'lambdef 'lambdef_nocond) "lambda" (list 'varargslist args ...) ":" expr)
+     (ast 'nodetype "Lambda"
+          'args (more-args args '() #\nul)
+          'body (expr->ast expr "Load"))]
     
     ;; Single item is caught above.
     [(list 'comparison expr1 rest ...)
      (let ((ops (every-other rest))
-	   (exprs (every-other (cdr rest))))
+           (exprs (every-other (cdr rest))))
        (ast 'nodetype "Compare"
-	    'left (expr->ast expr1 expr-ctx)
-	    'ops (map comp-op->ast ops)
-	    'comparators (map (lambda (e) (expr->ast e expr-ctx)) exprs)))]
+            'left (expr->ast expr1 expr-ctx)
+            'ops (map comp-op->ast ops)
+            'comparators (map (lambda (e) (expr->ast e expr-ctx)) exprs)))]
 
     [(list (and lhs (or 'term 'arith_expr 'expr 'xor_expr 'and_expr 'shift_expr)) 
-	   expr1 rest ...)
+           expr1 rest ...)
      (let ((ops (every-other rest))
-	   (exprs (if (null? rest) '() (every-other (cdr rest)))))
+           (exprs (if (null? rest) '() (every-other (cdr rest)))))
        (foldl (lambda (op right-expr left-ast)
-		(ast 'nodetype "BinOp"
-		     'left left-ast
-		     'right (expr->ast right-expr expr-ctx)
-		     'op (ast 'nodetype (case op 
-					  [("+") "Add"] 
-					  [("-") "Sub"]
-					  [("/") "Div"]
-					  [("*") "Mult"]
-					  [("%") "Mod"]
-					  [("//") "FloorDiv"]
-					  [("|") "BitOr"]
-					  [("^") "BitXor"]
-					  [("&") "BitAnd"]
-					  [("<<") "LShift"]
-					  [(">>") "RShift"]
-					  [else (error "Bad arith/term op")]))))
-	      (expr->ast expr1 expr-ctx)
-	      ops
-	      exprs))]
+                (ast 'nodetype "BinOp"
+                     'left left-ast
+                     'right (expr->ast right-expr expr-ctx)
+                     'op (ast 'nodetype (case op 
+                                          [("+") "Add"] 
+                                          [("-") "Sub"]
+                                          [("/") "Div"]
+                                          [("*") "Mult"]
+                                          [("%") "Mod"]
+                                          [("//") "FloorDiv"]
+                                          [("|") "BitOr"]
+                                          [("^") "BitXor"]
+                                          [("&") "BitAnd"]
+                                          [("<<") "LShift"]
+                                          [(">>") "RShift"]
+                                          [else (error "Bad arith/term op")]))))
+              (expr->ast expr1 expr-ctx)
+              ops
+              exprs))]
 
     ;; Single item right hand sides should be caught in the fallthrough clause above.
     [(list (or 'and_test 'or_test) rest ...)
      (let ((exprs (every-other rest)))
        (ast 'nodetype "BoolOp"
-	    'op (ast 'nodetype (case (second rest)
-			       [("or") "Or"] 
-			       [("and") "And"] 
-			       [else (error "Bad boolean op")]))
-	    'values (map (lambda (e) (expr->ast e expr-ctx)) exprs)))]
+            'op (ast 'nodetype (case (second rest)
+                                 [("or") "Or"] 
+                                 [("and") "And"] 
+                                 [else (error "Bad boolean op")]))
+            'values (map (lambda (e) (expr->ast e expr-ctx)) exprs)))]
 
     ;; TODO: Exponentiation in conjuction
     ;; Set expr-ctx as ctx on last of trailers... Pass "Load" to interiors
     ;; Single fall-through expression is at the top with the rest.
     [(and (list 'power val trailers ... last-trailer)
-	  (not (list _ ... "**" _)))
+          (not (list _ ... "**" _)))
      (wrap-with-trailer 
       last-trailer 
       expr-ctx
       (foldl 
        (lambda (trailer left-ast)
-	 (wrap-with-trailer trailer "Load" left-ast))
+         (wrap-with-trailer trailer "Load" left-ast))
        (expr->ast val "Load")
        trailers))]
 
     [(list 'not_test "not" expr)
      (ast 'nodetype "UnaryOp"
-	  'op (ast 'nodetype "Not")
-	  'operand (expr->ast expr expr-ctx))]
+          'op (ast 'nodetype "Not")
+          'operand (expr->ast expr expr-ctx))]
     
     [(list 'factor "-" expr)
      (ast 'nodetype "UnaryOp"
-	  'op (ast 'nodetype "USub")
-	  'operand (expr->ast expr expr-ctx))]
+          'op (ast 'nodetype "USub")
+          'operand (expr->ast expr expr-ctx))]
 
     ;; Note expr-ctx (this may be wrong)
     ;; Cons here is from token construction in the lexer
     [(list 'atom (cons 'name name))
      (ast 'nodetype "Name"
-	   'id name
-	   'ctx (ast 'nodetype expr-ctx))]
+          'id name
+          'ctx (ast 'nodetype expr-ctx))]
 
     ;; Cons here is from token construction in the lexer
     [(list 'atom (cons type val))
      (if (equal? expr-ctx "Store")
-	 (error "Cannot store to a literal")
-	 (cond [(member type '(integer float imaginary)) 
-		(ast 'nodetype "Num"
-		      'n val)]
-	       [(member type '(string))
-		(ast 'nodetype "Str"
-		     's val)]
-	       [else (error "Literal not handled yet")]))]
+         (error "Cannot store to a literal")
+         (cond [(member type '(integer float imaginary)) 
+                (ast 'nodetype "Num"
+                     'n val)]
+               [(member type '(string))
+                (ast 'nodetype "Str"
+                     's val)]
+               [else (error "Literal not handled yet")]))]
 
     #| Dict - Temporary single item form... |#
     [(list 'atom "{" (list 'dictorsetmaker key ":" value) "}")
      (ast 'nodetype "Dict"
-	  'keys (list (expr->ast key expr-ctx))
-	  'values (list (expr->ast value expr-ctx)))]
-
-    [(list 'atom "[" "]")
-     (ast 'nodetype "List"
-	  'elts '()
-	  'ctx (ast 'nodetype "Load"))]
-
-    [(list 'atom "[" 
-	   (and (or (list 'testlist_comp _)
-		    (list 'testlist_comp _ "," _ ...))
-		(list 'testlist_comp exprs ...)) "]")
-     (ast 'nodetype "List"
-	  'ctx (ast 'nodetype "Load")
-	  'elts (arglist->ast-list exprs '()))]
-    
-    ;; TODO: comp_iter/comp_if (via fold?)
-    [(list 'atom "[" (list 'testlist_comp result-expr
-			   (list 'comp_for "for" bound-list "in" source-expr)) "]")
-     (ast 'nodetype "ListComp"
-	  'elt (expr->ast result-expr "Load")
-	  'generators (list (ast 'nodetype "comprehension"
-				 'target (exprlist->ast bound-list "Store")
-				 'iter (expr->ast source-expr "Load")
-				 'ifs '())))]
-
-    ;; Temporary single if form
-    [(list 'atom "[" (list 'testlist_comp result-expr
-			   (list 'comp_for "for" bound-list "in" source-expr 
-				 (list 'comp_iter (list 'comp_if "if" (list 'test_nocond if-expr))))) "]")
-     (ast 'nodetype "ListComp"
-	  'elt (expr->ast result-expr "Load")
-	  'generators (list (ast 'nodetype "comprehension"
-				 'target (exprlist->ast bound-list "Store")
-				 'iter (expr->ast source-expr "Load")
-				 'ifs (list (expr->ast if-expr "Load")))))]
-
-    ;; TODO: Tuples
-    [(list 'atom "(" expr ")")
-     (expr->ast expr expr-ctx)]
+          'keys (list (expr->ast key expr-ctx))
+          'values (list (expr->ast value expr-ctx)))]
 
     ;; Temporary bare dict form...
     [(list 'atom "{" "}")
      (ast 'nodetype "Dict"
-	  'values '()
-	  'keys '())]
+          'values '()
+          'keys '())]
+
+    [(list 'atom "[" "]")
+     (ast 'nodetype "List"
+          'elts '()
+          'ctx (ast 'nodetype "Load"))]
+
+    [(list 'atom "[" 
+           (and (or (list 'testlist_comp _)
+                    (list 'testlist_comp _ "," _ ...))
+                (list 'testlist_comp exprs ...)) "]")
+     (ast 'nodetype "List"
+          'ctx (ast 'nodetype "Load")
+          'elts (arglist->ast-list exprs '()))]
+    
+    ;; TODO: comp_iter/comp_if (via fold?)
+    [(list 'atom "[" (list 'testlist_comp result-expr
+                           (list 'comp_for "for" bound-list "in" source-expr)) "]")
+     (ast 'nodetype "ListComp"
+          'elt (expr->ast result-expr "Load")
+          'generators (list (ast 'nodetype "comprehension"
+                                 'target (exprlist->ast bound-list "Store")
+                                 'iter (expr->ast source-expr "Load")
+                                 'ifs '())))]
+
+    ;; Temporary single if form
+    [(list 'atom "[" (list 'testlist_comp result-expr
+                           (list 'comp_for "for" bound-list "in" source-expr 
+                                 (list 'comp_iter (list 'comp_if "if" (list 'test_nocond if-expr))))) "]")
+     (ast 'nodetype "ListComp"
+          'elt (expr->ast result-expr "Load")
+          'generators (list (ast 'nodetype "comprehension"
+                                 'target (exprlist->ast bound-list "Store")
+                                 'iter (expr->ast source-expr "Load")
+                                 'ifs (list (expr->ast if-expr "Load")))))]
+
+    ;; GeneratorExp comes from testlist_comp exactly like LispComp except for the nodetype...
+    ;; Temporary copy/paste generator form
+    [(list 'atom "(" (list 'testlist_comp result-expr
+                           (list 'comp_for "for" bound-list "in" source-expr)) ")")
+     (ast 'nodetype "GeneratorExp"
+          'elt (expr->ast result-expr "Load")
+          'generators (list (ast 'nodetype "comprehension"
+                                 'target (exprlist->ast bound-list "Store")
+                                 'iter (expr->ast source-expr "Load")
+                                 'ifs '())))]
+
+    ;; TODO: Tuples
+    [(list 'atom "(" expr ")")
+     (expr->ast expr expr-ctx)]
 
     [_ 
      (display "=== Unhandled expression ===\n")
@@ -468,17 +475,17 @@ trailer, comp-op, suite and others should match their car
 (define (comp-op->ast comp-op)
   (ast 'nodetype
        (match (cdr comp-op)
-	 [`("<") "Lt"]
-	 [`(">") "Gt"]
-	 [`("==") "Eq"]
-	 [`(">=") "GtE"]
-	 [`("<=") "LtE"]
-	 [`("!=") "NotEq"]
-	 [`("in") "In"]
-	 [`("not" "in") "NotIn"]
-	 [`("<>") (error "<> operator is not supported.")]
-	 [`("is") "Is"]
-	 [`("is" "not") "IsNot"])))
+         [`("<") "Lt"]
+         [`(">") "Gt"]
+         [`("==") "Eq"]
+         [`(">=") "GtE"]
+         [`("<=") "LtE"]
+         [`("!=") "NotEq"]
+         [`("in") "In"]
+         [`("not" "in") "NotIn"]
+         [`("<>") (error "<> operator is not supported.")]
+         [`("is") "Is"]
+         [`("is" "not") "IsNot"])))
 
 (define (suite->ast-list suite)
   (match suite
@@ -492,61 +499,61 @@ trailer, comp-op, suite and others should match their car
 ;; Assume for now that expr-ctx will always be valid.
 (define (wrap-with-trailer trailer expr-ctx left-ast)
   (local ((define (call-ast arglist)
-	    (ast 'nodetype "Call"
-		 'args arglist
-		 'kwargs #\nul
-		 'starargs #\nul
-		 'keywords '()
-		 'func left-ast))
-	  (define (attr-ast attr)
-	    (ast 'nodetype "Attribute"
-		 'ctx (ast 'nodetype expr-ctx)
-		 'attr attr
-		 'value left-ast))
-	  (define (subscript-slice-ast lower upper step)
-	    (ast 'nodetype "Subscript"
-		 'value left-ast
-		 'ctx (ast 'nodetype expr-ctx)
-		 'slice (ast 'nodetype "Slice"
-			     'lower lower
-			     'upper upper
-			     'step step)))
-	  (define (subscript-index-ast index)
-	    (ast 'nodetype "Subscript"
-		 'ctx (ast 'nodetype expr-ctx)
-		 'value left-ast
-		 'slice (ast 'nodetype "Index"
-			     'value index))))
-	 (match trailer
-	   [`(trailer "(" ")") (call-ast '())]
-	   ;; arglist TODO... Almost everything
-	   [`(trailer "(" (arglist ,rest ...) ")") (call-ast (arglist->ast-list rest '()))]
-	   [`(trailer "." (name . ,name)) (attr-ast name)]
-	   ;; subscriptlist TODO... "...", multiple indexes, multiple indexes w/slices
-	   [`(trailer "[" (subscriptlist (subscript ,index)) "]") 
-	    (subscript-index-ast (expr->ast index "Load"))]
-	   
-	   [`(trailer "[" (subscriptlist (subscript ":" (sliceop ":"))) "]")
-	    (subscript-slice-ast #\nul #\nul #\nul)]
-	   [`(trailer "[" (subscriptlist (subscript ,start ":" (sliceop ":"))) "]")
-	    (subscript-slice-ast (expr->ast start "Load") #\nul #\nul)]
-	   [`(trailer "[" (subscriptlist (subscript ":" (sliceop ":" ,step))) "]" )
-	    (subscript-slice-ast #\nul #\nul (expr->ast step "Load"))]
-	   [`(trailer "[" (subscriptlist (subscript ,lower ":" (sliceop ":" ,step))) "]")
-	    (subscript-slice-ast (expr->ast lower "Load") #\nul (expr->ast step "Load"))]
-	   [`(trailer "[" (subscriptlist (subscript ,lower ":" ,upper (sliceop ":"))) "]")
-	    (subscript-slice-ast (expr->ast lower "Load") (expr->ast upper "Load") #\nul)] 
-	   [`(trailer "[" (subscriptlist (subscript ,lower ":" ,upper (sliceop ":" ,step))) "]")
-	    (subscript-slice-ast (expr->ast lower "Load") (expr->ast upper "Load") (expr->ast step "Load"))]
-	   [_ 
-	    (display "=== Unhandled trailer ===\n")
-	    (pretty-write trailer)
-	    (error "Unsupported trailer (arglist) shape")])))
+            (ast 'nodetype "Call"
+                 'args arglist
+                 'kwargs #\nul
+                 'starargs #\nul
+                 'keywords '()
+                 'func left-ast))
+          (define (attr-ast attr)
+            (ast 'nodetype "Attribute"
+                 'ctx (ast 'nodetype expr-ctx)
+                 'attr attr
+                 'value left-ast))
+          (define (subscript-slice-ast lower upper step)
+            (ast 'nodetype "Subscript"
+                 'value left-ast
+                 'ctx (ast 'nodetype expr-ctx)
+                 'slice (ast 'nodetype "Slice"
+                             'lower lower
+                             'upper upper
+                             'step step)))
+          (define (subscript-index-ast index)
+            (ast 'nodetype "Subscript"
+                 'ctx (ast 'nodetype expr-ctx)
+                 'value left-ast
+                 'slice (ast 'nodetype "Index"
+                             'value index))))
+         (match trailer
+           [`(trailer "(" ")") (call-ast '())]
+           ;; arglist TODO... Almost everything
+           [`(trailer "(" (arglist ,args ...) ")") (call-ast (arglist->ast-list args '()))]
+           [`(trailer "." (name . ,name)) (attr-ast name)]
+           ;; subscriptlist TODO... "...", multiple indexes, multiple indexes w/slices
+           [`(trailer "[" (subscriptlist (subscript ,index)) "]") 
+            (subscript-index-ast (expr->ast index "Load"))]
+           
+           [`(trailer "[" (subscriptlist (subscript ":" (sliceop ":"))) "]")
+            (subscript-slice-ast #\nul #\nul #\nul)]
+           [`(trailer "[" (subscriptlist (subscript ,start ":" (sliceop ":"))) "]")
+            (subscript-slice-ast (expr->ast start "Load") #\nul #\nul)]
+           [`(trailer "[" (subscriptlist (subscript ":" (sliceop ":" ,step))) "]" )
+            (subscript-slice-ast #\nul #\nul (expr->ast step "Load"))]
+           [`(trailer "[" (subscriptlist (subscript ,lower ":" (sliceop ":" ,step))) "]")
+            (subscript-slice-ast (expr->ast lower "Load") #\nul (expr->ast step "Load"))]
+           [`(trailer "[" (subscriptlist (subscript ,lower ":" ,upper (sliceop ":"))) "]")
+            (subscript-slice-ast (expr->ast lower "Load") (expr->ast upper "Load") #\nul)] 
+           [`(trailer "[" (subscriptlist (subscript ,lower ":" ,upper (sliceop ":" ,step))) "]")
+            (subscript-slice-ast (expr->ast lower "Load") (expr->ast upper "Load") (expr->ast step "Load"))]
+           [_ 
+            (display "=== Unhandled trailer ===\n")
+            (pretty-write trailer)
+            (error "Unsupported trailer (arglist) shape")])))
 
 (define (every-other lst)
   (cond [(null? lst) '()]
-	[(null? (cdr lst)) (list (car lst))]
-	[else (cons (car lst) (every-other (cddr lst)))]))
+        [(null? (cdr lst)) (list (car lst))]
+        [else (cons (car lst) (every-other (cddr lst)))]))
 
 ;; Turns a comma-separated list of exprs (expr first) to an ast list of exprs
 (define (arglist->ast-list arg-lst acc)
@@ -560,5 +567,21 @@ trailer, comp-op, suite and others should match their car
     [(list 'exprlist expr) (expr->ast expr expr-ctx)]
     [(list 'exprlist rest ...)
      (ast 'nodetype "Tuple"
-	  'ctx (ast 'nodetype expr-ctx)
-	  'elts (map (lambda (e) (expr->ast e expr-ctx)) (every-other rest)))]))
+          'ctx (ast 'nodetype expr-ctx)
+          'elts (map (lambda (e) (expr->ast e expr-ctx)) (every-other rest)))]))
+
+;; Currently covers both typedargslist and varargslist
+(define (more-args lst positional-arg-names vararg)
+               (match lst
+                 [`() (args-ast (reverse positional-arg-names) vararg)]
+                 [`((,(or 'tfpdef 'vfpdef) (name . ,arg-name)))
+                  (more-args '() (cons arg-name positional-arg-names) vararg)]
+                 [`("*" (,(or 'tfpdef 'vfpdef) (name . ,name)))
+                  (more-args '() positional-arg-names name)]
+                 [`((,(or 'tfpdef 'vfpdef) (name . ,arg-name)) "," ,args ...)
+                  (more-args args (cons arg-name positional-arg-names) vararg)]
+                 [`("*" (,(or 'tfpdef 'vfpdef) (name . ,name)) "," ,args ...)
+                  (more-args args positional-arg-names name)]
+                 [_ (display "=== Unhandled formal argument ===") (newline)
+                    (pretty-write lst)
+                    (error "Unhandled formal argument")]))

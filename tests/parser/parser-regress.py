@@ -5,7 +5,6 @@
 def f():
     # Expressions
     
-    # Atom forms
     1
     3.0e-12
     "String"
@@ -21,6 +20,9 @@ def f():
     1,2
 
     a if b else c
+
+    lambda a: 0
+    lambda *a: 0
 
     d > e <= f is not g != h in i
 
@@ -99,6 +101,7 @@ def f():
     def i(): pass
     def j(k,l,m): pass
     def j(n,o,p,): pass
+    def q(r,*s): pass
 
     class q: pass
     class r(s,t): pass
