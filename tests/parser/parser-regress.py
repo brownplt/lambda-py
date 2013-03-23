@@ -24,6 +24,9 @@ def f():
     lambda a: 0
     lambda *a: 0
 
+    yield 1,2
+    a = yield b,
+
     d > e <= f is not g != h in i
 
     j + k - l / m * n % o // p | q ^ r & s << t >> u
@@ -57,6 +60,7 @@ def f():
     while c: return d,e,
 
     while f: raise g
+    while f: raise
 
     while h: pass
 

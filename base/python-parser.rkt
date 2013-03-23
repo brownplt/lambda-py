@@ -77,6 +77,10 @@ trailer, comp-op, suite and others should match their car
     ;; sipmle_stmt TODO: Multiple statements, trailing semicolon
     [(list 'simple_stmt stmt NEWLINE) (stmt->ast stmt)]
 
+    [(list 'yield_stmt expr)
+     (ast 'nodetype "Expr"
+          'value (expr->ast expr "Load"))]
+
     [(list 'continue_stmt "continue") 
      (ast 'nodetype "Continue")]
     
@@ -124,6 +128,11 @@ trailer, comp-op, suite and others should match their car
     [(list 'raise_stmt "raise" exc)
      (ast 'nodetype "Raise"
           'exc (expr->ast exc "Load")
+          'cause #\nul)]
+
+    [(list 'raise_stmt "raise")
+     (ast 'nodetype "Raise"
+          'exc #\nul
           'cause #\nul)]
 
     [(list 'pass_stmt "pass")
@@ -318,6 +327,10 @@ trailer, comp-op, suite and others should match their car
      (ast 'nodetype "Lambda"
           'args (more-args args '() #\nul)
           'body (expr->ast expr "Load"))]
+
+    [(list 'yield_expr "yield" expr)
+     (ast 'nodetype "Yield"
+          'value (expr->ast expr "Load"))]
     
     ;; Single item is caught above.
     [(list 'comparison expr1 rest ...)
