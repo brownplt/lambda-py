@@ -106,6 +106,8 @@ def f():
     def j(k,l,m): pass
     def j(n,o,p,): pass
     def q(r,*s): pass
+    def t(u,v=w): pass
+    def t(x,y=z,): pass
 
     class q: pass
     class r(s,t): pass

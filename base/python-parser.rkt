@@ -45,13 +45,13 @@ trailer, comp-op, suite and others should match their car
 
 (define ast hasheq)
 
-(define (args-ast arg-name-list vararg)
+(define (args-ast arg-name-list default-asts vararg)
   (ast 'args (map (lambda (n)
                     (ast 'nodetype "arg"
                          'annotation #\nul
                          'arg n))
                   arg-name-list)
-       'defaults '()
+       'defaults default-asts
        'nodetype "arguments"
        'vararg vararg
        'kwargannotation #\nul
@@ -258,7 +258,7 @@ trailer, comp-op, suite and others should match their car
                (parameters "(" (typedargslist ,args ...) ")") ":" ,suite)
      (ast 'nodetype "FunctionDef"
           'body (suite->ast-list suite)
-          'args (more-args args '() #\nul)
+          'args (more-args args '() '() #\nul)
           'name name
           'returns #\nul
           'decorator_list '())]
@@ -268,7 +268,7 @@ trailer, comp-op, suite and others should match their car
                (parameters "(" ")") ":" ,suite)
      (ast 'nodetype "FunctionDef"
           'body (suite->ast-list suite)
-          'args (args-ast '() #\nul)
+          'args (args-ast '() '() #\nul)
           'name name
           'returns #\nul
           'decorator_list '())]
@@ -325,7 +325,7 @@ trailer, comp-op, suite and others should match their car
     ;; TODOs are in more-args, shared with funcdef
     [(list (or 'lambdef 'lambdef_nocond) "lambda" (list 'varargslist args ...) ":" expr)
      (ast 'nodetype "Lambda"
-          'args (more-args args '() #\nul)
+          'args (more-args args '() '() #\nul)
           'body (expr->ast expr "Load"))]
 
     [(list 'yield_expr "yield" expr)
@@ -584,17 +584,27 @@ trailer, comp-op, suite and others should match their car
           'elts (map (lambda (e) (expr->ast e expr-ctx)) (every-other rest)))]))
 
 ;; Currently covers both typedargslist and varargslist
-(define (more-args lst positional-arg-names vararg)
+(define (more-args lst positional-arg-names default-asts vararg)
                (match lst
-                 [`() (args-ast (reverse positional-arg-names) vararg)]
+                 [`() (args-ast (reverse positional-arg-names) (reverse default-asts) vararg)]
                  [`((,(or 'tfpdef 'vfpdef) (name . ,arg-name)))
-                  (more-args '() (cons arg-name positional-arg-names) vararg)]
+                  (more-args '() (cons arg-name positional-arg-names) default-asts vararg)]
+                 [`((,(or 'tfpdef 'vfpdef) (name . ,arg-name)) "=" ,default-expr)
+                  (more-args '()
+                             (cons arg-name positional-arg-names)
+                             (cons (expr->ast default-expr "Load") default-asts)
+                             vararg)]
+                 [`((,(or 'tfpdef 'vfpdef) (name . ,arg-name)) "=" ,default-expr "," ,args ...)
+                  (more-args args
+                             (cons arg-name positional-arg-names)
+                             (cons (expr->ast default-expr "Load") default-asts)
+                             vararg)]
                  [`("*" (,(or 'tfpdef 'vfpdef) (name . ,name)))
-                  (more-args '() positional-arg-names name)]
+                  (more-args '() positional-arg-names default-asts name)]
                  [`((,(or 'tfpdef 'vfpdef) (name . ,arg-name)) "," ,args ...)
-                  (more-args args (cons arg-name positional-arg-names) vararg)]
+                  (more-args args (cons arg-name positional-arg-names) default-asts vararg)]
                  [`("*" (,(or 'tfpdef 'vfpdef) (name . ,name)) "," ,args ...)
-                  (more-args args positional-arg-names name)]
+                  (more-args args positional-arg-names default-asts name)]
                  [_ (display "=== Unhandled formal argument ===") (newline)
                     (pretty-write lst)
                     (error "Unhandled formal argument")]))
