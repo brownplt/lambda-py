@@ -39,6 +39,8 @@ def f():
 
     y()(z)(a,b)(c,)[d][::][e::][::f][g::h][i:j:][k:l:m]
 
+    a(b=c)(d,e=f)(*g)(**h)(i,j=k,*l,**m)
+
     f(x for y in z)
 
     (x for y in z for a in b if c)

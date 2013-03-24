@@ -305,7 +305,7 @@ trailer, comp-op, suite and others should match their car
                (parameters "(" (typedargslist ,args ...) ")") ":" ,suite)
      (ast 'nodetype "FunctionDef"
           'body (suite->ast-list suite)
-          'args (build-args args)
+          'args (build-formals args)
           'name name
           'returns #\nul
           'decorator_list '())]
@@ -371,7 +371,7 @@ trailer, comp-op, suite and others should match their car
 
     [(list (or 'lambdef 'lambdef_nocond) "lambda" (list 'varargslist args ...) ":" expr)
      (ast 'nodetype "Lambda"
-          'args (build-args args)
+          'args (build-formals args)
           'body (expr->ast expr "Load"))]
 
     [(list (or 'lambdef 'lambdef_nocond) "lambda" ":" expr)
@@ -474,6 +474,11 @@ trailer, comp-op, suite and others should match their car
                      's val)]
                [else (error "Literal not handled yet")]))]
 
+    [(list 'atom "{" "}")
+     (ast 'nodetype "Dict"
+          'values '()
+          'keys '())]
+
     [(list 'atom "{" (list-rest 'dictorsetmaker ... (and items (list _ ":" _ ...))) "}")
      (local ((define (more-items items key-exprs value-exprs)
                (match items
@@ -486,12 +491,6 @@ trailer, comp-op, suite and others should match their car
                  [`(,key-expr ":" ,value-expr ,more ...)
                   (more-items more (cons key-expr key-exprs) (cons value-expr value-exprs))])))
             (more-items items '() '()))]
-
-    ;; Temporary bare dict form...
-    [(list 'atom "{" "}")
-     (ast 'nodetype "Dict"
-          'values '()
-          'keys '())]
 
     [(list 'atom "[" "]")
      (ast 'nodetype "List"
@@ -510,6 +509,7 @@ trailer, comp-op, suite and others should match their car
                                                         (list 'comp_for _ ...))) "]")
      (build-comprehension elt-expr comp "ListComp")]
 
+    ;; Neither of these should probably be here...
     [(list (or 'testlist_comp 'argument) elt-expr (and comp
                                                        (list 'comp_for _ ...)))
      (build-comprehension elt-expr comp "GeneratorExp")]
@@ -527,7 +527,6 @@ trailer, comp-op, suite and others should match their car
      (ast 'nodetype "Tuple"
           'ctx (ast 'nodetype expr-ctx)
           'elts '())]
-
 
     [_ 
      (display "=== Unhandled expression ===\n")
@@ -560,14 +559,7 @@ trailer, comp-op, suite and others should match their car
 ;; Only handles function calls with positional args
 ;; Assume for now that expr-ctx will always be valid.
 (define (wrap-with-trailer trailer expr-ctx left-ast)
-  (local ((define (call-ast arglist)
-            (ast 'nodetype "Call"
-                 'args arglist
-                 'kwargs #\nul
-                 'starargs #\nul
-                 'keywords '()
-                 'func left-ast))
-          (define (attr-ast attr)
+  (local ((define (attr-ast attr)
             (ast 'nodetype "Attribute"
                  'ctx (ast 'nodetype expr-ctx)
                  'attr attr
@@ -587,9 +579,9 @@ trailer, comp-op, suite and others should match their car
                  'slice (ast 'nodetype "Index"
                              'value index))))
          (match trailer
-           [`(trailer "(" ")") (call-ast '())]
-           ;; arglist TODO... Almost everything
-           [`(trailer "(" (arglist ,args ...) ")") (call-ast (arglist->ast-list args '()))]
+           [`(trailer "(" ")") (build-call '() left-ast)]
+           ;; arglist TODO... comp_for?
+           [`(trailer "(" (arglist ,args ...) ")") (build-call args left-ast)]
            [`(trailer "." (name . ,name)) (attr-ast name)]
            ;; subscriptlist TODO... "...", multiple indexes, multiple indexes w/slices
            [`(trailer "[" (subscriptlist (subscript ,index)) "]") 
@@ -617,8 +609,44 @@ trailer, comp-op, suite and others should match their car
         [(null? (cdr lst)) (list (car lst))]
         [else (cons (car lst) (every-other (cddr lst)))]))
 
+;; The single comprehension case is handled by fall-through in expr->ast
+(define (build-call args func-ast)
+  (local ((define (more-args args pos-args key-args stararg kwarg)
+            (match args
+              [`() 
+               (ast 'nodetype "Call"
+                    'args (reverse pos-args)
+                    'kwargs kwarg
+                    'starargs stararg
+                    'keywords (reverse key-args)
+                    'func func-ast)]
+              [`("," ,more ...)
+               (more-args more pos-args key-args stararg kwarg)]
+              [`("*" ,vararg-expr ,more ...)
+               (more-args more pos-args key-args (expr->value-ast vararg-expr) kwarg)]
+              [`("**" ,kwarg-expr ,more ...)
+               (more-args more pos-args key-args stararg (expr->value-ast kwarg-expr))]
+              [`((argument ,key "=" ,val) ,more ...)
+               (more-args more pos-args 
+                          (cons (ast 'nodetype "keyword"
+                                          ;; This is backwards but works.
+                                          ;; See the note in the grammar.
+                                     'arg (hash-ref (expr->value-ast key) 'id)
+                                     'value (expr->value-ast val)) key-args)
+                          stararg kwarg)]
+              ;; bare generators grumble grumble
+              [`((argument ,expr ,comp_for) ,more ...)
+               (more-args more 
+                          (cons (build-comprehension expr comp_for "GeneratorExp") pos-args) 
+                          key-args stararg kwarg)]
+              [`((argument ,expr) ,more ...)
+               (more-args more (cons (expr->value-ast expr) pos-args) key-args stararg kwarg)]
+              [_ 
+               (display args) (newline)
+               (error "Error parsing args")])))
+         (more-args args '() '() #\nul #\nul)))
+
 ;; Turns a comma-separated list of exprs (expr first) to an ast list of exprs
-;; TODO: comp_for case
 (define (arglist->ast-list arg-lst acc)
   (match arg-lst
     [(list) (reverse acc)]
@@ -637,7 +665,7 @@ trailer, comp-op, suite and others should match their car
   (map (lambda (e) (expr->ast e expr-ctx)) (every-other (cdr lst))))
 
 ;; Currently covers both typedargslist and varargslist
-(define (build-args args)
+(define (build-formals args)
   (local ((define (more-args args positional-arg-names default-asts vararg kwarg)
             (match args
               [`() (args-ast (reverse positional-arg-names) (reverse default-asts) vararg kwarg)]
