@@ -6,6 +6,7 @@
          "python-tools.rkt"
          "parse-python.rkt"
          "run-tests.rkt"
+         "python-lexical-printer.rkt"
          "python-evaluator.rkt")
 
 
@@ -26,7 +27,14 @@
    (pretty-write (get-surface-syntax (current-input-port))))
 
   ("--get-lexical-syntax" "Get surface syntax python"
+   (lexexpr-print (get-lexical-syntax (current-input-port)) ""))
+
+  ("--get-lexical-syntax-old" ""
    (pretty-write (get-lexical-syntax (current-input-port))))
+
+    ("--get-lexical-syntax-with-locals" "Get surface syntax python"
+   (pretty-write (get-lexical-syntax-with-locals (current-input-port))))
+
 
   ("--get-core-syntax" "Get desugared python"
    (pretty-write (get-core-syntax (current-input-port))))
