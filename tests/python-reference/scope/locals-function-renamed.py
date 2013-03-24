@@ -12,4 +12,5 @@ def f(x):
 d = f(2)(4)
 ___assertIn('h', d)
 del d['h']
+del d['mylocals']
 ___assertEqual(d, {'x': 2, 'y': 7, 'w': 6})
