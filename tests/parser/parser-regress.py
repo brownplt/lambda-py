@@ -139,6 +139,9 @@ def f():
     def q(r,*s): pass
     def t(u,v=w): pass
     def t(x,y=z,): pass
+    def a(**b): pass
+    def c(d,**e): pass
+    def f(h,i=j,*k,**l): pass
 
     class q: pass
     class r(s,t): pass
