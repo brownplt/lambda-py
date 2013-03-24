@@ -73,6 +73,10 @@ def f():
     while z: return a,b
     while c: return d,e,
 
+    del a
+    del a,b,
+    del a[b][c]
+
     while f: raise g
     while f: raise
 
@@ -81,6 +85,9 @@ def f():
     assert i
 
     global j
+    global k,l,m
+    nonlocal n
+    nonlocal o,p,q
 
     if k: pass
 

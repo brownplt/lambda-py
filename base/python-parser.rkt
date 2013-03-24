@@ -124,6 +124,10 @@ trailer, comp-op, suite and others should match their car
      (ast 'nodetype "Return"
           'value #\nul)]
 
+    [(list 'del_stmt "del" expr)
+     (ast 'nodetype "Delete"
+          'targets (exprlist->ast-list expr "Del"))]
+
     ;; raise_stmt TODO: from clause
     [(list 'raise_stmt "raise" exc)
      (ast 'nodetype "Raise"
@@ -137,17 +141,20 @@ trailer, comp-op, suite and others should match their car
 
     [(list 'pass_stmt "pass")
      (ast 'nodetype "Pass")]
-    
+
     ;; assert_stmt TODO: msg
     [(list 'assert_stmt "assert" expr)
      (ast 'nodetype "Assert"
           'test (expr->ast expr "Load")
           'msg #\nul)]
 
-    ;; global_stmt TODO: multiple names
-    [(list 'global_stmt "global" (cons 'name name))
+    [(list 'global_stmt "global" rest ...)
      (ast 'nodetype "Global"
-          'names (list name))]
+          'names (map cdr (every-other rest)))]
+
+    [(list 'nonlocal_stmt "nonlocal" rest ...)
+     (ast 'nodetype "Nonlocal"
+          'names (map cdr (every-other rest)))]
 
     ;; if_stmt TODO: multiple elif and opt. else
     [(list 'if_stmt "if" test ":" suite)
@@ -596,6 +603,9 @@ trailer, comp-op, suite and others should match their car
           'ctx (ast 'nodetype expr-ctx)
           'elts (map (lambda (e) (expr->ast e expr-ctx)) (every-other rest)))]))
 
+(define (exprlist->ast-list lst expr-ctx)
+  (map (lambda (e) (expr->ast e expr-ctx)) (every-other (cdr lst))))
+
 ;; Currently covers both typedargslist and varargslist
 (define (more-args lst positional-arg-names default-asts vararg)
                (match lst
@@ -651,3 +661,4 @@ trailer, comp-op, suite and others should match their car
            [`(comp_for "for" ,target-expr "in" ,iter-expr ,more ...)
                       (more-clauses more '() target-expr iter-expr '())]
            [_ (error "Argument to build-comprehension must be a comp_for")])))
+
