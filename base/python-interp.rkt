@@ -557,47 +557,6 @@
                          (to-string cls)))))]))]
       [else "Non-VObject"])))
 
-;; handles lookup chain for function calls on objects
-;; multiple inheritance modification : for class lookup call get-field-from-class
-;; optional address field added to support self aliasing in bound methods calls.
-(define (get-field [n : symbol] [cptr : CVal] [e : Env] [s : Store]) : Result
-  (begin ;(display "GET: ") (display n) (display " ") (display cptr) (display "\n")
-         ;(display (fetch-ptr cptr s)) (display "\n\n")
-         ;(display (print-class cptr s)) (display "\n\n")
-         ;(display " ") (display w_c) (display "\n\n")
-         ;(display e) (display "\n\n")
-  (cond
-    [(not (is-obj-ptr? cptr s))
-     (mk-exception 'AttributeError
-                   (string-append 
-                    (string-append (pretty cptr (hash empty)) " object has no attribute ")
-                    (symbol->string n))
-                   e
-                   s)]
-    [(is-special-method? n)
-     ;; special methods are looked for in the class
-     (get-field-from-obj n cptr (none) e s)]
-    [(and (some? (VObjectClass-mval (fetch-ptr cptr s)))
-          (MetaClass? (some-v (VObjectClass-mval (fetch-ptr cptr s)))))
-     (begin ;(display (format "looking up in class: ~a\n" n))
-     ;; class lookup
-     (get-field-from-cls n cptr (none) e s))]
-    [else
-      ;; instance lookup
-      (type-case CVal (fetch-ptr cptr s)
-        [VObjectClass (antecedent mval d class) 
-                 (let ([w (hash-ref (VObjectClass-dict (fetch-ptr cptr s)) n)])
-                   (begin ;(display "loc: ") (display w) (display "\n\n")
-                     (type-case (optionof Address) w
-                       [some (w) 
-                             (v*s (fetch-once w s) s)]
-                       [none ()
-     (begin ;(display (format "looking up in obj ~a\n" n))
-      (let ([result (get-field-from-obj n cptr (none) e s)])
-        (begin #;(display (format "Got: ~a\n" (fetch-ptr (v*s-v result) (v*s-s result))))
-          result)))])))]
-        [else (error 'interp "Not an object with fields.")])])))
-
 (define (obj-ptr-match obj sto if-obj non-obj non-ptr)
   (type-case CVal obj
     [VPointer (a)
@@ -678,7 +637,10 @@
                                          "expected "
                                          (to-string args)
                                          ", received "
-                                         (to-string (map v*s-v vals)))
+                                         (string-join
+                                          (map (lambda (v) (pretty v sto))
+                                               (map v*s-v vals))
+                                          ", "))
                                    "")
                                  env
                                  sto)))]
@@ -723,109 +685,16 @@
     [VSym (t) (equal? t 'true)]
     [VPointer (a) (truthy? (fetch-once a sto) sto)]))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; multiple inheritance ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; get-field-from-obj: looks for a field of an object using the class __mro__
-;; skip up to thisclass in __mro__, if defined.
-;; optional address field added to support self aliasing in bound methods calls.
-(define (get-field-from-obj [fld : symbol] 
-                            [objptr : CVal]
-                            [thisclass : (optionof CVal)]
-                            [env : Env] 
-                            [sto : Store]) : Result
-  (begin ;(display "GET-OBJ: ") (display fld) (display "\n"); (display " ") (display obj)
-         ;(display " ") (display (fetch-ptr objptr sto)) (display "\n\n")
-  (let ([obj (fetch-ptr objptr sto)])
-    (cond
-      ;; for function and method objects, __call__ attribute is the object itself
-      [(and (or (is-fun? obj) (object-is? obj '%method env sto)) (equal? fld '__call__))
-       (v*s objptr sto)]
-      ;; special lookup handling for initialized super object
-      [(and (object-is? obj '%super env sto)
-            (some? (hash-ref (VObjectClass-dict obj) '__self__)))
-       (local ([define w_self (hash-ref (VObjectClass-dict obj) '__self__)]
-               [define self (fetch-once (some-v w_self) sto)]
-               [define thisclass (fetch-once (some-v (hash-ref (VObjectClass-dict obj)
-                                                                '__thisclass__))
-                                              sto)])
-         (cond
-           [(and (is-obj-ptr? self sto)
-                 (object-is? (fetch-ptr self sto) '%type env sto))
-            ;; obj.self is a class
-            (get-field-from-cls fld self (some thisclass) env sto)]
-           [else
-            ;; obj.self is an instance
-            (get-field-from-obj fld self (some thisclass) env sto)]))]
-      ;; normal instance lookup
-      [else
-       (local ([define obj-cls (get-class obj env sto)])
-         (type-case (optionof Address) (lookup-mro (get-mro obj-cls thisclass sto) fld sto)
-           [some (w) (let ([value (fetch-once w sto)])
-                      (begin
-                        ;(display (format "Value from lookup-mro: ~a\n" (fetch-ptr value sto)))
-                        ;(display (format "on field: ~a\n" fld))
-                       (cond
-                         ;; For functions, create method object bound to the object itself
-                         [(is-fun-ptr? value sto)
-                          (local [(define-values (meth sto-m) (mk-method w objptr env sto))]
-                            (alloc-result meth sto-m))]
-                         ;; for classmethod objects create method object bound to the object's class
-                         [(and (is-obj-ptr? value sto) 
-                               (object-is? (fetch-ptr value sto) '%classmethod env sto))
-                          (local [(define w_func 
-                                    (some-v (hash-ref (VObjectClass-dict (fetch-ptr value sto)) '__func__)))
-                                  (define-values (meth sto-m)
-                                    ;; NOTE(joe): obj-cls needs to be a pointer
-                                    (mk-method w_func obj-cls env sto))]
-                            ;; NOTE(joe): does this alloc-result break is-equality of class methods?
-                            (alloc-result meth sto-m))]
-                         ;; for staticmethod obj. return func attribute
-                         [(and (is-obj-ptr? value sto) 
-                               (object-is? (fetch-ptr value sto) '%staticmethod env sto))
-                                    (get-field '__func__ value env sto)]
-                         ;; otherwise return the value of the attribute
-                         [else 
-                          (v*s value sto)])))]
-           [none () (mk-exception 'AttributeError
-                                  (string-append 
-                                   (string-append "object " 
-                                                  (symbol->string (VObjectClass-antecedent obj)))
-                                   (string-append " has no attribute "
-                                                  (symbol->string fld)))
-                                  env
-                                  sto)]))]))))
-
-;; get-field-from-cls: looks for a field of a class using class __mro__
-;; skip up to thisclass in __mro__, if defined.
-;; optional address field added to support self aliasing in bound methods calls.
-(define (get-field-from-cls [fld : symbol] 
-                            [clsptr : CVal]
-                            [thisclass : (optionof CVal)]
-                            [env : Env] 
-                            [sto : Store]) : Result
-  (begin ;(display "GET-CLS: ") (display fld) ;(display " ") (display clsptr)
-         ;(display " ") (display clsptr) (display "\n")
+;; get-field: looks for a field of a class using class __mro__
+(define (get-field [fld : symbol] [clsptr : CVal] [env : Env] [sto : Store]) : Result
+  (begin ;(display "GET: ") (display fld) (display " ") (display "\n")
+         ;(display "     ") (display clsptr) (display "\n")
+         ;(display "     ") (display (pretty cptr s)) (display "\n")
     (let ([cls (fetch-ptr clsptr sto)])
-      (type-case (optionof Address) (lookup-mro (get-mro clsptr thisclass sto) fld sto)
+      (type-case (optionof Address) (lookup-mro (get-mro clsptr sto) fld sto)
         [some (w)
               (let ([value (fetch-once w sto)])
-                (cond
-                  ;; for classmethod obj. create method obj. bound to the class
-                  [(and (is-obj-ptr? value sto)
-                        (object-is? (fetch-ptr value sto) '%classmethod env sto))
-                   (local [(define w_func (some-v (hash-ref (VObjectClass-dict (fetch-ptr value sto))
-                                                            '__func__)))
-                           (define-values (meth sto-m) (mk-method w_func clsptr env sto))]
-                     (alloc-result meth sto-m))]
-                  ;; for staticmethod obj. return func attribute
-                  [(and (is-obj-ptr? value sto)
-                        (object-is? (fetch-ptr value sto) '%staticmethod env sto))
-                   (get-field '__func__ value env sto)]
-                  ;; otherwise return the value of the attribute
-                  [else
-                   (begin ;(display "Else of get-cls\n") (display value)
-                     ;(display "\n") (display (fetch-ptr value sto)) (display "\n")
-                     (v*s value sto))]))]
+                (v*s value sto))]
         [none () (mk-exception 'AttributeError
                                (string-append
                                 (string-append "class "
@@ -848,7 +717,3 @@
                        [none () (lookup-mro (rest mro) n sto)]
                        [some (value) (some value)])]
             [else (error 'lookup-mro "an entry in __mro__ list is not an object")])])]))
-
-;; special methods
-(define (is-special-method? [n : symbol])
-  (member n (list '__call__ '__eq__ '__cmp__ '__str__ '__getitem__ '__gt__ '__lt__ '__lte__ '__gte__)))

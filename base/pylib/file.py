@@ -15,14 +15,16 @@ class file:
         self.mode = mode
 
     def read(self, *args):
+        ___assign('%str', str)
         if ___delta("num=", args.__len__(), 0):
-            return ___delta("file-readall", self)
+            return ___delta("file-readall", self, str)
         elif ___delta("num=", args.__len__(), 1):
             size = ___delta("tuple-getitem", args, 0)
-            return ___delta("file-read", self, size)
+            return ___delta("file-read", self, size, str)
 
     def readline(self):
-        return ___delta("file-readline", self)
+        ___assign('%str', str)
+        return ___delta("file-readline", self, str)
 
     def write(self, data):
         return ___delta("file-write", self, data)

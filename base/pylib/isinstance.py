@@ -5,9 +5,9 @@
 def isinstance(obj, classinfo):
     type = ___id("%type")
     tuple = ___id("%tuple")
-    if type in ___delta("$class", classinfo).__mro__:
-        return classinfo in ___delta("$class", obj).__mro__
-    elif tuple in ___delta("$class", classinfo).__mro__:
+    if ___delta("isinstance", classinfo, type):
+        return ___delta("isinstance", obj, classinfo)
+    elif ___delta("isinstance", classinfo, tuple):
         any = ___id("%any")
         return any((isinstance(obj, cls) for cls in classinfo))
     else:

@@ -125,12 +125,14 @@ primitives here.
                                                (some (MetaNum 0))
                                                (hash empty)))))))
 (define (num-str args env sto)
-    (let ([arg (first args)])
-            (some (VObject 'str 
-                           (some (MetaStr 
+    (let ([arg (first args)]
+          [str-cls (second args)])
+            (some (VObjectClass 'str
+                           (some (MetaStr
                              (number->string (MetaNum-n (some-v (VObjectClass-mval
                                                                   arg))))))
-                           (hash empty)))))
+                           (hash empty)
+                           (some str-cls)))))
 
 (define (builtin-prim [op : symbol] [argsptrs : (listof CVal)] 
                       [env : Env] [sto : Store] [stk : Stack]) : Result
@@ -184,7 +186,7 @@ primitives here.
     ['num>= (prim-noalloc num>= argvs)]
     ['num<= (prim-noalloc num<= argvs)]
     ['numcmp (prim-alloc numcmp argvs)]
-    ['num-str (prim-alloc num-str argvs)]
+    ['num-str (prim-alloc num-str (fetch-heads argvs argsptrs))]
 
     ;string
     ['str+ (prim-alloc str+ (fetch-heads argvs argsptrs))]
@@ -252,9 +254,9 @@ primitives here.
 
     ; file
     ['file-open (prim-alloc file-open argvs)]
-    ['file-read (prim-alloc file-read argvs)]
-    ['file-readall (prim-alloc file-readall argvs)]
-    ['file-readline (prim-alloc file-readline argvs)]
+    ['file-read (prim-alloc file-read (fetch-heads argvs argsptrs))]
+    ['file-readall (prim-alloc file-readall (fetch-heads argvs argsptrs))]
+    ['file-readline (prim-alloc file-readline (fetch-heads argvs argsptrs))]
     ['file-write (prim-alloc file-write argvs)]
     ['file-close (prim-alloc file-close argvs)]
     ['existing-file? (prim-noalloc existing-file? argvs)]
@@ -284,10 +286,10 @@ primitives here.
                            env sto)
                    (error 'locals "Empty stack in locals")))]
 
-    ['code-str (prim-alloc code-str argvs)]
-    ['code-globals (prim-alloc code-globals argvs)]
+    ['code-str (prim-alloc code-str (fetch-heads argvs argsptrs))]
+    ['code-globals (prim-alloc code-globals (fetch-heads argvs argsptrs))]
 
-    ['compile (prim-alloc compile (fetch-heads argvs argsptrs))];argvs)]
+    ['compile (prim-alloc compile (fetch-heads argvs argsptrs))]
 
     ['print (begin (print (first argvs) sto) (v*s (first argsptrs) sto))]
 
@@ -300,5 +302,10 @@ primitives here.
              (v*s true-val sto)
              (v*s false-val sto))]
  
-    [else (error 'prim (format "Missed primitive: ~a" op))]))))
+    ;; added to bootstrap attribute desugaring, second arg must be a class
+    ['isinstance (if (member (second argsptrs)
+                             (get-mro (get-class (first argvs) env sto) sto))
+             (v*s true-val sto)
+             (v*s false-val sto))]
 
+    [else (error 'prim (format "Missed primitive: ~a" op))]))))

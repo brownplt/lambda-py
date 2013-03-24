@@ -244,6 +244,7 @@
             (bind '%getattr (CUndefined))
             (bind 'hasattr (CUndefined))
             (bind '%hasattr (CUndefined))
+            (bind '%special_getattr (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))

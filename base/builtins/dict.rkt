@@ -16,7 +16,7 @@
           (define dicthash
             (map (λ (pair)
                     (let ([res (alloc-result
-                                 (make-str-value (symbol->string (car pair)))
+                                 (make-str-value (symbol->string (car pair)) (fetch-once (some-v (lookup '%dict env)) new-sto))
                                  new-sto)])
                       (begin
                         (hash-set! filledhash

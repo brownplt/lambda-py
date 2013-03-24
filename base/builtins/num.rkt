@@ -144,7 +144,7 @@
              (def 'num '__str__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'num-str
-                                                (list (CId 'self (LocalId)))))
+                                                (list (CId 'self (LocalId)) (CId '%str (GlobalId)))))
                          (some 'num)))
              
              (def 'num '__eq__

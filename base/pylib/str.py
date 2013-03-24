@@ -31,7 +31,7 @@ class str(object):
   def __eq__(self, other):
     type = ___id("%type")
     str = ___id("%str")
-    if not (type(other) == str):
+    if not (type(other) is str):
       return False
     return ___delta("str=", self, other)
 

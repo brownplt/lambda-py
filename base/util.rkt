@@ -163,32 +163,17 @@
     [some (w_cls)
           (let ([obj-cls (get-class obj env sto)]
                 [cls (fetch-once w_cls sto)])
-            (member cls (get-mro obj-cls (none) sto)))]
+            (member cls (get-mro obj-cls sto)))]
     [none ()
           (error 'object-is? (string-append "class not found in env: "
                                             (symbol->string cls)))]))
 
-;; get-mro: fetch-ptr __mro__ field as a list of classes, filtered up to thisclass if given
+;; get-mro: fetch-ptr __mro__ field as a list of classes
 (define (get-mro [cls : CVal] 
-                 [thisclass : (optionof CVal)]
                  [sto : Store]) : (listof CVal)
   (type-case (optionof Address) (hash-ref (VObjectClass-dict (fetch-ptr cls sto)) '__mro__)
-    [some (w) (let ([mro (MetaTuple-v (some-v (VObjectClass-mval
-                                               (fetch-ptr (fetch-once w sto) sto))))])
-                (if (none? thisclass)
-                    mro
-                    (if (> (length
-                             (filter (lambda (c) (eq? (fetch-ptr (some-v thisclass) sto)
-                                                      (fetch-ptr c sto)))
-                                     mro))
-                           0)
-                        (rest (memf (lambda (c) (eq? (fetch-ptr (some-v thisclass) sto)
-                                                     (fetch-ptr c sto)))
-                                    mro))
-                        (error 'get-mro
-                          (string-append
-                            (format "No member ~a in class mro " (some-v thisclass))
-                              (to-string mro))))))]
+    [some (w) (MetaTuple-v (some-v (VObjectClass-mval
+                                    (fetch-ptr (fetch-once w sto) sto))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
                                             (pretty cls sto)))]))
 
@@ -293,8 +278,9 @@
 (define (make-exception [name : symbol] [error : string]) : CExpr
   (CLet '$call (LocalId) (py-getfield (CId name (GlobalId)) '__call__)
         (CApp
-         (py-getfield (CId '$call (LocalId)) '__func__)
-         (list (py-getfield (CId '$call (LocalId)) '__self__) (make-builtin-str error))
+         (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId)) (make-builtin-str "__func__")))
+         (list (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId)) (make-builtin-str "__self__")))
+               (make-builtin-str error))
          (none))))
 
 (define (default-except-handler [id : symbol] [body : CExpr]) : CExpr
@@ -466,21 +452,43 @@
 (define (py-app [fun : CExpr] [args : (listof CExpr)] [stararg : (optionof CExpr)]) : CExpr
   (CLet '$fun (LocalId) fun
         (CIf (CBuiltinPrim 'is-func? (list (CId '$fun (LocalId))))
+             ;; function call
              (CApp (CId '$fun (LocalId)) args stararg)
+             ;; try to get __call__ attribute
              (CTryExceptElse
               (py-getfield (CId '$fun (LocalId)) '__call__)
+              ;; exception raised, not callable
               '_ (CRaise (some (make-exception 'TypeError "object is not callable")))
+              ;; no exception, __call__ is available
               (CLet '$call (LocalId) (py-getfield (CId '$fun (LocalId)) '__call__)
                     (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
+                         ;; __call__ is a function
                          (CApp (CId '$call (LocalId)) args stararg)
-                         (CApp (py-getfield (CId '$call (LocalId)) '__func__)
-                               (cons (py-getfield (CId '$call (LocalId)) '__self__) args) stararg)))))))
+                         ;; else it should be a method, call __func__ and pass __self__ as first arg.
+                         (CApp (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                (make-builtin-str "__func__")))
+                               (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                      (make-builtin-str "__self__")))
+                                     args)
+                               stararg)))))))
 
 ;; sintactic sugar to get a field from an object
-(define (py-getfield [value : CExpr] [attr : symbol]) : CExpr
-  (cond
-    ;; special attribute __class__
-    [(eq? attr '__class__)
-     (CBuiltinPrim '$class (list value))]
-    [else
-     (CGetAttr value (make-builtin-str (symbol->string attr)))]))
+(define (py-getfield [obj-exp : CExpr] [attr : symbol]) : CExpr
+  (local [(define (is-special-method? [n : symbol])
+            (member n (list '__in__ '__call__ '__eq__ '__cmp__ '__str__ '__getitem__ '__gt__ '__lt__ '__lte__ '__gte__)))]
+    (cond
+      [(eq? attr '__class__)
+       ;; special attribute __class__, cannot be overriden.
+       (CBuiltinPrim '$class (list obj-exp))]
+      [(eq? attr '__mro__)
+       ;; special attribute __mro__, cannot be overriden.
+       (CBuiltinPrim 'obj-getattr (list obj-exp (make-builtin-str "__mro__")))]
+      [(is-special-method? attr)
+       ;; special methods cannot be overriden by __getattribute__, call %special_getattr(obj, attr)
+       (CApp (CId '%special_getattr (GlobalId)) (list obj-exp (make-builtin-str (symbol->string attr))) (none))]
+      [else
+       ;; normal case, call type(obj).__getattribute__(obj, attr), this can be overriden
+       (CLet '$obj (LocalId) obj-exp
+             (CLet '$cls (LocalId) (CBuiltinPrim '$class (list (CId '$obj (LocalId))))
+                   (CApp (CGetAttr (CId '$cls (LocalId)) (make-builtin-str "__getattribute__"))
+                         (list (CId '$obj (LocalId)) (make-builtin-str (symbol->string attr))) (none))))])))

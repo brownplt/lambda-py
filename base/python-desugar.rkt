@@ -344,12 +344,10 @@
                                                           (CId 'test (LocalId)))
                                                     (none)))
                                                 (CRaise (some
-                                                  (py-app (CId 'TypeError (LocalId))
-                                                        (list (make-builtin-str
-                                                               (string-append
-                                                                "argument of type '___'" 
-                                                                "is not iterable")))
-                                                        (none))))))
+                                                  (make-exception 'TypeError
+                                                                  (string-append
+                                                                   "argument of type '___'"
+                                                                   "is not iterable"))))))
                                      (none))
                               (list right-c left-c)
                               (none))]
