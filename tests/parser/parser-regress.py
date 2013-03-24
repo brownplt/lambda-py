@@ -89,6 +89,9 @@ def f():
     nonlocal n
     nonlocal o,p,q
 
+    with a, b, c: pass
+    with d as e, f as g, h: pass
+
     if k: pass
 
     if l: pass

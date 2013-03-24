@@ -142,7 +142,7 @@ trailer, comp-op, suite and others should match their car
     [(list 'pass_stmt "pass")
      (ast 'nodetype "Pass")]
 
-    ;; assert_stmt TODO: msg
+    ;; assert_stmt TODO: msg, multiple
     [(list 'assert_stmt "assert" expr)
      (ast 'nodetype "Assert"
           'test (expr->ast expr "Load")
@@ -155,6 +155,25 @@ trailer, comp-op, suite and others should match their car
     [(list 'nonlocal_stmt "nonlocal" rest ...)
      (ast 'nodetype "Nonlocal"
           'names (map cdr (every-other rest)))]
+
+    [(list 'with_stmt "with" clauses ... ":" with-suite)
+     (car
+      (foldl 
+       (lambda (with_clause inner-ast-list)
+         (match with_clause
+           [`(with_item ,elt-expr)
+            (list (ast 'nodetype "With"
+                       'body inner-ast-list
+                       'optional_vars #\nul
+                       'context_expr (expr->ast elt-expr "Load")))]
+           [`(with_item ,elt-expr "as" ,var-expr)
+            (list (ast 'nodetype "With"
+                       'body inner-ast-list
+                       'optional_vars (expr->ast var-expr "Store")
+                       'context_expr (expr->ast elt-expr "Load")))]
+           [_ (error "Bad with clause")]))
+       (suite->ast-list with-suite)
+       (reverse (every-other clauses))))]
 
     ;; if_stmt TODO: multiple elif and opt. else
     [(list 'if_stmt "if" test ":" suite)
