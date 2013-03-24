@@ -63,9 +63,9 @@
       [LexNum (n) (begin (display starting-tab) (display n) this-expr)]
       [LexBool (n) (begin (display starting-tab) (display n) this-expr)]
       [LexBuiltinPrim (s args) (begin (display starting-tab) (display this-expr) this-expr)]
-      [LexInstanceId (n ctx)  (begin (display starting-tab) (display "/* (instance) */") (display n) this-expr)]
-      [LexGlobalId (n ctx) (begin (display starting-tab) (display "/* (global) */") (display n)  this-expr)]
-      [LexLocalId (n ctx) (begin (display starting-tab) (display "/* (local) */") (display n) this-expr)]
+      [LexInstanceId (n ctx)  (begin (display starting-tab) (display "I.") (display n) this-expr)]
+      [LexGlobalId (n ctx) (begin (display starting-tab) (display "G.") (display n)  this-expr)]
+      [LexLocalId (n ctx) (begin (display starting-tab) (display "L.") (display n) this-expr)]
       [LexLocalLet (id bind body)
                    (begin
                      (display starting-tab)
@@ -83,7 +83,7 @@
                         (begin
                           (display starting-tab)
                           (display "# active locals: ")
-                          (map display ls)
+                          (map (lambda (y) (begin (display y) (display ", "))) ls)
                           (display "\n")
                           this-expr)]
       [LexGlobals (ids body)
