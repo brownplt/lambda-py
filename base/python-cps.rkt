@@ -377,14 +377,14 @@
     [CFunc
      (args varargs body opt-class)
      (if (has-yield? body)
-         (let [(kill-generator (CAssign (CGetField (Id 'self) '__next__)
+         (let [(kill-generator (CAssign (CGetField (Id 'self) '___resume)
                                                     (CFunc
-                                                     (list) (none)
+                                                     (list 'arg) (none)
                                                      (CRaise (some (make-exception
                                                                     'StopIteration
                                                                     "generator terminated")))
                                                      ;; NOTE(dbp): is this the right symbol?
-                                                     (some '%generator))))]
+                                                     (none))))]
          (CFunc
           args
           varargs
@@ -405,16 +405,14 @@
                                              kill-generator
                                              (CRaise (some (make-exception 'StopIteration
                                                                            "generator terminated")))))
-                                          ;; NOTE(dbp): return inside generators is illegal...
-                                          ;; so in a sense our even handling this case is a little
-                                          ;; odd...
+                                          ;; NOTE(dbp): return inside generator kills the generator
                                          (pylam
                                           (V)
                                           (CSeq
                                            kill-generator
                                           (CRaise (some
-                                                   (make-exception 'SyntaxError
-                                                                   "return in generator - bad!")))))
+                                                   (make-exception 'StopIteration
+                                                                   "generator terminated")))))
                                          ;; NOTE(dbp):
                                          ;; an uncaught exception within the generator propogates
                                          ;; it and kills the generator (see gen-exception.py test)
