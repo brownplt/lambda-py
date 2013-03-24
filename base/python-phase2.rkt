@@ -26,11 +26,11 @@
       (let-phase
        (remove-nonlocal
         (remove-blocks
-         (make-local-list
-          empty
           (collapse-pyseq
            (post-desugar
-            expr)))))))))))
+            (make-local-list
+             empty
+             expr)))))))))))
 
 ;;wholly and utterly for debugging.
 (define (phase2-without-locals expr)
@@ -42,11 +42,11 @@
                                         ;(phase2-locals empty)
      (optimization-pass
       (let-phase
-         (make-local-list
-          empty
           (collapse-pyseq
            (post-desugar
-            expr))))))))
+            (make-local-list
+             empty
+             expr))))))))
   )
 
 (define (post-desugar [expr : LexExpr]) : LexExpr
@@ -92,7 +92,7 @@
              (LexSeq
               (list
                ;this is the random-identifiers-assigned-to-lambdas part
-               (LexBlock empty (create-bindings list-of-functions list-of-identifiers))
+               (create-bindings list-of-functions list-of-identifiers)
                ;this is the new body.
                (LexBlock empty replaced-body)
                ))
@@ -423,6 +423,19 @@
          [else (default-recur)])))
     starting-locals)))
 
+(define (collect-instance-in-scope expr starting-locals) : (listof symbol)
+  (flatten
+   (list
+    (lexexpr-fold-tree
+     expr
+     (lambda (y)
+       (type-case LexExpr y
+         [LexBlock (_ __) empty]
+         [LexClass (scope name bases bodyx) empty]
+         [LexInstanceId (x ctx) (list x)]
+         [else (default-recur)])))
+    starting-locals)))
+
 (define (filter-locals [ids : (listof symbol)])
   (remove-duplicates (filter
    (lambda (y)
@@ -447,34 +460,20 @@
                               (LexBlock nls (move-past-local-lets
                                              (LexInScopeLocals (filter-locals locals))
                                              (make-local-list preserved-locals body)))))))
-         (let 
-             ((body-logic (lambda (body pr)
-                           (type-case LexExpr body
-                             [LexBlock (nls body)
-                                       (block-recur nls body pr)]
-                             [else (error 'make-local-list (to-string body))]))))
 
          (type-case LexExpr y
            [LexBlock (nls body)
                      (block-recur nls body nls)]
-           #;[LexFunc (name args defaults body decorators class )
-                    (begin
-                      (display "there is totally a function here\n")
-                      (LexFunc
-                     name
-                     args
-                     (map recur defaults)
-                     (body-logic body args)
-                     (map recur decorators)
-                     (option-map recur class)))]
-           #;[LexFuncVarArg (name args sarg body decorators class)
-                          (LexFuncVarArg
-                           name
-                           args
-                           sarg
-                           (body-logic body (cons sarg args))
-                           (map recur decorators)
-                           (option-map recur class))]
+           [LexClass (scope name bases body)
+                     (LexClass scope name (recur bases) 
+                     (type-case LexExpr body
+                       [LexBlock (nls es)
+                                 (let ((locals (collect-instance-in-scope es nls)))
+                                   (LexBlock nls (move-past-local-lets
+                                                  (LexInScopeLocals (filter-locals locals))
+                                                  (make-local-list nls es))))]
+                       [else (error 'make-local-list
+                                    "thing inside class body is not block")]))]
            [LexTryExceptElse (try except el)
                              (LexTryExceptElse
                               (make-local-list starting-locals try)
@@ -493,5 +492,5 @@
                                     (LexInScopeLocals (filter-locals starting-locals))
                                     (make-local-list starting-locals finally)))
                            )]
-           [else (default-recur)]))))))
+           [else (default-recur)])))))
 
