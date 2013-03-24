@@ -34,6 +34,7 @@
 
 ;;wholly and utterly for debugging.
 (define (phase2-without-locals expr)
+  (begin
     (LexModule
    (list
     (LexPass)
@@ -41,13 +42,11 @@
                                         ;(phase2-locals empty)
      (optimization-pass
       (let-phase
-       (remove-nonlocal
-        (remove-blocks
          (make-local-list
           empty
           (collapse-pyseq
            (post-desugar
-            expr)))))))))
+            expr))))))))
   )
 
 (define (post-desugar [expr : LexExpr]) : LexExpr
@@ -93,9 +92,9 @@
              (LexSeq
               (list
                ;this is the random-identifiers-assigned-to-lambdas part
-               (create-bindings list-of-functions list-of-identifiers)
+               (LexBlock empty (create-bindings list-of-functions list-of-identifiers))
                ;this is the new body.
-               replaced-body
+               (LexBlock empty replaced-body)
                ))
               ))))
             (begin
