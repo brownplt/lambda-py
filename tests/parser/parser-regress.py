@@ -40,6 +40,12 @@ def f():
 
     f(x for y in z)
 
+    (x for y in z for a in b if c)
+    [x for y in z for a in b if c]
+
+    (x for y in z if a if b)
+    [x for y in z if a for y in z if a]
+
     not n
     
     -o

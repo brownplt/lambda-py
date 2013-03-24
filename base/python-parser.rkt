@@ -327,7 +327,7 @@ trailer, comp-op, suite and others should match their car
   (match py-ragg
 
     #| Expression fallthroughs... |#
-    [(list (or 'argument 'testlist_comp 'testlist_star_expr 'testlist 'test 'or_test 'and_test 'not_test 'comparison 'expr 'xor_expr 'and_expr 'shift_expr 'arith_expr 'term 'factor 'power) expr)
+    [(list (or 'test_nocond 'argument 'testlist_comp 'testlist_star_expr 'testlist 'test 'or_test 'and_test 'not_test 'comparison 'expr 'xor_expr 'and_expr 'shift_expr 'arith_expr 'term 'factor 'power) expr)
      (expr->ast expr expr-ctx)]
 
     ;; Single item handled above. All others are tuples.
@@ -469,39 +469,13 @@ trailer, comp-op, suite and others should match their car
           'ctx (ast 'nodetype "Load")
           'elts (arglist->ast-list exprs '()))]
     
-    ;; TODO: comp_iter/comp_if (via fold?)
-    [(list 'atom "[" (list 'testlist_comp result-expr
-                           (list 'comp_for "for" bound-list "in" source-expr)) "]")
-     (ast 'nodetype "ListComp"
-          'elt (expr->ast result-expr "Load")
-          'generators (list (ast 'nodetype "comprehension"
-                                 'target (exprlist->ast bound-list "Store")
-                                 'iter (expr->ast source-expr "Load")
-                                 'ifs '())))]
+    [(list 'atom "[" (list 'testlist_comp elt-expr (and comp
+                                                        (list 'comp_for _ ...))) "]")
+     (build-comprehension elt-expr comp "ListComp")]
 
-    ;; Temporary single if form
-    [(list 'atom "[" (list 'testlist_comp result-expr
-                           (list 'comp_for "for" bound-list "in" source-expr 
-                                 (list 'comp_iter (list 'comp_if "if" (list 'test_nocond if-expr))))) "]")
-     (ast 'nodetype "ListComp"
-          'elt (expr->ast result-expr "Load")
-          'generators (list (ast 'nodetype "comprehension"
-                                 'target (exprlist->ast bound-list "Store")
-                                 'iter (expr->ast source-expr "Load")
-                                 'ifs (list (expr->ast if-expr "Load")))))]
-
-    ;; GeneratorExp comes from testlist_comp exactly like LispComp except for the nodetype...
-    ;; Temporary copy/paste generator form
-    [(or (list 'testlist_comp result-expr
-               (list 'comp_for "for" bound-list "in" source-expr))
-         (list 'argument result-expr 
-               (list 'comp_for "for" bound-list "in" source-expr)))
-     (ast 'nodetype "GeneratorExp"
-          'elt (expr->ast result-expr "Load")
-          'generators (list (ast 'nodetype "comprehension"
-                                 'target (exprlist->ast bound-list "Store")
-                                 'iter (expr->ast source-expr "Load")
-                                 'ifs '())))]
+    [(list (or 'testlist_comp 'argument) elt-expr (and comp
+                                                       (list 'comp_for _ ...)))
+     (build-comprehension elt-expr comp "GeneratorExp")]
 
     ;; This makes the "type" expr very shaky...
     [(list 'testlist_comp expr1 "," exprs ...)
@@ -647,3 +621,33 @@ trailer, comp-op, suite and others should match their car
                  [_ (display "=== Unhandled formal argument ===") (newline)
                     (pretty-write lst)
                     (error "Unhandled formal argument")]))
+
+(define (expr->value-ast expr)
+  (expr->ast expr "Load"))
+
+(define (build-comprehension elt-expr comp comp-nodetype)
+  (local ((define (generator-ast target-expr iter-expr if-exprs)
+            (ast 'nodetype "comprehension"
+                 'target (exprlist->ast target-expr "Store")
+                 'iter (expr->ast iter-expr "Load")
+                 'ifs (map expr->value-ast if-exprs)))
+          (define (more-clauses comp generators cur-target cur-iter current-ifs)
+            (match comp
+              [`() 
+               (let ((gen (generator-ast cur-target cur-iter (reverse current-ifs))))
+                     (ast 'nodetype comp-nodetype 
+                          'elt (expr->ast elt-expr "Load")
+                          'generators (reverse (cons gen generators))))]
+              [`((comp_iter (comp_for "for" ,target-expr "in" ,iter-expr ,more ...)))
+               (let ((gen (generator-ast cur-target cur-iter (reverse current-ifs))))
+                 (more-clauses more (cons gen generators) target-expr iter-expr '()))]
+              [`((comp_iter (comp_if "if" ,if-expr ,more ...)))
+               (more-clauses more generators cur-target cur-iter (cons if-expr current-ifs))]
+              [_
+               (display "=== Unhandled comprehension clause ===") (newline)
+               (pretty-write comp)
+               (error "Unhandled comprehension clause")])))
+         (match comp 
+           [`(comp_for "for" ,target-expr "in" ,iter-expr ,more ...)
+                      (more-clauses more '() target-expr iter-expr '())]
+           [_ (error "Argument to build-comprehension must be a comp_for")])))
