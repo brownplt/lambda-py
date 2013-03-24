@@ -15,11 +15,18 @@
    [(empty? (rest es)) (begin (display (first es) ) false)]
    [else (begin (display (first es) ) (display ", ") (comma-separate-2 (rest es)) false)]))
 
+(define default-color "\033[1;37m")
 
-
+(define (brown e)
+  (begin
+  (display "\033[1;35m")
+  (display e)
+  (display default-color)))
+;    (display "\033[22;33mHello world!\033[1;35m")
 (define (lexexpr-print [this-expr : LexExpr] [ starting-tab : string]) : LexExpr
   (let ((recur (lambda [y] [lexexpr-print y starting-tab])))
   (begin
+    (display default-color)
     (type-case LexExpr this-expr
                                         ; control structures
       [LexIf (test body orelse)
@@ -389,11 +396,11 @@
                      this-expr)]
       [LexBlock [a b] (begin
                         (display starting-tab)
-                        (display "{\n")
+                        (brown "{\n")
                         (lexexpr-print b (string-append "  " starting-tab))
                         (display "\n")
                         (display starting-tab)
-                        (display "}\n")
+                        (brown "}\n")
                         this-expr)]
       [LexImport (names asnames) (begin
                                    (display this-expr)
