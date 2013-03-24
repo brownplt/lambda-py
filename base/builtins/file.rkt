@@ -37,12 +37,14 @@
 (define (file-read (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaPort? MetaNum?
                (some (make-str-value
-                      (file-read-internal (MetaPort-p mval1) (MetaNum-n mval2))))))
+                      (file-read-internal (MetaPort-p mval1) (MetaNum-n mval2))
+                      (third args)))))
 
 (define (file-readall (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaPort?
                (some (make-str-value
-                      (file-read-internal (MetaPort-p mval1) 1024)))))
+                      (file-read-internal (MetaPort-p mval1) 1024)
+                      (second args)))))
 
 (define (file-readline (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaPort?
@@ -50,7 +52,8 @@
                       (let ([line (read-line (MetaPort-p mval1))])
                         (if (eof-object? line)
                             ""
-                            (string-append line "\n")))))))
+                            (string-append line "\n")))
+                      (second args)))))
 
 (define (file-write [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaPort? MetaStr?

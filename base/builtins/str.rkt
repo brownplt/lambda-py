@@ -19,11 +19,12 @@
          (typed-in racket/list (fifth : ((listof 'a) -> 'a)))
          (typed-in racket/base (integer? : (number -> boolean))))
 
-(define (make-str-value [s : string]) : CVal
-  (VObject
+(define (make-str-value [s : string] [str-cls : CVal]) : CVal
+  (VObjectClass
     'str
     (some (MetaStr s))
-    (hash empty)))
+    (hash empty)
+    (some str-cls)))
 
 (define (str+ (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaStr? MetaStr?

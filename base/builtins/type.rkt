@@ -68,7 +68,7 @@
                     (let* ([cls-list (MetaTuple-v mval1)]
                            [bases (MetaTuple-v mval2)]
                            ;; mro tail is the c3-merge of the mro of the bases plus the list of bases
-                           [maybe-mro (c3-merge (append (map (lambda (base) (get-mro base (none) sto))
+                           [maybe-mro (c3-merge (append (map (lambda (base) (get-mro base sto))
                                                              bases)
                                                         (list bases)) empty)])
                       (if (some? maybe-mro)

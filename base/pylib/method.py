@@ -6,18 +6,17 @@ class method(object):
     self.__func__ = func
     self.__self__ = obj
 
+  def __getattr__(self, key):
+    if ___delta("str=", key, "__call__"):
+      return self
+    else:
+      str = ___id("%str")
+      msg = ___delta("str+", "method object has not attribute ", key, str)
+      raise AttributeError(msg)
+
   def __str__(self):
     # we don't have __name__ for functions and classes, yet.
     return "(method of " + str(type(self.__self__)) + " object)"
-
-  def __get__(self, obj, objtype):
-    # when used as attribute a bound method returns the method itself or the associated function
-    method = ___id("%method")
-    isinstance = ___id("%isinstance")
-    if isinstance(obj, objtype):
-        return self
-    else:
-        return self.__func__
 
 ___assign("%method", method)
 
@@ -31,7 +30,15 @@ class classmethod(object):
 
   def __get__(self, obj, objtype):
     # when used as attribute classmethod returns a method bound to the class
-    return method(self.__func__, objtype)
+    object = ___id("%object")
+    method = ___id("%method")
+    #if obj is None and objtype is not none:
+    #  bound_obj = objtype
+    #else:
+    #  bound_obj = obj
+    new_method = object.__new__(method)
+    method.__init__(new_method, self.__func__, objtype)
+    return new_method
 
 ___assign("%classmethod", classmethod)
 
