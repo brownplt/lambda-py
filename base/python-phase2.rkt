@@ -392,17 +392,7 @@
 ;this is the same a desugar-locals.  I'm moving things directly into this file.
 ;largely for ease of testing (I can read this code; desugared code not so much)
 (define (phase2-locals [ids : (listof symbol)]) : LexExpr
-  (let ((ids (filter
-              (lambda (y)
-                (let ((str (symbol->string y)))
-                  (not
-                   (or (contains-char? str (chr "-"))
-                       (contains-str? str "__")
-                       (contains-char? str (chr "%"))
-                       (contains-char? str (chr "$"))
-                       )
-                  )
-                )) ids)))
+  (let ((ids (filter-locals ids)))
   (begin
     (LexCore
      (CAssign (CId '%locals (GlobalId))
@@ -434,6 +424,19 @@
          [else (default-recur)])))
     starting-locals)))
 
+(define (filter-locals [ids : (listof symbol)])
+  (remove-duplicates (filter
+   (lambda (y)
+     (let ((str (symbol->string y)))
+       (not
+        (or (contains-char? str (chr "-"))
+            (contains-str? str "__")
+            (contains-char? str (chr "%"))
+            (contains-char? str (chr "$"))
+            )
+        )
+       )) ids)))
+
 (define (make-local-list [starting-locals : (listof symbol)] [expr : LexExpr] ) : LexExpr
                          
     (lexexpr-modify-tree
@@ -441,9 +444,9 @@
      (lambda (y)
        (let ((recur (lambda (y) (make-local-list starting-locals y)))
              (block-recur (lambda (nls body preserved-locals)
-                            (let ((locals (collect-locals-in-scope body starting-locals)))
+                            (let ((locals (collect-locals-in-scope body preserved-locals)))
                               (LexBlock nls (move-past-local-lets
-                                             (LexInScopeLocals locals)
+                                             (LexInScopeLocals (filter-locals locals))
                                              (make-local-list preserved-locals body)))))))
          (let 
              ((body-logic (lambda (body pr)
@@ -454,16 +457,18 @@
 
          (type-case LexExpr y
            [LexBlock (nls body)
-                     (block-recur nls body empty)]
-           [LexFunc (name args defaults body decorators class )
-                    (LexFunc
+                     (block-recur nls body nls)]
+           #;[LexFunc (name args defaults body decorators class )
+                    (begin
+                      (display "there is totally a function here\n")
+                      (LexFunc
                      name
                      args
                      (map recur defaults)
                      (body-logic body args)
                      (map recur decorators)
-                     (option-map recur class))]
-           [LexFuncVarArg (name args sarg body decorators class)
+                     (option-map recur class)))]
+           #;[LexFuncVarArg (name args sarg body decorators class)
                           (LexFuncVarArg
                            name
                            args
@@ -477,7 +482,7 @@
                               (map (lambda (y)
                                      (begin
                                        (move-past-LexExcept
-                                        (LexInScopeLocals starting-locals)
+                                        (LexInScopeLocals (filter-locals starting-locals))
                                         (make-local-list starting-locals y))
                                         ;(make-local-list starting-locals y)
                                        )) except)
@@ -486,7 +491,7 @@
                           (LexTryFinally
                            (make-local-list starting-locals try)
                            (LexSeq (list
-                                    (LexInScopeLocals starting-locals)
+                                    (LexInScopeLocals (filter-locals starting-locals))
                                     (make-local-list starting-locals finally)))
                            )]
            [else (default-recur)]))))))
