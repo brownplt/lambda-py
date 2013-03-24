@@ -49,13 +49,21 @@
                         (display "\n")
                         this-expr)]
       [LexAssign (targets value)
-                 (begin
-                   (display starting-tab)
-                   (comma-separate targets)
-                   (display " = ")
-                   (lexexpr-print value starting-tab )
-                   (display "\n")
-                   this-expr)]
+                 (let ((typecase-lambda
+                        (lambda ([value : LexExpr]) : LexExpr
+                                (type-case LexExpr value
+                                  [LexFunc (a b c d e f) (lexexpr-print value starting-tab)]
+                                  [LexFuncVarArg (a b c d e f) (lexexpr-print value starting-tab)]
+                                  [LexClass (a b c d) (lexexpr-print value starting-tab)]
+                                  [else (begin
+                                          (display starting-tab)
+                                          (comma-separate targets)
+                                          (display " = ")
+                                          (lexexpr-print value "" )
+                                          (display "\n")
+                                          this-expr
+                                          )]))))
+                   (typecase-lambda value))]
       [LexAugAssign (op target value)
                     (begin
                       (display starting-tab)
@@ -288,6 +296,7 @@
                                         ;END TAB
                        this-expr)]
       [LexReturn (value) (begin
+                           (display "\n")
                            (display starting-tab)
                            (display "return ")
                            (lexexpr-print value "")
@@ -337,9 +346,9 @@
                (begin (display starting-tab)
                       (display "{ ")
                       (local
-                       [(define (hlpr keys values)
+                       [(define (hlpr keys values) : LexExpr
                           (cond
-                           [(empty? keys) (display "")]
+                           [(empty? keys) (begin (display "") this-expr) ]
                            [(empty? (rest keys))
                             (begin
                               (lexexpr-print (first keys) "")
