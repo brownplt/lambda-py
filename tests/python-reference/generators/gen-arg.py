@@ -4,4 +4,4 @@ def f():
 
 g = f()
 assert next(g) == 1
-assert next(g,2) == 2
+assert g.send(2) == 2
