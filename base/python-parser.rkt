@@ -375,6 +375,11 @@ trailer, comp-op, suite and others should match their car
           'args (more-args args '() '() #\nul)
           'body (expr->ast expr "Load"))]
 
+    [(list (or 'lambdef 'lambdef_nocond) "lambda" ":" expr)
+     (ast 'nodetype "Lambda"
+          'args (args-ast '() '() #\nul)
+          'body (expr->ast expr "Load"))]
+
     [(list 'yield_expr "yield" expr)
      (ast 'nodetype "Yield"
           'value (expr->ast expr "Load"))]
@@ -470,11 +475,18 @@ trailer, comp-op, suite and others should match their car
                      's val)]
                [else (error "Literal not handled yet")]))]
 
-    #| Dict - Temporary single item form... |#
-    [(list 'atom "{" (list 'dictorsetmaker key ":" value) "}")
-     (ast 'nodetype "Dict"
-          'keys (list (expr->ast key expr-ctx))
-          'values (list (expr->ast value expr-ctx)))]
+    [(list 'atom "{" (list-rest 'dictorsetmaker ... (and items (list _ ":" _ ...))) "}")
+     (local ((define (more-items items key-exprs value-exprs)
+               (match items
+                 [`() 
+                  (ast 'nodetype "Dict"
+                       'keys (map expr->value-ast (reverse key-exprs))
+                       'values (map expr->value-ast (reverse value-exprs)))]
+                 [`("," ,more ...)
+                  (more-items more key-exprs value-exprs)]
+                 [`(,key-expr ":" ,value-expr ,more ...)
+                  (more-items more (cons key-expr key-exprs) (cons value-expr value-exprs))])))
+            (more-items items '() '()))]
 
     ;; Temporary bare dict form...
     [(list 'atom "{" "}")

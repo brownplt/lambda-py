@@ -25,6 +25,7 @@ def f():
 
     lambda a: 0
     lambda *a: 0
+    lambda: 0
 
     yield 1,2
     a = yield b,
@@ -53,6 +54,12 @@ def f():
     (1,2)
     (1,2,)
     ()
+
+    {a:1,b:2}
+    {b:3,c:4,}
+    {a:1}
+    {}
+
 
     # Statements
 
