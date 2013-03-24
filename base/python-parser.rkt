@@ -492,8 +492,10 @@ trailer, comp-op, suite and others should match their car
 
     ;; GeneratorExp comes from testlist_comp exactly like LispComp except for the nodetype...
     ;; Temporary copy/paste generator form
-    [(list 'atom "(" (list 'testlist_comp result-expr
-                           (list 'comp_for "for" bound-list "in" source-expr)) ")")
+    [(or (list 'testlist_comp result-expr
+               (list 'comp_for "for" bound-list "in" source-expr))
+         (list 'argument result-expr 
+               (list 'comp_for "for" bound-list "in" source-expr)))
      (ast 'nodetype "GeneratorExp"
           'elt (expr->ast result-expr "Load")
           'generators (list (ast 'nodetype "comprehension"
@@ -501,9 +503,20 @@ trailer, comp-op, suite and others should match their car
                                  'iter (expr->ast source-expr "Load")
                                  'ifs '())))]
 
-    ;; TODO: Tuples
+    ;; This makes the "type" expr very shaky...
+    [(list 'testlist_comp expr1 "," exprs ...)
+     (ast 'nodetype "Tuple"
+          'ctx (ast 'nodetype expr-ctx)
+          'elts (map (lambda (e) (expr->ast e expr-ctx)) (cons expr1 (every-other exprs))))]
+
     [(list 'atom "(" expr ")")
      (expr->ast expr expr-ctx)]
+
+    [(list 'atom "(" ")")
+     (ast 'nodetype "Tuple"
+          'ctx (ast 'nodetype expr-ctx)
+          'elts '())]
+
 
     [_ 
      (display "=== Unhandled expression ===\n")

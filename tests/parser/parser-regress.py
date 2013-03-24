@@ -17,6 +17,8 @@ def f():
     [x for y in z]
     [u for v in w if c]
 
+    (x for y in z)
+
     1,2
 
     a if b else c
@@ -36,10 +38,15 @@ def f():
 
     y()(z)(a,b)(c,)[d][::][e::][::f][g::h][i:j:][k:l:m]
 
+    f(x for y in z)
+
     not n
     
     -o
-    
+
+    (1,2)
+    (1,2,)
+    ()
 
     # Statements
 
