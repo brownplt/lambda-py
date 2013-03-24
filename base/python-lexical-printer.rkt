@@ -75,6 +75,7 @@
                      (lexexpr-print bind "")
                      (display " in {\n")
                      (lexexpr-print body (string-append "  " starting-tab))
+                     (display "\n")
                      (display starting-tab)
                      (display "}\n")
                      this-expr)
@@ -95,6 +96,7 @@
                         (comma-separate-2 ids)
                         (display " = undefined in {\n")
                         (lexexpr-print body (string-append "  " starting-tab))
+                        (display "\n")
                         (display starting-tab)
                         (display "}\n")
                         this-expr))]
@@ -296,6 +298,7 @@
                        this-expr)]
       
       [LexDelete (targets) (begin
+                             (display "\n")
                              (display starting-tab)
                              (display "delete ")
                              (comma-separate targets)
@@ -305,7 +308,10 @@
       [LexSubscript (left context slice)
                     (begin
                       (display starting-tab)
-                      (display this-expr)
+                      (lexexpr-print left "")
+                      (display "[")
+                      (lexexpr-print slice "")
+                      (display "]")
                       this-expr
                       )]
       
@@ -319,7 +325,7 @@
                     this-expr)]
       
                                         ; builtin data structures
-      [LexStr (s)  (begin (display starting-tab) (display s)this-expr)]
+      [LexStr (s)  (begin (display starting-tab) (display "'") (display s) (display "'") this-expr)]
       [LexDict (keys values)
                (begin (display starting-tab)
                       (display "{ ")
@@ -327,10 +333,16 @@
                        [(define (hlpr keys values)
                           (cond
                            [(empty? keys) (display "")]
+                           [(empty? (rest keys))
+                            (begin
+                              (lexexpr-print (first keys) "")
+                              (display " : ")
+                              (lexexpr-print (first values) "")
+                              )]
                            [else (begin
-                                   (display (first keys))
+                                   (lexexpr-print (first keys) "")
                                    (display " : ")
-                                   (display (first values))
+                                   (lexexpr-print (first values) "")
                                    (display ", ")
                                    (hlpr (rest keys) (rest values))
                                    )])
