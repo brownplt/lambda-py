@@ -38,7 +38,9 @@
       [LexModule (es) (begin
                         (display starting-tab)
                         (display "module:\n")
-                        (s-map (lambda [y] [lexexpr-print y [string-append "  " starting-tab]]) es)this-expr)]
+                        (s-map (lambda [y] [lexexpr-print y [string-append "  " starting-tab]]) es)
+                        (display "\n")
+                        this-expr)]
       [LexAssign (targets value)
                  (begin
                    (display starting-tab)
@@ -61,9 +63,9 @@
       [LexNum (n) (begin (display starting-tab) (display n) this-expr)]
       [LexBool (n) (begin (display starting-tab) (display n) this-expr)]
       [LexBuiltinPrim (s args) (begin (display starting-tab) (display this-expr) this-expr)]
-      [LexInstanceId (n ctx)  (begin (display starting-tab) (display n) (display " (instance) ") this-expr)]
-      [LexGlobalId (n ctx) (begin (display starting-tab) (display n) (display " (global) ") this-expr)]
-      [LexLocalId (n ctx) (begin (display starting-tab) (display n) (display " (local) ") this-expr)]
+      [LexInstanceId (n ctx)  (begin (display starting-tab) (display "/* (instance) */") (display n) this-expr)]
+      [LexGlobalId (n ctx) (begin (display starting-tab) (display "/* (global) */") (display n)  this-expr)]
+      [LexLocalId (n ctx) (begin (display starting-tab) (display "/* (local) */") (display n) this-expr)]
       [LexLocalLet (id bind body)
                    (begin
                      (display starting-tab)
@@ -80,19 +82,22 @@
       [LexInScopeLocals ( ls )
                         (begin
                           (display starting-tab)
-                          (display "active locals: ")
+                          (display "# active locals: ")
                           (map display ls)
                           (display "\n")
                           this-expr)]
-      [LexGlobals (ids body) (begin
-                               (display starting-tab)
-                               (display "defvars ")
-                               (comma-separate-2 ids)
-                               (display " = undefined in {\n")
-                               (lexexpr-print body (string-append "  " starting-tab))
-                               (display starting-tab)
-                               (display "}\n")
-                               this-expr)]
+      [LexGlobals (ids body)
+                  (if (empty? ids)
+                      (recur body)
+                      (begin
+                        (display starting-tab)
+                        (display "defvars ")
+                        (comma-separate-2 ids)
+                        (display " = undefined in {\n")
+                        (lexexpr-print body (string-append "  " starting-tab))
+                        (display starting-tab)
+                        (display "}\n")
+                        this-expr))]
       [PyLexId (n ctx) (begin (display starting-tab) (display n) (display " (unknown scope) ")this-expr)]
       [PyLexGlobal (ids) (begin (display starting-tab) (display "global ") (comma-separate-2 ids ) this-expr)]
       [PyLexNonLocal (ids) (begin (display starting-tab) (display "nonlocal ") (comma-separate-2 ids)this-expr)]
