@@ -35,7 +35,7 @@
                                (some (MetaStr
                                       (pretty-metaval mval1 sto)))
                                (hash empty)
-                               (second args)))))
+                               (some (second args))))))
 
 (define (code-globals (args : (listof CVal))
                       (env : Env)
