@@ -79,10 +79,10 @@
       (pylam (K R E B C)
         (pyapp-simple (cps expr)
           (pylam (V)
-            (CSeq (CAssign (CGetField (Id 'self) '___resume)
-                           (pylam (V)
-                                  (CSeq (CNone) #;(pyapp-simple (gid 'print) (make-builtin-str "s1\n"))
-                                        (pyapp-simple Ki Vi))))
+            (CSeq (set-field (Id 'self) '___resume
+                             (pylam (V)
+                                    (CSeq (CNone) #;(pyapp-simple (gid 'print) (make-builtin-str "s1\n"))
+                                          (pyapp-simple Ki Vi))))
                   (CSeq (CNone) #;(pyapp-simple (gid 'print) (make-builtin-str "s2\n"))
                         Vi)))
           Ri Ei Bi Ci))]
@@ -377,14 +377,14 @@
     [CFunc
      (args varargs body opt-class)
      (if (has-yield? body)
-         (let [(kill-generator (CAssign (CGetField (Id 'self) '___resume)
-                                                    (CFunc
-                                                     (list 'arg) (none)
-                                                     (CRaise (some (make-exception
-                                                                    'StopIteration
-                                                                    "generator terminated")))
-                                                     ;; NOTE(dbp): is this the right symbol?
-                                                     (none))))]
+         (let [(kill-generator (set-field (Id 'self) '___resume
+                                          (CFunc
+                                           (list 'arg) (none)
+                                           (CRaise (some (make-exception
+                                                          'StopIteration
+                                                          "generator terminated")))
+                                           ;; NOTE(dbp): is this the right symbol?
+                                           (none))))]
          (CFunc
           args
           varargs
@@ -392,52 +392,52 @@
                            ;; NOTE(dbp): we pass in an initializing function and
                            ;; a __next__ function.
                            (CFunc (list 'self) (none)
-                                  (CAssign (CGetField (Id 'self) '___resume)
-                                          (CFunc (list 'arg) (none)
-                                           (CReturn (pyapp
-                                           (cps body)
-                                           ;; NOTE(dbp):
-                                           ;; if we ever end, this is a StopIteration exception,
-                                           ;; and we kill the generator
+                                  (set-field (Id 'self) '___resume
+                                            (CFunc (list 'arg) (none)
+                                             (CReturn (pyapp
+                                             (cps body)
+                                             ;; NOTE(dbp):
+                                             ;; if we ever end, this is a StopIteration exception,
+                                             ;; and we kill the generator
+                                             (pylam
+                                              (V)
+                                              (CSeq
+                                               kill-generator
+                                               (CRaise (some (make-exception 'StopIteration
+                                                                             "generator terminated")))))
+                                            ;; NOTE(dbp): return inside generator kills the generator
                                            (pylam
                                             (V)
                                             (CSeq
                                              kill-generator
-                                             (CRaise (some (make-exception 'StopIteration
-                                                                           "generator terminated")))))
-                                          ;; NOTE(dbp): return inside generator kills the generator
-                                         (pylam
-                                          (V)
-                                          (CSeq
-                                           kill-generator
-                                          (CRaise (some
-                                                   (make-exception 'StopIteration
-                                                                   "generator terminated")))))
-                                         ;; NOTE(dbp):
-                                         ;; an uncaught exception within the generator propogates
-                                         ;; it and kills the generator (see gen-exception.py test)
-                                         (pylam
-                                          (V)
-                                          (CSeq
-                                           kill-generator
-                                           (CRaise (some Vi))))
-                                         ;; break and continue are illegal (SyntaxErrors).
-                                         ;; they should not get here; if they do, we are
-                                         ;; seriously hosed. For now, just kill the generator,
-                                         ;; but really, more serious measures should be made.
-                                         (pylam
-                                          (V)
-                                          (CSeq
-                                           kill-generator
-                                          (CRaise (some
-                                                   (make-exception 'SyntaxError
-                                                                   "break outside of loop - bad!")))))
-                                         (pylam
-                                          (V)
-                                          (CRaise (some
-                                                   (make-exception 'SyntaxError
-                                                                   "continue outside of loop - bad!"))))))
-                                           (none)))
+                                            (CRaise (some
+                                                     (make-exception 'StopIteration
+                                                                     "generator terminated")))))
+                                           ;; NOTE(dbp):
+                                           ;; an uncaught exception within the generator propogates
+                                           ;; it and kills the generator (see gen-exception.py test)
+                                           (pylam
+                                            (V)
+                                            (CSeq
+                                             kill-generator
+                                             (CRaise (some Vi))))
+                                           ;; break and continue are illegal (SyntaxErrors).
+                                           ;; they should not get here; if they do, we are
+                                           ;; seriously hosed. For now, just kill the generator,
+                                           ;; but really, more serious measures should be made.
+                                           (pylam
+                                            (V)
+                                            (CSeq
+                                             kill-generator
+                                            (CRaise (some
+                                                     (make-exception 'SyntaxError
+                                                                     "break outside of loop - bad!")))))
+                                           (pylam
+                                            (V)
+                                            (CRaise (some
+                                                     (make-exception 'SyntaxError
+                                                                     "continue outside of loop - bad!"))))))
+                                             (none)))
                                   (none))))
          (none)))
          (CFunc args varargs (desugar-generators body) opt-class))]

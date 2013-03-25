@@ -231,7 +231,28 @@
                 [else (error 'interp "is-obj-ptr? must have lied about the field in field lookup")])]
               [else (mk-exception 'TypeError (format "Non-object in field lookup: ~a" vval) env sto)])]
             [else (error 'interp (format "Non-object pointers in get-field: ~a" (list vval vattr)))]))))))]
-			
+
+    [CSetAttr (obj attr value)
+     (begin
+     ;(display "CGetAttr ") (display attr) (display "from: \n") (display value)
+     ;(display "\n\n")
+     (handle-result env (interp-env obj env sto stk)
+      (lambda (vobj sobj)
+       (handle-result env (interp-env attr env sobj stk)
+        (lambda (vattr sattr)
+         (handle-result env (interp-env value env sattr stk)
+          (lambda (vval sval)
+            (cond
+              [(is-obj-ptr? vattr sattr)
+               (type-case CVal (fetch-ptr vattr sval)
+                [VObjectClass (_ mval __ ___)
+                 (type-case MetaVal (some-v mval)
+                  [MetaStr (the-field)
+                    (assign-to-field2 vobj (string->symbol the-field) vval env sval stk)]
+                  [else (mk-exception 'TypeError (format "Non-string in field assignment: ~a" vattr) env sattr)])]
+                [else (error 'interp "is-obj-ptr? must have lied about the field in field assignment")])]
+              [else (error 'interp (format "Non-object in string position in field assignment: ~a" vattr))]))))))))]
+
     [CSeq (e1 e2) (type-case Result (interp-env e1 env sto stk)
                     [v*s (v1 s1) (interp-env e2 env s1 stk)]
                     [Return (v1 s1) (Return v1 s1)]
@@ -284,7 +305,7 @@
                  (lambda (vv sv)
                       (type-case CExpr t
                         [CId (x type) (assign-to-id t vv env sv)]
-                        [CGetField (o a) (assign-to-field o a vv env sv stk)]
+                        [CGetField (o a) (error 'assign (format "GetField not supported anymore: ~a" expr))]
                         [else (mk-exception 'SyntaxError
                                             "can't assign to literals"
                                             env
@@ -526,6 +547,26 @@
         [VObjectClass (ant m d c) (if-obj a ant m d c)]
         [else (non-obj v)]))]
     [else (non-ptr obj)]))
+
+(define (assign-to-field2 vo f [value : CVal] [env : Env] [sto : Store] [stk : Stack]) : Result
+  (begin ;(display o) (display "---") (display f) (display "\n") (display value) (display "\n")
+   (obj-ptr-match vo sto
+    (lambda (address antecedent mval d class)
+     (local [(define loc (hash-ref d f))]
+       (type-case (optionof Address) loc
+         [some (w) (alloc-result vnone (hash-set sto w value))]
+         [none () (local [(define w (new-loc))
+                          (define snew
+                            (begin ;(display vo) (display "\n")
+                                   ;(display objw) (display "\n")
+                            (hash-set sto address 
+                                      (VObjectClass antecedent
+                                               mval
+                                               (hash-set d f w)
+                                               class))))]
+                      (alloc-result vnone (hash-set snew w value)))])))
+    (lambda (v) (error 'interp (format "Can't assign to nonobject ~a." v)))
+    (lambda (vo) (error 'interp (format "Expected pointer, got ~a in assign-to-field" vo))))))
 
 (define (assign-to-field o f [value : CVal] [env : Env] [sto : Store] [stk : Stack]) : Result
   (begin ;(display o) (display "---") (display f) (display "\n") (display value) (display "\n")

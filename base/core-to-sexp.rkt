@@ -39,6 +39,8 @@
      `(get-field ,(core->sexp value) ,attr)]
     [CGetAttr (value attr)
      `(get-attr ,(core->sexp value) ,(core->sexp attr))]
+    [CSetAttr (obj attr value)
+     `(set-attr ,(core->sexp obj) ,(core->sexp attr) ,(core->sexp value))]
     [CId (x type)
      `(id ,x ,(idtype->sexp type))]
     [CSeq (e1 e2) `(seq ,(core->sexp e1) ,(core->sexp e2))]

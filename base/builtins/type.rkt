@@ -27,14 +27,14 @@
     (CIf
      (CBuiltinPrim 'type-uniqbases (list (CId 'bases (LocalId))))
      (CSeq
-      (CAssign (CGetField (CId 'new-class (LocalId)) '__bases__)
-               (CId 'bases (LocalId)))
+      (set-field (CId 'new-class (LocalId)) '__bases__
+                 (CId 'bases (LocalId)))
       (CTryExceptElse
-       (CAssign (CGetField (CId 'new-class (LocalId)) '__mro__)
-                (CBuiltinPrim 'type-buildmro (list
-                                              (CTuple (CNone) ;; we may not have tuple yet
-                                                      (list (CId 'new-class (LocalId))))
-                                              (CId 'bases (LocalId)))))
+       (set-field (CId 'new-class (LocalId)) '__mro__
+                  (CBuiltinPrim 'type-buildmro (list
+                                                (CTuple (CNone) ;; we may not have tuple yet
+                                                        (list (CId 'new-class (LocalId))))
+                                                (CId 'bases (LocalId)))))
        '_ (CRaise (some (make-exception 'TypeError "duplicate base")))
        (CId 'new-class (LocalId))))
      (CRaise (some (make-exception

@@ -11,5 +11,5 @@
   (seq-ops
    (list
     (CAssign main-module-id (CObject (CId '$module (GlobalId)) (none)))
-    (CAssign (CGetField main-module-id '__name__)
+    (set-field main-module-id '__name__
              (make-builtin-str (symbol->string main-module-name))))))

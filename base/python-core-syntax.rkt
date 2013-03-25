@@ -19,6 +19,7 @@ ParselTongue.
   [CObject (class : CExpr) (bval : (optionof MetaVal))]
   [CGetField (value : CExpr) (attr : symbol)] ; Only supported as target for assignment
   [CGetAttr (value : CExpr) (attr : CExpr)]
+  [CSetAttr (obj : CExpr) (attr : CExpr) (value : CExpr)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
   [CAssign (target : CExpr) (value : CExpr)]
   [CIf (test : CExpr) (then : CExpr) (else : CExpr)]
