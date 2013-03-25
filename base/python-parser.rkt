@@ -459,14 +459,12 @@ trailer, comp-op, suite and others should match their car
           'op (ast 'nodetype (case op [("+") "UAdd"] [("-") "USub"]))
           'operand (expr->ast expr expr-ctx))]
 
-    ;; Note expr-ctx (this may be wrong)
     ;; Cons here is from token construction in the lexer
     [(list 'atom (cons 'name name))
      (ast 'nodetype "Name"
           'id name
           'ctx (ast 'nodetype expr-ctx))]
 
-    ;; Cons here is from token construction in the lexer
     [(list 'atom (cons type val))
      (if (equal? expr-ctx "Store")
          (error "Cannot store to a literal")
@@ -478,10 +476,18 @@ trailer, comp-op, suite and others should match their car
                      's val)]
                [else (error "Literal not handled yet")]))]
 
+    #| atom curly brace forms - TODO: set literals & set comprehensions |#
     [(list 'atom "{" "}")
      (ast 'nodetype "Dict"
           'values '()
           'keys '())]
+
+    [(list 'atom "{" (list 'dictorsetmaker key-expr ":" val-expr (and comp (list 'comp_for _ ...))) "}")
+     (build-comprehension comp (lambda (generators)
+                                 (ast 'nodetype "DictComp"
+                                      'generators generators
+                                      'key (expr->ast key-expr "Load")
+                                      'value (expr->ast val-expr "Load"))))]
 
     [(list 'atom "{" (list-rest 'dictorsetmaker ... (and items (list _ ":" _ ...))) "}")
      (local ((define (more-items items key-exprs value-exprs)
@@ -496,41 +502,44 @@ trailer, comp-op, suite and others should match their car
                   (more-items more (cons key-expr key-exprs) (cons value-expr value-exprs))])))
             (more-items items '() '()))]
 
+    #| atom square bracket forms |#
     [(list 'atom "[" "]")
      (ast 'nodetype "List"
           'elts '()
           'ctx (ast 'nodetype "Load"))]
 
-    [(list 'atom "[" 
-           (and (or (list 'testlist_comp _)
-                    (list 'testlist_comp _ "," _ ...))
-                (list 'testlist_comp exprs ...)) "]")
+    [(list 'atom "[" (list 'testlist_comp elt-expr (and comp
+                                                        (list 'comp_for _ ...))) "]")
+     (build-comprehension comp
+                          (lambda (generators)
+                            (ast 'nodetype "ListComp"
+                                 'elt (expr->ast elt-expr "Load")
+                                 'generators generators)))]
+
+    [(list 'atom "[" (list 'testlist_comp exprs ...) "]")
      (ast 'nodetype "List"
           'ctx (ast 'nodetype "Load")
           'elts (map expr->value-ast (every-other exprs)))]
-    
-    [(list 'atom "[" (list 'testlist_comp elt-expr (and comp
-                                                        (list 'comp_for _ ...))) "]")
-     (build-comprehension elt-expr comp "ListComp")]
 
-    ;; Neither of these should probably be here...
-    [(list (or 'testlist_comp 'argument) elt-expr (and comp
-                                                       (list 'comp_for _ ...)))
-     (build-comprehension elt-expr comp "GeneratorExp")]
+    #| atom paren forms |#
+    [(list 'atom "(" ")")
+     (ast 'nodetype "Tuple"
+          'ctx (ast 'nodetype expr-ctx)
+          'elts '())]
 
-    ;; This makes the "type" expr very shaky...
-    [(list 'testlist_comp expr1 "," exprs ...)
+    [(list 'atom "(" (list 'testlist_comp elt-expr (and comp (list 'comp_for _ ...))) ")")
+     (build-comprehension comp (lambda (generators)
+                                 (ast 'nodetype "GeneratorExp"
+                                      'elt (expr->ast elt-expr "Load")
+                                      'generators generators)))]
+
+    [(list 'atom "(" (list 'testlist_comp expr1 "," exprs ...) ")")
      (ast 'nodetype "Tuple"
           'ctx (ast 'nodetype expr-ctx)
           'elts (map (lambda (e) (expr->ast e expr-ctx)) (cons expr1 (every-other exprs))))]
 
     [(list 'atom "(" expr ")")
      (expr->ast expr expr-ctx)]
-
-    [(list 'atom "(" ")")
-     (ast 'nodetype "Tuple"
-          'ctx (ast 'nodetype expr-ctx)
-          'elts '())]
 
     [_ 
      (display "=== Unhandled expression ===\n")
@@ -642,7 +651,12 @@ trailer, comp-op, suite and others should match their car
               ;; bare generators grumble grumble
               [`((argument ,expr ,comp_for) ,more ...)
                (more-args more 
-                          (cons (build-comprehension expr comp_for "GeneratorExp") pos-args) 
+                          (cons (build-comprehension comp_for
+                                                     (lambda (generators)
+                                                       (ast 'nodetype "GeneratorExp"
+                                                            'elt (expr->ast expr "Load")
+                                                            'generators generators)))
+                                pos-args) 
                           key-args stararg kwarg)]
               [`((argument ,expr) ,more ...)
                (more-args more (cons (expr->value-ast expr) pos-args) key-args stararg kwarg)]
@@ -689,7 +703,7 @@ trailer, comp-op, suite and others should match their car
 (define (expr->value-ast expr)
   (expr->ast expr "Load"))
 
-(define (build-comprehension elt-expr comp comp-nodetype)
+(define (build-comprehension comp make-ast)
   (local ((define (generator-ast target-expr iter-expr if-exprs)
             (ast 'nodetype "comprehension"
                  'target (exprlist->ast target-expr "Store")
@@ -699,9 +713,7 @@ trailer, comp-op, suite and others should match their car
             (match comp
               [`() 
                (let ((gen (generator-ast cur-target cur-iter (reverse current-ifs))))
-                     (ast 'nodetype comp-nodetype 
-                          'elt (expr->ast elt-expr "Load")
-                          'generators (reverse (cons gen generators))))]
+                 (make-ast (reverse (cons gen generators))))]
               [`((comp_iter (comp_for "for" ,target-expr "in" ,iter-expr ,more ...)))
                (let ((gen (generator-ast cur-target cur-iter (reverse current-ifs))))
                  (more-clauses more (cons gen generators) target-expr iter-expr '()))]
