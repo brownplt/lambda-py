@@ -329,15 +329,15 @@
           new-false))
       (v*s false-val sto)))
 
-(define nonedummy (VObjectClass 'none (some (MetaNone)) (hash empty) (none)))
+(define nonedummy (VObjectClass 'NoneType (some (MetaNone)) (hash empty) (none)))
 (define vnone nonedummy)
 (define (renew-none env sto)
   (if (or (VObjectClass? vnone)
           (and (is-obj-ptr? vnone sto)
                (VUndefined? (some-v (VObjectClass-class (fetch-ptr vnone sto))))))
       (local [(define with-class
-                (VObjectClass 'none (some (MetaNone)) (hash empty)
-                              (some (fetch-once (some-v (lookup '%none env)) sto))))
+                (VObjectClass 'NoneType (some (MetaNone)) (hash empty)
+                              (some (fetch-once (some-v (lookup '%NoneType env)) sto))))
               (define new-false (alloc-result with-class sto))]
         (begin
           (set! vnone (v*s-v new-false))

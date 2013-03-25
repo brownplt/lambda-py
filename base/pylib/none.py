@@ -1,4 +1,4 @@
-class none(object):
+class NoneType(object):
   def __new__(self, *args):
     return None
 
@@ -11,4 +11,4 @@ class none(object):
   def __str__(self):
     return "None"
 
-___assign("%none", none)
+___assign("%NoneType", NoneType)

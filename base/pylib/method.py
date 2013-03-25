@@ -1,12 +1,13 @@
 # method type
-# In method objects __func__ and __self__ are defined as instance attributes
-# __call__ attribute is special cased to be the method object itself
+# represents a bound method
 class method(object):
   def __init__(self, func, obj):
+    # __func__ is the underlying function and __self__ the bound object
     self.__func__ = func
     self.__self__ = obj
 
   def __getattr__(self, key):
+    # the __call__ attribute is the method itself
     if ___delta("str=", key, "__call__"):
       return self
     else:
@@ -21,11 +22,11 @@ class method(object):
 ___assign("%method", method)
 
 # classmethod type
-# In classmethod objects __func__ is defined as instance attribute
 # classmethod objects are converted to method objects 
 # with class as __self__ on attribute retrieval
 class classmethod(object):
   def __init__(self, func):
+    # __func__ is the underlying function
     self.__func__ = func
 
   def __get__(self, obj, objtype):
@@ -39,10 +40,10 @@ class classmethod(object):
 ___assign("%classmethod", classmethod)
 
 # staticmethod type
-# In staticmethod objects __func__ is defined as instance attribute
 # staticmethod objects are converted to functions on attribute retrieval
 class staticmethod(object):
   def __init__(self, func):
+    # __func__ is the underlying function
     self.__func__ = func
 
   def __get__(self, obj, objtype):
