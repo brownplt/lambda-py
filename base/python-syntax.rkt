@@ -53,7 +53,8 @@
           (body : PyExpr) (decorators : (listof PyExpr))]
   [PyFuncVarArg (name : symbol) (args : (listof symbol)) 
                 (sarg : symbol) (body : PyExpr) (decorators : (listof PyExpr))]
-  [PyReturn (value : PyExpr)]
+  [PyReturnValue (value : PyExpr)]
+  [PyReturn]
   [PyApp (fun : PyExpr) (args : (listof PyExpr))]
   [PyAppStarArg (fun : PyExpr) (args : (listof PyExpr)) (stararg : PyExpr)]
 

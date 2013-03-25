@@ -193,7 +193,16 @@
   (call/cc
    (lambda (k)
      (local
-      [(define (bindings-for-nonlocal [bindings : (listof symbol)] [expr : LexExpr]) : LexExpr
+      [(define (syntax-error [err : string]) : LexExpr
+         (k 
+          (LexModule
+           (list (LexRaise
+                  (LexApp
+                   (LexGlobalId 'SyntaxError 'Load)
+                   (list (LexStr err))))))))
+                         
+         
+       (define (bindings-for-nonlocal [bindings : (listof symbol)] [expr : LexExpr]) : LexExpr
          (let ((these-locals empty))
            (lexexpr-modify-tree
                expr
@@ -202,25 +211,64 @@
                    [PyLexNonLocal (locals) (if
                                             (empty? (list-subtract locals bindings))
                                             (PyLexNonLocal locals)
-                                            (k 
-                                             (LexModule
-                                              (list (LexRaise
-                                                     (LexApp
-                                                      (LexGlobalId 'SyntaxError 'Load)
-                                                      (list (LexStr
-                                                             (string-append
-                                                              "no binding for nonlocal '"
-                                                              (string-append
-                                                               (symbol->string (first locals))
-                                                               "' found"))))))))))]
+                                            (syntax-error (string-append
+                                                           "no binding for nonlocal '"
+                                                           (string-append
+                                                            (symbol->string (first locals))
+                                                            "' found")))
+                                            )]
                                   [LexBlock (nls e) (LexBlock nls (bindings-for-nonlocal
                                                                    (remove-duplicates
                                                                     (flatten (list bindings these-locals nls)))
                                                                    e))]
                                   [LexLocalId (x ctx) (begin (set! these-locals (cons x these-locals)) e)]
                                   [else (default-recur)]
-                                  )))))]
-       (k (bindings-for-nonlocal empty expr))))))
+                                  )))))
+       (define (continue-errors-finally expr)
+         (lexexpr-modify-tree
+          expr
+          (lambda [e]
+            (type-case LexExpr e
+              [LexContinue () (syntax-error "'continue' not supported inside 'finally clause")]
+              [LexWhile (a b c) (continue-errors e)]
+              [LexFor (a b c) (continue-errors e)]
+              [else (default-recur)]))))
+
+       (define (continue-correct expr)
+         (lexexpr-modify-tree
+          expr
+          (lambda (e)
+            (type-case LexExpr e
+              [LexBlock (nls es) (LexBlock nls (continue-errors es))]
+              [LexTryFinally (try finally)
+                             (LexTryFinally
+                              (continue-errors try)
+                              (continue-errors-finally finally))]
+            [else (default-recur)])))
+         )
+
+       (define (continue-errors expr)
+         (lexexpr-modify-tree
+          expr
+          (lambda (e)
+            (type-case LexExpr e
+              [LexTryFinally (try finally)
+                             (LexTryFinally
+                              (continue-errors try)
+                              (continue-errors-finally finally))]
+              [LexContinue () (syntax-error "'continue' not properly in loop")]
+              [LexWhile (test body orelse) (LexWhile
+                                            (continue-errors test)
+                                            (continue-correct body)
+                                            (continue-errors orelse))]
+              [LexFor (target iter body) (LexFor
+                                          (continue-errors target)
+                                          (continue-errors iter)
+                                          (continue-correct body))]
+              [else (default-recur)]))))
+       
+         ]
+       (k (continue-errors (bindings-for-nonlocal empty expr)))))))
 
 
 
@@ -438,7 +486,7 @@
       (lambda (x)
         (type-case LexExpr x
           [PyLexId (x ctx) (begin #;(display "it's an ID\n") (LexGlobalId x ctx))]
-                                        ;[LexReturn (r) (LexReturn (make-all-global r))]
+                                        ;[LexReturn (r) (LexReturn (option-map make-all-global r))]
           [else (begin #;(display "executing default\n") (default-recur))]))))
       ))
 

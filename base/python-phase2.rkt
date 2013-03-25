@@ -125,7 +125,7 @@
                                                                    body
                                                                    empty
                                                                    (none)) list-of-functions))
-                                 (LexBlock empty (LexReturn (LexApp (LexLocalId (first list-of-identifiers) 'Load) (make-local-ids args))))
+                                 (LexBlock empty (LexReturn (some (LexApp (LexLocalId (first list-of-identifiers) 'Load) (make-local-ids args)))))
                                  )
                                (map replace-functions decorators) class)
                       ]
@@ -142,7 +142,7 @@
                                                                    (none))
                                                           list-of-functions))
                                  (LexBlock empty (LexReturn
-                                  (LexApp (LexLocalId (first list-of-identifiers) 'Load) (make-local-ids (cons sarg args)))))
+                                  (some (LexApp (LexLocalId (first list-of-identifiers) 'Load) (make-local-ids (cons sarg args))))))
                                  )
                                (map replace-functions decorators) class)]
              [LexLam (args body) (begin

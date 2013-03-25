@@ -189,7 +189,9 @@ structure that you define in python-syntax.rkt
     
     [(hash-table ('nodetype "Return")
                  ('value value))
-     (PyReturn (get-structured-python value))]
+     (if (equal? #\nul value)
+                   (PyReturn)
+                   (PyReturnValue (get-structured-python value)))]
     
     [(hash-table ('nodetype "Attribute")
                  ('value value)

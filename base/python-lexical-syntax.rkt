@@ -63,7 +63,7 @@
            (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof LexExpr))]
   [LexFuncVarArg (name : symbol) (args : (listof symbol)) 
                 (sarg : symbol) (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof LexExpr))]
-  [LexReturn (value : LexExpr)]
+  [LexReturn (value : (optionof LexExpr))]
   [LexApp (fun : LexExpr) (args : (listof LexExpr))]
   [LexAppStarArg (fun : LexExpr) (args : (listof LexExpr)) (stararg : LexExpr)]
 

@@ -19,3 +19,6 @@ cpstest:
 
 clean:
 	@`which rm` compiled/*
+
+clean-python:
+	@find . -iname '*.pyc' | xargs `which rm`

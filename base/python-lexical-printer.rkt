@@ -6,8 +6,8 @@
 (define (comma-separate [es : (listof LexExpr)]) : boolean
   (cond
    [(empty? es) false]
-   [(empty? (rest es)) (begin (lexexpr-print (first es) "") false)]
-   [else (begin (lexexpr-print (first es) "") (display ", ") (comma-separate (rest es)) false)]))
+   [(empty? (rest es)) (begin (lexexpr-print-helper (first es) "") false)]
+   [else (begin (lexexpr-print-helper (first es) "") (display ", ") (comma-separate (rest es)) false)]))
 
 (define (comma-separate-2 [es : (listof symbol)]) : boolean
   (cond
@@ -23,43 +23,54 @@
   (display e)
   (display default-color)))
 ;    (display "\033[22;33mHello world!\033[1;35m")
-(define (lexexpr-print [this-expr : LexExpr] [ starting-tab : string]) : LexExpr
-  (let ((recur (lambda [y] [lexexpr-print y starting-tab])))
+
+(define (lexexpr-print expr)
   (begin
     (display default-color)
+    (lexexpr-print-helper expr "")))
+
+(define (lexexpr-print-helper [this-expr : LexExpr] [ starting-tab : string]) : LexExpr
+  (let ((recur (lambda [y] [lexexpr-print-helper y starting-tab])))
+  (begin
+    
     (type-case LexExpr this-expr
                                         ; control structures
       [LexIf (test body orelse)
              (begin
                (display starting-tab)
                (display "if ")
-               (lexexpr-print test "")
+               (lexexpr-print-helper test "")
                (display ":\n")
-               (lexexpr-print body (string-append "  " starting-tab))
+               (lexexpr-print-helper body (string-append "  " starting-tab))
                (display "else:\n")
-               (lexexpr-print orelse (string-append "  " starting-tab))
+               (lexexpr-print-helper orelse (string-append "  " starting-tab))
                (display "\n")
                this-expr)]
-      [LexSeq (es) (begin (s-map recur es) this-expr)]
+      [LexSeq (es) (begin (map (lambda (y)
+                                 (begin
+                                   (recur y)
+                                   (display "\n")
+                                   )
+                                 ) es) this-expr)]
                                         ; the top level seq
       [LexModule (es) (begin
                         (display starting-tab)
                         (display "module:\n")
-                        (s-map (lambda [y] [lexexpr-print y [string-append "  " starting-tab]]) es)
+                        (s-map (lambda [y] [lexexpr-print-helper y [string-append "  " starting-tab]]) es)
                         (display "\n")
                         this-expr)]
       [LexAssign (targets value)
                  (let ((typecase-lambda
                         (lambda ([value : LexExpr]) : LexExpr
                                 (type-case LexExpr value
-                                  [LexFunc (a b c d e f) (lexexpr-print value starting-tab)]
-                                  [LexFuncVarArg (a b c d e f) (lexexpr-print value starting-tab)]
-                                  [LexClass (a b c d) (lexexpr-print value starting-tab)]
+                                  [LexFunc (a b c d e f) (lexexpr-print-helper value starting-tab)]
+                                  [LexFuncVarArg (a b c d e f) (lexexpr-print-helper value starting-tab)]
+                                  [LexClass (a b c d) (lexexpr-print-helper value starting-tab)]
                                   [else (begin
                                           (display starting-tab)
                                           (comma-separate targets)
                                           (display " = ")
-                                          (lexexpr-print value "" )
+                                          (lexexpr-print-helper value "" )
                                           (display "\n")
                                           this-expr
                                           )]))))
@@ -67,10 +78,10 @@
       [LexAugAssign (op target value)
                     (begin
                       (display starting-tab)
-                      (lexexpr-print target "")
+                      (lexexpr-print-helper target "")
                       (display op)
                       (display "=")
-                      (lexexpr-print value "")
+                      (lexexpr-print-helper value "")
                       (display "\n")
                       this-expr)
                       ]
@@ -87,9 +98,9 @@
                      (display "defvar ")
                      (display id)
                      (display " = ")
-                     (lexexpr-print bind "")
+                     (lexexpr-print-helper bind "")
                      (display " in {\n")
-                     (lexexpr-print body (string-append "  " starting-tab))
+                     (lexexpr-print-helper body (string-append "  " starting-tab))
                      (display "\n")
                      (display starting-tab)
                      (display "}\n")
@@ -110,24 +121,29 @@
                         (display "defvars ")
                         (comma-separate-2 ids)
                         (display " = undefined in {\n")
-                        (lexexpr-print body (string-append "  " starting-tab))
+                        (lexexpr-print-helper body (string-append "  " starting-tab))
                         (display "\n")
                         (display starting-tab)
                         (display "}\n")
                         this-expr))]
       [PyLexId (n ctx) (begin (display starting-tab) (display n) (display " (unknown scope) ")this-expr)]
       [PyLexGlobal (ids) (begin (display starting-tab) (display "global ") (comma-separate-2 ids ) this-expr)]
-      [PyLexNonLocal (ids) (begin (display starting-tab) (display "nonlocal ") (comma-separate-2 ids)this-expr)]
+      [PyLexNonLocal (ids) (begin
+                             (display starting-tab)
+                             (display "nonlocal ")
+                             (comma-separate-2 ids)
+                             (display "\n")
+                             this-expr)]
       
                                         ; exceptions and exception handling
-      [LexRaise (expr) (begin (display starting-tab) (display "raise ") (lexexpr-print expr "") (display "\n")this-expr) ]
+      [LexRaise (expr) (begin (display starting-tab) (display "raise ") (lexexpr-print-helper expr "") (display "\n")this-expr) ]
       [LexExcept (types  body)
                  (begin
                    (display starting-tab)
                    (display "except ")
                    (comma-separate types)
                    (display ":\n")
-                   (lexexpr-print body (string-append "  " starting-tab))
+                   (lexexpr-print-helper body (string-append "  " starting-tab))
                    (display "\n")
                    this-expr)]
       [LexExceptAs (types name body)
@@ -138,45 +154,46 @@
                    (display " as ")
                    (display name)
                    (display ":\n")
-                   (lexexpr-print body (string-append "  " starting-tab))
+                   (lexexpr-print-helper body (string-append "  " starting-tab))
                    (display "\n")
                    this-expr)]
       [LexTryExceptElse (try except orelse)
                         (begin
                         (display starting-tab)
                         (display "try:\n")
-                        (lexexpr-print try (string-append "  " starting-tab))
+                        (lexexpr-print-helper try (string-append "  " starting-tab))
                         (display "\n")
                         (map recur except)
                         (display "\n")
                         (display "else:")
-                        (lexexpr-print orelse (string-append "  " starting-tab))
+                        (lexexpr-print-helper orelse (string-append "  " starting-tab))
                         (display "\n")
                         this-expr)]
       [LexTryFinally (try finally)
                      (begin
                        (display starting-tab)
                        (display "try:\n")
-                       (lexexpr-print try (string-append "  " starting-tab))
+                       (lexexpr-print-helper try (string-append "  " starting-tab))
                        (display "\n")
+                       (display starting-tab)
                        (display "finally:")
-                       (lexexpr-print finally (string-append "  " starting-tab))
+                       (lexexpr-print-helper finally (string-append "  " starting-tab))
                        (display "\n")
                        this-expr)]
 
-      [LexYield (expr) (begin (display starting-tab) (display "yield ") (lexexpr-print expr "") this-expr)]
+      [LexYield (expr) (begin (display starting-tab) (display "yield ") (lexexpr-print-helper expr "") this-expr)]
                                         ;loops 
       [LexWhile (test body orelse)
                 (begin
                   (display starting-tab)
                   (display "while ")
-                  (lexexpr-print test "")
+                  (lexexpr-print-helper test "")
                   (display ":\n")
-                  (lexexpr-print body (string-append "  " starting-tab))
+                  (lexexpr-print-helper body (string-append "  " starting-tab))
                   (display "\n")
                   (display starting-tab)
                   (display "else:\n")
-                  (lexexpr-print orelse (string-append "  " starting-tab))
+                  (lexexpr-print-helper orelse (string-append "  " starting-tab))
                   (display "\n")
                   this-expr)]
                   
@@ -200,13 +217,15 @@
                   (display starting-tab)
                   (display "class ")
                   (display name)
-                  (display ": extends ")
-                  (display bases)
-                  (lexexpr-print body (string-append "  " starting-tab))
+                  (display "(")
+                  (lexexpr-print-helper bases "")
+                  (display "):")
+                  (display "\n")
+                  (lexexpr-print-helper body (string-append "  " starting-tab))
                   this-expr)]
       [LexDotField (value attr)
                    (begin
-                     (lexexpr-print value starting-tab)
+                     (lexexpr-print-helper value starting-tab)
                      (display ".")
                      (display attr )
                      this-expr)]
@@ -220,17 +239,17 @@
       [LexBinOp (left op right)
                 (begin
                   (display starting-tab)
-                  (lexexpr-print left "")
+                  (lexexpr-print-helper left "")
                   (display " ")
                   (display op)
                   (display " ")
-                  (lexexpr-print right "")
+                  (lexexpr-print-helper right "")
                   this-expr
                   )] 
       [LexUnaryOp (op operand) (begin
                                  (display starting-tab)
                                  (display op)
-                                 (lexexpr-print operand "")
+                                 (lexexpr-print-helper operand "")
                                  this-expr)]
       
       [LexCompOp (left ops comparators)
@@ -249,7 +268,7 @@
                 (display "lambda ")
                 (comma-separate-2 args)
                 (display ": ")
-                (lexexpr-print body (string-append " " starting-tab))
+                (lexexpr-print-helper body (string-append " " starting-tab))
                 (display "\n")
                 this-expr)]
       [LexFunc (name args defaults body decorators class)
@@ -269,7 +288,7 @@
                        (comma-separate defaults)
                        (display ")):\n")))
                  ;TAB
-                 (lexexpr-print body (string-append "  " starting-tab))
+                 (lexexpr-print-helper body (string-append "  " starting-tab))
                  (display "\n")
                  ;END TAB
                  this-expr)]
@@ -291,7 +310,7 @@
                        (display "*")
                        (display "):\n")
                                         ;TAB
-                       (lexexpr-print body (string-append "  " starting-tab))
+                       (lexexpr-print-helper body (string-append "  " starting-tab))
                        (display "\n")
                                         ;END TAB
                        this-expr)]
@@ -299,11 +318,11 @@
                            (display "\n")
                            (display starting-tab)
                            (display "return ")
-                           (lexexpr-print value "")
+                           (lexexpr-print-helper value "")
                            (display "\n")
                            this-expr)]
       [LexApp (fun args) (begin
-                           (lexexpr-print fun starting-tab)
+                           (lexexpr-print-helper fun starting-tab)
                            (display "(")
                            (comma-separate args)
                            (display ")")
@@ -324,9 +343,9 @@
       [LexSubscript (left context slice)
                     (begin
                       (display starting-tab)
-                      (lexexpr-print left "")
+                      (lexexpr-print-helper left "")
                       (display "[")
-                      (lexexpr-print slice "")
+                      (lexexpr-print-helper slice "")
                       (display "]")
                       this-expr
                       )]
@@ -351,14 +370,14 @@
                            [(empty? keys) (begin (display "") this-expr) ]
                            [(empty? (rest keys))
                             (begin
-                              (lexexpr-print (first keys) "")
+                              (lexexpr-print-helper (first keys) "")
                               (display " : ")
-                              (lexexpr-print (first values) "")
+                              (lexexpr-print-helper (first values) "")
                               )]
                            [else (begin
-                                   (lexexpr-print (first keys) "")
+                                   (lexexpr-print-helper (first keys) "")
                                    (display " : ")
-                                   (lexexpr-print (first values) "")
+                                   (lexexpr-print-helper (first values) "")
                                    (display ", ")
                                    (hlpr (rest keys) (rest values))
                                    )])
@@ -405,11 +424,13 @@
                      this-expr)]
       [LexBlock [a b] (begin
                         (display starting-tab)
-                        (brown "{\n")
-                        (lexexpr-print b (string-append "  " starting-tab))
+                        (brown "{")
+                        (display "\n")
+                        (lexexpr-print-helper b (string-append "  " starting-tab))
                         (display "\n")
                         (display starting-tab)
-                        (brown "}\n")
+                        (brown "}")
+                        (display "\n")
                         this-expr)]
       [LexImport (names asnames) (begin
                                    (display this-expr)

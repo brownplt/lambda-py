@@ -446,10 +446,8 @@
                   [Return (vfin sfin) finally-r]
                   [Break (sfin) finally-r]
                   [Continue (sfin)
-                            (mk-exception 'SyntaxError
-                                          "'continue' not supported inside 'finally' clause"
-                                          env
-                                          sfin)]
+                            (error 'python-interp (string-append "continue inside finally reached python-interp."
+                                                                 "Should have been found at phase1"))]
                   [Exception (vfin sfin)
                              (if (and (is-obj-ptr? vfin sfin)
                                       (object-is? (fetch-ptr vfin sfin) '$Reraise env sfin)
