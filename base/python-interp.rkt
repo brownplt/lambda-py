@@ -208,8 +208,6 @@
     [CNone () (alloc-result vnone sto)]
     [CUndefined () (v*s (VUndefined) sto)]
 
-    [CGetField (value attr)
-               (error 'interp-env "CGetField is supported only as target for CAssign")]
     [CGetAttr (value attr)
      (begin
      ;(display "CGetAttr ") (display attr) (display "from: \n") (display value)
@@ -305,11 +303,7 @@
                  (lambda (vv sv)
                       (type-case CExpr t
                         [CId (x type) (assign-to-id t vv env sv)]
-                        [CGetField (o a) (error 'assign (format "GetField not supported anymore: ~a" expr))]
-                        [else (mk-exception 'SyntaxError
-                                            "can't assign to literals"
-                                            env
-                                            sv)]))))]
+                        [else (mk-exception 'SyntaxError "can't assign to literals" env sv)]))))]
     
     [CIf (i t e) (handle-result env (interp-env i env sto stk)
                    (lambda (vi si) (if (truthy? vi si)

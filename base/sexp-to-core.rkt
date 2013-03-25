@@ -40,8 +40,6 @@
     [(list 'none) (CNone)]
     [(list 'object cls mval)
      (CObject (sc cls) (sexp->mval/opt mval))]
-    [(list 'get-field obj attr)
-     (CGetField (sc obj) attr)] 
     [(list 'get-attr obj attr)
      (CGetAttr (sc obj) (sc attr))]
     [(list 'set-attr obj attr value)

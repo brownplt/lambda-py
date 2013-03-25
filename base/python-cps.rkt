@@ -95,14 +95,6 @@
     [CFunc (args varargs body opt-class) (const expr)]
     [CUndefined () (const expr)]
 
-    [CGetField (val attr)
-      (pylam (K R E B C)
-        (pyapp-simple (cps val)
-	  (pylam (V)
-                 (CSeq (CNone) #;(pyapp-simple (gid 'print) (make-builtin-str "s3\n"))
-            (pyapp-simple Ki (CGetField Vi attr))))
-	  Ri Ei Bi Ci))]
-
     [CGetAttr (val attr)
       (pylam (K R E B C)
         (pyapp-simple (cps val)
@@ -184,8 +176,7 @@
             (pyapp-simple Ki (CSeq (CNone) #;(pyapp-simple (gid 'print) (make-builtin-str "s9\n"))
                                 (CAssign (CId x type) Vi))))
            Ri Ei Bi Ci))]
-       [CGetField (o a) (error 'cps "Assign to object nyi")]
-       [else (error 'cps "CPS: got a non-id, non-obj in CAssign")])]
+       [else (error 'cps "CPS: got a non-id in CAssign")])]
 
     [CReturn (val)
      (pylam (K R E B C) (pyapp-simple (cps val) Ri Ri Ei Bi Ci))]

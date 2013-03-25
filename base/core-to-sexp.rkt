@@ -35,8 +35,6 @@
     [CNone () `(none)]
     [CObject (class mval)
      `(object ,(core->sexp class) ,(mval->sexp/opt mval))]
-    [CGetField (value attr)
-     `(get-field ,(core->sexp value) ,attr)]
     [CGetAttr (value attr)
      `(get-attr ,(core->sexp value) ,(core->sexp attr))]
     [CSetAttr (obj attr value)
