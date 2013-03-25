@@ -27,6 +27,9 @@
           [(and (LexGlobalId? fun) (equal? (LexGlobalId-x fun) '___getattr)
                 (= (length args) 2))
            (LexExprField (first args) (second args))]
+          [(and (LexGlobalId? fun) (equal? (LexGlobalId-x fun) '___setattr)
+                (= (length args) 3))
+           (LexExprAssign (first args) (second args) (third args))]
           [(and (LexGlobalId? fun) (equal? (LexGlobalId-x fun) '___prim2)
                 (= (length args) 3) (LexStr? (first args)))
            (LexBinOp (second args)

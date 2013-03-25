@@ -226,7 +226,10 @@
                    ;; TODO(joe): Do this for >1 target, with the full tree walk on assignment
                    ;; and assuming an iterator on the right
                    (type-case LexExpr (first targets)
-                     [LexDotField (obj fld) (set-field (rec-desugar obj) fld (rec-desugar value))]
+                     [LexDotField (obj fld)
+                      (py-setfield (rec-desugar obj)
+                                   fld
+                                   (rec-desugar value))]
                      [else (CAssign (rec-desugar (first targets)) (rec-desugar value))])])]
                              
       [LexNum (n) (make-builtin-num n)]
@@ -514,6 +517,8 @@
 
       [LexDotField (value attr) (py-getfield (rec-desugar value) attr)]
       [LexExprField (value attr) (CGetAttr (rec-desugar value) (rec-desugar attr))]
+      [LexExprAssign (obj attr value)
+       (CSetAttr (rec-desugar obj) (rec-desugar attr) (rec-desugar value))]
 
       [LexTryExceptElse (try excepts orelse)
                         (local [(define try-r (rec-desugar try))

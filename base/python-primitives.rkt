@@ -40,6 +40,8 @@ primitives here.
 
 (define (print arg sto)
   (display (string-append (pretty arg sto) "\n")))
+(define (print-raw arg sto)
+  (display (string-append (to-string arg) "\n")))
 
 (define (is-func? argvs env sto)
   (cond
@@ -234,6 +236,7 @@ primitives here.
     ;object 
     ['obj-str (prim-alloc obj-str argvs)]
     ['obj-getattr (prim-noalloc obj-getattr argvs)]
+    ['obj-hasattr (prim-noalloc obj-hasattr argvs)]
 
     ;function
     ['is-func? (prim-noalloc is-func? argvs)]
@@ -278,6 +281,7 @@ primitives here.
     ['compile (prim-alloc compile (fetch-heads argvs argsptrs))]
 
     ['print (begin (print (first argvs) sto) (v*s (first argsptrs) sto))]
+    ['print-raw (begin (print-raw (first argvs) sto) (v*s (first argsptrs) sto))]
 
     ['Is (if (is? (first argsptrs)
                   (second argsptrs) sto)

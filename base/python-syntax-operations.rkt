@@ -204,6 +204,7 @@
                        (LexClass scope name (recur bases) (recur body))]
               [LexDotField (value attr) (LexDotField (recur value) attr)]
               [LexExprField (value attr) (LexExprField (recur value) (recur attr))]
+              [LexExprAssign (obj attr value) (LexExprAssign (recur obj) (recur attr) (recur value))]
 
                                         ; operations
               [LexBinOp (left op right) (LexBinOp (recur left) op (recur right))] 
@@ -442,6 +443,7 @@
                        (flatten (list (recur bases) (recur body)))]
               [LexDotField (value attr)  (recur value)]
               [LexExprField (value attr)  (flatten (list (recur value) (recur attr)))]
+              [LexExprAssign (obj attr value)  (flatten (list (recur obj) (recur attr) (recur value)))]
 
                                         ; operations
               [LexBinOp (left op right) (flatten (list (recur left) (recur right)))] 

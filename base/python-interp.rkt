@@ -243,10 +243,13 @@
               [(is-obj-ptr? vattr sattr)
                (type-case CVal (fetch-ptr vattr sval)
                 [VObjectClass (_ mval __ ___)
-                 (type-case MetaVal (some-v mval)
-                  [MetaStr (the-field)
-                    (assign-to-field2 vobj (string->symbol the-field) vval env sval stk)]
-                  [else (mk-exception 'TypeError (format "Non-string in field assignment: ~a" vattr) env sattr)])]
+                 (type-case (optionof MetaVal) mval
+                  [none () (error 'interp (format "No mval for string in set-field: ~a" (fetch-ptr vattr sval)))]
+                  [some (mval)
+                   (type-case MetaVal mval
+                    [MetaStr (the-field)
+                      (assign-to-field2 vobj (string->symbol the-field) vval env sval stk)]
+                    [else (mk-exception 'TypeError (format "Non-string in field assignment: ~a" vattr) env sattr)])])]
                 [else (error 'interp "is-obj-ptr? must have lied about the field in field assignment")])]
               [else (error 'interp (format "Non-object in string position in field assignment: ~a" vattr))]))))))))]
 
@@ -682,10 +685,11 @@
 
 ;; get-field: looks for a field of a class using class __mro__
 (define (get-field [fld : symbol] [clsptr : CVal] [env : Env] [sto : Store]) : Result
-  (begin ;(display "GET: ") (display fld) (display " ") (display "\n")
-         ;(display "     ") (display clsptr) (display "\n")
-         ;(display "     ") (display (pretty cptr s)) (display "\n")
     (let ([cls (fetch-ptr clsptr sto)])
+  (begin ;(display "GET: ") (display fld) (display " ") (display "\n")
+         ;(display "     ") (display cls) (display "\n")
+         ;(display "     ") (display clsptr) (display "\n")
+         ;(display "     ") (display (get-mro clsptr sto)) (display "\n")
       (type-case (optionof Address) (lookup-mro (get-mro clsptr sto) fld sto)
         [some (w)
               (let ([value (fetch-once w sto)])
