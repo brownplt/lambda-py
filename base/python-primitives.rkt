@@ -170,6 +170,26 @@ primitives here.
       [some (v) (alloc-result v sto)]
       [none ()
         (prim-error "Bad prim (alloc): " op args)]))
+  (define (prim-list-alloc f args)
+    (type-case (optionof CVal) (f args env sto)
+      [some (v)
+        (cond
+          [(and (VObjectClass? v) (some? (VObjectClass-mval v))
+                (MetaList? (some-v (VObjectClass-mval v))))
+           (let* ([v-list (MetaList-v (some-v (VObjectClass-mval v)))]
+                  [vs-list (alloc-result-list v-list empty sto)]
+                  [vpointer-list (v*s/list-vs vs-list)]
+                  [new-sto (v*s/list-s vs-list)])
+             (alloc-result (VObjectClass
+                            (VObjectClass-antecedent v)
+                            (some (MetaList vpointer-list))
+                            (VObjectClass-dict v)
+                            (VObjectClass-class v))
+                           new-sto))]
+          [else
+           (prim-error "Bad prim (prim-list-alloc): " op args)])]
+      [none ()
+        (prim-error "Bad prim (prim-list-alloc): " op args)]))
    ]
   (let ([argvs (map (lambda (a) (fetch-ptr a sto)) argsptrs)])
   (case op
@@ -234,6 +254,7 @@ primitives here.
     ;object 
     ['obj-str (prim-alloc obj-str argvs)]
     ['obj-getattr (prim-noalloc obj-getattr argvs)]
+    ['obj-dir (prim-list-alloc obj-dir (cons (first argvs) (rest argsptrs)))]
 
     ;function
     ['is-func? (prim-noalloc is-func? argvs)]
