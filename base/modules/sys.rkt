@@ -1,6 +1,7 @@
 #lang plai-typed/untyped
 
 (require "../python-core-syntax.rkt"
+         "main-module.rkt"
          "../util.rkt")
 
 (define sys-module-name 'sys)
@@ -28,5 +29,9 @@
                             (CTuple (CId '%tuple (GlobalId))
                               (list
                                (make-builtin-str "sys")
-                               sys-id)))))
+                               sys-id))
+                            (CTuple (CId '%tuple (GlobalId))
+                              (list
+                               (make-builtin-str (symbol->string main-module-name))
+                               main-module-id)))))
                    (none))))))
