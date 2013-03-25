@@ -224,51 +224,53 @@
                                   [LexLocalId (x ctx) (begin (set! these-locals (cons x these-locals)) e)]
                                   [else (default-recur)]
                                   )))))
-       (define (continue-errors-finally expr)
+       (define (continue/break-errors-finally expr)
          (lexexpr-modify-tree
           expr
           (lambda [e]
             (type-case LexExpr e
               [LexContinue () (syntax-error "'continue' not supported inside 'finally clause")]
-              [LexWhile (a b c) (continue-errors e)]
-              [LexFor (a b c) (continue-errors e)]
+              ;break is totally supported inside finally blocks
+              [LexWhile (a b c) (continue/break-errors e)]
+              [LexFor (a b c) (continue/break-errors e)]
               [else (default-recur)]))))
 
-       (define (continue-correct expr)
+       (define (continue/break-correct expr)
          (lexexpr-modify-tree
           expr
           (lambda (e)
             (type-case LexExpr e
-              [LexBlock (nls es) (LexBlock nls (continue-errors es))]
+              [LexBlock (nls es) (LexBlock nls (continue/break-errors es))]
               [LexTryFinally (try finally)
                              (LexTryFinally
-                              (continue-errors try)
-                              (continue-errors-finally finally))]
+                              (continue/break-errors try)
+                              (continue/break-errors-finally finally))]
             [else (default-recur)])))
          )
 
-       (define (continue-errors expr)
+       (define (continue/break-errors expr)
          (lexexpr-modify-tree
           expr
           (lambda (e)
             (type-case LexExpr e
               [LexTryFinally (try finally)
                              (LexTryFinally
-                              (continue-errors try)
-                              (continue-errors-finally finally))]
+                              (continue/break-errors try)
+                              (continue/break-errors-finally finally))]
               [LexContinue () (syntax-error "'continue' not properly in loop")]
+              [LexBreak () (syntax-error "'break' outside loop")]
               [LexWhile (test body orelse) (LexWhile
-                                            (continue-errors test)
-                                            (continue-correct body)
-                                            (continue-errors orelse))]
+                                            (continue/break-errors test)
+                                            (continue/break-correct body)
+                                            (continue/break-errors orelse))]
               [LexFor (target iter body) (LexFor
-                                          (continue-errors target)
-                                          (continue-errors iter)
-                                          (continue-correct body))]
+                                          (continue/break-errors target)
+                                          (continue/break-errors iter)
+                                          (continue/break-correct body))]
               [else (default-recur)]))))
        
          ]
-       (k (continue-errors (bindings-for-nonlocal empty expr)))))))
+       (k (continue/break-errors (bindings-for-nonlocal empty expr)))))))
 
 
 
