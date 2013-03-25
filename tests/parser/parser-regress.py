@@ -51,7 +51,7 @@ def f():
 
     not n
     
-    -o
+    +-o
 
     (1,2)
     (1,2,)
@@ -65,8 +65,9 @@ def f():
 
     # Statements
 
-    # Indent problems in editor...
+    1;
 
+    # Indent problems in editor...
     while p: break
     
     while q: continue
@@ -149,6 +150,7 @@ def f():
     class r(s,t): pass
     class u(v,w,): pass
     class x(y,z=a,*b,**c): pass
+    class d(): pass
 
     import x
     import y as z

@@ -74,8 +74,10 @@ trailer, comp-op, suite and others should match their car
     [(list (or 'stmt 'flow_stmt 'small_stmt 'compound_stmt) stmt) 
      (stmt->ast stmt)]
     
-    ;; sipmle_stmt TODO: Multiple statements, trailing semicolon
+    ;; sipmle_stmt TODO: Multiple statements (requires changing stmt->ast to stmt->ast-list or something)
     [(list 'simple_stmt stmt NEWLINE) (stmt->ast stmt)]
+
+    [(list 'simple_stmt stmt ";" NEWLINE) (stmt->ast stmt)]
 
     [(list 'yield_stmt expr)
      (ast 'nodetype "Expr"
@@ -320,7 +322,8 @@ trailer, comp-op, suite and others should match their car
           'returns #\nul
           'decorator_list '())]
 
-    [`(classdef "class" (name . ,name) ":" ,suite)
+    [(or `(classdef "class" (name . ,name) ":" ,suite)
+         `(classdef "class" (name . ,name) "(" ")" ":" ,suite))
      (ast 'nodetype "ClassDef"
           'body (suite->ast-list suite)
           'bases '()
@@ -451,9 +454,9 @@ trailer, comp-op, suite and others should match their car
           'op (ast 'nodetype "Not")
           'operand (expr->ast expr expr-ctx))]
     
-    [(list 'factor "-" expr)
+    [(list 'factor op expr)
      (ast 'nodetype "UnaryOp"
-          'op (ast 'nodetype "USub")
+          'op (ast 'nodetype (case op [("+") "UAdd"] [("-") "USub"]))
           'operand (expr->ast expr expr-ctx))]
 
     ;; Note expr-ctx (this may be wrong)
