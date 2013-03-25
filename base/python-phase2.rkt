@@ -21,16 +21,17 @@
     (LexPass)
 	;(LexInScopeLocals empty)
                                         ;(phase2-locals empty)
-    (replace-lexinscopelocals
-     (optimization-pass
-      (let-phase
-       (remove-nonlocal
-        (remove-blocks
-          (collapse-pyseq
-           (post-desugar
-            (make-local-list
-             empty
-             expr)))))))))))
+    (remove-blocks
+     (replace-lexinscopelocals
+      (optimization-pass
+       (let-phase
+        (remove-nonlocal
+         
+         (collapse-pyseq
+          (post-desugar
+           (make-local-list
+            empty
+            expr)))))))))))
 
 ;;wholly and utterly for debugging.
 (define (phase2-without-locals expr)
@@ -396,6 +397,7 @@
                                                  restore-locals
                                                  (LexReturn (some (LexLocalId 'return-cleanup 'Load))))))]
                         [none () (LexSeq (list restore-locals (LexReturn (none))))])]
+       [LexLam (args body) (LexLam args (replace-lexinscopelocals (store-locals-careful body)))]
        ;I'm really not sure what's going on here....
        [LexFunc (name args defaults body decoratos class)
                 (LexFunc
@@ -443,9 +445,35 @@
                          (LexReturn (some (LexLocalId 'collecting-locals 'Load))))))))
                       empty (none))))
 
+(define (store-locals-careful expr)
+  (let ((free-of-return
+         (lambda (e) : boolean
+           (call/cc
+            (lambda (k)
+              (k (empty?
+                  (lexexpr-fold-tree
+                   e
+                   (lambda (e) : (listof boolean)
+                           (type-case LexExpr e
+                             [LexBlock (a b) empty]
+                             [LexReturn (_) (begin (k false) empty)]
+                             [else (default-recur)]))))))))))
+    (if (or false (free-of-return expr))
+        (LexLocalLet '%locals-save (LexGlobalId '%locals 'Load)
+                                        ;only for things without the word "return" in them.  -_-.
+                     (LexLocalLet '%return-tmp expr
+                                  (LexSeq (list
+                                           restore-locals
+                                           (LexLocalId '%return-tmp 'Load)
+                                           ))))
+        (begin
+        ;(display "return found, giving up\n")
+        expr))))
+
 (define (store-locals expr)
   (LexLocalLet '%locals-save (LexGlobalId '%locals 'Load)
                (LexSeq (list expr restore-locals))))
+
 
 (define restore-locals
   (LexAssign (list (LexGlobalId '%locals 'Store))
@@ -520,10 +548,9 @@
                             (let ((locals (collect-locals-in-scope body preserved-locals)))
                               (LexBlock
                                nls
-                               (store-locals
                                   (move-past-local-lets
                                    (LexInScopeLocals (filter-locals locals))
-                                   (make-local-list preserved-locals body))))))))
+                                   (make-local-list preserved-locals body)))))))
 
          (type-case LexExpr y
            [LexBlock (nls body)
