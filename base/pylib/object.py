@@ -49,11 +49,12 @@ def ___object_setattr__(obj, key, value):
       # to __set__ it if an accessor, otherwise just stick
       # it on the object
       # Perhaps in the future should be
-      # return obj.__dict__[key]
+      # obj.__dict__[key]
       obj_cls = ___delta("$class", obj)
       val = ___getattr(obj_cls, key)
+      val_cls = ___delta("$class", val)
       try:
-        set = ___getattr(val, "__set__")
+        set = ___getattr(val_cls, "__set__")
         set(val, obj, obj_cls, value)
       except:
         ___setattr(obj, key, value)
