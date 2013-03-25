@@ -1,6 +1,7 @@
 #lang plai-typed/untyped
 
 (require "python-lexical-syntax.rkt")
+(require [typed-in racket (pretty-write : ('a -> void))])
 
 (define (s-map f expr) : boolean (begin (map f expr) false))
 (define (comma-separate [es : (listof LexExpr)]) : boolean
@@ -207,7 +208,7 @@
                     (display "pass")
                     (display "\n")
                     this-expr)]
-      [LexCore (_) (begin (display this-expr) this-expr)]
+      [LexCore (_) (begin (pretty-write this-expr) this-expr)]
       [LexAssert (test msg)
                  (begin (display this-expr) this-expr)]
       

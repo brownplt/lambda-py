@@ -33,7 +33,7 @@
    (pretty-write (get-lexical-syntax (current-input-port))))
 
     ("--get-lexical-syntax-with-locals" "Get surface syntax python"
-   (pretty-write (get-lexical-syntax-with-locals (current-input-port))))
+   (lexexpr-print (get-lexical-syntax-with-locals (current-input-port))))
 
 
   ("--get-core-syntax" "Get desugared python"
