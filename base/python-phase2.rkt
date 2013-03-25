@@ -391,7 +391,7 @@
        [LexClass (scope name bases body) (LexClass scope name (replace-lexinscopelocals bases)
                                                    (replace-lexinscopelocals (store-locals body)))]
        [LexReturn (v?) (type-case (optionof LexExpr) v?
-                        [some (v) (LexLocalLet 'return-cleanup v
+                        [some (v) (LexLocalLet 'return-cleanup (replace-lexinscopelocals v)
                                                (LexSeq
                                                 (list
                                                  restore-locals

@@ -49,3 +49,25 @@ def obj_dict(obj):
     return obj_dict
 
 ___assign("%obj_dict", obj_dict)
+
+def ___object_setattr__(obj, key, value):
+    try:
+      # If the field is present on the object, then try
+      # to __set__ it if an accessor, otherwise just stick
+      # it on the object
+      # Perhaps in the future should be
+      # obj.__dict__[key]
+      obj_cls = ___delta("$class", obj)
+      val = ___getattr(obj_cls, key)
+      val_cls = ___delta("$class", val)
+      try:
+        set = ___getattr(val_cls, "__set__")
+        set(val, obj, obj_cls, value)
+      except:
+        ___setattr(obj, key, value)
+    except:
+      ___setattr(obj, key, value)
+
+
+object.__setattr__ = ___object_setattr__
+

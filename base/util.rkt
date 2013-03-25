@@ -175,7 +175,7 @@
     [some (w) (MetaTuple-v (some-v (VObjectClass-mval
                                     (fetch-ptr (fetch-once w sto) sto))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
-                                            (pretty cls sto)))]))
+                                            (to-string (fetch-ptr cls sto))))]))
 
 ;; option-map: unwrap the option, perform the function (if applicable), re-wrap.
 (define (option-map [fn : ('a -> 'b)] [thing : (optionof 'a)]) : (optionof 'b)
@@ -477,6 +477,18 @@
                                                                       (make-builtin-str "__self__")))
                                      args)
                                stararg)))))))
+
+
+(define (py-setfield obj attr val)
+  (CLet '$obj (LocalId) obj
+    (CApp (CGetAttr
+            (CBuiltinPrim '$class (list (CId '$obj (LocalId))))
+            (make-pre-str "__setattr__"))
+          (list
+           (CId '$obj (LocalId))
+           (make-pre-str (symbol->string attr))
+           val)
+          (none))))
 
 ;; sintactic sugar to get a field from an object
 (define (py-getfield [obj-exp : CExpr] [attr : symbol]) : CExpr

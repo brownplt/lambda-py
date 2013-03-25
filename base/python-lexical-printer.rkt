@@ -235,6 +235,11 @@
                       (display this-expr)
                       this-expr)
                     ]
+      [LexExprAssign (obj attr value)
+                    (begin
+                      (display this-expr)
+                      this-expr)
+                    ]
       
                                         ; operations
       [LexBinOp (left op right)

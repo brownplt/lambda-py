@@ -4,6 +4,7 @@
 (provide python-libs)
 
 (define-runtime-path-list python-libs '(
+ "pylib/type.py"
  "pylib/none.py"
  "pylib/bool.py"
  "pylib/str.py"
@@ -11,7 +12,6 @@
  "pylib/list.py"
  "pylib/dict.py"
  "pylib/set.py"
- "pylib/type.py"
  "pylib/function.py"
  "pylib/method.py"
  "pylib/super.py"

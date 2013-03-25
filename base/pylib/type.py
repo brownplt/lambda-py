@@ -1,5 +1,13 @@
+# This will be overridden by str.py
+___assign("%str", None)
+
+def __setattr__(cls, key, val):
+  ___setattr(cls, key, val)
 
 class type(object):
+  ___assign("%type", type)
+  ___setattr(type, "__setattr__", __setattr__)
+
   def __new__(self, *args):
     if ___delta("num=", args.__len__(), 1):
       first_arg = ___delta("tuple-getitem", args, 0)
@@ -50,4 +58,3 @@ class type(object):
     else:
       return get(val, None, cls)
 
-___assign("%type", type)

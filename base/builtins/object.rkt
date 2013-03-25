@@ -176,6 +176,24 @@
         [else (none)])
       (none)))
 
+(define (obj-hasattr (args : (listof CVal)) env sto) : (optionof CVal)
+  (if (= (length args) 2)
+      (type-case CVal (first args)
+        [VObjectClass (_ __ the-dict ___)
+          (type-case CVal (second args)
+            [VObjectClass (_ mval __ ___)
+              (type-case MetaVal (some-v mval)
+                [MetaStr (the-field)
+                  (type-case (optionof Address) (hash-ref
+                                                 the-dict
+                                                 (string->symbol the-field))
+                    [some (w) (some true-val)]
+                    [none () (some false-val)])]
+                [else (none)])]
+            [else (none)])]
+        [else (none)])
+      (none)))
+
 ;; obj-dir: get a list of attribute keys, as strings, from object dict
 ;; first argument is the object, second list class object, third str class object.
 (define (obj-dir (args : (listof CVal)) env sto) : (optionof CVal)

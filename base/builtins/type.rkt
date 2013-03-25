@@ -46,7 +46,7 @@
 (define (type-new [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaStr?
                     (let ([name (string->symbol (MetaStr-s mval1))])
-                      (some (VObjectClass 'type
+                      (some (VObjectClass '%type
                                           (some (MetaClass name))
                                           (hash empty)
                                           (none))))))
