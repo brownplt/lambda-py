@@ -28,5 +28,6 @@
  "pylib/generator.py"
  "pylib/object.py"
  "pylib/attr.py"
+ "pylib/property.py"
  "py-prelude.py"))
   
