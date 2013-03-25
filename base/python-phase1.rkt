@@ -486,7 +486,7 @@
       (lambda (x)
         (type-case LexExpr x
           [PyLexId (x ctx) (begin #;(display "it's an ID\n") (LexGlobalId x ctx))]
-                                        ;[LexReturn (r) (LexReturn (make-all-global r))]
+                                        ;[LexReturn (r) (LexReturn (option-map make-all-global r))]
           [else (begin #;(display "executing default\n") (default-recur))]))))
       ))
 

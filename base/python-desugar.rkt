@@ -73,7 +73,7 @@
   (LexAssign (list (LexGlobalId '%locals 'Store)) 
 			 (LexFunc 'locals empty empty 
 					  (LexReturn 
-					   (LexDict 
+					   (some (LexDict 
 						(map (lambda (y) (LexStr (symbol->string y))) ids)
 						(map (lambda (y) (LexTryExceptElse 
 										  (LexLocalId y 'load) 
@@ -81,7 +81,7 @@
 										   (LexExcept 
 											(list (LexGlobalId 'UnboundLocalError 'Load))
 											(LexStr "this isn't actually bound right now")))
-										  (LexPass))) ids)))
+										  (LexPass))) ids))))
 					  empty (none))))
 
 (define (desugar-for [target : LexExpr] [iter : LexExpr]
@@ -420,7 +420,9 @@
                                  (LexFuncVarArg name args sarg body (list) opt-class)
                                  decorators)))]
 
-      [LexReturn (value) (CReturn (rec-desugar value))]
+      [LexReturn (value) (CReturn (type-case (optionof CExpr) (option-map rec-desugar value)
+                                    [some (v) v]
+                                    [none () (CNone)]))]
       
       [LexDict (keys values)
        (local [
