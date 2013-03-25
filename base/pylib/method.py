@@ -32,10 +32,6 @@ class classmethod(object):
     # when used as attribute classmethod returns a method bound to the class
     object = ___id("%object")
     method = ___id("%method")
-    #if obj is None and objtype is not none:
-    #  bound_obj = objtype
-    #else:
-    #  bound_obj = obj
     new_method = object.__new__(method)
     method.__init__(new_method, self.__func__, objtype)
     return new_method
