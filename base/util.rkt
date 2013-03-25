@@ -97,7 +97,7 @@
                 (seq-ops (rest ops)))]))
 
 (define (def (class : symbol) (name : symbol) (expr : CExpr)) : CExpr
-  (CAssign (CGetField (CId class (GlobalId)) name) expr))
+  (set-field (CId class (GlobalId)) name expr))
 
 (define (VObject [antecedent : symbol] [mval : (optionof MetaVal)]
                  [dict : (hashof 'symbol Address)]) : CVal
@@ -366,6 +366,9 @@
   (CAssign (CId name (GlobalId))
            expr))
 
+(define (set-field obj name val)
+  (CSetAttr obj (make-pre-str (symbol->string name)) val))
+
 (define (py-num [n : number])
   (CObject (gid '%num) (some (MetaNum n))))
 
@@ -420,6 +423,9 @@
  
 (define (make-builtin-str [s : string]) : CExpr
   (CObject (gid '%str) (some (MetaStr s))))
+
+(define (make-pre-str [s : string]) : CExpr
+  (CObject (CNone) (some (MetaStr s))))
 
 (define (make-builtin-num [n : number]) : CExpr
   (CObject

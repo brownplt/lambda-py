@@ -40,11 +40,7 @@
                  (CNone)))
       (def 'BaseException '__init__
            (CFunc (list 'self) (some 'args)
-                  (CAssign 
-                    (CGetField
-                      (CId 'self (LocalId))
-                      'args)
-                    (CId 'args (LocalId)))
+                  (set-field (CId 'self (LocalId)) 'args (CId 'args (LocalId)))
                   (some 'BaseException)))
       (def 'BaseException '__str__
            (CFunc (list 'self) (none)
@@ -245,6 +241,7 @@
             (bind 'hasattr (CUndefined))
             (bind '%hasattr (CUndefined))
             (bind '%special_getattr (CUndefined))
+            (bind 'property (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))

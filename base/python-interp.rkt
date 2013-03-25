@@ -3,31 +3,14 @@
 (require "python-core-syntax.rkt"
          "python-primitives.rkt"
          "builtins/object.rkt"
-         "builtins/bool.rkt"
          "builtins/tuple.rkt"
-         "builtins/num.rkt"
-         "builtins/dict.rkt"
-         "builtins/method.rkt"
          "util.rkt"
          (typed-in "python-lib.rkt" (python-lib : ('a -> 'b)))
          (typed-in "python-lib.rkt" (builtins-symbol : 'a))
-         (typed-in racket/base (hash-copy : ((hashof 'a 'b) -> (hashof 'a 'b))))
-         (typed-in racket/base (hash-map : ((hashof 'a 'b) ('a 'b -> 'c) -> (listof 'c))))
-         (typed-in racket/base (hash-count : ((hashof 'a 'b) -> number)))
          (typed-in racket/string (string-join : ((listof string) string -> string)))
          (typed-in racket/base (raise-user-error : (string -> 'a)))
-         (typed-in racket/base (hash->list : ((hashof 'a 'b)  -> (listof 'c))))
-         (typed-in racket/base (car : (('a * 'b) -> 'a)))
-         (typed-in racket/base (cdr : (('a * 'b) -> 'b)))
-         (typed-in racket/list (last : ((listof 'a) -> 'a)))
          (typed-in racket/base (append : ((listof 'a) (listof 'a) -> (listof'a))))
-         (typed-in racket/list (remove-duplicates : ((listof 'a) -> (listof 'a))))
-         (typed-in racket/base (immutable? : ((hashof 'a 'b) -> boolean)))
          (typed-in racket/base (format : (string 'a -> string)))
-         (typed-in racket/base (substring : (string number number -> string)))
-         (typed-in racket/base (min : (number number -> number)))
-         (typed-in racket/base (string-length : (string -> number)))
-
          )
 
 (define (handle-result env result fun)
@@ -37,9 +20,6 @@
      [Break (s) (break-exception env s)]
      [Continue (s) (continue-exception env s)] 
      [Exception (v s) (Exception v s)]))
-
-(define (append3 a b c)
-  (append a (append b c)))
 
 ;; interp-cascade, interprets a list of expressions with an initial store,
 ;; environment and produces a ResultList, which either contains the final
@@ -228,8 +208,6 @@
     [CNone () (alloc-result vnone sto)]
     [CUndefined () (v*s (VUndefined) sto)]
 
-    [CGetField (value attr)
-               (error 'interp-env "CGetField is supported only as target for CAssign")]
     [CGetAttr (value attr)
      (begin
      ;(display "CGetAttr ") (display attr) (display "from: \n") (display value)
@@ -251,7 +229,28 @@
                 [else (error 'interp "is-obj-ptr? must have lied about the field in field lookup")])]
               [else (mk-exception 'TypeError (format "Non-object in field lookup: ~a" vval) env sto)])]
             [else (error 'interp (format "Non-object pointers in get-field: ~a" (list vval vattr)))]))))))]
-			
+
+    [CSetAttr (obj attr value)
+     (begin
+     ;(display "CGetAttr ") (display attr) (display "from: \n") (display value)
+     ;(display "\n\n")
+     (handle-result env (interp-env obj env sto stk)
+      (lambda (vobj sobj)
+       (handle-result env (interp-env attr env sobj stk)
+        (lambda (vattr sattr)
+         (handle-result env (interp-env value env sattr stk)
+          (lambda (vval sval)
+            (cond
+              [(is-obj-ptr? vattr sattr)
+               (type-case CVal (fetch-ptr vattr sval)
+                [VObjectClass (_ mval __ ___)
+                 (type-case MetaVal (some-v mval)
+                  [MetaStr (the-field)
+                    (assign-to-field2 vobj (string->symbol the-field) vval env sval stk)]
+                  [else (mk-exception 'TypeError (format "Non-string in field assignment: ~a" vattr) env sattr)])]
+                [else (error 'interp "is-obj-ptr? must have lied about the field in field assignment")])]
+              [else (error 'interp (format "Non-object in string position in field assignment: ~a" vattr))]))))))))]
+
     [CSeq (e1 e2) (type-case Result (interp-env e1 env sto stk)
                     [v*s (v1 s1) (interp-env e2 env s1 stk)]
                     [Return (v1 s1) (Return v1 s1)]
@@ -304,11 +303,7 @@
                  (lambda (vv sv)
                       (type-case CExpr t
                         [CId (x type) (assign-to-id t vv env sv)]
-                        [CGetField (o a) (assign-to-field o a vv env sv stk)]
-                        [else (mk-exception 'SyntaxError
-                                            "can't assign to literals"
-                                            env
-                                            sv)]))))]
+                        [else (mk-exception 'SyntaxError "can't assign to literals" env sv)]))))]
     
     [CIf (i t e) (handle-result env (interp-env i env sto stk)
                    (lambda (vi si) (if (truthy? vi si)
@@ -538,25 +533,6 @@
                                             env
                                             sto)])))))
 
-(define (global-scope? [env : Env]) : boolean
-  (= (length env) 1))
-
-(define (print-class obj sto)
-  (let* ([objv (fetch-ptr obj sto)])
-    (type-case CVal objv
-      [VObjectClass (antecedent mval dict cls)
-       ;; TODO(joe): this shouldn't happen, typecheck to find out why
-       (if (and (some? cls) (VUndefined? (some-v cls)))
-         "VUndefined Class"
-         (type-case (optionof CVal) cls
-           [none () "No Class"]
-           [some (v) (string-append (symbol->string antecedent)
-                      (string-append ": "
-                       (string-append (to-string (fetch-ptr v sto))
-                        (string-append "@"
-                         (to-string cls)))))]))]
-      [else "Non-VObject"])))
-
 (define (obj-ptr-match obj sto if-obj non-obj non-ptr)
   (type-case CVal obj
     [VPointer (a)
@@ -565,6 +541,26 @@
         [VObjectClass (ant m d c) (if-obj a ant m d c)]
         [else (non-obj v)]))]
     [else (non-ptr obj)]))
+
+(define (assign-to-field2 vo f [value : CVal] [env : Env] [sto : Store] [stk : Stack]) : Result
+  (begin ;(display o) (display "---") (display f) (display "\n") (display value) (display "\n")
+   (obj-ptr-match vo sto
+    (lambda (address antecedent mval d class)
+     (local [(define loc (hash-ref d f))]
+       (type-case (optionof Address) loc
+         [some (w) (alloc-result vnone (hash-set sto w value))]
+         [none () (local [(define w (new-loc))
+                          (define snew
+                            (begin ;(display vo) (display "\n")
+                                   ;(display objw) (display "\n")
+                            (hash-set sto address 
+                                      (VObjectClass antecedent
+                                               mval
+                                               (hash-set d f w)
+                                               class))))]
+                      (alloc-result vnone (hash-set snew w value)))])))
+    (lambda (v) (error 'interp (format "Can't assign to nonobject ~a." v)))
+    (lambda (vo) (error 'interp (format "Expected pointer, got ~a in assign-to-field" vo))))))
 
 (define (assign-to-field o f [value : CVal] [env : Env] [sto : Store] [stk : Stack]) : Result
   (begin ;(display o) (display "---") (display f) (display "\n") (display value) (display "\n")
@@ -717,3 +713,4 @@
                        [none () (lookup-mro (rest mro) n sto)]
                        [some (value) (some value)])]
             [else (error 'lookup-mro "an entry in __mro__ list is not an object")])])]))
+

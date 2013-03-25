@@ -40,10 +40,10 @@
     [(list 'none) (CNone)]
     [(list 'object cls mval)
      (CObject (sc cls) (sexp->mval/opt mval))]
-    [(list 'get-field obj attr)
-     (CGetField (sc obj) attr)] 
     [(list 'get-attr obj attr)
      (CGetAttr (sc obj) (sc attr))]
+    [(list 'set-attr obj attr value)
+     (CSetAttr (sc obj) (sc attr) (sc value))]
     [(list 'id id type)
      (CId id (sexp->idtype type))]
     [(list 'seq e1 e2)

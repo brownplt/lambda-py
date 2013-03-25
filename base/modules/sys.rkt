@@ -1,6 +1,7 @@
 #lang plai-typed/untyped
 
 (require "../python-core-syntax.rkt"
+         "main-module.rkt"
          "../util.rkt")
 
 (define sys-module-name 'sys)
@@ -9,18 +10,18 @@
   (seq-ops
    (list
     (CAssign sys-id (CObject (CId '$module (GlobalId)) (none)))
-    (CAssign (CGetField sys-id 'path)
+    (set-field sys-id 'path
              (CList (CId '%list (GlobalId))
                     (map (lambda (x)
                            (make-builtin-str x))
                          (get-module-path))))
-    (CAssign (CGetField sys-id '__name__)
+    (set-field sys-id '__name__
              (make-builtin-str "sys"))
-    (CAssign (CGetField sys-id 'exc_info)
+    (set-field sys-id 'exc_info
              (CFunc (list) (none)
                     (CReturn (make-builtin-str "sys.exc_info"))
                     (none)))
-    (CAssign (CGetField sys-id 'modules)
+    (set-field sys-id 'modules
              (py-app (CId '%dict (GlobalId))
                    (list
                     (CList (CId '%list (GlobalId))
@@ -28,5 +29,9 @@
                             (CTuple (CId '%tuple (GlobalId))
                               (list
                                (make-builtin-str "sys")
-                               sys-id)))))
+                               sys-id))
+                            (CTuple (CId '%tuple (GlobalId))
+                              (list
+                               (make-builtin-str (symbol->string main-module-name))
+                               main-module-id)))))
                    (none))))))

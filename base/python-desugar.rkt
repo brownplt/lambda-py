@@ -222,17 +222,13 @@
                                            (first assigns) (rest assigns))))]
                   ; The others become a CAssign.
                   [else
-                   (local [
-                     (define (target-desugar target)
-                      (type-case LexExpr target
-                        [LexDotField (obj fld) (CGetField (rec-desugar obj) fld)]
-                        [else (rec-desugar target)]))
-                     (define targets-r (map target-desugar targets))
-                     (define value-r (rec-desugar value))]
-                          (foldl (lambda (t so-far)
-                                   (CSeq so-far (CAssign t value-r)))
-                                 (CAssign (first targets-r) value-r)
-                                 (rest targets-r)))])]
+                   ;; NOTE(joe): I think this was broken before for >1 target
+                   ;; TODO(joe): Do this for >1 target, with the full tree walk on assignment
+                   ;; and assuming an iterator on the right
+                   (type-case LexExpr (first targets)
+                     [LexDotField (obj fld) (set-field (rec-desugar obj) fld (rec-desugar value))]
+                     [else (CAssign (rec-desugar (first targets)) (rec-desugar value))])])]
+                             
       [LexNum (n) (make-builtin-num n)]
       [LexSlice (lower upper step) (error 'desugar "Shouldn't desugar slice directly")]
       [LexBool (b) (if b (CTrue) (CFalse))]
