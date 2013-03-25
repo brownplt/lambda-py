@@ -21,4 +21,4 @@ clean:
 	@`which rm` compiled/*
 
 clean-python:
-	@find . -iname '*.pyc' | xargs `which rm`
+	@touch foo.pyc && touch __pycache__ && find . -iname '*.pyc' | xargs `which rm` && find . -name __pycache__ | xargs `which rm` 

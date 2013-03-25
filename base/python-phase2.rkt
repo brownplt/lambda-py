@@ -369,6 +369,7 @@
                                    potential-excepts)))])]))
 
 
+#;fg
 (define (pairs->tupleargs [keys : (listof CExpr)] [values : (listof CExpr)] )  : (listof CExpr)
   (cond
    [(empty? keys) empty]
@@ -386,11 +387,71 @@
    (lambda (y)
      (type-case LexExpr y
        [LexInScopeLocals (ids) (phase2-locals ids)]
+       [LexClass (scope name bases body) (LexClass scope name (replace-lexinscopelocals bases)
+                                                   (replace-lexinscopelocals (store-locals body)))]
+       [LexReturn (v?) (type-case (optionof LexExpr) v?
+                        [some (v) (LexLocalLet 'return-cleanup v
+                                               (LexSeq
+                                                (list
+                                                 restore-locals
+                                                 (LexReturn (some (LexLocalId 'return-cleanup 'Load))))))]
+                        [none () (LexSeq (list restore-locals (LexReturn (none))))])]
+       ;I'm really not sure what's going on here....
+       [LexFunc (name args defaults body decoratos class)
+                (LexFunc
+                 name
+                 args
+                 (map replace-lexinscopelocals defaults)
+                 (replace-lexinscopelocals (store-locals body))
+                 (map replace-lexinscopelocals decoratos)
+                 (option-map replace-lexinscopelocals class))]
+       [LexFuncVarArg (name args sarg body decoratos class)
+                (LexFuncVarArg
+                 name
+                 args
+                 sarg
+                 (replace-lexinscopelocals (store-locals body))
+                 (map replace-lexinscopelocals decoratos)
+                 (option-map replace-lexinscopelocals class))]
        [else (default-recur)]))))
 
 ;this is the same a desugar-locals.  I'm moving things directly into this file.
 ;largely for ease of testing (I can read this code; desugared code not so much)
 (define (phase2-locals [ids : (listof symbol)]) : LexExpr
+  (LexAssign (list (LexGlobalId '%locals 'Store)) 
+			 (LexFunc '%locals empty empty
+                      (LexLocalLet
+                       'collecting-locals (LexDict empty empty)
+                      (LexSeq
+                       (flatten
+                        (list
+                         (map
+                         (lambda (id)
+                           (LexTryExceptElse
+                            (LexLocalId id 'Load)
+                            (list
+                             (LexExcept
+                              empty
+                              (LexPass)
+                              ))
+                            (LexAssign
+                             (list
+                              (LexSubscript (LexLocalId 'collecting-locals 'Load) 'Store (LexStr (symbol->string id) )))
+                             (LexLocalId id 'Load))))
+                         ids)
+                        (list 
+                         (LexReturn (some (LexLocalId 'collecting-locals 'Load))))))))
+                      empty (none))))
+
+(define (store-locals expr)
+  (LexLocalLet '%locals-save (LexGlobalId '%locals 'Load)
+               (LexSeq (list expr restore-locals))))
+
+(define restore-locals
+  (LexAssign (list (LexGlobalId '%locals 'Store))
+             (LexLocalId '%locals-save 'Load)))
+
+#;(define (phase2-locals [ids : (listof symbol)]) : LexExpr
   (let ((ids (filter-locals ids)))
   (begin
     (LexCore
@@ -457,9 +518,12 @@
        (let ((recur (lambda (y) (make-local-list starting-locals y)))
              (block-recur (lambda (nls body preserved-locals)
                             (let ((locals (collect-locals-in-scope body preserved-locals)))
-                              (LexBlock nls (move-past-local-lets
-                                             (LexInScopeLocals (filter-locals locals))
-                                             (make-local-list preserved-locals body)))))))
+                              (LexBlock
+                               nls
+                               (store-locals
+                                  (move-past-local-lets
+                                   (LexInScopeLocals (filter-locals locals))
+                                   (make-local-list preserved-locals body))))))))
 
          (type-case LexExpr y
            [LexBlock (nls body)
@@ -469,9 +533,12 @@
                      (type-case LexExpr body
                        [LexBlock (nls es)
                                  (let ((locals (collect-instance-in-scope es nls)))
-                                   (LexBlock nls (move-past-local-lets
-                                                  (LexInScopeLocals (filter-locals locals))
-                                                  (make-local-list nls es))))]
+                                   (LexBlock nls 
+                                             (move-past-local-lets
+                                              (LexInScopeLocals (filter-locals locals))
+                                              (make-local-list nls es))))
+
+                       ]
                        [else (error 'make-local-list
                                     "thing inside class body is not block")]))]
            [LexTryExceptElse (try except el)
@@ -479,9 +546,10 @@
                               (make-local-list starting-locals try)
                               (map (lambda (y)
                                      (begin
-                                       (move-past-LexExcept
-                                        (LexInScopeLocals (filter-locals starting-locals))
-                                        (make-local-list starting-locals y))
+                                       
+                                        (move-past-LexExcept
+                                         (LexInScopeLocals (filter-locals starting-locals))
+                                         (make-local-list starting-locals y))
                                         ;(make-local-list starting-locals y)
                                        )) except)
                               (make-local-list starting-locals el))]
