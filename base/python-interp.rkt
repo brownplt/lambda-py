@@ -134,8 +134,7 @@
                       (none)))]
         (interp-env body env_new sto_new 
                     ;; push new activation record on the stack
-                    ;; used the dynamic environment for compatibility with base code.
-                    (cons (Frame env class self) stk))))))
+                    (cons (Frame class self) stk))))))
 
 (define (interp-let [name : symbol] [type : IdType]
                     [val : CVal] [sto : Store]

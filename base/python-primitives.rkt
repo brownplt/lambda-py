@@ -5,7 +5,6 @@
          "builtins/str.rkt"
          "builtins/list.rkt"
          "builtins/tuple.rkt"
-         "builtins/dict.rkt"
          "builtins/set.rkt"
          "builtins/num.rkt"
          "builtins/object.rkt"
@@ -272,19 +271,6 @@ primitives here.
 
     ; Returns the class of the given object
     ['$class (v*s (get-class (first argvs) env sto) sto)]
-
-    ['$locals (begin
-               ; (display env) (display "\n\n")
-               (if (> (length stk) 0) ;; it must be used inside a function
-                   (make-under-dict 
-                           (hash
-                             (map (lambda (p)
-                                    (values (car p) (cdr p)))
-                                  (filter (lambda (p)
-                                            (not (VUndefined? (fetch-once (cdr p) sto))))
-                                          (hash->list (first (Frame-env (first stk)))))))
-                           env sto)
-                   (error 'locals "Empty stack in locals")))]
 
     ['code-str (prim-alloc code-str (fetch-heads argvs argsptrs))]
     ['code-globals (prim-alloc code-globals (fetch-heads argvs argsptrs))]

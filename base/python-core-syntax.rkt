@@ -170,7 +170,7 @@ ParselTongue.
         (VObjectClass 'exception (none) (hash-set (hash empty) 'args args-field-loc) (some cls))))))
 
 (define-type ActivationRecord
-  [Frame (env : Env) (class : (optionof CVal)) (self : (optionof CVal))])
+  [Frame (class : (optionof CVal)) (self : (optionof CVal))])
 
 (define-type-alias Stack (listof ActivationRecord))
 

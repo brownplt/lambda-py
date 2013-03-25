@@ -5,7 +5,6 @@
          "builtins/str.rkt"
          "builtins/list.rkt"
          "builtins/tuple.rkt"
-         "builtins/dict.rkt"
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/set.rkt"
