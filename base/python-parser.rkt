@@ -67,7 +67,6 @@ trailer, comp-op, suite and others should match their car
           'body (map stmt->ast stmts))]
     [_ (error "Only file_input is supported.")]))
 
-
 ;; Transform most of the non-expression grammar from ragg into the ast (hasheq symbol->various) format
 (define (stmt->ast py-ragg)
   (match py-ragg
@@ -197,19 +196,22 @@ trailer, comp-op, suite and others should match their car
           'test (expr->ast test "Load")
           'body (suite->ast-list suite1)
           'orelse (suite->ast-list suite2))]
+    
 
-    ;; import_stmt TODO: Everything
-    [`(import_stmt (import_name "import" (dotted_as_names (dotted_as_name (dotted_name (name . ,name))))))
+    ;; import_stmt TODO: real import_from support
+    [`(import_stmt (import_name "import" (dotted_as_names ,names ...)))
      (ast 'nodetype "Import"
-          'names (list (ast 'nodetype "alias"
-                            'name name
-                            'asname #\nul)))]
-
-    [`(import_stmt (import_name "import" (dotted_as_names (dotted_as_name (dotted_name (name . ,module-name)) "as" (name . ,as-name)))))
-     (ast 'nodetype "Import"
-          'names (list (ast 'nodetype "alias"
-                            'name module-name
-                            'asname as-name)))]
+          'names (map (lambda (name)
+                        (match name
+                          [`(dotted_as_name ,name) 
+                           (ast 'nodetype "alias"
+                                'name (fold-dotted-name name)
+                                'asname #\nul)]
+                          [`(dotted_as_name ,name "as" (name . ,as-name))
+                           (ast 'nodetype "alias"
+                                'name (fold-dotted-name name)
+                                'asname as-name)]))
+                      (every-other names)))]
 
     [`(import_stmt (import_from "from" (dotted_name (name . ,module-name)) "import" "*"))
      (ast 'nodetype "ImportFrom"
@@ -564,6 +566,19 @@ trailer, comp-op, suite and others should match their car
      (pretty-write py-ragg)
      (error (string-append "Unhandled expression"))]))
 
+;; Turn `(dotted_name ...) rep into a.b string
+(define (fold-dotted-name name)
+  (match name
+    [`(dotted_name (name . ,init-name) ,segments ...)
+     (foldl (lambda (name-segment name)
+              (match name-segment
+                [`(name . ,id-part) (string-append name id-part)]
+                ["." (string-append name ".")]))
+            init-name
+            segments)]))
+         
+             
+
 (define (comp-op->ast comp-op)
   (ast 'nodetype
        (match (cdr comp-op)
@@ -661,8 +676,8 @@ trailer, comp-op, suite and others should match their car
               [`((argument ,key "=" ,val) ,more ...)
                (more-args more pos-args 
                           (cons (ast 'nodetype "keyword"
-                                          ;; This is backwards but works.
-                                          ;; See the note in the grammar.
+                                     ;; This is backwards but works.
+                                     ;; See the note in the grammar.
                                      'arg (hash-ref (expr->value-ast key) 'id)
                                      'value (expr->value-ast val)) key-args)
                           stararg kwarg)]
@@ -743,6 +758,6 @@ trailer, comp-op, suite and others should match their car
                (error "Unhandled comprehension clause")])))
          (match comp 
            [`(comp_for "for" ,target-expr "in" ,iter-expr ,more ...)
-                      (more-clauses more '() target-expr iter-expr '())]
+            (more-clauses more '() target-expr iter-expr '())]
            [_ (error "Argument to build-comprehension must be a comp_for")])))
 

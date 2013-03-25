@@ -158,6 +158,5 @@ def f():
     class x(y,z=a,*b,**c): pass
     class d(): pass
 
-    import x
-    import y as z
+    import a,b as c,d.e as f
     from a import *
