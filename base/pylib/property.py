@@ -1,6 +1,5 @@
 class property(object):
   def __init__(self, *args):
-    print(args)
     int = ___id("%int")
     length = ___delta("tuple-len", args, int)
     if length > 0:
