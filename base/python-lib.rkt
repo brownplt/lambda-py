@@ -17,26 +17,62 @@
          (typed-in "python-lib-list.rkt" (python-libs : (listof string)))
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
-         (typed-in "parse-python.rkt"
-                   (parse-python/port : ('a string -> 'b)))
-         (typed-in racket/base (open-input-file : ('a -> 'b)))
-         (typed-in racket/base (close-input-port : ('a -> 'b)))
+         (typed-in "parse-python.rkt" (parse-python/port : ('a string -> 'b)))
+         "core-to-sexp.rkt"
+         (typed-in "sexp-to-core.rkt" (sexp->core : ('a -> CExpr)))
+         (typed-in racket/fasl (s-exp->fasl : ('a 'b -> 'c)) (fasl->s-exp : ('a -> 'b)))
          "python-syntax.rkt"
          "python-macros.rkt"
          "python-lexical-syntax.rkt"
          "python-desugar.rkt"
          "python-phases.rkt"
-         (typed-in racket/base (append : ((listof 'a) (listof 'a) (listof 'a) (listof 'a) (listof 'a) -> (listof 'a)))))
+         (typed-in racket/string
+          (string-split : (string string -> (listof string))))
+         (typed-in racket/base
+          (open-input-file : ('a -> 'b))
+          (open-output-file : ('a -> 'b))
+          (close-input-port : ('a -> 'b))
+          (close-output-port : ('a -> 'b))
+          (path->string : ('a -> string))
+          (file-exists? : ('a -> boolean))
+          (delete-file : ('a -> 'b))
+          (file-or-directory-modify-seconds : (string (-> number) -> number))
+          (append : ((listof 'a) (listof 'a) (listof 'a) (listof 'a) (listof 'a) -> (listof 'a)))))
 
-#|
-
-Here is a suggestion for how to implement shared runtime functionality -
-write it as core expression forms and use python-lib to wrap your
-desugared expressions in an environment that will contain useful
-bindings.  For example, this sample library binds `print` to a function
-that calls the primitive `print`.
-
-|#
+(define CACHE_EXT ".pyc") ;; thatsthejoke.jpg
+(define (get-ast/cache path)
+  (local
+    [(define without-ext (first (string-split (path->string path) ".")))
+     (define with-ext (string-append without-ext CACHE_EXT))
+     (define time-python-file-modified (file-or-directory-modify-seconds path #f))
+     (define time-cache-was-created (file-or-directory-modify-seconds with-ext #f (lambda () 0)))]
+  (cond
+    [(>= time-python-file-modified time-cache-was-created)
+     (begin
+       (when (file-exists? with-ext) (delete-file with-ext))
+       (local
+        [(define f (open-input-file path))
+         (define pyast (parse-python/port f (get-pypath)))
+         (define core-ast
+                 (desugar 
+                  (desugar-macros
+                    (new-scope-phase
+                      (get-structured-python pyast)))))
+         (define cache-file (open-output-file with-ext))]
+         (begin
+          (s-exp->fasl (core->sexp core-ast) cache-file)
+          (close-output-port cache-file)
+          (close-input-port f)
+          core-ast)))]
+    [else
+     (local
+      [(define cache-file (open-input-file with-ext))
+       (define core-ast (sexp->core (fasl->s-exp cache-file)))]
+      (begin
+        (close-input-port cache-file)
+        core-ast))])))
+     
+  
 
 (define pylib-programs (none))
 ;; these are builtin functions that we have written in actual python files which
@@ -47,20 +83,9 @@ that calls the primitive `print`.
      (begin
        (set! pylib-programs
         (some
-          (map (lambda (file) 
-            (local [
-              (define f (open-input-file file))
-              (define pyast (parse-python/port f (get-pypath)))
-            ]
-            (begin
-              (close-input-port f)
-              (desugar 
-                (desugar-macros
-                  (new-scope-phase
-                    (get-structured-python pyast)))))))
-               paths)))
+          (map get-ast/cache paths)))
          (some-v pylib-programs))]
-     [some (v) v]))
+    [some (v) v]))
                  
 
 (define-type-alias Lib (CExpr -> CExpr))
