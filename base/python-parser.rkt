@@ -331,14 +331,15 @@ trailer, comp-op, suite and others should match their car
           'keywords '())]
 
     [`(classdef "class" (name . ,name) "(" (arglist ,supertypes ...) ")" ":" ,suite)
-     (ast 'nodetype "ClassDef"
-          'body (suite->ast-list suite)
-          'bases (arglist->ast-list supertypes '())
-          'name name
-          'decorator_list '()
-          'kwargs #\nul
-          'starargs #\nul
-          'keywords '())]
+     (build-call supertypes (lambda (posargs keywords kwarg stararg)
+                              (ast 'nodetype "ClassDef"
+                                   'body (suite->ast-list suite)
+                                   'bases posargs
+                                   'name name
+                                   'decorator_list '()
+                                   'kwargs kwarg
+                                   'starargs stararg
+                                   'keywords keywords)))]
 
     [_ 
      (display "=== Unhandled grammar ===\n")
@@ -503,7 +504,7 @@ trailer, comp-op, suite and others should match their car
                 (list 'testlist_comp exprs ...)) "]")
      (ast 'nodetype "List"
           'ctx (ast 'nodetype "Load")
-          'elts (arglist->ast-list exprs '()))]
+          'elts (map expr->value-ast (every-other exprs)))]
     
     [(list 'atom "[" (list 'testlist_comp elt-expr (and comp
                                                         (list 'comp_for _ ...))) "]")
@@ -559,7 +560,14 @@ trailer, comp-op, suite and others should match their car
 ;; Only handles function calls with positional args
 ;; Assume for now that expr-ctx will always be valid.
 (define (wrap-with-trailer trailer expr-ctx left-ast)
-  (local ((define (attr-ast attr)
+  (local ((define (make-call-ast args keywords kwarg stararg)
+            (ast 'nodetype "Call"
+                 'args args
+                 'kwargs kwarg
+                 'starargs stararg
+                 'keywords keywords
+                 'func left-ast))
+          (define (attr-ast attr)
             (ast 'nodetype "Attribute"
                  'ctx (ast 'nodetype expr-ctx)
                  'attr attr
@@ -579,9 +587,9 @@ trailer, comp-op, suite and others should match their car
                  'slice (ast 'nodetype "Index"
                              'value index))))
          (match trailer
-           [`(trailer "(" ")") (build-call '() left-ast)]
+           [`(trailer "(" ")") (build-call '() make-call-ast)]
            ;; arglist TODO... comp_for?
-           [`(trailer "(" (arglist ,args ...) ")") (build-call args left-ast)]
+           [`(trailer "(" (arglist ,args ...) ")") (build-call args make-call-ast)]
            [`(trailer "." (name . ,name)) (attr-ast name)]
            ;; subscriptlist TODO... "...", multiple indexes, multiple indexes w/slices
            [`(trailer "[" (subscriptlist (subscript ,index)) "]") 
@@ -609,17 +617,11 @@ trailer, comp-op, suite and others should match their car
         [(null? (cdr lst)) (list (car lst))]
         [else (cons (car lst) (every-other (cddr lst)))]))
 
-;; The single comprehension case is handled by fall-through in expr->ast
-(define (build-call args func-ast)
+;; Process arglist and call make-call-ast with args, keywords, kwarg and stararg
+(define (build-call args make-call-ast)
   (local ((define (more-args args pos-args key-args stararg kwarg)
             (match args
-              [`() 
-               (ast 'nodetype "Call"
-                    'args (reverse pos-args)
-                    'kwargs kwarg
-                    'starargs stararg
-                    'keywords (reverse key-args)
-                    'func func-ast)]
+              [`() (make-call-ast (reverse pos-args) (reverse key-args) kwarg stararg)]
               [`("," ,more ...)
                (more-args more pos-args key-args stararg kwarg)]
               [`("*" ,vararg-expr ,more ...)
@@ -645,13 +647,6 @@ trailer, comp-op, suite and others should match their car
                (display args) (newline)
                (error "Error parsing args")])))
          (more-args args '() '() #\nul #\nul)))
-
-;; Turns a comma-separated list of exprs (expr first) to an ast list of exprs
-(define (arglist->ast-list arg-lst acc)
-  (match arg-lst
-    [(list) (reverse acc)]
-    [(list arg) (reverse (cons (expr->ast arg "Load") acc))]
-    [(list arg "," rest ...) (arglist->ast-list rest (cons (expr->ast arg "Load") acc))]))
 
 (define (exprlist->ast lst expr-ctx)
   (match lst

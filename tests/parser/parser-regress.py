@@ -148,6 +148,7 @@ def f():
     class q: pass
     class r(s,t): pass
     class u(v,w,): pass
+    class x(y,z=a,*b,**c): pass
 
     import x
     import y as z
