@@ -318,7 +318,9 @@
                            (display "\n")
                            (display starting-tab)
                            (display "return ")
-                           (lexexpr-print-helper value "")
+                           (type-case (optionof LexExpr) value
+                             [some (value) (lexexpr-print-helper value "")]
+                             [none [] this-expr])
                            (display "\n")
                            this-expr)]
       [LexApp (fun args) (begin
