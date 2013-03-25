@@ -482,6 +482,12 @@ trailer, comp-op, suite and others should match their car
           'values '()
           'keys '())]
 
+    [(list 'atom "{" (list 'dictorsetmaker val-expr (and comp (list 'comp_for _ ...))) "}")
+     (build-comprehension comp (lambda (generators)
+                                 (ast 'nodetype "SetComp"
+                                      'generators generators
+                                      'elt (expr->ast val-expr "Load"))))]
+
     [(list 'atom "{" (list 'dictorsetmaker key-expr ":" val-expr (and comp (list 'comp_for _ ...))) "}")
      (build-comprehension comp (lambda (generators)
                                  (ast 'nodetype "DictComp"
@@ -501,6 +507,10 @@ trailer, comp-op, suite and others should match their car
                  [`(,key-expr ":" ,value-expr ,more ...)
                   (more-items more (cons key-expr key-exprs) (cons value-expr value-exprs))])))
             (more-items items '() '()))]
+
+    [(list 'atom "{" (list 'dictorsetmaker rest ...) "}")
+     (ast 'nodetype "Set"
+          'elts (map expr->value-ast (every-other rest)))]
 
     #| atom square bracket forms |#
     [(list 'atom "[" "]")

@@ -48,6 +48,8 @@ def f():
 
     (x for y in z if a if b)
     [x for y in z if a for y in z if a]
+    {x:y for z in w}
+    {x for y in z}
 
     not n
     
@@ -61,6 +63,8 @@ def f():
     {b:3,c:4,}
     {a:1}
     {}
+
+    {x,y,z}
 
 
     # Statements
