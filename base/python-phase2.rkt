@@ -445,30 +445,15 @@
                          (LexReturn (some (LexLocalId 'collecting-locals 'Load))))))))
                       empty (none))))
 
+;for lambda
 (define (store-locals-careful expr)
-  (let ((free-of-return
-         (lambda (e) : boolean
-           (call/cc
-            (lambda (k)
-              (k (empty?
-                  (lexexpr-fold-tree
-                   e
-                   (lambda (e) : (listof boolean)
-                           (type-case LexExpr e
-                             [LexBlock (a b) empty]
-                             [LexReturn (_) (begin (k false) empty)]
-                             [else (default-recur)]))))))))))
-    (if (or false (free-of-return expr))
-        (LexLocalLet '%locals-save (LexGlobalId '%locals 'Load)
+  (LexLocalLet '%locals-save (LexGlobalId '%locals 'Load)
                                         ;only for things without the word "return" in them.  -_-.
-                     (LexLocalLet '%return-tmp expr
-                                  (LexSeq (list
-                                           restore-locals
-                                           (LexLocalId '%return-tmp 'Load)
-                                           ))))
-        (begin
-        ;(display "return found, giving up\n")
-        expr))))
+               (LexLocalLet '%return-tmp expr
+                            (LexSeq (list
+                                     restore-locals
+                                     (LexLocalId '%return-tmp 'Load)
+                                     )))))
 
 (define (store-locals expr)
   (LexLocalLet '%locals-save (LexGlobalId '%locals 'Load)
