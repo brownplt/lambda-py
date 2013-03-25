@@ -248,7 +248,7 @@
                   [some (mval)
                    (type-case MetaVal mval
                     [MetaStr (the-field)
-                      (assign-to-field2 vobj (string->symbol the-field) vval env sval stk)]
+                      (assign-to-field vobj (string->symbol the-field) vval env sval stk)]
                     [else (mk-exception 'TypeError (format "Non-string in field assignment: ~a" vattr) env sattr)])])]
                 [else (error 'interp "is-obj-ptr? must have lied about the field in field assignment")])]
               [else (error 'interp (format "Non-object in string position in field assignment: ~a" vattr))]))))))))]
@@ -544,7 +544,7 @@
         [else (non-obj v)]))]
     [else (non-ptr obj)]))
 
-(define (assign-to-field2 vo f [value : CVal] [env : Env] [sto : Store] [stk : Stack]) : Result
+(define (assign-to-field vo f [value : CVal] [env : Env] [sto : Store] [stk : Stack]) : Result
   (begin ;(display o) (display "---") (display f) (display "\n") (display value) (display "\n")
    (obj-ptr-match vo sto
     (lambda (address antecedent mval d class)
@@ -563,28 +563,6 @@
                       (alloc-result vnone (hash-set snew w value)))])))
     (lambda (v) (error 'interp (format "Can't assign to nonobject ~a." v)))
     (lambda (vo) (error 'interp (format "Expected pointer, got ~a in assign-to-field" vo))))))
-
-(define (assign-to-field o f [value : CVal] [env : Env] [sto : Store] [stk : Stack]) : Result
-  (begin ;(display o) (display "---") (display f) (display "\n") (display value) (display "\n")
-  (handle-result env (interp-env o env sto stk)
-    (lambda (vo so)
-         (obj-ptr-match vo so
-            (lambda (address antecedent mval d class)
-             (local [(define loc (hash-ref d f))]
-              (type-case (optionof Address) loc
-                 [some (w) (alloc-result vnone (hash-set so w value))]
-                 [none () (local [(define w (new-loc))
-                                  (define snew
-                                    (begin ;(display vo) (display "\n")
-                                           ;(display objw) (display "\n")
-                                    (hash-set so address 
-                                              (VObjectClass antecedent
-                                                       mval
-                                                       (hash-set d f w)
-                                                       class))))] ;; NOTE(joe) ensuring same class as above
-                              (alloc-result vnone (hash-set snew w value)))])))
-            (lambda (v) (error 'interp (format "Can't assign to nonobject ~a." v)))
-            (lambda (vo) (error 'interp (format "Expected pointer, got ~a in assign-to-field" vo))))))))
 
 ;; bind-args, recursively binds the provided values to the provided argument symbols.
 ;; If a stararg symbol is provided, extra arguments are packaged in a tuple and bound
