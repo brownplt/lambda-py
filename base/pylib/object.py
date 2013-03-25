@@ -1,3 +1,5 @@
+# normal instance attribute lookup: it can be overriden and starts
+# looking for the attribute in the object's internal dict.
 def ___object__getattribute__(obj, key):
     try:
       # return obj.__dict__[key]
@@ -9,6 +11,8 @@ def ___object__getattribute__(obj, key):
 
 object.__getattribute__ = ___object__getattribute__
 
+# special attribute lookup: it cannot be overriden and it doesn't look
+# in the object's internal dict, the lookup chain starts at the class.
 def special_getattr(obj, key):
     obj_cls = ___delta("$class", obj)
     try:
@@ -31,3 +35,10 @@ def special_getattr(obj, key):
       return get(val, obj, obj_cls)
 
 ___assign("%special_getattr", special_getattr)
+
+# the computed obj.__dict__ attribute
+def obj_dict(obj):
+    # for now it is just a placeholder
+    return {}
+
+___assign("%obj_dict", obj_dict)
