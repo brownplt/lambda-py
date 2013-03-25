@@ -130,25 +130,33 @@ trailer, comp-op, suite and others should match their car
      (ast 'nodetype "Delete"
           'targets (exprlist->ast-list expr "Del"))]
 
-    ;; raise_stmt TODO: from clause
-    [(list 'raise_stmt "raise" exc)
-     (ast 'nodetype "Raise"
-          'exc (expr->ast exc "Load")
-          'cause #\nul)]
-
     [(list 'raise_stmt "raise")
      (ast 'nodetype "Raise"
           'exc #\nul
           'cause #\nul)]
 
+    [(list 'raise_stmt "raise" exc)
+     (ast 'nodetype "Raise"
+          'exc (expr->ast exc "Load")
+          'cause #\nul)]
+
+    [(list 'raise_stmt "raise" exc "from" inner-exc)
+     (ast 'nodetype "Raise"
+          'exc (expr->ast exc "Load")
+          'cause (expr->ast inner-exc "Load"))]
+
     [(list 'pass_stmt "pass")
      (ast 'nodetype "Pass")]
 
-    ;; assert_stmt TODO: msg, multiple
     [(list 'assert_stmt "assert" expr)
      (ast 'nodetype "Assert"
           'test (expr->ast expr "Load")
           'msg #\nul)]
+
+    [(list 'assert_stmt "assert" test-expr "," msg-expr)
+     (ast 'nodetype "Assert"
+          'test (expr->ast test-expr "Load")
+          'msg (expr->ast msg-expr "Load"))]
 
     [(list 'global_stmt "global" rest ...)
      (ast 'nodetype "Global"

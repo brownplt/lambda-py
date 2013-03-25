@@ -93,10 +93,12 @@ def f():
 
     while f: raise g
     while f: raise
+    while f: raise g from h
 
     while h: pass
 
     assert i
+    assert i,i
 
     global j
     global k,l,m
