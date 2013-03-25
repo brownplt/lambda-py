@@ -177,8 +177,8 @@
       (map (lambda(b) (bind (bind-left b) (CUndefined)))
            lib-functions)
       (list 
-            (bind 'none (CUndefined))
-            (bind '%none (CUndefined))
+            (bind 'NoneType (CUndefined))
+            (bind '%NoneType (CUndefined))
             (bind 'iter (CUndefined))
             (bind '%iter (CUndefined))
             (bind 'next (CUndefined))

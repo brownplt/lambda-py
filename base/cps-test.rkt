@@ -147,7 +147,7 @@
 
 ;; NOTE(dbp): not working right now
 ;;(test (cps-eval (pyapp (gid 'print) (CSym 'foo)))
-;;      (VObjectClass 'none (some (MetaNone)) (hash empty) (none)))
+;;      (VObjectClass 'NoneType (some (MetaNone)) (hash empty) (none)))
 
 (define fun-expr (CApp (CFunc (list) (some 'arg)
                                ;; BUG(dbp)? stararg wrapped in extra tuple
@@ -176,7 +176,7 @@
        (CBreak)
        (CAssign (Id 'x) (CBuiltinPrim 'num+ (list (Id 'x) (make-builtin-num 2)))))
       (CSym 'finished))))
-  (VObjectClass 'none (some (MetaNone)) (hash empty) (none)))
+  (VObjectClass 'NoneType (some (MetaNone)) (hash empty) (none)))
 
 (test (MetaStr-s (some-v (VObjectClass-mval
        (cps-eval (CSeq (make-builtin-str "foo") (make-builtin-str "bar"))))))
