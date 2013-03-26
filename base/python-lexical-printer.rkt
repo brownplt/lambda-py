@@ -47,7 +47,10 @@
                (lexexpr-print-helper orelse (string-append "  " starting-tab))
                (display "\n")
                this-expr)]
-      [LexSeq (es) (begin (map (lambda (y)
+      [LexSeq (es) (begin
+                     (display starting-tab)
+                     (display "#in a sequence\n")
+                     (map (lambda (y)
                                  (begin
                                    (recur y)
                                    (display "\n")
