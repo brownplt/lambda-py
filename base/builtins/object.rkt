@@ -156,6 +156,8 @@
                         (hash empty)))]
             [else (error 'obj-str "Non object")])))
 
+;; obj-getattr: get attr value from object dict
+;; first argument is the object, second the attribute key
 (define (obj-getattr (args : (listof CVal)) env sto) : (optionof CVal)
   (if (= (length args) 2)
       (type-case CVal (first args)
@@ -189,5 +191,22 @@
                     [none () (some false-val)])]
                 [else (none)])]
             [else (none)])]
+        [else (none)])
+      (none)))
+
+;; obj-dir: get a list of attribute keys, as strings, from object dict
+;; first argument is the object, second list class object, third str class object.
+(define (obj-dir (args : (listof CVal)) env sto) : (optionof CVal)
+  (if (= (length args) 3)
+      (type-case CVal (first args)
+        [VObjectClass (_ __ the-dict ___)
+          (some (VObjectClass
+                 'list
+                 (some (MetaList (map (lambda (k)
+                                        (make-str-value (symbol->string k)
+                                                        (third args)))
+                                      (hash-keys the-dict))))
+                 (hash empty)
+                 (some (second args))))]
         [else (none)])
       (none)))
