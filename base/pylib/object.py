@@ -25,14 +25,19 @@ def special_getattr(obj, key):
         msg = ___delta("str+", "object has no attribute ", key, str)
         raise AttributeError(msg)
       else:
-        val = getattr(obj, key)
-    val_cls = ___delta("$class", val)
-    try:
-      get = ___getattr(val_cls, "__get__")
-    except:
-      return val
+        # method class is special cased for bootstraping method calls
+        if obj_cls is method:
+          return getattr(obj, key)
+        else:
+          return obj.__getattr__(key)
     else:
-      return get(val, obj, obj_cls)
+      val_cls = ___delta("$class", val)
+      try:
+        get = ___getattr(val_cls, "__get__")
+      except:
+        return val
+      else:
+        return get(val, obj, obj_cls)
 
 ___assign("%special_getattr", special_getattr)
 

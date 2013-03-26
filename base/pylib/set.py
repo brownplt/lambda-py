@@ -4,7 +4,12 @@ class set(object):
     if ___delta("num=", args.__len__(), 0):
       return ___emptyset()
     else:
-      return args.__getitem__(0).__set__()
+      result = []
+      for elt in args.__getitem__(0):
+        if not result.__in__(elt):
+          result.append(elt)
+      return result.__set__()
+      #return args.__getitem__(0).__set__()
 
   def __init__(self, *args):
     pass
@@ -44,13 +49,12 @@ class set(object):
     return True
 
   def __sub__(self, other):
-    set = ___id("%set")
     result = []
     for elt in self.__list__():
       if not other.__in__(elt):
         result.append(elt)
 
-    return set(result)
+    return result.__set__()
 
   def __and__(self, other):
     result = []
@@ -58,10 +62,9 @@ class set(object):
       if other.__in__(elt):
         result.append(elt)
 
-    return set(result)
+    return result.__set__()
 
   def __or__(self, other):
-    set = ___id("%set")
     result = []
     for elt in self.__list__():
       # skip it the first time
@@ -71,10 +74,9 @@ class set(object):
     for elt in other.__list__():
       result.append(elt)
 
-    return set(result)
+    return result.__set__()
 
   def __xor__(self, other):
-    set = ___id("%set")
     result = []
     for elt in self.__list__():
       if not other.__in__(elt):
@@ -84,6 +86,6 @@ class set(object):
       if not self.__in__(elt):
         result.append(elt)
 
-    return set(result)
+    return result.__set__()
 
 ___assign("%set", set)
