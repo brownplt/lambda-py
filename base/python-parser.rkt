@@ -205,11 +205,11 @@ trailer, comp-op, suite and others should match their car
                         (match name
                           [`(dotted_as_name ,name) 
                            (ast 'nodetype "alias"
-                                'name (fold-dotted-name name)
+                                'name (dotted-name->string name)
                                 'asname #\nul)]
                           [`(dotted_as_name ,name "as" (name . ,as-name))
                            (ast 'nodetype "alias"
-                                'name (fold-dotted-name name)
+                                'name (dotted-name->string name)
                                 'asname as-name)]))
                       (every-other names)))]
 
@@ -311,26 +311,30 @@ trailer, comp-op, suite and others should match their car
           'body (suite->ast-list body-suite)
           'orelse '())]
 
-    ;; funcdef TODO: Almost everything 
+    ;; funcdef TODO: Unfinished formal handling in build-formals
     [`(funcdef "def" 
                (name . ,name) 
-               (parameters "(" (typedargslist ,args ...) ")") ":" ,suite)
+               ,parameters ":" ,suite)
      (ast 'nodetype "FunctionDef"
           'body (suite->ast-list suite)
-          'args (build-formals args)
+          'args (build-formals (parameters->arg-sexp parameters))
           'name name
           'returns #\nul
           'decorator_list '())]
 
-    [`(funcdef "def" 
-               (name . ,name) 
-               (parameters "(" ")") ":" ,suite)
+    [`(decorated
+       (decorators 
+        ,decorators ...)
+       (funcdef "def"
+                (name . ,func-name)
+                ,parameters ":" ,suite))
      (ast 'nodetype "FunctionDef"
           'body (suite->ast-list suite)
-          'args (args-ast '() '() #\nul #\nul)
-          'name name
+          'args (build-formals (parameters->arg-sexp parameters))
+          'name func-name
           'returns #\nul
-          'decorator_list '())]
+          'decorator_list 
+          (map decorator->ast decorators))]
 
     [(or `(classdef "class" (name . ,name) ":" ,suite)
          `(classdef "class" (name . ,name) "(" ")" ":" ,suite))
@@ -358,6 +362,11 @@ trailer, comp-op, suite and others should match their car
      (display "=== Unhandled grammar ===\n")
      (pretty-write py-ragg)
      (error (string-append "Unhandled grammar"))]))
+
+(define (parameters->arg-sexp parameters)
+  (match parameters
+    [`(parameters "(" (typedargslist ,args ...) ")") args]
+    [`(parameters "(" ")") '()]))
 
 ;; Destructure ragg python expressions to python ast with ctx value appropriate to the statement, expression, and position.
 ;; I'm assuming for now that this will handle testlist *and* test, in all cases.
@@ -567,7 +576,7 @@ trailer, comp-op, suite and others should match their car
      (error (string-append "Unhandled expression"))]))
 
 ;; Turn `(dotted_name ...) rep into a.b string
-(define (fold-dotted-name name)
+(define (dotted-name->string name)
   (match name
     [`(dotted_name (name . ,init-name) ,segments ...)
      (foldl (lambda (name-segment name)
@@ -576,8 +585,23 @@ trailer, comp-op, suite and others should match their car
                 ["." (string-append name ".")]))
             init-name
             segments)]))
-         
-             
+
+;; Turn dotted_name rep into expr ast  
+(define (dotted-name->ast name)
+  (match name
+    [`(dotted_name (name . ,init-name) ,segments ...)
+     (foldl (lambda (name-segment name-ast)
+              (match name-segment
+                [`(name . ,id-part) 
+                 (ast 'nodetype "Attribute"
+                      'attr id-part
+                      'ctx (ast 'nodetype "Load")
+                      'value name-ast)]
+                ["." name-ast]))
+            (ast 'nodetype "Name"
+                 'ctx (ast 'nodetype "Load")
+                 'id init-name)
+            segments)]))
 
 (define (comp-op->ast comp-op)
   (ast 'nodetype
@@ -656,6 +680,29 @@ trailer, comp-op, suite and others should match their car
             (display "=== Unhandled trailer ===\n")
             (pretty-write trailer)
             (error "Unsupported trailer (arglist) shape")])))
+
+(define (decorator->ast decorator)
+  (match decorator 
+    [`(decorator "@" ,dec-name ,decorator-rest ...)
+     (let ((dec-ast (dotted-name->ast dec-name)))
+       (match decorator-rest
+         [`("NEWLINE") dec-ast]
+         [`("(" ")" "NEWLINE") (ast 'nodetype "Call"
+                                    'args '()
+                                    'keywords '()
+                                    'kwargs #\nul
+                                    'starargs #\nul
+                                    'func dec-ast)]
+         [`("(" (arglist ,args ...) ")" "NEWLINE")
+          (build-call args (lambda (args keywords kwarg stararg)
+                             (ast 'nodetype "Call"
+                                  'args args
+                                  'keywords keywords
+                                  'kwargs kwarg
+                                  'starargs stararg
+                                  'func dec-ast)))]
+         [_ (error "Unhandled decorator rest")]))]
+    [_ (error "Unhandled decorator")]))
 
 (define (every-other lst)
   (cond [(null? lst) '()]

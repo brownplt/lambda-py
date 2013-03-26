@@ -152,6 +152,13 @@ def f():
     def c(d,**e): pass
     def f(h,i=j,*k,**l): pass
 
+    @k
+    def l(): pass
+    @m()
+    @n(o)
+    @p.q(r,s=t,*u,**v)
+    def w(x,y=z,*a,**b): pass
+
     class q: pass
     class r(s,t): pass
     class u(v,w,): pass
