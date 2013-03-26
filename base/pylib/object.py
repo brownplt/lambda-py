@@ -65,14 +65,16 @@ def ___object_setattr__(obj, key, value):
       # obj.__dict__[key]
       obj_cls = ___delta("$class", obj)
       val = ___getattr(obj_cls, key)
+    except:
+      ___setattr(obj, key, value)
+    else:
       val_cls = ___delta("$class", val)
       try:
         set = ___getattr(val_cls, "__set__")
-        set(val, obj, obj_cls, value)
       except:
         ___setattr(obj, key, value)
-    except:
-      ___setattr(obj, key, value)
+      else:
+        set(val, obj, value)
 
 object.__setattr__ = ___object_setattr__
 

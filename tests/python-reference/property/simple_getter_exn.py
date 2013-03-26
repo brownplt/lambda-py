@@ -1,4 +1,4 @@
-class c(object):
+class C(object):
   def __init__(self):
     self.x = 42
   @property
