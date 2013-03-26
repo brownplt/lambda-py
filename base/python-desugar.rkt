@@ -243,7 +243,10 @@
                   (local 
                    [(define (make-global-lets ids body)
                     (cond
-                     [(empty? ids) (rec-desugar body)]
+                     [(empty? ids)
+                      (CSeq (CAssign (CId '__main__ (GlobalId))
+                                     (CConstructModule (CNone)))
+                            (rec-desugar body))]
                      [else (CLet (first ids) (GlobalId)
                            (rec-desugar (LexUndefined))
                            (make-global-lets (rest ids) body))]))]
@@ -584,9 +587,6 @@
                       [else (CSeq (first exprs) (make-sequence (rest exprs)))]))]
                   (make-sequence (map handle-delete targets)))]
       
-
-      [LexImportFrom (module names asnames level) (rec-desugar (LexPass))]
-                   ;(rec-desugar (desugar-importfrom-py module names asnames level) global? env opt-class)]       
       [LexBuiltinPrim (s args) (CBuiltinPrim s (map desugar args))]
       [LexCore (e) e]
       [else
