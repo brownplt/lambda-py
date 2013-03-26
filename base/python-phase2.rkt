@@ -574,7 +574,7 @@
 
                        ]
                        [else (error 'make-local-list
-                                    "thing inside class body is not block")]))]
+                                    (format "thing inside class body is not block:~a" body))]))]
            [LexTryExceptElse (try except el)
                              (LexTryExceptElse
                               (make-local-list starting-locals try)

@@ -11,6 +11,7 @@
          (typed-in racket/base (raise-user-error : (string -> 'a)))
          (typed-in racket/base (append : ((listof 'a) (listof 'a) -> (listof'a))))
          (typed-in racket/base (format : (string 'a -> string)))
+         (typed-in racket/list (last : ('a -> 'b)))         
          )
 
 (define (handle-result env result fun)
@@ -459,7 +460,10 @@
        (handle-result env (interp-env source env sto stk)
          (lambda (v-code s-code)
            (cond
-             [(not (and (is-obj-ptr? v-code s-code)
+            [(and (is-obj-ptr? v-code s-code)
+                  (object-is? (fetch-ptr v-code s-code) 'NoneType env sto))
+             (alloc-result (VObject '$module (none) (last env)) s-code)]
+            [(not (and (is-obj-ptr? v-code s-code)
                         (object-is? (fetch-ptr v-code s-code) '%code env sto)))
               (error 'interp (format "a non-code object ~a is passed to make module object" v-code))]
              [else
@@ -467,7 +471,6 @@
                 (local [(define metacode (some-v (VObjectClass-mval obj)))
                         (define global-var (MetaCode-globals metacode))
                         (define xcode (get-module-body (MetaCode-e metacode)))
-                        
                         (define (inject-vars vars e s attr)
                           (cond [(empty? vars)
                                  (values e s attr)]

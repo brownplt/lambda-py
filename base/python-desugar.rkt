@@ -584,9 +584,6 @@
                       [else (CSeq (first exprs) (make-sequence (rest exprs)))]))]
                   (make-sequence (map handle-delete targets)))]
       
-
-      [LexImportFrom (module names asnames level) (rec-desugar (LexPass))]
-                   ;(rec-desugar (desugar-importfrom-py module names asnames level) global? env opt-class)]       
       [LexBuiltinPrim (s args) (CBuiltinPrim s (map desugar args))]
       [LexCore (e) e]
       [else

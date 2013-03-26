@@ -32,7 +32,7 @@ class type(object):
     else:
       raise TypeError("type() takes 1 or 3 arguments")
 
-  def __init__(self, *args):
+  def __init__(cls, *args):
     pass
 
   def __call__(cls, *args):
@@ -46,7 +46,7 @@ class type(object):
         raise TypeError("__init__() should return None")
     return obj
 
-  def __bool__(self): return True
+  def __bool__(cls): return True
 
   def __getattribute__(cls, key):
     val = ___getattr(cls, key)
@@ -58,3 +58,11 @@ class type(object):
     else:
       return get(val, None, cls)
 
+  def __dir__(cls):
+    list = ___id("%list")
+    set = ___id("%set")
+    result = []
+    for c in cls.__mro__:
+        c_dir = ___delta("obj-dir", c, list, str)
+        result.extend(c_dir)
+    return list(set(result))

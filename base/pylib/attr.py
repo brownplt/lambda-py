@@ -34,3 +34,36 @@ def hasattr(obj, name):
         return True
 
 ___assign("%hasattr", hasattr)
+
+# setattr(object, name, value)
+# The arguments are an object, a string and an arbitrary value.
+# The string may name an existing attribute or a new attribute.
+# The function assigns the value to the attribute, provided the object allows it.
+def setattr(obj, name, value):
+    obj_cls = ___delta("$class", obj)
+    obj_cls.__setattr__(obj, name, value)
+
+___assign("%setattr", setattr)
+
+# dir([object])
+# Without arguments, return the list of names in the current local scope.
+# With an argument, attempt to return a list of valid attributes for that object.
+# If the object has a method named __dir__(), this method will be called and must
+# return the list of attributes. This allows objects that implement a custom
+# __getattr__() or __getattribute__() function to customize the way dir() reports
+# their attributes.
+# If the object does not provide __dir__(), the function tries its best to gather
+# information from the object’s __dict__ attribute, if defined, and from its type object,
+# this is implemented in object.__dir__ for instances and type.__dir__ for classes.
+def dir(*args):
+    if args.__len__() == 0:
+        locals = ___id("%locals")
+        return locals()
+    elif args.__len__() == 1:
+        obj = ___delta("tuple-getitem", args, 0)
+        obj_cls = ___delta("$class", obj)
+        return obj_cls.__dir__(obj)
+    else:
+        raise TypeError("dir expected at most 1 argument")
+
+___assign("%dir", dir)
