@@ -165,5 +165,12 @@ def f():
     class x(y,z=a,*b,**c): pass
     class d(): pass
 
+    @k
+    class l(): pass
+    @m()
+    @n(o)
+    @p.q(r,s=t,*u,**v)
+    class w(x,y=z,*a,**b): pass
+
     import a,b as c,d.e as f
     from a import *

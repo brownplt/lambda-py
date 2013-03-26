@@ -336,24 +336,35 @@ trailer, comp-op, suite and others should match their car
           'decorator_list 
           (map decorator->ast decorators))]
 
-    [(or `(classdef "class" (name . ,name) ":" ,suite)
-         `(classdef "class" (name . ,name) "(" ")" ":" ,suite))
-     (ast 'nodetype "ClassDef"
-          'body (suite->ast-list suite)
-          'bases '()
-          'name name
-          'decorator_list '()
-          'kwargs #\nul
-          'starargs #\nul
-          'keywords '())]
-
-    [`(classdef "class" (name . ,name) "(" (arglist ,supertypes ...) ")" ":" ,suite)
-     (build-call supertypes (lambda (posargs keywords kwarg stararg)
+    [`(classdef "class" (name . ,name) ,maybe-args ... ":" ,suite)
+     (build-call (match maybe-args
+                   [`("(" (arglist ,args ...) ")") args]
+                   [`("(" ")") '()]
+                   [`() '()])
+                 (lambda (posargs keywords kwarg stararg)
                               (ast 'nodetype "ClassDef"
                                    'body (suite->ast-list suite)
                                    'bases posargs
                                    'name name
                                    'decorator_list '()
+                                   'kwargs kwarg
+                                   'starargs stararg
+                                   'keywords keywords)))]
+
+    [`(decorated
+       (decorators 
+        ,decorators ...)
+       (classdef "class" (name . ,name) ,maybe-args ... ":" ,suite))
+     (build-call (match maybe-args
+                   [`("(" (arglist ,args ...) ")") args]
+                   [`("(" ")") '()]
+                   [`() '()])
+                 (lambda (posargs keywords kwarg stararg)
+                              (ast 'nodetype "ClassDef"
+                                   'body (suite->ast-list suite)
+                                   'bases posargs
+                                   'name name
+                                   'decorator_list (map decorator->ast decorators)
                                    'kwargs kwarg
                                    'starargs stararg
                                    'keywords keywords)))]
