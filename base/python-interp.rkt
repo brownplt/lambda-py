@@ -471,7 +471,6 @@
                 (local [(define metacode (some-v (VObjectClass-mval obj)))
                         (define global-var (MetaCode-globals metacode))
                         (define xcode (get-module-body (MetaCode-e metacode)))
-                        
                         (define (inject-vars vars e s attr)
                           (cond [(empty? vars)
                                  (values e s attr)]

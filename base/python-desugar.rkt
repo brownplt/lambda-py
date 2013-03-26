@@ -243,10 +243,7 @@
                   (local 
                    [(define (make-global-lets ids body)
                     (cond
-                     [(empty? ids)
-                      (CSeq (CAssign (CId '__main__ (GlobalId))
-                                     (CConstructModule (CNone)))
-                            (rec-desugar body))]
+                     [(empty? ids) (rec-desugar body)]
                      [else (CLet (first ids) (GlobalId)
                            (rec-desugar (LexUndefined))
                            (make-global-lets (rest ids) body))]))]
