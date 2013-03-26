@@ -1,13 +1,13 @@
 # normal instance attribute lookup: it can be overriden and starts
 # looking for the attribute in the object's internal dict.
 def ___object__getattribute__(obj, key):
-    try:
-      # return obj.__dict__[key]
+    if ___delta("obj-hasattr", obj, key):
+      # internal dict has precedence
       return ___delta("obj-getattr", obj, key)
-    except:
-      pass
-    special_getattr = ___id("%special_getattr")
-    return special_getattr(obj, key)
+    else:
+      # class lookup is common with special attributes
+      special_getattr = ___id("%special_getattr")
+      return special_getattr(obj, key)
 
 object.__getattribute__ = ___object__getattribute__
 
@@ -43,8 +43,9 @@ def obj_dict(obj):
     str = ___id("%str")
     obj_dict = {}
     obj_dir = ___delta("obj-dir", obj, list, str)
+    is_class = ___delta("$class", obj) is type
     for key in obj_dir:
-      if key != "__bases__" and key != "__mro__":
+      if not is_class or (key != "__bases__" and key != "__mro__"):
         obj_dict[key] = ___delta("obj-getattr", obj, key)
     return obj_dict
 
@@ -68,6 +69,15 @@ def ___object_setattr__(obj, key, value):
     except:
       ___setattr(obj, key, value)
 
-
 object.__setattr__ = ___object_setattr__
 
+def ___object__dir__(obj):
+    list = ___id("%list")
+    set = ___id("%set")
+    result = []
+    for cls in type(obj).__mro__:
+        cls_dir = ___delta("obj-dir", cls, list, str)
+        result.extend(cls_dir)
+    return list(set(result))
+
+object.__dir__ = ___object__dir__
