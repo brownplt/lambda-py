@@ -272,7 +272,7 @@
          ]
        ;(k (continue/break-errors (bindings-for-nonlocal empty expr)))
       ;we're doing the smart thing and just letting python find our synatx errors.
-      (expr)))))
+      expr))))
 
 
 
