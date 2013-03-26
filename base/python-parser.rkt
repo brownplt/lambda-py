@@ -221,8 +221,7 @@ trailer, comp-op, suite and others should match their car
                             'name "*"
                             'asname #\nul)))]
 
-    ;; TODO: Less bad
-    [(list 'try_stmt "try" ":" try-suite rest ...)
+    [`(try_stmt "try" ":" ,try-suite ,rest ...)
      (local ((define (more-clauses lst handler-ast-list orelse-ast-list finalbody-ast-list)
                (if (null? lst)
                    (let ((try-except-ast 
@@ -238,78 +237,49 @@ trailer, comp-op, suite and others should match their car
                                         (list try-except-ast))
                               'finalbody finalbody-ast-list)))
                    (match lst
-                     [(list "finally" ":" finally-suite rest ...)
+                     [`("finally" ":" ,finally-suite ,rest ...)
                       (more-clauses rest
                                     handler-ast-list
                                     orelse-ast-list
                                     (suite->ast-list finally-suite))]
-                     [(list "else" ":" else-suite rest ...)
+                     [`("else" ":" ,else-suite ,rest ...)
                       (more-clauses rest
                                     handler-ast-list
                                     (suite->ast-list else-suite)
                                     finalbody-ast-list)]
-                     [(list (list 'except_clause "except" test "as" (cons 'name e-name)) ":" handler-suite rest ...)
+                     [`((except_clause "except" ,test-and-name ...) ":" ,handler-suite ,rest ...)
+                      (define-values (test-ast error-name)
+                        (match test-and-name 
+                          [`(,test "as" (name . ,name)) (values (expr->ast test "Load") name)]
+                          [`(,test) (values (expr->ast test "Load") #\nul)]
+                          [`() (values #\nul #\nul)]))
                       (more-clauses rest
                                     (cons 
                                      (ast 'nodetype "ExceptHandler"
                                           'body (suite->ast-list handler-suite) 
-                                          'name e-name
-                                          'type (expr->ast test "Load"))
-                                     handler-ast-list)
-                                    orelse-ast-list
-                                    finalbody-ast-list)]
-                     [(list (list 'except_clause "except" test) ":" handler-suite rest ...)
-                      (more-clauses rest
-                                    (cons 
-                                     (ast 'nodetype "ExceptHandler"
-                                          'body (suite->ast-list handler-suite) 
-                                          'name #\nul
-                                          'type (expr->ast test "Load"))
-                                     handler-ast-list)
-                                    orelse-ast-list
-                                    finalbody-ast-list)]
-                     [(list (list 'except_clause "except") ":" handler-suite rest ...)
-                      (more-clauses rest
-                                    (cons 
-                                     (ast 'nodetype "ExceptHandler"
-                                          'body (suite->ast-list handler-suite) 
-                                          'name #\nul
-                                          'type #\nul)
+                                          'name error-name
+                                          'type test-ast)
                                      handler-ast-list)
                                     orelse-ast-list
                                     finalbody-ast-list)]))))
             (more-clauses rest '() '() '()))]
-    
-    [(list 'try_stmt "try" ":" try-suite "finally" ":" finally-suite)
-     (ast 'nodetype "TryFinally"
-          'body (suite->ast-list try-suite)
-          'finalbody (suite->ast-list finally-suite))]
 
-    [(list 'while_stmt "while" test-expr ":" body-suite)
+    [`(while_stmt "while" ,test-expr ":" ,body-suite ,maybe-else ...)
      (ast 'nodetype "While"
           'test (expr->ast test-expr "Load")
-          'orelse '()
+          'orelse (match maybe-else
+                    [`("else" ":" ,else-suite) (suite->ast-list else-suite)]
+                    [`() '()])
           'body (suite->ast-list body-suite))]
 
-    [(list 'while_stmt "while" test-expr ":" body-suite "else" ":" else-suite)
-     (ast 'nodetype "While"
-          'test (expr->ast test-expr "Load")
-          'orelse (suite->ast-list else-suite)
-          'body (suite->ast-list body-suite))]
-
-    [(list 'for_stmt "for" bound-list "in" expr-list ":" body-suite "else" ":" else-suite)
+    [`(for_stmt "for" ,bound-list "in" ,expr-list ":" ,body-suite ,maybe-else ...)
      (ast 'nodetype "For"
           'iter (expr->ast expr-list "Load")
           'target (exprlist->ast bound-list "Store")
           'body (suite->ast-list body-suite)
-          'orelse (suite->ast-list else-suite))]
-
-    [(list 'for_stmt "for" bound-list "in" expr-list ":" body-suite)
-     (ast 'nodetype "For"
-          'iter (expr->ast expr-list "Load")
-          'target (exprlist->ast bound-list "Store")
-          'body (suite->ast-list body-suite)
-          'orelse '())]
+          'orelse (match maybe-else
+                    [`("else" ":" ,else-suite) (suite->ast-list else-suite)]
+                    [`() '()]))]
 
     ;; funcdef TODO: Unfinished formal handling in build-formals
     [`(funcdef "def" 
@@ -403,14 +373,11 @@ trailer, comp-op, suite and others should match their car
           'body (expr->ast t-expr "Load")
           'orelse (expr->ast f-expr "Load"))]
 
-    [(list (or 'lambdef 'lambdef_nocond) "lambda" (list 'varargslist args ...) ":" expr)
+    [`(,(or 'lambdef 'lambdef_nocond) "lambda" ,maybe-args ... ":" ,expr)
      (ast 'nodetype "Lambda"
-          'args (build-formals args)
-          'body (expr->ast expr "Load"))]
-
-    [(list (or 'lambdef 'lambdef_nocond) "lambda" ":" expr)
-     (ast 'nodetype "Lambda"
-          'args (args-ast '() '() #\nul #\nul)
+          'args (build-formals (match maybe-args
+                                 [`((varargslist ,args ...)) args]
+                                 [`() '()]))
           'body (expr->ast expr "Load"))]
 
     [(list 'yield_expr "yield" expr)
@@ -430,8 +397,7 @@ trailer, comp-op, suite and others should match their car
             'ops (map comp-op->ast ops)
             'comparators (map (lambda (e) (expr->ast e expr-ctx)) exprs)))]
 
-    [(list (and lhs (or 'term 'arith_expr 'expr 'xor_expr 'and_expr 'shift_expr)) 
-           expr1 rest ...)
+    [(list (or 'term 'arith_expr 'expr 'xor_expr 'and_expr 'shift_expr) expr1 rest ...)
      (let ((ops (every-other rest))
            (exprs (if (null? rest) '() (every-other (cdr rest)))))
        (foldl (lambda (op right-expr left-ast)
@@ -636,9 +602,6 @@ trailer, comp-op, suite and others should match their car
     [(list 'suite "NEWLINE" "INDENT" stmts ... "DEDENT")
      (map stmt->ast stmts)]))
 
-;; string * trailer * ast -> ast
-;; Only handles function calls with positional args
-;; Assume for now that expr-ctx will always be valid.
 (define (wrap-with-trailer trailer expr-ctx left-ast)
   (local ((define (make-call-ast args keywords kwarg stararg)
             (ast 'nodetype "Call"
