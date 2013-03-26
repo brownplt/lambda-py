@@ -26,13 +26,15 @@
      (replace-lexinscopelocals
       (optimization-pass
        (let-phase
-        (remove-nonlocal
-         
-         (collapse-pyseq
-          (post-desugar
-           (make-local-list
-            empty
-            expr)))))))))))
+         (remove-nonlocal
+          (collapse-pyseq
+           (globals-fun
+            (post-desugar
+             (make-local-list
+              empty
+              expr))))))))))))
+
+
 
 ;;wholly and utterly for debugging.
 (define (phase2-without-locals expr)
@@ -50,6 +52,23 @@
              empty
              expr))))))))
   )
+
+(define (globals-fun expr)
+  (let ((globals (lexexpr-fold-tree
+                  expr
+                  (lambda (e) (if (LexGlobalId? e)
+                                  (list (LexGlobalId-x e))
+                                  (default-recur))))))
+    (LexSeq (list
+             (LexAssign (list (LexGlobalId '%globals 'Store))
+                        (LexFunc '%globals empty empty
+                                 (collecting-ids-body globals
+                                                      (lambda (x y) (LexGlobalId x y)))
+                                 empty (none)))
+             (LexAssign (list (LexGlobalId '%locals 'Store))
+                        (LexGlobalId '%globals 'Load))
+                        
+             expr))))
 
 (define (post-desugar [expr : LexExpr]) : LexExpr
     (local
@@ -439,34 +458,39 @@
                  (option-map replace-lexinscopelocals class))]
        [else (default-recur)]))))
 
+
+
 ;this is the same a desugar-locals.  I'm moving things directly into this file.
 ;largely for ease of testing (I can read this code; desugared code not so much)
 (define (phase2-locals [ids : (listof symbol)]) : LexExpr
   (LexAssign (list (LexGlobalId '%locals 'Store)) 
 			 (LexFunc '%locals empty empty
-                      (LexLocalLet
-                       'collecting-locals (LexDict empty empty)
-                      (LexSeq
-                       (flatten
-                        (list
-                         (map
-                         (lambda (id)
-                           (LexTryExceptElse
-                            (LexLocalId id 'Load)
-                            (list
-                             (LexExcept
-                              empty
-                              (LexPass)
-                              ))
-                            (LexAssign
-                             (list
-                              (LexSubscript (LexLocalId 'collecting-locals 'Load) 'Store (LexStr (symbol->string id) )))
-                             (LexLocalId id 'Load))))
-                         ids)
-                        (list 
-                         (LexReturn (some (LexLocalId 'collecting-locals 'Load))))))))
+                      (collecting-ids-body ids (lambda (x y) (LexLocalId x y)))
                       empty (none))))
 
+(define (collecting-ids-body ids thisid)
+  (LexLocalLet
+   'collecting-locals (LexDict empty empty)
+   (LexSeq
+    (flatten
+     (list
+      (map
+       (lambda (id)
+         (LexTryExceptElse
+          (thisid id 'Load)
+          (list
+           (LexExcept
+            empty
+            (LexPass)
+            ))
+          (LexAssign
+           (list
+            (LexSubscript (LexLocalId 'collecting-locals 'Load) 'Store (LexStr (symbol->string id) )))
+           (thisid id 'Load))))
+       ids)
+      (list 
+       (LexReturn (some (LexLocalId 'collecting-locals 'Load)))))))))
+  
 ;for lambda
 (define (store-locals-careful expr)
   (LexLocalLet '%locals-save (LexGlobalId '%locals 'Load)

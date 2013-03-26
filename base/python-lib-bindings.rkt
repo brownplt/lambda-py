@@ -103,6 +103,11 @@
          (CReturn (CApp (CId '%locals (GlobalId)) (list) (none)))
          (none)))
 
+(define globals-lambda
+  (CFunc (list) (none)
+         (CReturn (CApp (CId '%globals (GlobalId)) (list) (none)))
+         (none)))
+
 ;; TODO: if source contains null bytes, it should raise TypeError
 (define compile-lambda
   (CFunc (list 'source 'filename 'mode) (none)
@@ -150,6 +155,9 @@
 
         (bind 'locals (assign 'locals locals-lambda))
 		(bind '%locals (assign '%locals (CFunc empty (none) (CReturn (CNone)) (none))))
+        (bind 'globals (assign 'globals globals-lambda))
+		(bind '%globals (assign '%globals (CFunc empty (none) (CReturn (CNone)) (none))))
+        
 
         (bind 'BaseException base-exception)
         (bind 'Exception (assign 'Exception (make-exception-class 'Exception)))
