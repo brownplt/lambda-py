@@ -2,6 +2,7 @@
 (require "python-syntax.rkt"
          "python-core-syntax.rkt"
          "python-lib-bindings.rkt"
+         "python-lexical-printer.rkt"
          "python-lexical-syntax.rkt"
          "python-syntax-operations.rkt")
 (require "util.rkt")
@@ -84,10 +85,17 @@
           )
         (define list-of-functions empty)
         (define list-of-identifiers empty)
+        (define (replace-classes [expr : LexExpr])
+          (lexexpr-modify-tree expr (lambda (e)
+          (type-case LexExpr e
+            #;[LexClass (scope name bases body)
+                      (LexApp (LexLam empty (LexClass scope name
+                                                      (replace-classes bases )
+                                                      (replace-classes body))) empty)]
+            [else (default-recur)]))))
         (define (hoist-functions [expr : LexExpr])
           (begin
-            ;(display "entering hoist-functions")
-          (let ((result (let ((replaced-body (replace-functions expr)))
+          (let ((result (let ((replaced-body (replace-functions (replace-classes expr))))
             (introduce-locals
              list-of-identifiers
              (LexSeq
@@ -95,7 +103,7 @@
                ;this is the random-identifiers-assigned-to-lambdas part
                (create-bindings list-of-functions list-of-identifiers)
                ;this is the new body.
-               (LexBlock empty replaced-body)
+               (split-instance-into-instance-locals (LexBlock empty replaced-body))
                ))
               ))))
             (begin
@@ -174,36 +182,42 @@
                [LexClass (scope name bases body) (LexClass scope name bases body)]
                [else (default-recur)])))))
       (define (split-instance-into-instance-locals expr)
-        (introduce-locals
-         (lexexpr-fold-tree expr (lambda (y)
-                                   (type-case LexExpr y
-                                     [LexInstanceId (x ctx) (list x)]
-                                     [LexClass (scope name bases body) empty]
-                                     [LexBlock (nls es) empty]
-                                     [else (default-recur)])))
-         (split-instance-into-instance-locals-helper expr)))
+        (run-after-blocks
+         expr
+         (lambda (expr)
+           (begin
+             ;(display "entering split-instance-into-instance-locals\n")
+             ;(lexexpr-print expr)
+             
+             (introduce-locals
+              (lexexpr-fold-tree expr (lambda (y)
+                                        (type-case LexExpr y
+                                          [LexInstanceId (x ctx) (list x)]
+                                          [LexClass (scope name bases body) empty]
+                                          [LexBlock (nls es) empty]
+                                          [else (default-recur)])))
+              (split-instance-into-instance-locals-helper expr))))))
       (define (split-instance-into-instance-locals-helper expr)
-        (let ((find-var (lambda (expr) : symbol
-                          (let ((var (lexexpr-fold-tree
+        (let ((find-var (lambda ([expr : (listof LexExpr)]) : (listof symbol)
+                          (let ((var
+                             (flatten (map (lambda (expr) : (listof symbol)
+                         (lexexpr-fold-tree
                            expr
                            (lambda (e)
                              (type-case LexExpr e
                                [LexInstanceId (x ctx) (list x)]
                                [LexBlock (nls e) empty]
                                [LexClass (scope name bases body) empty]
-                               [else (default-recur)])))))
-                            (cond
-                             [(empty? var) (error 'split-instance-lambda "we didn't find an instance variable")]
-                             [(empty? (rest var)) (first var)]
-                             [else (error 'split-instance-lambda "can't handle multiple instance variables!")])))))
+                               [else (default-recur)])))) expr))))
+                            var))))
           (lexexpr-modify-tree
            expr
            (lambda (e)
              (type-case LexExpr e
                [LexAssign (targets value)
-                          (let ((affected-var (map find-var targets)))
+                          (let ((affected-var (find-var targets)))
                             (cond
-                             [(empty? affected-var) (error 'e "wait we should have caught that just above")]
+                             [(empty? affected-var) (default-recur)]
                              [(empty? (rest affected-var))
                               (LexSeq
                                (list
@@ -225,7 +239,7 @@
              [LexClass (scope name bases body)
                        (let ((body
                               (type-case LexExpr body
-                                [LexBlock (nls es) (LexBlock nls (hoist-functions (split-instance-into-instance-locals es)))]
+                                [LexBlock (nls es) (LexBlock nls (hoist-functions es))]
                                 [else (error 'deal-with-class "Thing inside LexClass not a LexBlock!")])
                               ))
                            (let ((class-expr (if (Instance-scoped? scope)
@@ -271,6 +285,11 @@
 ) ;all globals, not just the current scope
 
 (define library-names (map (lambda (b) (bind-left b)) lib-function-dummies)) 
+
+(define (run-after-blocks expr fun)
+  (type-case LexExpr (collapse-pyseq expr)
+    [LexBlock (nls e) (LexBlock nls (run-after-blocks e fun))]
+    [else (fun expr)]))
 
 (define (cascade-undefined-globals [globals : (listof symbol) ] [body : LexExpr] ) : LexExpr
   (LexGlobals globals body))
@@ -331,6 +350,9 @@
      (type-case LexExpr x
        [LexBlock (nls e) (remove-blocks e)]
        [else (default-recur)]))))
+
+
+;BEGIN LOCALS CODE
 
 
 (define (move-past-local-lets-helper [new-expr : LexExpr]

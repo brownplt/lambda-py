@@ -53,7 +53,7 @@ ___assign("%setattr", setattr)
 # __getattr__() or __getattribute__() function to customize the way dir() reports
 # their attributes.
 # If the object does not provide __dir__(), the function tries its best to gather
-# information from the object’s __dict__ attribute, if defined, and from its type object,
+# information from the object's __dict__ attribute, if defined, and from its type object,
 # this is implemented in object.__dir__ for instances and type.__dir__ for classes.
 def dir(*args):
     if args.__len__() == 0:

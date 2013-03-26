@@ -98,7 +98,7 @@ ParselTongue.
           [define new-sto (hash-set sto l val)])
    (v*s (VPointer l) new-sto)))
 
-(define (alloc-result-list vals vpointers sto)
+(define (alloc-result-list vals [vpointers : (listof CVal)] sto)
   (cond
     [(empty? vals) (v*s/list vpointers sto)]
     [else (type-case Result (alloc-result (first vals) sto)
@@ -108,7 +108,7 @@ ParselTongue.
              (error 'alloc-result-list "alloc-result returns non v*s Result")])]))
 
 (define-type ResultList
-  [v*s/list (vs : (listof Result)) (s : Store)]
+  [v*s/list (vs : (listof CVal)) (s : Store)]
   [Abnormal (ab : Result)])
 
 (define-type-alias object-dict (hashof symbol Address))
