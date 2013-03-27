@@ -75,6 +75,7 @@ def ___object_setattr__(obj, key, value):
         pass # val has no setter
       else:
         set(val, obj, value)
+        return
     # if there is no setter, set key to value in the object dict
     ___setattr(obj, key, value)
 
