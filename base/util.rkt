@@ -490,6 +490,16 @@
            val)
           (none))))
 
+(define (py-delfield obj attr)
+  (CLet '$obj (LocalId) obj
+    (CApp (CGetAttr
+            (CBuiltinPrim '$class (list (CId '$obj (LocalId))))
+            (make-builtin-str "__delattr__"))
+          (list
+           (CId '$obj (LocalId))
+           (make-builtin-str (symbol->string attr)))
+          (none))))
+
 ;; sintactic sugar to get a field from an object
 (define (py-getfield [obj-exp : CExpr] [attr : symbol]) : CExpr
   (local [(define (is-special-method? [n : symbol])

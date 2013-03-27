@@ -65,21 +65,48 @@ def ___object_setattr__(obj, key, value):
       # obj.__dict__[key]
       obj_cls = ___delta("$class", obj)
       val = ___getattr(obj_cls, key)
+    except:
+      pass # key is not in class hierarchy
+    else:
       val_cls = ___delta("$class", val)
       try:
         set = ___getattr(val_cls, "__set__")
-        set(val, obj, obj_cls, value)
       except:
-        ___setattr(obj, key, value)
-    except:
-      ___setattr(obj, key, value)
+        pass # val has no setter
+      else:
+        set(val, obj, value)
+    # if there is no setter, set key to value in the object dict
+    ___setattr(obj, key, value)
 
 object.__setattr__ = ___object_setattr__
+
+def ___object__delattr__(obj, key):
+    try:
+      obj_cls = ___delta("$class", obj)
+      val = ___getattr(obj_cls, key)
+    except:
+      pass # key is not in class hierarchy
+    else:
+      val_cls = ___delta("$class", val)
+      try:
+        delete = ___getattr(val_cls, "__delete__")
+      except:
+        pass # val has no deleter
+      else:
+        delete(val, obj)
+        return
+    # if there is no deleter, try to delete from the object dict
+    if ___delta("obj-hasattr", obj, key):
+      ___delta("obj-delattr", obj, key)
+    else:
+      raise AttributeError(key)
+
+object.__delattr__ = ___object__delattr__
 
 def ___object__dir__(obj):
     list = ___id("%list")
     set = ___id("%set")
-    result = []
+    result = ___delta("obj-dir", obj, list, str)
     for cls in type(obj).__mro__:
         cls_dir = ___delta("obj-dir", cls, list, str)
         result.extend(cls_dir)
