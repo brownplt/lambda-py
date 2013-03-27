@@ -41,6 +41,8 @@
           (string-append
            wd "../tests/modules/")
           (string-append
+           wd "../python-lib/")
+          (string-append
            wd "../tests/python-reference/modules/"))))
 
 (define (get-module-path)

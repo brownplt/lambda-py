@@ -11,7 +11,7 @@
          (typed-in racket/base (raise-user-error : (string -> 'a)))
          (typed-in racket/base (append : ((listof 'a) (listof 'a) -> (listof'a))))
          (typed-in racket/base (format : (string 'a -> string)))
-         (typed-in racket/list (last : ('a -> 'b)))         
+         (typed-in racket/list (last : ('a -> 'b)))
          )
 
 (define (handle-result env result fun)
@@ -461,8 +461,21 @@
          (lambda (v-code s-code)
            (cond
             [(and (is-obj-ptr? v-code s-code)
-                  (object-is? (fetch-ptr v-code s-code) 'NoneType env sto))
-             (alloc-result (VObject '$module (none) (last env)) s-code)]
+                  (object-is? (fetch-ptr v-code s-code) 'NoneType env sto)) ; result a module object which includes env(builtins are filtered out) as its attributes
+             (local [(define attrs (filter (lambda (x) (not (member x builtins-symbol)))
+                                           (hash-keys (last env))))
+                     (define (get-obj-dict [ids : (listof symbol)]
+                                           [current-env : Env]
+                                           [obj-attr : (hashof symbol Address)])
+                       (cond [(empty? ids) obj-attr]
+                             [else
+                              (get-obj-dict (rest ids)
+                                            current-env
+                                            (hash-set obj-attr
+                                                      (first ids)
+                                                      (some-v (lookup-global (first ids) current-env))))]))]
+                    (alloc-result (VObject '$module (none)
+                                           (get-obj-dict attrs env (hash empty))) s-code))]
             [(not (and (is-obj-ptr? v-code s-code)
                         (object-is? (fetch-ptr v-code s-code) '%code env sto)))
               (error 'interp (format "a non-code object ~a is passed to make module object" v-code))]
@@ -493,13 +506,11 @@
                         (define-values (new-env new-sto module-attr)
                           (inject-vars global-var
                                        (filter-env builtins-symbol env (hash empty))
-                                       ;(hash empty) ; NOTE: passing empty hash as env
                                        s-code
                                        (hash empty)))]
                                         ; interpret the code in module, raise any exception as it is
                                         ; ImportError should be handled in __import__
-                                        ; TODO: filter the built-in functions instead of interpreting python-lib again
-                       (begin ;(pprint global-var)
+                       (begin ;(pprint new-env)
                               (handle-result env (interp-env (CModule (CNone) xcode)
                                                              (list new-env) new-sto stk)
                                              (lambda (v-module s-module)

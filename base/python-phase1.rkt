@@ -4,6 +4,7 @@
          "python-core-syntax.rkt"
          "python-lib-bindings.rkt"
          "python-lexical-syntax.rkt"
+         "modules/builtin-modules.rkt"
          "python-syntax-operations.rkt")
 (require "util.rkt")
 (require [typed-in racket (format : (string 'a -> string))])
@@ -86,14 +87,27 @@
 (define (desugar-pyimport names asnames) : LexExpr
   (local [(define (desugar-pyimport/rec names asnames)
             (cond [(empty? names) (list)]
+                  [(member (first asnames) (get-builtin-module-names))
+                   (append
+                    (list
+                     (LexAssign
+                      (list (PyLexId (first asnames) 'Store))
+                      (LexApp (PyLexId '__import__ 'Load)
+                              (list (LexStr (first names))))))
+                    (desugar-pyimport/rec (rest names) (rest asnames)))]
                   [else
                    (append
-                    (list (LexAssign
-                           (list (PyLexId (first asnames) 'Store))
-                           (LexApp (PyLexId '__import__ 'Load)
-                                  (list (LexStr (first names))))))
-                    (desugar-pyimport/rec (rest names) (rest asnames))
-                    )]))]
+                    (list
+                     (LexAssign
+                                        ; assign to a module object first, in case that the imported file
+                                        ; needs information in current scope
+                      (list (PyLexId (first asnames) 'Store))
+                      (LexApp (PyLexId '$module 'Load) (list)))
+                     (LexAssign
+                      (list (PyLexId (first asnames) 'Store))
+                      (LexApp (PyLexId '__import__ 'Load)
+                              (list (LexStr (first names))))))
+                    (desugar-pyimport/rec (rest names) (rest asnames)))]))]
          (LexSeq (desugar-pyimport/rec names asnames))))
 
 

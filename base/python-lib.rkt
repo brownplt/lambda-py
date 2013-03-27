@@ -103,12 +103,24 @@
                   (CLet (bind-left b) (GlobalId) (bind-right b)
                       (cascade-lets (rest bindings) body)))))
 (define (python-lib [expr : CExpr]) : CExpr
-    (cascade-lets lib-function-dummies
-                  (seq-ops (append
-                             (map (lambda (b) (bind-right b)) lib-functions)
-                             (get-pylib-programs python-libs)
-                             (map (lambda (b) (bind-right b))
-                                  (list (bind 'True (assign 'True (CTrue)))
-                                        (bind 'False (assign 'False (CFalse)))))
-                             (get-builtin-modules)
-                             (list (CModule-body expr))))))
+  (local [(define (add_main_module [e : CExpr])
+            (type-case CExpr e
+              [CLet (x type bind body)
+                    (CLet x type bind (add_main_module body))]
+              [else
+               (CSeq
+                (CAssign (CId '__main__ (GlobalId))
+                         (CConstructModule (CNone)))
+                e)]))
+          (define new-body
+            (CSeq (CSeq-e1 (CModule-body expr))
+                  (add_main_module (CSeq-e2 (CModule-body expr)))))]
+         (cascade-lets lib-function-dummies
+                       (seq-ops (append
+                                 (map (lambda (b) (bind-right b)) lib-functions)
+                                 (get-pylib-programs python-libs)
+                                 (map (lambda (b) (bind-right b))
+                                      (list (bind 'True (assign 'True (CTrue)))
+                                            (bind 'False (assign 'False (CFalse)))))
+                                 (get-builtin-modules)
+                                 (list new-body))))))

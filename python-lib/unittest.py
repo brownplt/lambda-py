@@ -1,7 +1,12 @@
 import sys
 
-def strclass(cls): #for debug
-    return "%s.%s" % (cls.__module__, cls.__name__)
+#def strclass(cls): #for debug
+#    return "%s.%s" % (cls.__module__, cls.__name__)
+def getattr_default(obj, attr):
+    try:
+        return getattr(obj, attr)
+    except AttributeError:
+        return None
 
 #------------Result---------------#
 class TestResult(object):
@@ -18,31 +23,24 @@ class TestResult(object):
     def startTestRun(self): pass
     def stopTestRun(self): pass
     def addSuccess(self, test): pass
+
     def addError(self, test, err):
-        """Called when an error has occurred. 'err' is a tuple of values as
-        returned by sys.exc_info().
-        """
         self.errors.append((test, self._exc_info_to_string(err, test)))
+
     def addFailure(self, test, err):
-        """Called when an error has occurred. 'err' is a tuple of values as
-        returned by sys.exc_info()."""
         self.failures.append((test, self._exc_info_to_string(err, test)))
 
     def addExpectedFailure(self, test, err):
-        """Called when an expected failure/error occured."""
-        self.expectedFailures.append(
-            (test, self._exc_info_to_string(err, test)))
+        tmp = (test, self._exc_info_to_string(err, test))
+        self.expectedFailures.append(tmp)
 
     def addUnexpectedSuccess(self, test):
-        """Called when a test was expected to fail, but succeed."""
         self.unexpectedSuccesses.append(test)
 
     def wasSuccessful(self):
-        "Tells whether or not this result was a success"
         return len(self.failures) == len(self.errors) == 0
 
     def stop(self):
-        "Indicates that the tests should be aborted"
         self.shouldStop = True
 
     def _exc_info_to_string(self, err, test):
@@ -80,7 +78,6 @@ class TextTestResult(TestResult):
 #---------TestSuite-----------#
 class BaseTestSuite(object):
     def __init__(self, *args):
-        """original one is __init__(self, tests=())"""
         if len(args) == 0:
             tests = ()
         else:
@@ -123,7 +120,6 @@ class TextTestRunner(object):
         return self.resultclass()
 
     def run(self, test):
-        "Run the given test case or test suite."
         result = self._makeResult()
 
         try:
@@ -169,14 +165,13 @@ class TestLoader(object):
         tests = []
         #NOTE: get TestCase obj from module. Is dir implemented?
         for name in dir(module):
-            obj = getattr(module, name)
+            obj = getattr_default(module, name)
             if isinstance(obj, type) and issubclass(obj, TestCase):
                 tests.append(self.loadTestsFromTestCase(obj))
         tests = self.suiteClass(tests) #return TestSuite
         return tests
 
     def loadTestsFromTestCase(self, testCaseClass):
-        "Return a suite of all tests caess contained in testCaseClass"
         if issubclass(testCaseClass, TestSuite):
             raise TypeError("Test cases should not be derived from TestSuite." \
                                 " Maybe you meant to derive from TestCase?")
@@ -191,11 +186,10 @@ class TestLoader(object):
         return loaded_suite
 
     def getTestCaseNames(self, testCaseClass):
-        "Return a sequence of method names found within testCaseClass."
         #NOTE: getattr
         def isTestMethod(attrname):
             return attrname.startswith(self.prefix) and \
-              callable(getattr(testCaseClass, attrname))
+              callable(getattr_default(testCaseClass, attrname))
         #NOTE: has dir been implemented?
         testFnNames = list(filter(isTestMethod, dir(testCaseClass)))
         return testFnNames
@@ -211,45 +205,32 @@ class _Outcome(object):
         self.failures = []
 
 class _ExpectedFailure(Exception):
-    """
-    Raise this when a test is expected to fail.
-
-    This is an implementation detail.
-    """
-
     def __init__(self, exc_info):
         super(_ExpectedFailure, self).__init__()
         self.exc_info = exc_info
 
 class _UnexpectedSuccess(Exception):
-    """
-    The test was supposed to fail, but it didn't!
-    """
 
 class TestCase(object):
     failureException = AssertionError
 
     def __init__(self, *args):
-        """original one is __init__(self, methodName='runTest')"""
         if len(args) == 0:
             methodName = 'runTest'
         else:
             methodName = args[0]
         self._testMethodName = methodName
-        try:
-            testMethod = getattr(self, methodName)
-        except AttributeError:
-            if methodName != 'runTest':
-                raise ValueError("no such test method in" + self.__class__ + ":" + methodName)
-    def __str__(self): #for debug
-        return "%s (%s)" % (self._testMethodName, strclass(self.__class__))
+        testMethod = getattr_default(self, methodName)
+        if testMethod is None and methodName != 'runTest':
+            raise ValueError("no such test method in" + self.__class__ + ":" + methodName)
+#    def __str__(self): #for debug
+#        return "%s (%s)" % (self._testMethodName, strclass(self.__class__))
     def __call__(self, *args):
         # important!
         self.run(*args)
     def setUp(self): pass
     def tearDown(self): pass
     def run(self, *args):
-        """original one is run(self, result=None)"""
         if len(args) == 0:
             result = TestResult()
         else:
@@ -257,7 +238,7 @@ class TestCase(object):
 
         result.startTest(self)
 
-        testMethod = getattr(self, self._testMethodName)
+        testMethod = getattr_default(self, self._testMethodName)
 
         try:
             outcome = _Outcome()
@@ -274,11 +255,11 @@ class TestCase(object):
                 for exc_info in outcome.failures:
                     result.addFailure(self, exc_info)
                 if outcome.unexpectedSuccess is not None:
-                    addUnexpectedSuccess = getattr(result, 'addUnexpectedSuccess', None)
+                    addUnexpectedSuccess = getattr_default(result, 'addUnexpectedSuccess')
                     if addUnexpectedSuccess is not None:
                         addUnexpectedSuccess(self)
                 if outcome.expectedFailure is not None:
-                    addExpectedFailure = getattr(result, 'addExpectedFailure', None)
+                    addExpectedFailure = getattr_default(result, 'addExpectedFailure')
                     if addExpectedFailure is not None:
                         addExpectedFailure(self, outcome.expectedFailure)
         finally:
@@ -286,7 +267,6 @@ class TestCase(object):
             pass
 
     def _executeTestPart(self, function, outcome, *args):
-        "args is used to mark this trial as a test"
         if len(args) == 1:
             isTest = args[0]
         else:
@@ -390,7 +370,7 @@ class TestCase(object):
 #------------main----------------
 class TestProgram(object):
     def __init__(self):
-        self.module = __import__('__main__')
+        self.module = __main__
         self.testLoader = TestLoader()
         self.testRunner = TextTestRunner
         self.test = self.testLoader.loadTestsFromModule(self.module)
