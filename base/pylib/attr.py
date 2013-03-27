@@ -45,6 +45,16 @@ def setattr(obj, name, value):
 
 ___assign("%setattr", setattr)
 
+# delttr(object, name)
+# The arguments are an object and a string.
+# The string must name an existing attribute.
+# The function deletes the named attribute, provided the object allows it.
+def delattr(obj, name):
+    obj_cls = ___delta("$class", obj)
+    obj_cls.__delattr__(obj, name)
+
+___assign("%delattr", delattr)
+
 # dir([object])
 # Without arguments, return the list of names in the current local scope.
 # With an argument, attempt to return a list of valid attributes for that object.
@@ -57,8 +67,7 @@ ___assign("%setattr", setattr)
 # this is implemented in object.__dir__ for instances and type.__dir__ for classes.
 def dir(*args):
     if args.__len__() == 0:
-        locals = ___id("%locals")
-        return locals()
+        raise TypeError("dir() with no arguments is not supported, use locals()")
     elif args.__len__() == 1:
         obj = ___delta("tuple-getitem", args, 0)
         obj_cls = ___delta("$class", obj)

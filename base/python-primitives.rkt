@@ -257,6 +257,7 @@ primitives here.
     ['obj-str (prim-alloc obj-str argvs)]
     ['obj-getattr (prim-noalloc obj-getattr argvs)]
     ['obj-hasattr (prim-noalloc obj-hasattr argvs)]
+    ['obj-delattr (prim-update obj-delattr (first argsptrs) argvs)]
     ['obj-dir (prim-list-alloc obj-dir (cons (first argvs) (rest argsptrs)))]
 
     ;function

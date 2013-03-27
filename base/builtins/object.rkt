@@ -176,6 +176,8 @@
         [else (none)])
       (none)))
 
+;; obj-hasattr: check for attr in the object dict
+;; first argument is the object, second the attribute key
 (define (obj-hasattr (args : (listof CVal)) env sto) : (optionof CVal)
   (if (= (length args) 2)
       (type-case CVal (first args)
@@ -189,6 +191,31 @@
                                                  (string->symbol the-field))
                     [some (w) (some true-val)]
                     [none () (some false-val)])]
+                [else (none)])]
+            [else (none)])]
+        [else (none)])
+      (none)))
+
+;; obj-delattr: delete attr from the object dict
+;; first argument is the object, second the attribute key
+(define (obj-delattr (args : (listof CVal)) env sto) : (optionof CVal)
+  (if (= (length args) 2)
+      (type-case CVal (first args)
+        [VObjectClass (a m the-dict c)
+          (type-case CVal (second args)
+            [VObjectClass (_ mval __ ___)
+              (type-case MetaVal (some-v mval)
+                [MetaStr (the-field)
+                  (type-case (optionof Address) (hash-ref
+                                                 the-dict
+                                                 (string->symbol the-field))
+                    [some (w) (some
+                               (VObjectClass
+                                a
+                                m
+                                (hash-remove the-dict (string->symbol the-field))
+                                c))]
+                    [none () (none)])]
                 [else (none)])]
             [else (none)])]
         [else (none)])
