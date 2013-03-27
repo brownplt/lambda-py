@@ -61,7 +61,7 @@ This only works because there are no valid source chars outside the ASCII range 
   (stringliteral (:: (:? stringprefix) (:or shortstring longstring)))
   (stringprefix (:or "r" "R"))
   (shortstring (:or (:: "'" (:* single-shortstringitem) "'") (:: "\"" (:* double-shortstringitem) "\"")))
-  (longstring (:or (:: "'''" (:* longstringitem) "'''") (:: "\"\"\"" (:* longstringitem) "\"\"\"")))
+  (longstring (:or (:: "'''" (:- (:* longstringitem) (:: (:* any-char) "'''" (:* any-char))) "'''") (:: "\"\"\"" (:- (:* longstringitem) (:: (:* any-char) "\"\"\"" (:* any-char))) "\"\"\"")))
   (single-shortstringitem (:or (:~ "'" "\\" "\n" "\r") stringescapeseq))
   (double-shortstringitem (:or (:~ "\"" "\\" "\n" "\r") stringescapeseq))
   (longstringitem (:or (:~ "\\") stringescapeseq))
