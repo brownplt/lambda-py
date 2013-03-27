@@ -197,7 +197,6 @@ trailer, comp-op, suite and others should match their car
           'body (suite->ast-list suite1)
           'orelse (suite->ast-list suite2))]
     
-    ;; import_stmt TODO: real import_from support
     [`(import_stmt (import_name "import" (dotted_as_names ,names ...)))
      (ast 'nodetype "Import"
           'names (map (lambda (name)
@@ -475,7 +474,7 @@ trailer, comp-op, suite and others should match their car
     
     [(list 'factor op expr)
      (ast 'nodetype "UnaryOp"
-          'op (ast 'nodetype (case op [("+") "UAdd"] [("-") "USub"]))
+          'op (ast 'nodetype (case op [("+") "UAdd"] [("-") "USub"] [("~") "Invert"]))
           'operand (expr->ast expr expr-ctx))]
 
     ;; Cons here is from token construction in the lexer
@@ -495,7 +494,7 @@ trailer, comp-op, suite and others should match their car
                      's val)]
                [else (error "Literal not handled yet")]))]
 
-    #| atom curly brace forms - TODO: set literals & set comprehensions |#
+    #| atom curly brace forms |#
     [(list 'atom "{" "}")
      (ast 'nodetype "Dict"
           'values '()
@@ -654,7 +653,6 @@ trailer, comp-op, suite and others should match their car
                              'value index))))
          (match trailer
            [`(trailer "(" ")") (build-call '() make-call-ast)]
-           ;; arglist TODO... comp_for?
            [`(trailer "(" (arglist ,args ...) ")") (build-call args make-call-ast)]
            [`(trailer "." (name . ,name)) (attr-ast name)]
            ;; subscriptlist TODO... "...", multiple indexes, multiple indexes w/slices
