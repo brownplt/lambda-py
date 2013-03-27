@@ -31,10 +31,12 @@ class property(object):
 
   def getter(self, g):
     self.fget = g
+    return self
 
   def setter(self, s):
     self.fset = s
+    return self
 
   def deleter(self, d):
     self.fdel = d
-
+    return self
