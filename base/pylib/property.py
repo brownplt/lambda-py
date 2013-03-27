@@ -27,7 +27,7 @@ class property(object):
   def __delete__(self, obj):
     if self.fdel is None:
       raise AttributeError("Can't delete attribute")
-    self.fdel(self)
+    self.fdel(obj)
 
   def getter(self, g):
     self.fget = g
