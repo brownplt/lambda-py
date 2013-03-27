@@ -29,6 +29,9 @@
   ("--get-lexical-syntax" "Get surface syntax python"
    (lexexpr-print (get-lexical-syntax (current-input-port)) ))
 
+  ("--get-phase1-syntax" "Get surface syntax python"
+   (lexexpr-print (get-phase1-syntax (current-input-port)) ))
+
   ("--get-lexical-syntax-old" ""
    (pretty-write (get-lexical-syntax (current-input-port))))
 

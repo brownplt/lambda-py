@@ -40,6 +40,11 @@
    (get-structured-python
     (parse-python/port port (get-pypath))))))
 
+(define (get-phase1-syntax port)
+  (scope-phase
+   (get-structured-python
+    (parse-python/port port (get-pypath)))))
+
 (define (get-lexical-syntax-with-locals port)
   (new-scope-phase
    (get-structured-python
