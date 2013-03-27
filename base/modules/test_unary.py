@@ -1,8 +1,8 @@
 """Test compiler changes for unary ops (+, -, ~) introduced in Python 2.2"""
 
-import utest
+import unittest
 
-class UnaryOpTestCase(utest.TestCase):
+class UnaryOpTestCase(unittest.TestCase):
 
     def test_negative(self):
         self.assertTrue(-2 == 0 - 2)
@@ -49,4 +49,4 @@ class UnaryOpTestCase(utest.TestCase):
         self.assertRaises(TypeError, eval, "~2.0")
 
 
-utest.main()
+unittest.main()

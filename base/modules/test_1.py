@@ -12,6 +12,8 @@ class TestClass2(unittest.TestCase):
     def test_22(self):
         self.assertTrue(True)
     #def test_23(self):
-    #    self.assertRaises(TypeError, list, 0)
+        #self.assertRaises(TypeError, list, 0)
+    def test_24(self):
+        self.assertRaises(TypeError, all, 0)
 
 unittest.main()

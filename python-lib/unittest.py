@@ -1,5 +1,10 @@
 import sys
 
+debug = True
+def debug_print(s):
+    if debug:
+        print('[unittest debug] ' + s)
+
 #def strclass(cls): #for debug
 #    return "%s.%s" % (cls.__module__, cls.__name__)
 
@@ -106,8 +111,8 @@ class BaseTestSuite(object):
 
 class TestSuite(BaseTestSuite):
     def run(self, result):
-        for test in self._tests:
-            test(result)
+        for t in self._tests:
+            t(result)
         return result
 
 #-------------Runner---------------#
@@ -122,7 +127,7 @@ class TextTestRunner(object):
         try:
             test(result) #invoke BaseTestSuite.__call__ then
         finally:
-            print("Ran " + str(result.testsRun))
+            print("Ran " + str(result.testsRun) + ' tests')
         expectedFails = 0
         unexpectedSuccesses = 0
         try:
@@ -137,7 +142,7 @@ class TextTestRunner(object):
 
         infos = []
         if not result.wasSuccessful():
-            print("FAILED")
+            res = "FAILED( "
             failed = len(result.failures)
             errored = len(result.errors)
             #failed, errored = len(result.failures), len(result.errors)
@@ -155,7 +160,10 @@ class TextTestRunner(object):
 
         if infos:
             for info in infos:
-                print(info)
+                res += info
+                res += ' '
+            res += ')'
+            print(res)
         return result
 
 #---------Loader---------#
@@ -169,6 +177,7 @@ class TestLoader(object):
         for name in module.__dict__.keys():
             obj = getattr_default(module, name)
             if isinstance(obj, type) and issubclass(obj, TestCase):
+                debug_print('test found: ' + name)
                 tests.append(self.loadTestsFromTestCase(obj))
         tests = self.suiteClass(tests) #return TestSuite
         return tests
@@ -177,7 +186,6 @@ class TestLoader(object):
         if issubclass(testCaseClass, TestSuite):
             raise TypeError("Test cases should not be derived from TestSuite." \
                                 " Maybe you meant to derive from TestCase?")
-
         testCaseNames = self.getTestCaseNames(testCaseClass)
         if not testCaseNames and hasattr(testCaseClass, 'runTest'):
             testCaseNames = ['runTest']
@@ -192,7 +200,7 @@ class TestLoader(object):
     def getTestCaseNames(self, testCaseClass):
         #NOTE: getattr
         def isTestMethod(attrname):
-            return attrname.startswith(self.prefix) and \
+            return attrname[:len(self.prefix)] == self.prefix and \
               callable(getattr_default(testCaseClass, attrname))
         #NOTE: has dir been implemented?
         testFnNames = list(filter(isTestMethod, testCaseClass.__dict__.keys()))
@@ -230,6 +238,9 @@ class TestCase(object):
             raise ValueError("no such test method in" + self.__class__ + ":" + methodName)
 #    def __str__(self): #for debug
 #        return "%s (%s)" % (self._testMethodName, strclass(self.__class__))
+    def __str__(self): #for debug
+        return self._testMethodName + ' (' + str(self.__class__) + ')'
+
     def __call__(self, *args):
         # important!
         self.run(*args)
@@ -322,6 +333,7 @@ class TestCase(object):
             return
         else:
             raise self.failureException("assertRaises error")
+        raise self.failureException("assertRaises error")
 
     def assertEqual(self, first, second, *args):
         if len(args) == 0:
@@ -378,10 +390,12 @@ class TestProgram(object):
         self.module = __main__
         self.testLoader = TestLoader()
         self.testRunner = TextTestRunner
+        debug_print('starts to find tests')
         self.test = self.testLoader.loadTestsFromModule(self.module)
         self.runTests()
 
     def runTests(self):
+        debug_print('begin to run')
         testRunner = self.testRunner()
         self.result = testRunner.run(self.test)
 
