@@ -249,6 +249,8 @@
             (bind '%hasattr (CUndefined))
             (bind 'setattr (CUndefined))
             (bind '%setattr (CUndefined))
+            (bind 'delattr (CUndefined))
+            (bind '%delattr (CUndefined))
             (bind 'dir (CUndefined))
             (bind '%dir (CUndefined))
             (bind '%special_getattr (CUndefined))

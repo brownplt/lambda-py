@@ -561,6 +561,7 @@
                                             (LexAssign (list (LexLocalId x ctx)) (LexUndefined)))]
                        [LexGlobalId (x ctx) (rec-desugar
                                             (LexAssign (list (LexGlobalId x ctx)) (LexUndefined)))]
+                       [LexDotField (value attr) (py-delfield (rec-desugar value) attr)]
                        [else (error 'desugar (string-append "We don't know how to delete this yet: " (to-string target)))]))
                   (define (make-sequence [exprs : (listof CExpr)] )
                      (cond

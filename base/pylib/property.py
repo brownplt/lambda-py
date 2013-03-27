@@ -24,10 +24,10 @@ class property(object):
       raise AttributeError("Can't set attribute")
     self.fset(obj, value)
 
-  def __del__(self, idx):
+  def __delete__(self, obj):
     if self.fdel is None:
       raise AttributeError("Can't delete attribute")
-    self.fdel(self, idx)
+    self.fdel(self)
 
   def getter(self, g):
     self.fget = g
