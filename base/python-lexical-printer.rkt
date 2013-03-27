@@ -202,7 +202,15 @@
                   this-expr)]
                   
       [LexFor (target iter body)
-              (begin (display this-expr) this-expr)]
+              (begin
+                (display starting-tab)
+                (display "for ")
+                (lexexpr-print-helper target "")
+                (display " in ")
+                (lexexpr-print-helper iter "")
+                (display ":\n")
+                (lexexpr-print-helper body (string-append "  " starting-tab))
+                 this-expr)]
 
       
                                         ; pass & assert
