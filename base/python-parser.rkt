@@ -197,7 +197,6 @@ trailer, comp-op, suite and others should match their car
           'body (suite->ast-list suite1)
           'orelse (suite->ast-list suite2))]
     
-
     ;; import_stmt TODO: real import_from support
     [`(import_stmt (import_name "import" (dotted_as_names ,names ...)))
      (ast 'nodetype "Import"
@@ -213,13 +212,37 @@ trailer, comp-op, suite and others should match their car
                                 'asname as-name)]))
                       (every-other names)))]
 
-    [`(import_stmt (import_from "from" (dotted_name (name . ,module-name)) "import" "*"))
+    [`(import_stmt (import_from "from" ,maybe-source-name ... "import" ,destinations ...))
+     (define (fold-sources sources level name)
+       (match sources
+         [`() (values level name)]
+         [`("." ,rest ...) (fold-sources rest (+ 1 level) name)]
+         [`("..." ,rest ...) (fold-sources rest (+ 3 level) name)]
+         [`(,dotted-name ,rest ...) (fold-sources rest level (dotted-name->string dotted-name))]
+         [_ (display sources) (newline) (error "Unhandled import source")]))
+     (define-values (level source-name) (fold-sources maybe-source-name 0 #\nul))
+     (define (import-as-name->ast name)
+       (match name
+         [`(import_as_name (name . ,name))
+          (ast 'nodetype "alias" 
+               'name name
+               'asname #\nul)]
+         [`(import_as_name (name . ,name) "as" (name . ,interior-name))
+          (ast 'nodetype "alias"
+               'name name
+               'asname interior-name)]))
      (ast 'nodetype "ImportFrom"
-          'level 0
-          'module module-name
-          'names (list (ast 'nodetype "alias"
-                            'name "*"
-                            'asname #\nul)))]
+          'names (match destinations
+                   [`((import_as_names ,names ...))
+                    (map import-as-name->ast (every-other names))]
+                   [`("(" (import_as_names ,names ...) ")")
+                    (map import-as-name->ast (every-other names))]
+                   [`("*") (list (ast 'nodetype "alias"
+                                      'name "*"
+                                      'asname #\nul))]
+                   [_ (display destinations) (newline) (error "Unmatched import destination")])
+          'level level
+          'module source-name)]
 
     [`(try_stmt "try" ":" ,try-suite ,rest ...)
      (local ((define (more-clauses lst handler-ast-list orelse-ast-list finalbody-ast-list)

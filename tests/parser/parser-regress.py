@@ -173,4 +173,6 @@ def f():
     class w(x,y=z,*a,**b): pass
 
     import a,b as c,d.e as f
-    from a import *
+    from ....a import *
+    from c.d import (e,f)
+    from ... import g as h, i
