@@ -57,7 +57,7 @@ ___assign("%setattr", setattr)
 # this is implemented in object.__dir__ for instances and type.__dir__ for classes.
 def dir(*args):
     if args.__len__() == 0:
-        locals = ___id("%locals")
+        locals = ___local_id("%locals-save")
         return locals()
     elif args.__len__() == 1:
         obj = ___delta("tuple-getitem", args, 0)
