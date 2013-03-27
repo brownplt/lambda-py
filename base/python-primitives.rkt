@@ -5,12 +5,12 @@
          "builtins/str.rkt"
          "builtins/list.rkt"
          "builtins/tuple.rkt"
-         "builtins/dict.rkt"
          "builtins/set.rkt"
          "builtins/num.rkt"
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/file.rkt"
+         "builtins/type.rkt"
          "builtins/super.rkt"
          "builtins/code.rkt"
          "python-compile.rkt"
@@ -38,33 +38,14 @@ primitives here.
 
 ;(require (typed-in racket/base [display : (string -> void)]))
 
-(define (print arg)
-  (display (string-append (pretty arg) "\n")))
-
-(define (callable [arg : CVal]) : CVal 
-  (begin ;(display arg) (display "\n\n")
-  (type-case CVal arg
-    [VClosure (e a v b o) true-val]             
-    [VObjectClass (a m d c)
-                  (if (some? m)
-                      (if (MetaClass? (some-v m))
-                          true-val
-                          false-val)
-                      false-val)]
-    [else false-val])))
-
-
-(define (python-prim1 op arg)
-  (case op
-    [(print) (begin (print arg) arg)]
-    [(callable) (callable arg)]))
+(define (print arg sto)
+  (display (string-append (pretty arg sto) "\n")))
+(define (print-raw arg sto)
+  (display (string-append (to-string arg) "\n")))
 
 (define (is-func? argvs env sto)
   (cond
-    [(VClosure? (first argvs)) (some true-val)]
-    [(and (VObjectClass? (first argvs))
-          (symbol=? (VObjectClass-antecedent (first argvs)) 'method))
-     (some true-val)]
+    [(is-fun? (first argvs)) (some true-val)]
     [else (some false-val)]))
 
 (define (num+ args env sto)
@@ -145,12 +126,14 @@ primitives here.
                                                (some (MetaNum 0))
                                                (hash empty)))))))
 (define (num-str args env sto)
-    (let ([arg (first args)])
-            (some (VObject 'str 
-                           (some (MetaStr 
+    (let ([arg (first args)]
+          [str-cls (second args)])
+            (some (VObjectClass 'str
+                           (some (MetaStr
                              (number->string (MetaNum-n (some-v (VObjectClass-mval
                                                                   arg))))))
-                           (hash empty)))))
+                           (hash empty)
+                           (some str-cls)))))
 
 (define (builtin-prim [op : symbol] [argsptrs : (listof CVal)] 
                       [env : Env] [sto : Store] [stk : Stack]) : Result
@@ -158,6 +141,7 @@ primitives here.
   (define (prim-error msg op args)
     (mk-exception 'TypeError
       (string-append msg (string-append (symbol->string op) (format " ~a" args)))
+      env
       sto))
   (define (fetch-heads l1 l2)
     (append (take l1 (- (length l1) 1)) (list (last l2))))
@@ -188,6 +172,26 @@ primitives here.
       [some (v) (alloc-result v sto)]
       [none ()
         (prim-error "Bad prim (alloc): " op args)]))
+  (define (prim-list-alloc f args)
+    (type-case (optionof CVal) (f args env sto)
+      [some (v)
+        (cond
+          [(and (VObjectClass? v) (some? (VObjectClass-mval v))
+                (MetaList? (some-v (VObjectClass-mval v))))
+           (let* ([v-list (MetaList-v (some-v (VObjectClass-mval v)))]
+                  [vs-list (alloc-result-list v-list empty sto)]
+                  [vpointer-list (v*s/list-vs vs-list)]
+                  [new-sto (v*s/list-s vs-list)])
+             (alloc-result (VObjectClass
+                            (VObjectClass-antecedent v)
+                            (some (MetaList vpointer-list))
+                            (VObjectClass-dict v)
+                            (VObjectClass-class v))
+                           new-sto))]
+          [else
+           (prim-error "Bad prim (prim-list-alloc): " op args)])]
+      [none ()
+        (prim-error "Bad prim (prim-list-alloc): " op args)]))
    ]
   (let ([argvs (map (lambda (a) (fetch-ptr a sto)) argsptrs)])
   (case op
@@ -203,7 +207,7 @@ primitives here.
     ['num>= (prim-noalloc num>= argvs)]
     ['num<= (prim-noalloc num<= argvs)]
     ['numcmp (prim-alloc numcmp argvs)]
-    ['num-str (prim-alloc num-str argvs)]
+    ['num-str (prim-alloc num-str (fetch-heads argvs argsptrs))]
 
     ;string
     ['str+ (prim-alloc str+ (fetch-heads argvs argsptrs))]
@@ -251,13 +255,17 @@ primitives here.
 
     ;object 
     ['obj-str (prim-alloc obj-str argvs)]
+    ['obj-getattr (prim-noalloc obj-getattr argvs)]
+    ['obj-hasattr (prim-noalloc obj-hasattr argvs)]
+    ['obj-delattr (prim-update obj-delattr (first argsptrs) argvs)]
+    ['obj-dir (prim-list-alloc obj-dir (cons (first argvs) (rest argsptrs)))]
 
     ;function
-    ['is-func? (prim-alloc is-func? argvs)]
+    ['is-func? (prim-noalloc is-func? argvs)]
 
     ;exceptions
     ['exception-str (alloc-result 
-                     (let ([arg (first argvs)])
+                     (let ([arg (first argsptrs)])
                       (VObject 'str
                         (some (MetaStr
                                 (pretty-exception arg sto #f)))
@@ -270,12 +278,17 @@ primitives here.
 
     ; file
     ['file-open (prim-alloc file-open argvs)]
-    ['file-read (prim-alloc file-read argvs)]
-    ['file-readall (prim-alloc file-readall argvs)]
-    ['file-readline (prim-alloc file-readline argvs)]
+    ['file-read (prim-alloc file-read (fetch-heads argvs argsptrs))]
+    ['file-readall (prim-alloc file-readall (fetch-heads argvs argsptrs))]
+    ['file-readline (prim-alloc file-readline (fetch-heads argvs argsptrs))]
     ['file-write (prim-alloc file-write argvs)]
     ['file-close (prim-alloc file-close argvs)]
     ['existing-file? (prim-noalloc existing-file? argvs)]
+
+    ; type
+    ['type-new (prim-alloc type-new argvs)]
+    ['type-uniqbases (prim-noalloc type-uniqbases argvs)]
+    ['type-buildmro (prim-alloc type-buildmro argvs)]
 
     ; super
     ['super-self (prim-or-none-stk super-self stk)]
@@ -284,22 +297,27 @@ primitives here.
     ; Returns the class of the given object
     ['$class (v*s (get-class (first argvs) env sto) sto)]
 
-    ['$locals (begin
-               ; (display env) (display "\n\n")
-               (if (> (length stk) 0) ;; it must be used inside a function
-                   (make-under-dict 
-                           (hash
-                             (map (lambda (p)
-                                    (values (car p) (cdr p)))
-                                  (filter (lambda (p)
-                                            (not (VUndefined? (fetch (cdr p) sto))))
-                                          (hash->list (first (Frame-env (first stk)))))))
-                           env sto)
-                   (error 'locals "Empty stack in locals")))]
+    ['code-str (prim-alloc code-str (fetch-heads argvs argsptrs))]
+    ['code-globals (prim-alloc code-globals (fetch-heads argvs argsptrs))]
 
-    ['code-str (prim-alloc code-str argvs)]
-    ['code-globals (prim-alloc code-globals argvs)]
+    ['compile (prim-alloc compile (fetch-heads argvs argsptrs))]
 
-    ['compile (prim-alloc compile argvs)]
-    
+    ['print (begin (print (first argvs) sto) (v*s (first argsptrs) sto))]
+    ['print-raw (begin (print-raw (first argvs) sto) (v*s (first argsptrs) sto))]
+
+    ['Is (if (is? (first argsptrs)
+                  (second argsptrs) sto)
+             (v*s true-val sto)
+             (v*s false-val sto))]
+    ['IsNot (if (not (is? (first argsptrs)
+                  (second argsptrs) sto))
+             (v*s true-val sto)
+             (v*s false-val sto))]
+ 
+    ;; added to bootstrap attribute desugaring, second arg must be a class
+    ['isinstance (if (member (second argsptrs)
+                             (get-mro (get-class (first argvs) env sto) sto))
+             (v*s true-val sto)
+             (v*s false-val sto))]
+
     [else (error 'prim (format "Missed primitive: ~a" op))]))))

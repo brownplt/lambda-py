@@ -5,6 +5,7 @@
          "python-desugar.rkt"
          "util.rkt"
          (typed-in "parse-python.rkt" (parse-python/port : ('a 'b -> 'c)))
+         (typed-in "parse-python.rkt" (parse-python/string : ('a 'b -> 'c)))         
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))   
          (typed-in racket/base (open-input-file : ('a -> 'b)))
@@ -22,20 +23,30 @@
 
 (define (get-global-names (es : CExpr)) : (listof symbol)
   (type-case CExpr es
-    (CModule (pre body) (get-global-names body))
+    (CModule (pre body)
+             ;skip %locals trick
+             (get-global-names (CSeq-e2 body)))
     (CLet (x type bind body)
           (cons x (get-global-names body)))
     (else (list))))
 
+;; a more stable way to find globals in expr
+;; (define (get-global-names expr-str)
+;;   (get-module-level-globals
+;;    (get-structured-python
+;;     (parse-python/string expr-str (get-pypath)))))
+
 ;; built-in compile function, which takes
-;; source, filename, mode as its argument
+;; source, filename, mode and code class as its arguments
 (define (compile args env sto)
-  (check-types args env sto 'str 'str 'str
-               (let* ([source (MetaStr-s mval1)] 
-                      [filename (MetaStr-s mval2)]
-                      [mode (MetaStr-s mval3)]
-                      [code (compile-string source)]
-                      [globals (get-global-names code)])
-                 (some (VObject 'code
-                                (some (MetaCode code filename globals))
-                                (hash empty))))))
+  (check-types-pred args env sto MetaStr? MetaStr? MetaStr?
+                    (let* ([source (MetaStr-s mval1)] 
+                           [filename (MetaStr-s mval2)]
+                           [mode (MetaStr-s mval3)]
+                           [code (compile-string source)]
+                           [globals (get-global-names code)]
+                           [code-class (fourth args)])
+                      (some (VObjectClass 'code
+                                          (some (MetaCode code filename globals))
+                                          (hash empty)
+                                          (some code-class))))))

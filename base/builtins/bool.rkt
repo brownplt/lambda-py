@@ -16,7 +16,6 @@
      (if (= (length meta-startuple) 0)
        (some false-val) 
        (type-case CVal (first meta-startuple) 
-                  [VClosure (e a s b c) (some true-val)] 
                   [VObjectClass (a mval d class)
                                 (if (truthy-object? (VObject a mval d)) 
                                     (some true-val) 

@@ -1,7 +1,9 @@
 #lang plai-typed/untyped
 
 (require "sys.rkt"
-         "../python-core-syntax.rkt")
+         "main-module.rkt"
+         "../python-core-syntax.rkt"
+         "../util.rkt")
 
 (define (get-builtin-module-names)
   (map (lambda (x)
@@ -17,7 +19,8 @@
 ;; python-lib and python-lib-bindings. 
 (define (builtin-modules-list)
   (list
-   (Module sys-module-name sys-module)
+   (Module main-module-name main-module)
+   ; make sure to put sys at the last   
+   (Module sys-module-name sys-module) 
    ))
-
 

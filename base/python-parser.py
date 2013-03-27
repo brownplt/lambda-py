@@ -28,4 +28,10 @@ class QuickVisitor(ast.NodeVisitor):
     return n_dict
 
 if __name__ == '__main__':
-  print(json.dumps(QuickVisitor().visit(ast.parse(sys.stdin.read()))))
+ input_str = sys.stdin.read()
+ try:
+   compile(input_str,'<string>','exec')
+   print(json.dumps(QuickVisitor().visit(ast.parse(input_str))))
+ except SyntaxError as e:
+   print(json.dumps(QuickVisitor().visit(ast.parse(SyntaxError(e.msg)))))
+

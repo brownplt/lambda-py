@@ -1,4 +1,6 @@
 #lang plai-typed/untyped
+(require "python-core-syntax.rkt")
+
 
 (define-type LocalOrGlobal
   [Locally-scoped]
@@ -30,6 +32,9 @@
                           (orelse : LexExpr)]
   [LexTryFinally (try : LexExpr) (finally : LexExpr)]
 
+  ;yield
+  [LexYield (expr : LexExpr)]
+
   ;loops 
   [LexWhile (test : LexExpr) (body : LexExpr) (orelse : LexExpr)]
   [LexFor (target : LexExpr) (iter : LexExpr) (body : LexExpr)]
@@ -41,6 +46,8 @@
   ; classes and objects 
   [LexClass (scope : LocalOrGlobal) (name : symbol) (bases : LexExpr) (body : LexExpr)]
   [LexDotField (value : LexExpr) (attr : symbol)]
+  [LexExprField (value : LexExpr) (attr : LexExpr)]
+  [LexExprAssign (obj : LexExpr) (attr : LexExpr) (value : LexExpr)]
 
   ; operations
   [LexBinOp (left : LexExpr) (op : symbol) (right : LexExpr)] ;op = 'Add | 'Sub | etc
@@ -54,10 +61,10 @@
   ; functions
   [LexLam (args : (listof symbol)) (body : LexExpr)]
   [LexFunc (name : symbol) (args : (listof symbol)) (defaults : (listof LexExpr))
-           (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof symbol))]
+           (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof LexExpr))]
   [LexFuncVarArg (name : symbol) (args : (listof symbol)) 
-                (sarg : symbol) (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof symbol))]
-  [LexReturn (value : LexExpr)]
+                (sarg : symbol) (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof LexExpr))]
+  [LexReturn (value : (optionof LexExpr))]
   [LexApp (fun : LexExpr) (args : (listof LexExpr))]
   [LexAppStarArg (fun : LexExpr) (args : (listof LexExpr)) (stararg : LexExpr)]
 
@@ -73,8 +80,10 @@
   [LexLocalId (x : symbol) (ctx : symbol)]
   [LexGlobalId (x : symbol) (ctx : symbol)]
   [LexInstanceId (x : symbol) (ctx : symbol)]
-  [LexGlobalLet (id : symbol) (bind : LexExpr) (body : LexExpr)]
+  [LexGlobals (ids : (listof symbol)) (body : LexExpr)]
   [LexLocalLet (id : symbol) (bind : LexExpr) (body : LexExpr)]
+  [LexInScopeLocals (locals : (listof symbol))]
+  
 
   ;helpful; a "block" denotes a new scope
   ;the nonlocals list is for function arguments.
@@ -100,6 +109,7 @@
   [LexNone]
   [LexBreak]
   [LexContinue]
+  [LexCore (expr : CExpr)]
 
   ; import, which desugar to asname = __import__("name")
   [LexImport (names : (listof string)) (asnames : (listof symbol))]

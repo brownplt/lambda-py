@@ -8,7 +8,7 @@ class list(object):
       return ___delta("list-init", [], cls)
     elif ___delta("num=", args.__len__(), 1):
       other = ___delta("tuple-getitem", args, 0)
-      if (type(other) == list):
+      if (type(other) is list):
         return ___delta("list-copy", other, list)
       else:
         return other.__list__()
@@ -91,7 +91,7 @@ class list(object):
   def extend(self, other):
     list = ___id("%list")
     type = ___id("%type")
-    if (type(other) == list):
+    if (type(other) is list):
         ___delta("list-extend", self, other, self.__class__)
     else:
         ___delta("list-extend", self, other.__list__(), self.__class__)

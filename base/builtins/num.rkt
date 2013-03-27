@@ -2,6 +2,7 @@
 
 (require "../python-core-syntax.rkt")
 (require "../util.rkt"
+         "type.rkt"
          (typed-in racket/base (exact? : (number -> boolean))))
 
 (define (make-builtin-numv [n : number]) : CVal
@@ -25,7 +26,7 @@
                   (CFunc (list 'self) (some 'args)
                         (CIf (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
                              (CReturn (py-num 0))
-                             (CReturn (CApp (CGetField (py-getitem 'args 0) '__int__)
+                             (CReturn (py-app (py-getfield (py-getitem 'args 0) '__int__)
                                             (list)
                                             (none))))
                         (some 'int)))
@@ -53,7 +54,7 @@
                   (CFunc (list 'self) (some 'args)
                         (CIf (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
                              (CReturn (py-num 0))
-                             (CReturn (CApp (CGetField (py-getitem 'args 0) '__float__)
+                             (CReturn (py-app (py-getfield (py-getitem 'args 0) '__float__)
                                             (list)
                                             (none))))
                          (some 'float)))
@@ -102,7 +103,7 @@
              
              (def 'num '__div__ 
                   (CFunc (list 'self 'other)  (none)
-                         (CIf (CApp (CGetField (CId 'other (LocalId)) '__eq__) 
+                         (CIf (py-app (py-getfield (CId 'other (LocalId)) '__eq__) 
                                     (list (make-builtin-num 0))
                                     (none))
 ;
@@ -116,7 +117,7 @@
              
              (def 'num '__floordiv__ 
                   (CFunc (list 'self 'other)  (none)
-                         (CIf (CApp (CGetField (CId 'other (LocalId)) '__eq__) 
+                         (CIf (py-app (py-getfield (CId 'other (LocalId)) '__eq__) 
                                     (list (make-builtin-num 0))
                                     (none))
                               (CRaise (some (make-exception 'ZeroDivisionError
@@ -129,7 +130,7 @@
              
              (def 'num '__mod__ 
                   (CFunc (list 'self 'other)  (none)
-                         (CIf (CApp (CGetField (CId 'other (LocalId)) '__eq__) 
+                         (CIf (py-app (py-getfield (CId 'other (LocalId)) '__eq__) 
                                     (list (make-builtin-num 0))
                                     (none))
                               (CRaise (some (make-exception 'ZeroDivisionError
@@ -143,7 +144,7 @@
              (def 'num '__str__
                   (CFunc (list 'self) (none)
                          (CReturn (CBuiltinPrim 'num-str
-                                                (list (CId 'self (LocalId)))))
+                                                (list (CId 'self (LocalId)) (CId '%str (GlobalId)))))
                          (some 'num)))
              
              (def 'num '__eq__

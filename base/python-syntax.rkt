@@ -23,6 +23,9 @@
   [PyTryExceptElse (try : PyExpr) (except : (listof PyExpr)) (orelse : PyExpr)]
   [PyTryFinally (try : PyExpr) (finally : PyExpr)]
 
+  ; yield
+  [PyYield (expr : PyExpr)]
+
   ;loops 
   [PyWhile (test : PyExpr) (body : PyExpr) (orelse : PyExpr)]
   [PyFor (target : PyExpr) (iter : PyExpr) (body : PyExpr)]
@@ -50,7 +53,8 @@
           (body : PyExpr) (decorators : (listof PyExpr))]
   [PyFuncVarArg (name : symbol) (args : (listof symbol)) 
                 (sarg : symbol) (body : PyExpr) (decorators : (listof PyExpr))]
-  [PyReturn (value : PyExpr)]
+  [PyReturnValue (value : PyExpr)]
+  [PyReturn]
   [PyApp (fun : PyExpr) (args : (listof PyExpr))]
   [PyAppStarArg (fun : PyExpr) (args : (listof PyExpr)) (stararg : PyExpr)]
 

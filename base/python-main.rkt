@@ -3,92 +3,13 @@
 (require (planet dherman/json:4:0))
 (require racket/cmdline
          racket/pretty
+         "python-tools.rkt"
          "parse-python.rkt"
-         "get-structured-python.rkt"
-         "python-interp.rkt"
-         "python-phases.rkt"
-         "python-desugar.rkt"
-         "python-macros.rkt"
-         "python-lib.rkt"
          "run-tests.rkt"
          "util.rkt"
          "python-evaluator.rkt"
-	 "python-lexer.rkt"
-	 "python-parser.rkt"
-	 "python-grammar.rkt"
-	 "test-parser.rkt"
-	 )
-
-(define (python-test-runner _ port)
-  (run-python port))
-
-(define (python-test-runner-nopy _ port)
-  (run-python-nopy port))
-
-(define (run-python port)
-  (interp
-    (python-lib
-      (desugar
-        (new-scope-phase
-          (get-structured-python
-            (parse-python/port port (get-pypath))))))))
-
-(define (get-surface-syntax port)
-  (get-structured-python
-   (parse-python/port port (get-pypath))))
-
-(define (get-lexical-syntax port)
-  (new-scope-phase
-   (get-structured-python
-    (parse-python/port port (get-pypath)))))
-
-(define (desugar-w/lex port)
-  (desugar
-    (new-scope-phase
-      (get-structured-python
-        (parse-python/port port (get-pypath))))))
-
-(define (desugar-w/lib port)
-  (python-lib
-   (desugar
-    (new-scope-phase
-     (get-structured-python
-      (parse-python/port port (get-pypath)))))))
-
-(define (desugar-w/macros port)
-  (desugar
-   (desugar-macros
-    (new-scope-phase
-     (get-structured-python
-      (parse-python/port port (get-pypath)))))))
-
-
-(define (get-core-syntax port)
-  (desugar
-    (new-scope-phase
-      (get-structured-python
-        (parse-python/port port (get-pypath))))))
-
-(define (get-lexer-tokens port)
-  (lex-all port))
-
-(define (get-ragg-sexp port)
-  (pretty-write (syntax->datum (parse (get-python-lexer port)))))
-
-(define (get-parse-tree port)
-  (parse-python (get-python-lexer port)))
-
-(define (parse-test port)
-  (compare-parse port))
-
-(define (run-python-nopy port)
-  (interp
-    (python-lib
-      (desugar
-        (new-scope-phase
-	 (get-structured-python
-	   (parse-python port)))))))
-
+         "python-lexical-printer.rkt"
+         "python-evaluator.rkt")
 
 (command-line
   #:once-each
@@ -107,7 +28,17 @@
    (pretty-write (get-surface-syntax (current-input-port))))
 
   ("--get-lexical-syntax" "Get surface syntax python"
+   (lexexpr-print (get-lexical-syntax (current-input-port)) ))
+
+  ("--get-phase1-syntax" "Get surface syntax python"
+   (lexexpr-print (get-phase1-syntax (current-input-port)) ))
+
+  ("--get-lexical-syntax-old" ""
    (pretty-write (get-lexical-syntax (current-input-port))))
+
+    ("--get-lexical-syntax-with-locals" "Get surface syntax python"
+   (lexexpr-print (get-lexical-syntax-with-locals (current-input-port))))
+
 
   ("--get-core-syntax" "Get desugared python"
    (pretty-write (get-core-syntax (current-input-port))))
@@ -139,6 +70,11 @@
 
   ("--test-parser" "Compare native parser results with Python parser for input"
    (display (parse-test (current-input-port))))
+
+  ("--test-cps" "Run cps tests"
+   ;; NOTE(dbp): this is somewhat of a hack, but cps-test.rkt has a
+   ;; bunch of (test ...) statements, and this will cause them to be run.
+   (dynamic-require "cps-test.rkt" 0))
 
   ("--python-path" path "Set the python path" 
    (set-pypath path))

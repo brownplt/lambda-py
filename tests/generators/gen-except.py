@@ -6,7 +6,7 @@ def g():
 	yield 42
 
 k = g()
-___assertRaise(ZeroDivisionError, next, k)
+___assertRaises(ZeroDivisionError, next, k)
 
 def f():
 	try:

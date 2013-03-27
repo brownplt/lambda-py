@@ -71,8 +71,11 @@ def iter(l, *args):
 
 ___assign("%iter", iter)
 
-def next(it):
-    return it.__next__()
+def next(it, *arg):
+    if len(arg) == 0:
+        return it.__next__()
+    else:
+        return it.__next__(arg[0])
 
 ___assign("%next", next)
 

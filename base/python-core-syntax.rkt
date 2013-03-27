@@ -7,36 +7,35 @@ ParselTongue.
 
 |#
 
-(require (typed-in racket/base (number->string : (number -> string))))
+(require (typed-in racket/base (number->string : (number -> string)))
+         (typed-in racket/base (format : (string 'a -> string))))
 (require [opaque-type-in racket/set [Set set?]])
 
 (define-type CExpr
+  [CSym (s : symbol)]
   [CTrue]
   [CFalse]
   [CNone]
-  [CClass (name : symbol) (bases : CExpr) (body : CExpr)]
   [CObject (class : CExpr) (bval : (optionof MetaVal))]
-  [CGetField (value : CExpr) (attr : symbol)]
+  [CGetAttr (value : CExpr) (attr : CExpr)]
+  [CSetAttr (obj : CExpr) (attr : CExpr) (value : CExpr)]
   [CSeq (e1 : CExpr) (e2 : CExpr)]
   [CAssign (target : CExpr) (value : CExpr)]
   [CIf (test : CExpr) (then : CExpr) (else : CExpr)]
   [CId (x : symbol) (type : IdType)]
   [CLet (x : symbol) (type : IdType) (bind : CExpr) (body : CExpr)]
   [CApp (fun : CExpr) (args : (listof CExpr)) (stararg : (optionof CExpr))]
-  [CFunc (args : (listof symbol)) (varargs : (optionof symbol)) (body : CExpr)
-         (opt-class : (optionof symbol))] ; class name for methods
+  [CFunc (args : (listof symbol)) (varargs : (optionof symbol)) (body : CExpr) (opt-class : (optionof symbol))] ; class name for methods
   [CWhile (test : CExpr) (body : CExpr) (orelse : CExpr)]
   [CReturn (value : CExpr)]
-  [CPrim1 (prim : symbol) (arg : CExpr)]
-  [CPrim2 (prim : symbol) (arg1 : CExpr) (arg2 : CExpr)]
   [CBuiltinPrim (op : symbol) (args : (listof CExpr))]
   [CList (class : CExpr) (values : (listof CExpr))]
   [CTuple (class : CExpr) (values : (listof CExpr))]
-  [CDict (class : CExpr) (contents : (hashof CExpr CExpr))]
   [CSet (class : CExpr) (values : (listof CExpr))]
   [CRaise (expr : (optionof CExpr))]
   [CTryExceptElse (try : CExpr) (exn-id : symbol) (excepts : CExpr) (orelse : CExpr)]
   [CTryFinally (try : CExpr) (finally : CExpr)]
+  [CYield (expr : CExpr)]
   [CUndefined]
   [CBreak]
   [CContinue]
@@ -58,20 +57,20 @@ ParselTongue.
   [VObjectClass (antecedent : symbol) (mval : (optionof MetaVal))
                 (dict : object-dict) (class : (optionof CVal))]
   [VUndefined]
-  [VPointer (a : Address)]
-  [VClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr)
-            (opt-class : (optionof symbol))]) ; class name for methods
+  [VSym (s : symbol)]
+  [VPointer (a : Address)])
 
 (define-type MetaVal
+             [MetaNone]
              [MetaNum (n : number)]
              [MetaStr (s : string)]
              [MetaList (v : (listof CVal))]
              [MetaTuple (v : (listof CVal))]
-             [MetaDict (contents : (hashof CVal CVal))]
-             [MetaCode (e : CExpr) (filename : string) (globals : (listof symbol))]
-             [MetaClass (c : symbol)]
              [MetaSet (elts : Set)]
-             [MetaNone]
+             [MetaDict (contents : (hashof CVal CVal))]
+             [MetaClass (c : symbol)]
+             [MetaClosure (env : Env) (args : (listof symbol)) (vararg : (optionof symbol)) (body : CExpr) (opt-class : (optionof symbol))] ; class name for methods
+             [MetaCode (e : CExpr) (filename : string) (globals : (listof symbol))]
              [MetaPort (p : port)])
 
 ;; env is a listof hashof's so there are deliniations between closures
@@ -94,16 +93,22 @@ ParselTongue.
   [Break (s : Store)]
   [Continue (s : Store)])
 
-(define-type ResultPair
-  [vpair*s (v1 : CVal) (v2 : CVal) (s : Store)])
-
 (define (alloc-result val sto)
   (local ([define l (new-loc)]
           [define new-sto (hash-set sto l val)])
    (v*s (VPointer l) new-sto)))
 
+(define (alloc-result-list vals [vpointers : (listof CVal)] sto)
+  (cond
+    [(empty? vals) (v*s/list vpointers sto)]
+    [else (type-case Result (alloc-result (first vals) sto)
+            [v*s (vp s)
+             (alloc-result-list (rest vals) (cons vp vpointers) s)]
+            [else
+             (error 'alloc-result-list "alloc-result returns non v*s Result")])]))
+
 (define-type ResultList
-  [v*s/list (vs : (listof Result)) (s : Store)]
+  [v*s/list (vs : (listof CVal)) (s : Store)]
   [Abnormal (ab : Result)])
 
 (define-type-alias object-dict (hashof symbol Address))
@@ -129,21 +134,19 @@ ParselTongue.
     [VPointer (a) (VObjectClass? (fetch-once a sto))]
     [else false]))
 
-(define (is-func-ptr? val sto)
+(define (is-fun? v)
+  (and (VObjectClass? v) (some? (VObjectClass-mval v))
+           (MetaClosure? (some-v (VObjectClass-mval v)))))
+
+(define (is-fun-ptr? val sto)
   (type-case CVal val
-    [VPointer (a) (VClosure? (fetch-once a sto))]
+    [VPointer (a) (is-fun? (fetch-once a sto))]
     [else false]))
 
-(define (fetch [w : Address] [sto : Store]) : CVal
-  (local [(define val 
-            (type-case (optionof CVal) (hash-ref sto w)
-              [some (v) v]
-              [none () (error 'interp
-                              (begin ;(display sto)
-                              (string-append "No value at address " (Address->string w))))]))]
-    (if (VPointer? val)
-        (fetch (VPointer-a val) sto)
-        val)))
+(define (get-fun-mval [val : CVal] [sto : Store]) : MetaVal
+  (cond
+    [(is-fun-ptr? val sto) (some-v (VObjectClass-mval (fetch-ptr val sto)))]
+    [else (error 'get-fun-mval (format "Not a function value: ~a\n" (list val (fetch-ptr val sto))))]))
 
 ;; fetch only once in the store
 (define (fetch-once [w : Address] [sto : Store]) : CVal
@@ -152,30 +155,35 @@ ParselTongue.
              [none () (error 'interp
                              (string-append "No value at address " (Address->string w)))]))
 
-(define (fetch-ptr val sto)
+(define (fetch-ptr [val : CVal] [sto : Store] ) : CVal
   (type-case CVal val
     [VPointer (a) (fetch-once a sto)]
     [else (error 'interp (string-append "fetch-ptr got a non-VPointer: " (to-string val)))]))
 
-(define (mk-exception [type : symbol] [arg : string] [sto : Store]) : Result
+(define (mk-exception [type : symbol] [arg : string] [env : Env] [sto : Store]) : Result
   (local [(define exn-loc (new-loc))
+          (define arg-loc (new-loc))
           (define args-loc (new-loc))
           (define args-field-loc (new-loc))
-          (define args (list (VObjectClass 'str (some (MetaStr arg)) (hash empty) (none))))]
+          (define cls (fetch-once (some-v (lookup type env)) sto))
+          (define arg-val (VObjectClass 'str (some (MetaStr arg)) (hash empty) (none)))]
     (Exception
       (VPointer exn-loc)
       (hash-set
         (hash-set
-          (hash-set sto args-loc (VObjectClass 'tuple (some (MetaTuple args)) (hash empty) (none)))
+          (hash-set
+           (hash-set sto arg-loc arg-val)
+           args-loc (VObjectClass 'tuple (some (MetaTuple (list (VPointer arg-loc)))) (hash empty) (none)))
           args-field-loc (VPointer args-loc))
         exn-loc
-        (VObjectClass type (none) (hash-set (hash empty) 'args args-field-loc) (none))))))
+        (VObjectClass 'exception (none) (hash-set (hash empty) 'args args-field-loc) (some cls))))))
 
 (define-type ActivationRecord
-  [Frame (env : Env) (class : (optionof CVal)) (self : (optionof CVal))])
+  [Frame (class : (optionof CVal)) (self : (optionof CVal))])
 
 (define-type-alias Stack (listof ActivationRecord))
 
 ;; Module is used to combine module binding name with its cooresponding object
 (define-type Modules
   [Module (name : symbol) (object : CExpr)])
+

@@ -1,6 +1,7 @@
 #lang plai-typed/untyped
 
 (require "../python-core-syntax.rkt"
+         "type.rkt"
          "../util.rkt")
 
 (define module-class : CExpr
@@ -14,5 +15,7 @@
     (def '$module '__str__
          (CFunc (list 'self) (none)
                 (CReturn (make-builtin-str "<module>"))
-                (some '$module))))))
+                (some '$module)))
+    (def '$module '__name__
+         (CNone)))))
 

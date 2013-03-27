@@ -12,12 +12,30 @@ class dict(object):
     return result
 
   def __str__(self):
-    return self.__internaldict__.__str__()
+    result = "{"
+    first = True
+    for item in self.__itemslist__():
+      if first:
+        first = False
+      else:
+        result += ", "
+      result += item[0].__str__()
+      result += ": "
+      result += item[1].__str__()
+    result += "}"
+    return result
 
   def __bool__(self):
     return not ___delta("num=", self.__len__(), 0)
 
   def __list__(self):
+    result = []
+    for pair in self.__internaldict__:
+      for item in pair[1]:
+        result.append(item[0])
+    return result
+
+  def __itemslist__(self):
     result = []
     for pair in self.__internaldict__:
       result.extend(pair[1])
@@ -38,7 +56,7 @@ class dict(object):
     return self.keys().__iter__()
 
   def __in__(self, key):
-    for elt in self.__list__():
+    for elt in self.__itemslist__():
       if elt[0].__eq__(key):
         return True  
     return False
@@ -58,26 +76,27 @@ class dict(object):
     if ___delta("num=", other.__len__(), 0):
       pass
     else:
-      for pair in other.__getitem__(0).__list__():
+      if ___delta("isinstance", other.__getitem__(0), self.__class__):
+        it = other.__getitem__(0).__itemslist__()
+      else:
+        it = other.__getitem__(0) # may be other iterable of pairs
+      for pair in it:
         self.__setitem__(pair[0], pair[1])
 
   def keys(self):
     set = ___id("%set")
-    result = []
-    for p in self.__list__():
-      result.append(p[0]) 
-    return set(result)
+    return set(self.__list__())
 
   def values(self):
     set = ___id("%set")
     result = []
-    for p in self.__list__():
+    for p in self.__itemslist__():
       result.append(p[1]) 
     return set(result)
 
   def items(self):
     set = ___id("%set")
-    return set(self.__list__())
+    return set(self.__itemslist__())
 
   def __getitem__(self, key):
     for pair in self.__internaldict__:

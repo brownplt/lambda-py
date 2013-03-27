@@ -69,6 +69,8 @@
               [PyTryFinally (try finally)
                             (LexTryFinally (recur try)
                                            (recur finally))]
+              ; yield
+              [PyYield (expr) (LexYield (recur expr))]
                                         ;loops 
               [PyWhile (test body orelse)
                        (LexWhile (recur test) (recur body) (recur orelse))]
@@ -100,7 +102,8 @@
                       (LexFunc name args (map recur defaults) (recur body) (map recur decorators) (none))]
               [PyFuncVarArg (name args sarg body decorators)
                             (LexFuncVarArg name args sarg (recur body) (map recur decorators) (none))]
-              [PyReturn (value) (LexReturn (recur value))]
+              [PyReturn () (LexReturn (none))]
+              [PyReturnValue (v) (LexReturn (some (recur v)))]
               [PyApp (fun args) (LexApp (recur fun) (map recur args))]
               [PyAppStarArg (fun args stararg)
                             (LexAppStarArg (recur fun) (map recur args) (recur stararg))]
@@ -163,13 +166,13 @@
               [PyLexGlobal (ids) (PyLexGlobal ids)]
               [PyLexNonLocal (ids) (PyLexNonLocal ids)]
 
-              
+              [LexInScopeLocals (ids ) (LexInScopeLocals ids)]
               [LexLocalId (x ctx) (LexLocalId x ctx)]
               [LexGlobalId (x ctx) (LexGlobalId x ctx)]
               [LexInstanceId (x ctx) (LexInstanceId x ctx)]
               [LexLocalLet (id bind body) (LexLocalLet id (recur bind) (recur body))]
-              [LexGlobalLet (id bind body)
-                            (LexGlobalLet id (recur bind) (recur body))]
+              [LexGlobals (ids body)
+                            (LexGlobals ids (recur body))]
               
                                         ; exceptions and exception handling
               [LexRaise (expr) (LexRaise (recur expr))]
@@ -183,6 +186,8 @@
               [LexTryFinally (try finally)
                              (LexTryFinally (recur try)
                                             (recur finally))]
+              ; yield
+              [LexYield (expr) (LexYield (recur expr))]
                                         ;loops 
               [LexWhile (test body orelse)
                        (LexWhile (recur test) (recur body) (recur orelse))]
@@ -191,12 +196,15 @@
               
                                         ; pass & assert
               [LexPass () (LexPass)]
+              [LexCore (e) (LexCore e)]
               [LexAssert (test msg) (LexAssert (recur test) (map recur msg))]              
               
                                         ; classes and objects 
               [LexClass (scope name bases body)
                        (LexClass scope name (recur bases) (recur body))]
               [LexDotField (value attr) (LexDotField (recur value) attr)]
+              [LexExprField (value attr) (LexExprField (recur value) (recur attr))]
+              [LexExprAssign (obj attr value) (LexExprAssign (recur obj) (recur attr) (recur value))]
 
                                         ; operations
               [LexBinOp (left op right) (LexBinOp (recur left) op (recur right))] 
@@ -212,10 +220,12 @@
                      (LexLam args (recur body))]
 
               [LexFunc (name args defaults body decorators class)
-                      (LexFunc name args (map recur defaults) (recur body) (map recur decorators) class)]
+                      (LexFunc name args (map recur defaults) (recur body) (map recur decorators)
+                               (option-map recur class))]
               [LexFuncVarArg (name args sarg body decorators class)
-                            (LexFuncVarArg name args sarg (recur body) (map recur decorators) class)]
-              [LexReturn (value) (LexReturn (recur value))]
+                            (LexFuncVarArg name args sarg (recur body) (map recur decorators)
+                                           (option-map recur class))]
+              [LexReturn (value) (LexReturn (option-map recur value))]
               [LexApp (fun args) (LexApp (recur fun) (map recur args))]
               [LexAppStarArg (fun args stararg)
                             (LexAppStarArg (recur fun) (map recur args) (recur stararg))]
@@ -295,6 +305,9 @@
                             (flatten (list
                                        (list (recur try))
                                        (list (recur finally))))]
+              ; yield
+              [PyYield (expr) (flatten (recur expr))]
+
                                         ;loops 
               [PyWhile (test body orelse)
                        (flatten (list (recur test) (recur body) (recur orelse)))]
@@ -327,7 +340,8 @@
                       (flatten (list (map recur defaults) (list (recur body))))]
               [PyFuncVarArg (name args sarg body decorators)
                             (recur body)]
-              [PyReturn (value) (recur value)]
+              [PyReturn () empty]
+              [PyReturnValue (value) (recur value)]
               [PyApp (fun args) (flatten (list (list (recur fun)) (map recur args)))]
               [PyAppStarArg (fun args stararg)
                             (flatten (list (list (recur fun))
@@ -389,7 +403,8 @@
               [LexGlobalId (x ctx)  empty]
               [LexLocalId (x ctx)  empty]
               [LexLocalLet (id bind body) (flatten (list (recur bind) (recur body)))]
-              [LexGlobalLet (id bind body) (flatten (list (recur bind) (recur body)))]
+              [LexInScopeLocals (_) empty]
+              [LexGlobals (ids body) (recur body)]
               [PyLexId (x ctx)  empty]
               [PyLexGlobal (ids) empty]
               [PyLexNonLocal (ids) empty]
@@ -409,6 +424,8 @@
                              (flatten (list
                                         (list (recur try))
                                         (list (recur finally))))]
+              ; yield
+              [LexYield (expr) (flatten (recur expr))]
                                         ;loops 
               [LexWhile (test body orelse)
                        (flatten (list (recur test) (recur body) (recur orelse)))]
@@ -417,6 +434,7 @@
               
                                         ; pass & assert
               [LexPass () empty]
+              [LexCore (_) empty]
               [LexAssert (test msg)
                     (flatten (list (list (recur test)) (map recur msg)))]
               
@@ -424,6 +442,8 @@
               [LexClass (scope name bases body)
                        (flatten (list (recur bases) (recur body)))]
               [LexDotField (value attr)  (recur value)]
+              [LexExprField (value attr)  (flatten (list (recur value) (recur attr)))]
+              [LexExprAssign (obj attr value)  (flatten (list (recur obj) (recur attr) (recur value)))]
 
                                         ; operations
               [LexBinOp (left op right) (flatten (list (recur left) (recur right)))] 
@@ -438,10 +458,16 @@
               [LexLam (args body)
                      (recur body)]
               [LexFunc (name args defaults body decorators class)
-                      (flatten (list (map recur defaults) (list (recur body))))]
+                      (flatten (list (map recur defaults) (list (recur body) (type-case (optionof LexExpr) class
+                                                          [some (v) (recur v)]
+                                                          [none () empty]))))]
               [LexFuncVarArg (name args sarg body decorators class)
-                            (recur body)]
-              [LexReturn (value) (recur value)]
+                            (flatten (list (recur body) (type-case (optionof LexExpr) class
+                                                          [some (v) (recur v)]
+                                                          [none () empty])))]
+              [LexReturn (value) (type-case (optionof LexExpr) value
+                                   [none () empty]
+                                   [some (v) (recur v)])]
               [LexApp (fun args) (flatten (list (list (recur fun)) (map recur args)))]
               [LexAppStarArg (fun args stararg)
                             (flatten (list (list (recur fun))

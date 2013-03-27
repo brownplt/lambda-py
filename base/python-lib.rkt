@@ -5,7 +5,6 @@
          "builtins/str.rkt"
          "builtins/list.rkt"
          "builtins/tuple.rkt"
-         "builtins/dict.rkt"
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/set.rkt"
@@ -14,89 +13,114 @@
          "modules/builtin-modules.rkt"
          "util.rkt"
          "python-lib-bindings.rkt"
+         (typed-in "python-lib-list.rkt" (python-libs : (listof string)))
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
-         (typed-in "parse-python.rkt"
-                   (parse-python/port : ('a string -> 'b)))
-         (typed-in racket/base (open-input-file : ('a -> 'b)))
-         (typed-in racket/base (close-input-port : ('a -> 'b)))
+         (typed-in "parse-python.rkt" (parse-python/port : ('a string -> 'b)))
+         "core-to-sexp.rkt"
+         (typed-in "sexp-to-core.rkt" (sexp->core : ('a -> CExpr)))
+         (typed-in racket/fasl (s-exp->fasl : ('a 'b -> 'c)) (fasl->s-exp : ('a -> 'b)))
          "python-syntax.rkt"
          "python-macros.rkt"
          "python-lexical-syntax.rkt"
          "python-desugar.rkt"
          "python-phases.rkt"
-         (typed-in racket/base (append : ((listof 'a) (listof 'a) (listof 'a) (listof 'a) (listof 'a) -> (listof 'a)))))
+         (typed-in racket/string
+          (string-split : (string string -> (listof string))))
+         (typed-in racket/base
+          (open-input-file : ('a -> 'b))
+          (open-output-file : ('a -> 'b))
+          (close-input-port : ('a -> 'b))
+          (close-output-port : ('a -> 'b))
+          (path->string : ('a -> string))
+          (file-exists? : ('a -> boolean))
+          (delete-file : ('a -> 'b))
+          (file-or-directory-modify-seconds : (string (-> number) -> number))
+          (append : ((listof 'a) (listof 'a) (listof 'a) (listof 'a) (listof 'a) -> (listof 'a)))))
 
-#|
-
-Here is a suggestion for how to implement shared runtime functionality -
-write it as core expression forms and use python-lib to wrap your
-desugared expressions in an environment that will contain useful
-bindings.  For example, this sample library binds `print` to a function
-that calls the primitive `print`.
-
-|#
+(define CACHE_EXT ".pyc") ;; thatsthejoke.jpg
+(define (get-ast/cache path)
+  (local
+    [(define without-ext (first (string-split (path->string path) ".")))
+     (define with-ext (string-append without-ext CACHE_EXT))
+     (define time-python-file-modified (file-or-directory-modify-seconds path #f))
+     (define time-cache-was-created (file-or-directory-modify-seconds with-ext #f (lambda () 0)))]
+  (cond
+    [(>= time-python-file-modified time-cache-was-created)
+     (begin
+       (when (file-exists? with-ext) (delete-file with-ext))
+       (local
+        [(define f (open-input-file path))
+         (define pyast (parse-python/port f (get-pypath)))
+         (define core-ast
+                 (desugar 
+                  (desugar-macros
+                    (new-scope-phase
+                      (get-structured-python pyast)))))
+         (define cache-file (open-output-file with-ext))]
+         (begin
+          (s-exp->fasl (core->sexp core-ast) cache-file)
+          (close-output-port cache-file)
+          (close-input-port f)
+          core-ast)))]
+    [else
+     (local
+      [(define cache-file (open-input-file with-ext))
+       (define core-ast (sexp->core (fasl->s-exp cache-file)))]
+      (begin
+        (close-input-port cache-file)
+        core-ast))])))
+     
+  
 
 (define pylib-programs (none))
 ;; these are builtin functions that we have written in actual python files which
 ;; are pulled in here and desugared for lib purposes
-(define (get-pylib-programs)
+(define (get-pylib-programs paths)
   (type-case (optionof (listof CExpr)) pylib-programs
     [none ()
      (begin
        (set! pylib-programs
         (some
-          (map (lambda (file) 
-            (local [
-              (define f (open-input-file file))
-              (define pyast (parse-python/port f (get-pypath)))
-            ]
-            (begin
-              (close-input-port f)
-              (desugar 
-                (desugar-macros
-                  (new-scope-phase
-                    (get-structured-python pyast)))))))
-               (list "pylib/none.py"
-                     "pylib/bool.py"
-                     "pylib/str.py"
-                     "pylib/tuple.py"
-                     "pylib/list.py"
-                     "pylib/dict.py"
-                     "pylib/set.py"
-                     "pylib/type.py"
-                     "pylib/method.py"
-                     "pylib/super.py"
-                     "pylib/range.py"
-                     "pylib/seq_iter.py"
-                     "pylib/print.py"
-                     "pylib/filter.py"
-                     "pylib/any.py"
-                     "pylib/all.py"
-                     "pylib/import.py"
-                     "pylib/file.py"
-                     "pylib/isinstance.py"
-                     "py-prelude.py"
-                    ))))
+          (map get-ast/cache paths)))
          (some-v pylib-programs))]
-     [some (v) v]))
+    [some (v) v]))
                  
 
 (define-type-alias Lib (CExpr -> CExpr))
 
-(define (python-lib [expr : CExpr]) : CExpr
-  (local [(define (cascade-lets bindings body)
+;; built-in functions and classes
+(define builtins-symbol
+  (map (lambda (lib)
+         (bind-left lib))
+       lib-function-dummies))
+
+
+(define (cascade-lets bindings body)
             (if (empty? bindings)
                 body
                 (local [(define b (first bindings))]
                   (CLet (bind-left b) (GlobalId) (bind-right b)
-                      (cascade-lets (rest bindings) body)))))]
-    (cascade-lets lib-function-dummies
-                  (seq-ops (append
-                             (map (lambda (b) (bind-right b)) lib-functions)
-                             (get-pylib-programs)
-                             (get-builtin-modules)
-                             (map (lambda (b) (bind-right b))
-                                  (list (bind 'True (assign 'True (CTrue)))
-                                        (bind 'False (assign 'False (CFalse)))))
-                             (list (CModule-body expr)))))))
+                      (cascade-lets (rest bindings) body)))))
+(define (python-lib [expr : CExpr]) : CExpr
+  (local [(define (add_main_module [e : CExpr])
+            (type-case CExpr e
+              [CLet (x type bind body)
+                    (CLet x type bind (add_main_module body))]
+              [else
+               (CSeq
+                (CAssign (CId '__main__ (GlobalId))
+                         (CConstructModule (CNone)))
+                e)]))
+          (define new-body
+            (CSeq (CSeq-e1 (CModule-body expr))
+                  (add_main_module (CSeq-e2 (CModule-body expr)))))]
+         (cascade-lets lib-function-dummies
+                       (seq-ops (append
+                                 (map (lambda (b) (bind-right b)) lib-functions)
+                                 (get-pylib-programs python-libs)
+                                 (map (lambda (b) (bind-right b))
+                                      (list (bind 'True (assign 'True (CTrue)))
+                                            (bind 'False (assign 'False (CFalse)))))
+                                 (get-builtin-modules)
+                                 (list new-body))))))

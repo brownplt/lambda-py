@@ -1,3 +1,6 @@
+NOTE: This file is out of date, and reflected a version of this
+from LONG ago. Do not trust this.
+
 Design:
 =========
 Our core language is heavily object focused. The only values our core produces

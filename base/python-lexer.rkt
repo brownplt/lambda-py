@@ -210,7 +210,8 @@ Simple lexer, produces physical/other tokens.
    
    (integer (token 'NUMBER (cons 'integer (parse-integer lexeme))))
    (floatnumber (token 'NUMBER (cons 'float (parse-float lexeme))))
-   (imagnumber (token 'NUMBER (cons 'imaginary (parse-imaginary lexeme))))
+   #;(imagnumber (token 'NUMBER (cons 'imaginary (parse-imaginary lexeme))))
+   (imagnumber (token 'NUMBER (cons 'imaginary lexeme)))
    (stringliteral (token 'STRING (cons 'string (parse-string lexeme))))
    (bytesliteral (error "Bytes not yet supported.")) 
 

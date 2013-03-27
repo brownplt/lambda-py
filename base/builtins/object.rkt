@@ -3,6 +3,7 @@
 ;; object - the base-class of everything
 (require "../python-core-syntax.rkt" 
          "../util.rkt"
+         "type.rkt"
          "num.rkt"
          "str.rkt"
          (typed-in racket/base (string-length : (string -> number))))
@@ -27,9 +28,10 @@
 
              (def 'object '__eq__
                   (CFunc (list 'self 'other) (none)
-                         (CReturn (CPrim2 'Is
+                         (CReturn (CBuiltinPrim 'Is
+                                    (list
                                           (CId 'self (LocalId))
-                                          (CId 'other (LocalId))))
+                                          (CId 'other (LocalId)))))
                          (some 'object)))
 
              (def 'object '__str__ 
@@ -40,9 +42,10 @@
 
              (def 'object '__cmp__
                   (CFunc (list 'self 'other) (none)
-                         (CReturn (CIf (CPrim2 'Is
+                         (CReturn (CIf (CBuiltinPrim 'Is
+                                          (list
                                                (CId 'self (LocalId))
-                                               (CId 'other (LocalId)))
+                                               (CId 'other (LocalId))))
                                        (make-builtin-num 0)
                                        (make-builtin-num -1)))
                          (some 'object)))
@@ -55,47 +58,47 @@
              (def 'object '__gt__
                   (CFunc (list 'self 'other) (none)
                          (CLet '_cmpresult (LocalId)
-                               (CApp (CGetField (CId 'self (LocalId)) '__cmp__)
+                               (py-app (py-getfield (CId 'self (LocalId)) '__cmp__)
                                      (list (CId 'other (LocalId)))
                                      (none))
-                               (CReturn (CApp (CGetField (CId '_cmpresult (LocalId)) '__gt__)
+                               (CReturn (py-app (py-getfield (CId '_cmpresult (LocalId)) '__gt__)
                                               (list (make-builtin-num 0))
                                               (none))))
                          (some 'object)))
              (def 'object '__lt__
                   (CFunc (list 'self 'other) (none)
                          (CLet '_cmpresult (LocalId)
-                               (CApp (CGetField (CId 'self (LocalId)) '__cmp__)
+                               (py-app (py-getfield (CId 'self (LocalId)) '__cmp__)
                                      (list (CId 'other (LocalId)))
                                      (none))
-                               (CReturn (CApp (CGetField (CId '_cmpresult (LocalId)) '__lt__)
+                               (CReturn (py-app (py-getfield (CId '_cmpresult (LocalId)) '__lt__)
                                               (list (make-builtin-num 0))
                                               (none))))
                          (some 'object)))
              (def 'object '__lte__
                   (CFunc (list 'self 'other) (none)
                          (CLet '_cmpresult (LocalId)
-                               (CApp (CGetField (CId 'self (LocalId)) '__cmp__)
+                               (py-app (py-getfield (CId 'self (LocalId)) '__cmp__)
                                      (list (CId 'other (LocalId)))
                                      (none))
-                               (CReturn (CApp (CGetField (CId '_cmpresult (LocalId))
+                               (CReturn (py-app (py-getfield (CId '_cmpresult (LocalId))
                                                          '__lte__)
                                               (list (make-builtin-num 0))
                                               (none))))
                          (some 'object)))
              (def 'object '__iter__
                   (CFunc (list 'self) (none)
-                         (CReturn (CApp (CGetField (CId 'SeqIter (LocalId)) '__init__)
+                         (CReturn (py-app (py-getfield (CId 'SeqIter (LocalId)) '__init__)
                                         (list (CId 'self (LocalId)))
                                         (none)))
                          (some 'object)))
              (def 'object '__gte__
                   (CFunc (list 'self 'other) (none)
                          (CLet '_cmpresult (LocalId)
-                               (CApp (CGetField (CId 'self (LocalId)) '__cmp__)
+                               (py-app (py-getfield (CId 'self (LocalId)) '__cmp__)
                                      (list (CId 'other (LocalId)))
                                      (none))
-                               (CReturn (CApp (CGetField (CId '_cmpresult (LocalId))
+                               (CReturn (py-app (py-getfield (CId '_cmpresult (LocalId))
                                                          '__gte__)
                                               (list (make-builtin-num 0))
                                               (none))))
@@ -116,6 +119,22 @@
                  [else true]))
    true))
 
+(define (metaval->string [mval : (optionof MetaVal)])
+  (if (some? mval)
+      (type-case MetaVal (some-v mval)
+        [MetaNone () ":none"]
+        [MetaNum (n) ":num"]
+        [MetaStr (s) ":str"]
+        [MetaList (v) ":list"]
+        [MetaTuple (v) ":tuple"]
+        [MetaSet (elts) ":set"]
+        [MetaDict (c) ":dict"]
+        [MetaClass (c) ":class"]
+        [MetaClosure (env args vararg body cls) ":closure"]
+        [MetaCode (e filename globals) ":code"]
+        [MetaPort (p) ":port"])
+      ""))
+
 (define (obj-str (args : (listof CVal)) env sto) : (optionof CVal)
   (local [(define o (first args))]
          (type-case CVal o
@@ -131,6 +150,90 @@
                                                    (string-append 
                                                      (if (symbol=? ante 'none)
                                                        "Object"
-                                                       (symbol->string ante)) ">")))))
+                                                       (symbol->string ante))
+                                                     (string-append (metaval->string mval)
+                                                                    ">"))))))
                         (hash empty)))]
             [else (error 'obj-str "Non object")])))
+
+;; obj-getattr: get attr value from object dict
+;; first argument is the object, second the attribute key
+(define (obj-getattr (args : (listof CVal)) env sto) : (optionof CVal)
+  (if (= (length args) 2)
+      (type-case CVal (first args)
+        [VObjectClass (_ __ the-dict ___)
+          (type-case CVal (second args)
+            [VObjectClass (_ mval __ ___)
+              (type-case MetaVal (some-v mval)
+                [MetaStr (the-field)
+                  (type-case (optionof Address) (hash-ref
+                                                 the-dict
+                                                 (string->symbol the-field))
+                    [some (w) (some (fetch-once w sto))]
+                    [none () (none)])]
+                [else (none)])]
+            [else (none)])]
+        [else (none)])
+      (none)))
+
+;; obj-hasattr: check for attr in the object dict
+;; first argument is the object, second the attribute key
+(define (obj-hasattr (args : (listof CVal)) env sto) : (optionof CVal)
+  (if (= (length args) 2)
+      (type-case CVal (first args)
+        [VObjectClass (_ __ the-dict ___)
+          (type-case CVal (second args)
+            [VObjectClass (_ mval __ ___)
+              (type-case MetaVal (some-v mval)
+                [MetaStr (the-field)
+                  (type-case (optionof Address) (hash-ref
+                                                 the-dict
+                                                 (string->symbol the-field))
+                    [some (w) (some true-val)]
+                    [none () (some false-val)])]
+                [else (none)])]
+            [else (none)])]
+        [else (none)])
+      (none)))
+
+;; obj-delattr: delete attr from the object dict
+;; first argument is the object, second the attribute key
+(define (obj-delattr (args : (listof CVal)) env sto) : (optionof CVal)
+  (if (= (length args) 2)
+      (type-case CVal (first args)
+        [VObjectClass (a m the-dict c)
+          (type-case CVal (second args)
+            [VObjectClass (_ mval __ ___)
+              (type-case MetaVal (some-v mval)
+                [MetaStr (the-field)
+                  (type-case (optionof Address) (hash-ref
+                                                 the-dict
+                                                 (string->symbol the-field))
+                    [some (w) (some
+                               (VObjectClass
+                                a
+                                m
+                                (hash-remove the-dict (string->symbol the-field))
+                                c))]
+                    [none () (none)])]
+                [else (none)])]
+            [else (none)])]
+        [else (none)])
+      (none)))
+
+;; obj-dir: get a list of attribute keys, as strings, from object dict
+;; first argument is the object, second list class object, third str class object.
+(define (obj-dir (args : (listof CVal)) env sto) : (optionof CVal)
+  (if (= (length args) 3)
+      (type-case CVal (first args)
+        [VObjectClass (_ __ the-dict ___)
+          (some (VObjectClass
+                 'list
+                 (some (MetaList (map (lambda (k)
+                                        (make-str-value (symbol->string k)
+                                                        (third args)))
+                                      (hash-keys the-dict))))
+                 (hash empty)
+                 (some (second args))))]
+        [else (none)])
+      (none)))

@@ -4,6 +4,7 @@
          "python-core-syntax.rkt"
          "python-lib-bindings.rkt"
          "python-lexical-syntax.rkt"
+         "modules/builtin-modules.rkt"
          "python-syntax-operations.rkt")
 (require "util.rkt")
 (require [typed-in racket (format : (string 'a -> string))])
@@ -45,7 +46,7 @@
    (lambda (y)
      (type-case PyExpr y
        [PyClass (name bases body)
-                (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexUndefined))
+                (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexPass))
                               (LexClass (Unknown-scope) name
                                         (let ((desugared-bases (map pre-desugar bases)))
                                           (LexTuple (if (empty? desugared-bases)
@@ -73,6 +74,10 @@
                                                         (none)))))]
        [PyImport (names asnames) 
                  (desugar-pyimport names asnames)]
+       
+       [PyImportFrom (module names asnames level)
+                     (desugar-pyimportfrom module names asnames level)]
+       
        [else (default-recur)]
        )))))
 
@@ -82,30 +87,68 @@
 (define (desugar-pyimport names asnames) : LexExpr
   (local [(define (desugar-pyimport/rec names asnames)
             (cond [(empty? names) (list)]
+                  [(member (first asnames) (get-builtin-module-names))
+                   (append
+                    (list
+                     (LexAssign
+                      (list (PyLexId (first asnames) 'Store))
+                      (LexApp (PyLexId '__import__ 'Load)
+                              (list (LexStr (first names))))))
+                    (desugar-pyimport/rec (rest names) (rest asnames)))]
                   [else
                    (append
-                    (list (LexAssign
-                           (list (PyLexId (first asnames) 'Store))
-                           (LexApp (PyLexId '__import__ 'Load)
-                                  (list (LexStr (first names))))))
-                    (desugar-pyimport/rec (rest names) (rest asnames))
-                    )]))]
+                    (list
+                     (LexAssign
+                                        ; assign to a module object first, in case that the imported file
+                                        ; needs information in current scope
+                      (list (PyLexId (first asnames) 'Store))
+                      (LexApp (PyLexId '$module 'Load) (list)))
+                     (LexAssign
+                      (list (PyLexId (first asnames) 'Store))
+                      (LexApp (PyLexId '__import__ 'Load)
+                              (list (LexStr (first names))))))
+                    (desugar-pyimport/rec (rest names) (rest asnames)))]))]
          (LexSeq (desugar-pyimport/rec names asnames))))
 
 
+
+;;; desugar from module import name as asname
+;;; __tmp_module = __import__(module, globals(), locals(), [id], 0)
+;;; id_alias = __tmp_module.id
+;;; 
+;;;  from module import * is not available now
+(define (desugar-pyimportfrom [module : string]
+                              [names : (listof string)]
+                              [asnames : (listof symbol)]
+                              [level : number]) : LexExpr
+  (local [(define tmp-module (PyLexId '$__tmp_module 'Store))
+          (define module-expr
+            (LexAssign (list tmp-module)
+                      (LexApp (PyLexId '__import__ 'Load)
+                              (list (LexStr module)))))]
+    (cond [(not (equal? (first names) "*"))
+           (local [(define (get-bind-exprs module names asnames)
+                     (cond [(empty? names) (list)]
+                           [else
+                            (append (list (LexAssign (list (PyLexId (first asnames) 'Store))
+                                                    (LexDotField module (string->symbol (first names)))))
+                                    (get-bind-exprs module (rest names) (rest asnames)))]))
+                   (define bind-exprs
+                     (get-bind-exprs tmp-module names asnames))]
+             (LexSeq (append (list module-expr) bind-exprs)))]
+          [else ;; from module import *
+           (error 'desugar "star expression is not allowed yet.")])))
 
  
 (define (scope-phase [expr : PyExpr] ) : LexExpr
        (let ((replaced-locals (replace-all-locals  (replace-all-instance (pre-desugar expr)) empty empty)))
          (let ((fully-transformed (make-all-global replaced-locals))) 
-           (remove-blocks
             (remove-unneeded-pypass
-             (remove-nonlocal
               (remove-global
                (replace-lexmodule
                 (remove-unneeded-assigns
                  (process-syntax-errors
-                  (bind-locals fully-transformed))))))))))) ;surround every block with PyLet of locals
+                  (bind-locals fully-transformed))))))))) ;surround every block with PyLet of locals
 
 (define (replace-lexmodule expr)
   (lexexpr-modify-tree expr
@@ -123,7 +166,7 @@
                                 (es)
                                 (if (and ( = (length es) 2)
                                          (LexAssign? (first es))
-                                         (LexUndefined? (LexAssign-value (first es))))
+                                         (LexPass? (LexAssign-value (first es))))
                                     (let ((replace-scope
                                            (cond
                                             [(LexLocalId? (first (LexAssign-targets (first es))))
@@ -164,7 +207,16 @@
   (call/cc
    (lambda (k)
      (local
-      [(define (bindings-for-nonlocal [bindings : (listof symbol)] [expr : LexExpr]) : LexExpr
+      [(define (syntax-error [err : string]) : LexExpr
+         (k 
+          (LexModule
+           (list (LexRaise
+                  (LexApp
+                   (LexGlobalId 'SyntaxError 'Load)
+                   (list (LexStr err))))))))
+                         
+         
+       (define (bindings-for-nonlocal [bindings : (listof symbol)] [expr : LexExpr]) : LexExpr
          (let ((these-locals empty))
            (lexexpr-modify-tree
                expr
@@ -173,25 +225,68 @@
                    [PyLexNonLocal (locals) (if
                                             (empty? (list-subtract locals bindings))
                                             (PyLexNonLocal locals)
-                                            (k 
-                                             (LexModule
-                                              (list (LexRaise
-                                                     (LexApp
-                                                      (LexGlobalId 'SyntaxError 'Load)
-                                                      (list (LexStr
-                                                             (string-append
-                                                              "no binding for nonlocal '"
-                                                              (string-append
-                                                               (symbol->string (first locals))
-                                                               "' found"))))))))))]
+                                            (syntax-error (string-append
+                                                           "no binding for nonlocal '"
+                                                           (string-append
+                                                            (symbol->string (first locals))
+                                                            "' found")))
+                                            )]
                                   [LexBlock (nls e) (LexBlock nls (bindings-for-nonlocal
                                                                    (remove-duplicates
                                                                     (flatten (list bindings these-locals nls)))
                                                                    e))]
                                   [LexLocalId (x ctx) (begin (set! these-locals (cons x these-locals)) e)]
                                   [else (default-recur)]
-                                  )))))]
-       (k (bindings-for-nonlocal empty expr))))))
+                                  )))))
+       (define (continue/break-errors-finally expr)
+         (lexexpr-modify-tree
+          expr
+          (lambda [e]
+            (type-case LexExpr e
+              [LexContinue () (syntax-error "'continue' not supported inside 'finally clause")]
+              ;break is totally supported inside finally blocks
+              [LexWhile (a b c) (continue/break-errors e)]
+              [LexFor (a b c) (continue/break-errors e)]
+              [else (default-recur)]))))
+
+       (define (continue/break-correct expr)
+         (lexexpr-modify-tree
+          expr
+          (lambda (e)
+            (type-case LexExpr e
+              [LexBlock (nls es) (LexBlock nls (continue/break-errors es))]
+              [LexTryFinally (try finally)
+                             (LexTryFinally
+                              (continue/break-errors try)
+                              (continue/break-errors-finally finally))]
+            [else (default-recur)])))
+         )
+
+       (define (continue/break-errors expr)
+         (lexexpr-modify-tree
+          expr
+          (lambda (e)
+            (type-case LexExpr e
+              [LexTryFinally (try finally)
+                             (LexTryFinally
+                              (continue/break-errors try)
+                              (continue/break-errors-finally finally))]
+              [LexContinue () (syntax-error "'continue' not properly in loop")]
+              [LexBreak () (syntax-error "'break' outside loop")]
+              [LexWhile (test body orelse) (LexWhile
+                                            (continue/break-errors test)
+                                            (continue/break-correct body)
+                                            (continue/break-errors orelse))]
+              [LexFor (target iter body) (LexFor
+                                          (continue/break-errors target)
+                                          (continue/break-errors iter)
+                                          (continue/break-correct body))]
+              [else (default-recur)]))))
+       
+         ]
+       ;(k (continue/break-errors (bindings-for-nonlocal empty expr)))
+      ;we're doing the smart thing and just letting python find our synatx errors.
+      expr))))
 
 
 
@@ -204,13 +299,6 @@
        [PyLexGlobal(y) (LexPass)]
        [else (default-recur)]))))
 
-(define (remove-nonlocal expr)
-  (lexexpr-modify-tree
-   expr
-   (lambda (x)
-     (type-case LexExpr x
-       [PyLexNonLocal(y) (LexPass)]
-       [else (default-recur)]))))
 
 (define (remove-unneeded-pypass expr)
   (lexexpr-modify-tree
@@ -224,15 +312,6 @@
                 [(empty? (rest filtered-seq)) (remove-unneeded-pypass (first filtered-seq))]
                 [else (LexSeq (map remove-unneeded-pypass filtered-seq))]))]
        [else (default-recur)]))))
-
-(define (remove-blocks expr)
-  (lexexpr-modify-tree
-   expr
-   (lambda (x)
-     (type-case LexExpr x
-       [LexBlock (nls e) (remove-blocks e)]
-       [else (default-recur)]))))
-
 
 
 #;(define (assert-pyblock-exists expr)
@@ -425,7 +504,7 @@
       (lambda (x)
         (type-case LexExpr x
           [PyLexId (x ctx) (begin #;(display "it's an ID\n") (LexGlobalId x ctx))]
-                                        ;[LexReturn (r) (LexReturn (make-all-global r))]
+                                        ;[LexReturn (r) (LexReturn (option-map make-all-global r))]
           [else (begin #;(display "executing default\n") (default-recur))]))))
       ))
 

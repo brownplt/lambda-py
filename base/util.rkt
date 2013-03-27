@@ -5,7 +5,6 @@
 (require [opaque-type-in racket/set [Set set?]])
 (require
  (typed-in racket/string (string-join : ((listof string) string -> string)))
- (typed-in racket/base (hash-for-each : ((hashof 'a 'b) ('c 'd -> 'e) -> void)))
  (typed-in racket/base (hash->list : ((hashof 'a 'b)  -> (listof 'c))))
  (typed-in racket/base (number->string : (number -> string)))
  (typed-in racket/base (car : (('a * 'b)  -> 'a)))
@@ -37,37 +36,23 @@
 ; sys.path default value
 
 (define default-builtin-module-paths
-  (list "."
-        (string-append
-         (path->string (current-directory)) "../tests/modules/")))
+  (let ((wd (path->string (current-directory))))
+    (list "."
+          (string-append
+           wd "../tests/modules/")
+          (string-append
+           wd "../python-lib/")
+          (string-append
+           wd "../tests/python-reference/modules/"))))
 
 (define (get-module-path)
   default-builtin-module-paths)
 
-(define python-path "/usr/local/bin/python3.2")
+(define python-path "/usr/bin/python/")
 (define (get-pypath)
   python-path)
 (define (set-pypath p)
   (set! python-path p))
-
-; lists->hash - given two parallel list produce a mutable hash mapping 
-; values from one to values in the other
-(define (lists->hash [l1 : (listof 'a)] [l2 : (listof 'b)]) : (hashof 'a 'b)
-  (local [(define h (make-hash empty))]
-    (begin
-      (map2 (lambda (k v) (hash-set! h k v))
-            l1 l2)
-      h)))
-
-(define (make-exception-class [name : symbol]) : CExpr
-  (builtin-class
-    name
-    (list 'BaseException)
-    (CNone)))
-
-(define (assign [name : symbol] [expr : CExpr]) : CExpr
-  (CAssign (CId name (GlobalId))
-           expr))
 
 (define (list-subtract [big : (listof 'a) ] [small : (listof 'a)] ) : (listof 'a)
   (local
@@ -81,6 +66,17 @@
 
 (define (contains-char? [str : string] [c : char] ) : boolean
   (not (empty? (filter (lambda (x) (char=? x c)) (string->list str)))))
+
+(define (contains-str? [str : string] [s : string] ) : boolean
+  (local
+   [(define (hlpr [str : (listof char)] [s : (listof char)])
+      (cond
+       [(empty? s) true]
+       [(empty? str) false]
+       [(equal? (first s) (first str)) (hlpr (rest str) (rest s))]
+       [else (hlpr (rest str) s)]
+       ))]
+   (hlpr (string->list str) (string->list s))))
 
 (define (chr [str : string] ) : char
   (let ((strlist (string->list str)))
@@ -96,12 +92,6 @@
     [(= 0 i) (cons val (rest l))]
     [else (cons (first l) (list-replace (- i 1) val (rest l)))]))
 
-(define (immutable-hash-copy h)
-  (let ([r (hash empty)])
-    (begin
-      (hash-for-each h (lambda (k v) (set! r (hash-set r k v))))
-      r)))
-
 (define (seq-ops (ops : (listof CExpr))) : CExpr
   (cond 
     [(= 1 (length ops)) (first ops)]
@@ -109,60 +99,15 @@
                 (seq-ops (rest ops)))]))
 
 (define (def (class : symbol) (name : symbol) (expr : CExpr)) : CExpr
-  (CAssign (CGetField (CId class (GlobalId)) name) expr))
+  (set-field (CId class (GlobalId)) name expr))
 
 (define (VObject [antecedent : symbol] [mval : (optionof MetaVal)]
                  [dict : (hashof 'symbol Address)]) : CVal
   (VObjectClass antecedent mval dict (none)))
 
-
-; Macro to match varargs
-; Example:
-;
-; (match-varargs 'args
-;   [() (CObject (gid '%num) (some (MetaNum 0)))]
-;   [('a) (CId 'a (LocalId))]
-;   [('a 'b) (CBuiltinPrim 'num+ (CId 'a (LocalId)) (CId 'b (LocalId)))])
-;
-(define-syntax (match-varargs x)
-  (syntax-case x ()
-    [(match-varargs 'args [vars body])
-     #'(if-varargs 'args vars body)]
-    [(match-varargs 'args [vars1 body1] [vars2 body2])
-     #'(if-varargs 'args vars1 body1
-                 (if-varargs 'args vars2 body2))]
-    [(match-varargs 'args [vars1 body1] [vars2 body2] [vars3 body3])
-     #'(if-varargs 'args vars1 body1
-                 (if-varargs 'args vars2 body2
-                             (if-varargs 'args vars3 body3)))]))
-
-; Helper macro used in implementing match-varargs
-(define-syntax (if-varargs x)
-  (syntax-case x ()
-    [(if-varargs 'args vars body)
-     #'(if-varargs 'args vars body (make-exception 'TypeError "argument mismatch"))]
-    [(if-varargs 'args () body else-part)
-     #'(CIf ; Did we get 0 args?
-        (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
-        body
-        else-part)]
-    [(if-varargs 'args (a) body else-part)
-     #'(CIf ; Did we get 1 args?
-        (CBuiltinPrim 'num= (list (py-len 'args) (py-num 1)))
-        (CLet a (LocalId) (py-getitem 'args 0)
-              body)
-        else-part)]
-    [(if-varargs 'args (a b) body else-part)
-     #'(CIf ; Did we get 2 args?
-        (CBuiltinPrim 'num= (list (py-len 'args) (py-num 2)))
-        (CLet a (LocalId) (py-getitem 'args 0)
-              (CLet b (LocalId) (py-getitem 'args 1)
-                    body))
-        else-part)]))
-
 (define-syntax (check-types-pred x)
   (syntax-case x ()
-    [(check-types args env sto tpred1? body)
+    [(_ args env sto tpred1? body)
      (with-syntax ([mval1 (datum->syntax x 'mval1)])
        #'(let ([arg1 (first args)])
            (if (VObjectClass? arg1)
@@ -173,7 +118,7 @@
                        body)
                      (none)))
                (none))))]
-    [(check-types args env sto tpred1? tpred2? body)
+    [(_ args env sto tpred1? tpred2? body)
      (with-syntax ([mval1 (datum->syntax x 'mval1)]
                    [mval2 (datum->syntax x 'mval2)])
        #'(let ([arg1 (first args)]
@@ -188,56 +133,22 @@
                            [mval2 (some-v mayb-mval2)])
                        body)
                      (none)))
-               (none))))]))
-
-;; the copypasta here is bad but we aren't clever enough with macros
-(define-syntax (check-types x)
-  (syntax-case x ()
-    [(check-types args env sto t1 body)
-     (with-syntax ([mval1 (datum->syntax x 'mval1)])
-       #'(let ([arg1 (first args)])
-           (if (and (VObjectClass? arg1)
-                    (object-is? arg1 t1 env sto))
-               (let ([mayb-mval1 (VObjectClass-mval arg1)])
-                 (if (some? mayb-mval1)
-                     (let ([mval1 (some-v mayb-mval1)])
-                       body)
-                     (none)))
                (none))))]
-    [(check-types args env sto t1 t2 body)
-     (with-syntax ([mval1 (datum->syntax x 'mval1)]
-                   [mval2 (datum->syntax x 'mval2)])
-       #'(let ([arg1 (first args)]
-               [arg2 (second args)])
-           (if (and (VObjectClass? arg1) (VObjectClass? arg2)
-                    (object-is? arg1 t1 env sto)
-                    (object-is? arg2 t2 env sto))
-               (let ([mayb-mval1 (VObjectClass-mval arg1)]
-                     [mayb-mval2 (VObjectClass-mval arg2)])
-                 (if (and (some? mayb-mval1) (some? mayb-mval2))
-                     (let ([mval1 (some-v mayb-mval1)]
-                           [mval2 (some-v mayb-mval2)])
-                       body)
-                     (none)))
-               (none))))]
-    [(check-types args env sto t1 t2 t3 body)
+    [(_ args env sto tpred1? tpred2? tpred3? body)
      (with-syntax ([mval1 (datum->syntax x 'mval1)]
                    [mval2 (datum->syntax x 'mval2)]
                    [mval3 (datum->syntax x 'mval3)])
        #'(let ([arg1 (first args)]
                [arg2 (second args)]
                [arg3 (third args)])
-           (if (and (VObjectClass? arg1) (VObjectClass? arg2)
-                    (VObjectClass? arg3)
-                    (object-is? arg1 t1 env sto)
-                    (object-is? arg2 t2 env sto)
-                    (object-is? arg3 t3 env sto))
+           (if (and (VObjectClass? arg1) (VObjectClass? arg2) (VObjectClass? arg3))
                (let ([mayb-mval1 (VObjectClass-mval arg1)]
                      [mayb-mval2 (VObjectClass-mval arg2)]
                      [mayb-mval3 (VObjectClass-mval arg3)])
-                 (if (and (some? mayb-mval1) 
-                          (some? mayb-mval2)
-                          (some? mayb-mval3))
+                 (if (and (some? mayb-mval1) (some? mayb-mval2) (some? mayb-mval3)
+                          (tpred1? (some-v (VObjectClass-mval arg1)))
+                          (tpred2? (some-v (VObjectClass-mval arg2)))
+                          (tpred3? (some-v (VObjectClass-mval arg3))))
                      (let ([mval1 (some-v mayb-mval1)]
                            [mval2 (some-v mayb-mval2)]
                            [mval3 (some-v mayb-mval3)])
@@ -245,39 +156,34 @@
                      (none)))
                (none))))]))
 
-;; returns true if the given o is an object of the given class or somehow a
-;; subclass of that one. Modified to look at __mro__ for multiple inheritance
-;; and to use the class object instead of the class name.
-;; Preseved for compatibility with check-types macro, it should be avoided for other uses.
-(define (object-is? [o : CVal] [c : symbol] [env : Env] [s : Store]) : boolean
-  (let ([obj-cls (get-class o env s)]
-        [cls (fetch-once (some-v (lookup c env)) s)])
-    (member cls (get-mro obj-cls (none) s))))
 
-;; get-mro: fetch __mro__ field as a list of classes, filtered up to thisclass if given
-;; and prepended with cls to avoid self reference in __mro__
+;; object-is?: returns true if the given o is an object of the given class or somehow a
+;; subclass of that one, it uses __mro__ field for multiple inheritance.
+;; Reserved for builtin classes, cls should be an id in the builtin scope (%xxx).
+(define (object-is? [obj : CVal] [cls : symbol] [env : Env] [sto : Store]) : boolean
+  (type-case (optionof Address) (lookup cls env)
+    [some (w_cls)
+          (let ([obj-cls (get-class obj env sto)]
+                [cls (fetch-once w_cls sto)])
+            (member cls (get-mro obj-cls sto)))]
+    [none ()
+          (error 'object-is? (string-append "class not found in env: "
+                                            (symbol->string cls)))]))
+
+;; get-mro: fetch-ptr __mro__ field as a list of classes
 (define (get-mro [cls : CVal] 
-                 [thisclass : (optionof CVal)]
                  [sto : Store]) : (listof CVal)
   (type-case (optionof Address) (hash-ref (VObjectClass-dict (fetch-ptr cls sto)) '__mro__)
-    [some (w) (let ([mro (cons cls (MetaTuple-v (some-v (VObjectClass-mval
-                                                  (fetch-ptr (fetch-once w sto) sto)))))])
-                (if (none? thisclass)
-                    mro
-                    (if (> (length
-                             (filter (lambda (c) (eq? (fetch-ptr (some-v thisclass) sto)
-                                                      (fetch-ptr c sto)))
-                                     mro))
-                           0)
-                        (rest (memf (lambda (c) (eq? (fetch-ptr (some-v thisclass) sto)
-                                                     (fetch-ptr c sto)))
-                                    mro))
-                        (error 'get-mro
-                          (string-append
-                            (format "No member ~a in class mro " (some-v thisclass))
-                              (to-string mro))))))]
+    [some (w) (MetaTuple-v (some-v (VObjectClass-mval
+                                    (fetch-ptr (fetch-once w sto) sto))))]
     [none () (error 'get-mro (string-append "class without __mro__ field " 
-                                            (pretty cls)))]))
+                                            (to-string (fetch-ptr cls sto))))]))
+
+;; option-map: unwrap the option, perform the function (if applicable), re-wrap.
+(define (option-map [fn : ('a -> 'b)] [thing : (optionof 'a)]) : (optionof 'b)
+    (type-case (optionof 'a) thing
+          [some (v) (some (fn v))]
+              [none () (none)]))
 
 ;; get-class: retrieve the object's class
 (define (get-class [obj : CVal] [env : Env] [sto : Store]) : CVal
@@ -287,7 +193,7 @@
     (type-case (optionof CVal) w_class
       [some (cv) cv]
       [none () (error 'get-class (string-append "object without class " 
-                                                (pretty obj)))])))
+                                                (pretty obj sto)))])))
 
 
 (define (is? [v1 : CVal]
@@ -299,40 +205,42 @@
         (and (is-obj-ptr? v1 s) (is-obj-ptr? v2 s)
              (eq? (fetch-ptr v1 s) (fetch-ptr v2 s))))))
 
-(define (pretty arg)
+
+(define (pretty arg [sto : Store])
   (type-case CVal arg
     [VObjectClass (a mval d class) (if (some? mval)
-                            (pretty-metaval (some-v mval))
+                            (pretty-metaval (some-v mval) sto)
                             "Can't print non-builtin object.")]
-    [VClosure (env args sarg body opt-class) "<function>"]
+    [VSym (s) (symbol->string s)]
     [VUndefined () "Undefined"]
-    [VPointer (a) (string-append "Pointer to address " (number->string a))]))
+    [VPointer (a) (pretty (fetch-ptr arg sto) sto)]))
 
-(define (pretty-metaval (mval : MetaVal)) : string
-  (type-case MetaVal mval
-    [MetaNum (n) (number->string n)]
-    [MetaStr (s) s]
-    [MetaClass (c) (string-append "<class "
-                     (string-append (symbol->string c)
-                                    ">"))]
-    [MetaList (v) (string-append
-                   (string-append "["
-                                  (string-join (map pretty v) ", "))
-                   "]")]
-    [MetaTuple (v) (string-append
-                   (string-append "("
-                                  (string-join (map pretty v) ", "))
-                   ")")]
-    [MetaDict (contents)
-              (string-append
+(define (pretty-metaval (mval : MetaVal) (sto : Store) ) : string
+  (let ((pretty (lambda (y) (pretty y sto))))
+    (type-case MetaVal mval
+      [MetaNum (n) (number->string n)]
+      [MetaStr (s) s]
+      [MetaClass (c) (string-append "<class "
+                                    (string-append (symbol->string c)
+                                                   ">"))]
+      [MetaList (v) (string-append
+                     (string-append "["
+                                    (string-join (map pretty v) ", "))
+                     "]")]
+      [MetaTuple (v) (string-append
+                      (string-append "("
+                                     (string-join (map pretty v) ", "))
+                      ")")]
+      [MetaDict (contents)
+                (string-append
               (string-append "{"
                              (string-join
-                               (map (lambda (pair)
+                              (map (lambda (pair)
                                       (string-append (pretty (car pair))
-                                        (string-append ": "
-                                                       (pretty (cdr pair)))))
-                                    (hash->list contents))
-                               ", "))
+                                                     (string-append ": "
+                                                                    (pretty (cdr pair)))))
+                                   (hash->list contents))
+                              ", "))
               "}")]
     [MetaCode (e filename code)
               "<code object>"]
@@ -343,19 +251,22 @@
                              (string-join (map pretty (set->list elts)) ", "))
               "}")]
     [else "builtin-value"]
-    ))
+    )))
 
 (define (pretty-exception [exnptr : CVal] [sto : Store] [print-name : boolean]) : string
-  (local [(define exn (fetch-ptr exnptr sto))
+  (let ((pretty (lambda (y) (pretty y sto))))
+  (local [
+          (define exn (fetch-ptr exnptr sto))
           (define name (symbol->string (VObjectClass-antecedent exn)))
           (define args-loc (hash-ref (VObjectClass-dict exn) 'args))
           (define pretty-args (if (some? args-loc)
                                   (string-join 
-                                    (map pretty
+                                    (map (lambda (v) (pretty (fetch-ptr v sto)))
                                          (MetaTuple-v
                                            (some-v
                                              (VObjectClass-mval
-                                               (fetch (some-v args-loc) sto)))))
+                                               (fetch-ptr
+                                                (fetch-once (some-v args-loc) sto) sto)))))
                                     " ")
                                   ""))]
     (if print-name
@@ -364,13 +275,15 @@
                            (string-append ": "
                                           pretty-args))
             name)
-        pretty-args)))
+        pretty-args))))
 
 (define (make-exception [name : symbol] [error : string]) : CExpr
-  (CApp
-    (CId name (GlobalId))
-    (list (make-builtin-str error))
-    (none)))
+  (CLet '$call (LocalId) (py-getfield (CId name (GlobalId)) '__call__)
+        (CApp
+         (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId)) (make-builtin-str "__func__")))
+         (list (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId)) (make-builtin-str "__self__")))
+               (make-builtin-str error))
+         (none))))
 
 (define (default-except-handler [id : symbol] [body : CExpr]) : CExpr
   (CIf (CApp (CId '%isinstance (GlobalId))
@@ -418,15 +331,15 @@
           new-false))
       (v*s false-val sto)))
 
-(define nonedummy (VObjectClass 'none (some (MetaNone)) (hash empty) (none)))
+(define nonedummy (VObjectClass 'NoneType (some (MetaNone)) (hash empty) (none)))
 (define vnone nonedummy)
 (define (renew-none env sto)
   (if (or (VObjectClass? vnone)
           (and (is-obj-ptr? vnone sto)
                (VUndefined? (some-v (VObjectClass-class (fetch-ptr vnone sto))))))
       (local [(define with-class
-                (VObjectClass 'none (some (MetaNone)) (hash empty)
-                              (some (fetch-once (some-v (lookup '%none env)) sto))))
+                (VObjectClass 'NoneType (some (MetaNone)) (hash empty)
+                              (some (fetch-once (some-v (lookup '%NoneType env)) sto))))
               (define new-false (alloc-result with-class sto))]
         (begin
           (set! vnone (v*s-v new-false))
@@ -439,21 +352,6 @@
     (set! false-val falsedummy)
     (set! vnone nonedummy)))
 
-(define (get-optionof-field [n : symbol] [c : CVal] [e : Env] [s : Store]) : (optionof CVal)
-  (begin ;(display n) (display " -- ") (display c) (display "\n") (display e) (display "\n\n")
-  (type-case CVal c
-    [VObjectClass (antecedent mval d class) 
-                    (let ([w (hash-ref (VObjectClass-dict c) n)])
-              (type-case (optionof Address) w
-                [some (w) (some (fetch w s))]
-                [none () (let ([mayb-base (lookup antecedent e)])
-                           (if (some? mayb-base)
-                             (let ([base (fetch (some-v mayb-base) s)])
-                                 (get-optionof-field n base e s))
-                                           (none)))]))]
-    [else (error 'interp "Not an object with functions.")])))
-
-
 (define (make-set [vals : (listof CVal)]) : Set
   (foldl (lambda (elt st)
                  (set-add st elt))
@@ -465,30 +363,47 @@
   (foldr (lambda (e1 e2) (or e1 e2)) #f bs))
 
 
-
 ;; syntactic sugars to avoid writing long expressions in the core language
+(define (assign [name : symbol] [expr : CExpr]) : CExpr
+  (CAssign (CId name (GlobalId))
+           expr))
+
+(define (set-field obj name val)
+  (CSetAttr obj (make-pre-str (symbol->string name)) val))
+
 (define (py-num [n : number])
   (CObject (gid '%num) (some (MetaNum n))))
 
 (define (py-len name)
-  (CApp (CGetField (CId name (LocalId)) '__len__)
+  (py-app (py-getfield (CId name (LocalId)) '__len__)
         (list)
         (none)))
 
 (define (py-getitem name index)
-  (CApp (CGetField (CId name (LocalId)) '__getitem__)
+  (py-app (py-getfield (CId name (LocalId)) '__getitem__)
         (list (CObject (gid '%num) (some (MetaNum index))))
         (none)))
 
 (define-syntax pylam
   (syntax-rules ()
     [(_ (arg ...) body)
-     (CFunc (list arg ...) (none) body (none))]))
+     (CFunc (list arg ...) (none) (CReturn body) (none))]))
 
 (define-syntax pyapp
   (syntax-rules ()
     [(_ fun arg ...)
+     (py-app fun (list arg ...) (none))]))
+
+;; NOTE(dbp): This is for application within CPS'd code, when we _know_ we have CFuncs
+(define-syntax pyapp-simple
+  (syntax-rules ()
+    [(_ fun arg ...)
      (CApp fun (list arg ...) (none))]))
+
+
+(define (pyget val fld)
+  (pyapp (py-getfield val '__getitem__)
+               fld))
 
 (define (Id x)
   (CId x (LocalId)))
@@ -504,12 +419,15 @@
 
 (define-syntax (Method stx)
   (syntax-case stx ()
-    [(_ obj name arg ...) #'(CApp (CGetField obj name) (list arg ...) (none))]))
+    [(_ obj name arg ...) #'(py-app (py-getfield obj name) (list arg ...) (none))]))
 
 
  
 (define (make-builtin-str [s : string]) : CExpr
   (CObject (gid '%str) (some (MetaStr s))))
+
+(define (make-pre-str [s : string]) : CExpr
+  (CObject (CNone) (some (MetaStr s))))
 
 (define (make-builtin-num [n : number]) : CExpr
   (CObject
@@ -518,33 +436,92 @@
         (gid '%float))
     (some (MetaNum n))))
 
-(define (Num num)
-  (make-builtin-num num))
-
 (define-syntax (Construct stx)
   (syntax-case stx ()
     [(_ class arg ...)
-     #'(CApp (CGetField class '__init__) (list arg ...) (none))]))
-
-(test (Let 'x (CNone) (make-builtin-str "foo"))
-      (CLet 'x (LocalId) (CNone)
-        (make-builtin-str "foo")))
-
-(test (Prim 'num< (make-builtin-str "foo") (make-builtin-str "bar"))
-      (CBuiltinPrim 'num< (list (make-builtin-str "foo") (make-builtin-str "bar"))))
+     #'(py-app (py-getfield class '__init__) (list arg ...) (none))]))
 
 ;; strip the CLet in CModule
 (define (get-module-body (es : CExpr)) : CExpr
-  (type-case CExpr es
-    [CModule (pre body) (get-module-body body)]
-    [CLet (x type bind body)
-          (get-module-body body)]   
-    [else es]))
+  (cond [(not (CModule? es))
+         (error 'get-module-body "internal error: get-module-body func received a non-module")]
+        [else
+         (local [(define local-func (CSeq-e1 (CModule-body es))) ; %locals trick
+                 (define real-body (CSeq-e2 (CModule-body es)))
+                 (define (strip-CLet e)
+                   (type-case CExpr e
+                              [CLet (x type bind body)
+                                    (strip-CLet body)]
+                              [else e]))]
+            (CSeq local-func
+                  (strip-CLet real-body)))]))
 
-;; builtin-class: used construct builtin classes in the core language
-(define (builtin-class [name : symbol] [bases : (listof symbol)] [body : CExpr]) : CExpr
-  (CClass name
-          ;; builtin classes are bound to ids in the global scope
-          (CTuple (CNone) ;; we may not have a tuple class object yet
-                  (map (lambda (id) (CId id (GlobalId))) bases))
-          body))
+;; sinctactic sugar to apply a function or method
+(define (py-app [fun : CExpr] [args : (listof CExpr)] [stararg : (optionof CExpr)]) : CExpr
+  (CLet '$fun (LocalId) fun
+        (CIf (CBuiltinPrim 'is-func? (list (CId '$fun (LocalId))))
+             ;; function call
+             (CApp (CId '$fun (LocalId)) args stararg)
+             ;; try to get __call__ attribute
+             (CTryExceptElse
+              (py-getfield (CId '$fun (LocalId)) '__call__)
+              ;; exception raised, not callable
+              '_ (CRaise (some (make-exception 'TypeError "object is not callable")))
+              ;; no exception, __call__ is available
+              (CLet '$call (LocalId) (py-getfield (CId '$fun (LocalId)) '__call__)
+                    (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
+                         ;; __call__ is a function
+                         (CApp (CId '$call (LocalId)) args stararg)
+                         ;; else it should be a method, call __func__ and pass __self__ as first arg.
+                         (CApp (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                (make-builtin-str "__func__")))
+                               (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                      (make-builtin-str "__self__")))
+                                     args)
+                               stararg)))))))
+
+
+(define (py-setfield obj attr val)
+  (CLet '$obj (LocalId) obj
+    (CApp (CGetAttr
+            (CBuiltinPrim '$class (list (CId '$obj (LocalId))))
+            (make-pre-str "__setattr__"))
+          (list
+           (CId '$obj (LocalId))
+           (make-pre-str (symbol->string attr))
+           val)
+          (none))))
+
+(define (py-delfield obj attr)
+  (CLet '$obj (LocalId) obj
+    (CApp (CGetAttr
+            (CBuiltinPrim '$class (list (CId '$obj (LocalId))))
+            (make-builtin-str "__delattr__"))
+          (list
+           (CId '$obj (LocalId))
+           (make-builtin-str (symbol->string attr)))
+          (none))))
+
+;; sintactic sugar to get a field from an object
+(define (py-getfield [obj-exp : CExpr] [attr : symbol]) : CExpr
+  (local [(define (is-special-method? [n : symbol])
+            (member n (list '__in__ '__call__ '__eq__ '__cmp__ '__str__ '__getitem__ '__gt__ '__lt__ '__lte__ '__gte__)))]
+    (cond
+      [(eq? attr '__class__)
+       ;; special attribute __class__, cannot be overriden.
+       (CBuiltinPrim '$class (list obj-exp))]
+      [(eq? attr '__dict__)
+       ;; special attribute __dict__, cannot be overriden.
+       (CApp (CId '%obj_dict (GlobalId)) (list obj-exp) (none))]
+      [(eq? attr '__mro__)
+       ;; special attribute __mro__, cannot be overriden.
+       (CBuiltinPrim 'obj-getattr (list obj-exp (make-builtin-str "__mro__")))]
+      [(is-special-method? attr)
+       ;; special methods cannot be overriden by __getattribute__, call %special_getattr(obj, attr)
+       (CApp (CId '%special_getattr (GlobalId)) (list obj-exp (make-builtin-str (symbol->string attr))) (none))]
+      [else
+       ;; normal case, call type(obj).__getattribute__(obj, attr), this can be overriden
+       (CLet '$obj (LocalId) obj-exp
+             (CLet '$cls (LocalId) (CBuiltinPrim '$class (list (CId '$obj (LocalId))))
+                   (CApp (CGetAttr (CId '$cls (LocalId)) (make-builtin-str "__getattribute__"))
+                         (list (CId '$obj (LocalId)) (make-builtin-str (symbol->string attr))) (none))))])))

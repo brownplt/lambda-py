@@ -27,9 +27,10 @@ def f():
     lambda *a: 0
     lambda: 0
 
-    yield 1,2
-    a = yield b,
-    yield
+    def g():
+        yield 1,2
+        a = yield b,
+        yield
 
     d > e <= f is not g != h in i
 
@@ -100,10 +101,17 @@ def f():
     assert i
     assert i,i
 
-    global j
-    global k,l,m
-    nonlocal n
-    nonlocal o,p,q
+    global gj
+    global gk,gl,gm
+
+    la = 1
+    lb = 1
+    lc = 1
+    ld = 1
+    
+    def h():
+        nonlocal la
+        nonlocal lb,lc,ld
 
     with a, b, c: pass
     with d as e, f as g, h: pass
@@ -171,8 +179,8 @@ def f():
     @n(o)
     @p.q(r,s=t,*u,**v)
     class w(x,y=z,*a,**b): pass
-
     import a,b as c,d.e as f
-    from ....a import *
     from c.d import (e,f)
     from ... import g as h, i
+
+from sys import *

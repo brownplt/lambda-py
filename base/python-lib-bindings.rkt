@@ -5,7 +5,6 @@
          "builtins/str.rkt"
          "builtins/list.rkt"
          "builtins/tuple.rkt"
-         "builtins/dict.rkt"
          "builtins/object.rkt"
          "builtins/bool.rkt"
          "builtins/set.rkt"
@@ -13,6 +12,7 @@
          "builtins/file.rkt"
          "builtins/code.rkt"
          "builtins/module.rkt"
+         "builtins/type.rkt"
          "util.rkt"
          "modules/builtin-modules.rkt"
          (typed-in "get-structured-python.rkt"
@@ -39,11 +39,7 @@
                  (CNone)))
       (def 'BaseException '__init__
            (CFunc (list 'self) (some 'args)
-                  (CAssign 
-                    (CGetField
-                      (CId 'self (LocalId))
-                      'args)
-                    (CId 'args (LocalId)))
+                  (set-field (CId 'self (LocalId)) 'args (CId 'args (LocalId)))
                   (some 'BaseException)))
       (def 'BaseException '__str__
            (CFunc (list 'self) (none)
@@ -52,11 +48,17 @@
                                   (list (CId 'self (LocalId)))))
                   (some 'BaseException))))))
 
+(define (make-exception-class [name : symbol]) : CExpr
+  (builtin-class
+    name
+    (list 'BaseException)
+    (CNone)))
+
 (define len-lambda
   (CFunc (list 'self) (none)
     (CReturn
-      (CApp
-        (CGetField
+      (py-app
+        (py-getfield
           (CId 'self (LocalId))
           '__len__)
         (list)
@@ -66,8 +68,8 @@
 (define min-lambda
   (CFunc (list 'self) (none)
     (CReturn
-      (CApp
-        (CGetField
+      (py-app
+        (py-getfield
           (CId 'self (LocalId))
           '__min__)
         (list)
@@ -77,8 +79,8 @@
 (define max-lambda
   (CFunc (list 'self) (none)
     (CReturn
-      (CApp
-        (CGetField
+      (py-app
+        (py-getfield
           (CId 'self (LocalId))
           '__max__)
         (list)
@@ -88,34 +90,22 @@
 (define abs-lambda
   (CFunc (list 'self) (none)
     (CReturn
-      (CApp
-        (CGetField
+      (py-app
+        (py-getfield
           (CId 'self (LocalId))
           '__abs__)
         (list)
         (none)))
     (none)))
 
-(define callable-lambda
-  (local [(define exn-id (new-id))]
-    (CFunc (list 'to-check) (none)
-           (CSeq
-             (CTryExceptElse
-               ;; try to get __call__ attribute and return True
-               (CSeq
-                 (CGetField (CId 'to-check (LocalId)) '__call__)
-                 (CReturn (CTrue)))
-               exn-id 
-               (default-except-handler exn-id (CNone))
-               (CNone))
-             ;; use the primary operator
-             (CReturn (CPrim1 'callable (CId 'to-check (LocalId)))))
-           (none))))
-
 (define locals-lambda
   (CFunc (list) (none)
-         (CReturn
-          (CBuiltinPrim '$locals empty))
+         (CReturn (CApp (CId '%locals (GlobalId)) (list) (none)))
+         (none)))
+
+(define globals-lambda
+  (CFunc (list) (none)
+         (CReturn (CApp (CId '%globals (GlobalId)) (list) (none)))
          (none)))
 
 ;; TODO: if source contains null bytes, it should raise TypeError
@@ -126,7 +116,8 @@
                         (list
                          (CId 'source (LocalId))
                          (CId 'filename (LocalId))
-                         (CId 'mode (LocalId)))))
+                         (CId 'mode (LocalId))
+                         (CId '%code (GlobalId)))))
          (none)))
 
 (define make_module-lambda
@@ -162,9 +153,11 @@
         (bind 'max (assign 'max max-lambda))
         (bind 'abs (assign 'abs abs-lambda))
 
-        (bind 'callable (assign 'callable callable-lambda))
-        (bind '%callable (assign '%callable (CId 'callable (GlobalId))))
         (bind 'locals (assign 'locals locals-lambda))
+		(bind '%locals (assign '%locals (CFunc empty (none) (CReturn (CNone)) (none))))
+        (bind 'globals (assign 'globals globals-lambda))
+		(bind '%globals (assign '%globals (CFunc empty (none) (CReturn (CNone)) (none))))
+        
 
         (bind 'BaseException base-exception)
         (bind 'Exception (assign 'Exception (make-exception-class 'Exception)))
@@ -191,8 +184,8 @@
       (map (lambda(b) (bind (bind-left b) (CUndefined)))
            lib-functions)
       (list 
-            (bind 'none (CUndefined))
-            (bind '%none (CUndefined))
+            (bind 'NoneType (CUndefined))
+            (bind '%NoneType (CUndefined))
             (bind 'iter (CUndefined))
             (bind '%iter (CUndefined))
             (bind 'next (CUndefined))
@@ -231,15 +224,38 @@
             (bind '%set (CUndefined))
             (bind 'type (CUndefined))
             (bind '%type (CUndefined))
+            (bind 'function (CUndefined))
+            (bind '%function (CUndefined))
             (bind 'super (CUndefined))
+            (bind '%super (CUndefined))
             (bind 'method (CUndefined))
+            (bind '%method (CUndefined))
             (bind 'open (CUndefined))
             (bind '%open (CUndefined))
             (bind 'file (CUndefined))
             (bind '%file (CUndefined))
             (bind 'classmethod (CUndefined))
+            (bind '%classmethod (CUndefined))
             (bind 'staticmethod (CUndefined))
+            (bind '%staticmethod (CUndefined))
             (bind '__import__ (CUndefined))
+            (bind 'callable (CUndefined))
+            (bind '%callable (CUndefined))
+            (bind 'generator (CUndefined))
+            (bind '%generator (CUndefined))
+            (bind 'getattr (CUndefined))
+            (bind '%getattr (CUndefined))
+            (bind 'hasattr (CUndefined))
+            (bind '%hasattr (CUndefined))
+            (bind 'setattr (CUndefined))
+            (bind '%setattr (CUndefined))
+            (bind 'delattr (CUndefined))
+            (bind '%delattr (CUndefined))
+            (bind 'dir (CUndefined))
+            (bind '%dir (CUndefined))
+            (bind '%special_getattr (CUndefined))
+            (bind '%obj_dict (CUndefined))
+            (bind 'property (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
             (bind '___assertTrue (CUndefined))
