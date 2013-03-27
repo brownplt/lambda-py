@@ -1,6 +1,6 @@
 chk = 'init'
 while True:
-  if chk == 'saw while':
+  if chk is 'saw while':
     chk = 100
     break
   try:
@@ -8,7 +8,7 @@ while True:
     continue
     chk = 'better-not-be-this'
   finally:
-    if chk == 'in loop':
+    if chk is 'in loop':
       chk = 'saw while'
 
 ___assertEqual(chk, 100)
