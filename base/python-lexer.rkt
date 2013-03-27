@@ -68,14 +68,13 @@ This only works because there are no valid source chars outside the ASCII range 
   (stringescapeseq (:: "\\" any-char)))
 
 (define (parse-string lexeme)
-  (let* ((raw (eq? "r" (substring lexeme 0 1)))
+  (let* ((raw (equal? "r" (substring lexeme 0 1)))
 	 (lexeme-noraw (substring lexeme (if raw 1 0)))
-	 (triple (eq? (substring lexeme-noraw 0 1) (substring lexeme-noraw 1 2)))
+	 (triple (equal? (substring lexeme-noraw 0 1) (substring lexeme-noraw 1 2)))
 	 (lexeme-no-quotes (substring lexeme-noraw 
 				      (if triple 3 1) 
 				      (- (string-length lexeme-noraw) (if triple 3 1)))))
     (if raw lexeme-no-quotes (backslash-escaped lexeme-no-quotes))))
-
 
 ; Char c in the set abfnrtv to escaped character of \c
 (define (escape-char c)
