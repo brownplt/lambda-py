@@ -474,8 +474,10 @@
                                             (hash-set obj-attr
                                                       (first ids)
                                                       (some-v (lookup-global (first ids) current-env))))]))]
-                    (alloc-result (VObject '$module (none)
-                                           (get-obj-dict attrs env (hash empty))) s-code))]
+                    (begin
+                      ;(pprint attrs) 
+                      (alloc-result (VObject '$module (none)
+                                             (get-obj-dict attrs env (hash empty))) s-code)))]
             [(not (and (is-obj-ptr? v-code s-code)
                         (object-is? (fetch-ptr v-code s-code) '%code env sto)))
               (error 'interp (format "a non-code object ~a is passed to make module object" v-code))]
@@ -510,7 +512,7 @@
                                        (hash empty)))]
                                         ; interpret the code in module, raise any exception as it is
                                         ; ImportError should be handled in __import__
-                       (begin ;(pprint new-env)
+                       (begin ;(pprint global-var)
                               (handle-result env (interp-env (CModule (CNone) xcode)
                                                              (list new-env) new-sto stk)
                                              (lambda (v-module s-module)
