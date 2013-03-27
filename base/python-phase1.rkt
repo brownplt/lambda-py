@@ -4,6 +4,7 @@
          "python-core-syntax.rkt"
          "python-lib-bindings.rkt"
          "python-lexical-syntax.rkt"
+         "python-lexical-printer.rkt"
          "modules/builtin-modules.rkt"
          "python-syntax-operations.rkt")
 (require "util.rkt")
@@ -14,7 +15,7 @@
 (require [typed-in racket (gensym : (symbol -> symbol))])
 (require [typed-in racket (substring : (string number number -> string))])
 (require [typed-in racket (string-length : (string -> number))])
- 
+(require [typed-in racket (pretty-write : ('a -> void))])
 
 
 ;I want encapsulation, so I guess this works
@@ -207,7 +208,8 @@
   (call/cc
    (lambda (k)
      (local
-      [(define (syntax-error [err : string]) : LexExpr
+      [
+       #|(define (syntax-error [err : string]) : LexExpr
          (k 
           (LexModule
            (list (LexRaise
@@ -281,7 +283,7 @@
                                           (continue/break-errors target)
                                           (continue/break-errors iter)
                                           (continue/break-correct body))]
-              [else (default-recur)]))))
+              [else (default-recur)]))));|#
        
          ]
        ;(k (continue/break-errors (bindings-for-nonlocal empty expr)))
@@ -348,41 +350,25 @@
                           [LexBlock (nonlocals es) (if current-scope-only? empty (extract-globals-cls es))]
                           [PyLexGlobal(globals) globals]
                           [else (default-recur)])))))
-(define (find-all-instance expr)
-      (let [[post-remove
-      (list-subtract
-       (list-subtract
-        (lexexpr-fold-tree
-         expr
-         (lambda (x) : (listof symbol)
-           (type-case LexExpr x
-             [LexAssign (lhs rhs) (map (lambda (y)
-                                         (type-case LexExpr y
-                                          [PyLexId (name ctx) name]
-                                          [else (error 'find-all-instance "can't handle non-pyid")])) lhs)]
-             [LexAugAssign (op lhs rhs) (list (PyLexId-x lhs))]
-             [LexBlock (_ __) empty]
-             [else (default-recur)])))
-        (extract-globals expr true))
-         (extract-nonlocals expr))]]
-        post-remove))
+
 
 (define (extract-unreplaced-locals [expr : LexExpr ] ) : (listof symbol)
   (let ((overestimate (filter (lambda (x) (not (contains-char? (symbol->string x) (chr "-") )))
            (remove-duplicates (extract-locals-helper expr))))
         (globals (extract-globals expr true)))
     (begin
-;      (display "expr: ")
-;      (display expr)
-;      (display "\n\n")
-;      (display overestimate)
-;      (display "\n\n")
-;      (display globals)
-;      (display "\n\n")
+      ;(display "expr: ")
+      ;(lexexpr-print expr)
+      ;(pretty-write expr)
+      ;(display "\n\n")
+      ;(display overestimate)
+      ;(display "\n\n")
+      ;(display globals)
+      ;(display "\n\n")
       (let ((result (list-subtract overestimate globals)))
         (begin
-;          (display result)
-;          (display "\n\n END END END\n\n")
+          ;(display result)
+          ;(display "\n\n END END END\n\n")
           result))
       
     )))
@@ -391,26 +377,69 @@
 ;takes a tree to traverse (the expression)
 (define (extract-locals-helper [expr : LexExpr] ) : (listof symbol)
   (letrec ((target-fun
-         (lambda (exp)
-           (type-case LexExpr exp
+         (lambda ([exp : LexExpr]) : (listof symbol)
+           (begin
+             ;(display "saw this: \n")
+             ;(lexexpr-print exp)
+             ;(display "\n")
+             (type-case LexExpr exp
              [PyLexId (sym ctx) (list sym)]
              [LexInstanceId (_ __) empty]
-             [else (default-recur)])))
-        (spec (lambda (exp)
+             [LexTuple (values) (flatten (map target-fun values))]
+             [else empty]))))
+        (spec (lambda ([exp : LexExpr]) : (listof symbol)
                 (type-case LexExpr exp
                   [LexAssign (targets value)
                              (let
                                  ((target-ids (flatten (map target-fun targets))))
-                               (flatten (list (extract-locals-helper value) target-ids)))]
+                               (flatten (list
+                                         (extract-locals-helper value)
+                                         target-ids
+                                         (map extract-locals-helper targets))))]
                   [LexAugAssign (op target value) (flatten (list (extract-locals-helper value)
-                                                                (target-fun target))) ]
+                                                                (target-fun target)
+                                                                (extract-locals-helper target))) ]
+                  [LexFor (target iter body) (flatten (list (target-fun target)
+                                                            (extract-locals-helper target)
+                                                       (extract-locals-helper iter)
+                                                       (extract-locals-helper body)))]
                   [PyLexNonLocal (ids) ids]
                   [LexBlock (nls es) empty]
                   [LexExceptAs (types name body) (list name)]
                   [else (default-recur)]))))
     (lexexpr-fold-tree expr spec)))
 
+(define (find-all-instance expr) : (listof symbol)
+      (let [[post-remove
+      (list-subtract
+       (list-subtract
+        (lexexpr-fold-tree
+         expr
+         (letrec
+             ((inst-lam
+               (lambda ([y : LexExpr]) : (listof symbol)
+                       (type-case LexExpr y
+                         [PyLexId (name ctx) (list name)]
+                         [LexTuple (values) (flatten (map inst-lam values))]
+                         [else (find-all-instance y)]))))
+           (lambda (x) : (listof symbol)
+           (type-case LexExpr x
+             [LexAssign (lhs rhs)
+                        (flatten (list (flatten (map inst-lam lhs)) (find-all-instance rhs)))]
+             [LexAugAssign (op lhs rhs) (flatten (list (inst-lam lhs) (find-all-instance rhs)))]
+             [LexFor (target iter body) (flatten (list (inst-lam target)
+                                                       (find-all-instance iter)
+                                                       (find-all-instance body)))]
+             [LexBlock (_ __) empty]
+             [else (default-recur)]))))
+        (extract-globals expr true))
+         (extract-nonlocals expr))]]
+        post-remove))
+
 (define (replace-all-instance [expr : LexExpr]) : LexExpr
+  (begin
+    ;(display "entering replace-all-instance\n")
+    
   (local
    [
     (define (toplevel [expr : LexExpr ]) : LexExpr
@@ -436,24 +465,26 @@
           ((locs (find-all-instance expr)))
         (lexexpr-modify-tree
          expr
-         (lambda (x)
-           (let ((assign-func  (lambda (x) : LexExpr
-                                 (type-case LexExpr x
-                                   [PyLexId (y ctx) (if
-                                               (member y locs)
-                                               (LexInstanceId y ctx)
-                                               x)]
-                                   [else x]))))
+         (let
+             ((assign-func
+               (lambda (x) : LexExpr
+                       (type-case LexExpr x
+                         [PyLexId (y ctx) (if
+                                           (member y locs)
+                                           (LexInstanceId y ctx)
+                                           x)]
+                         [else (default-recur)]))))
+           (lambda (x)
              (type-case LexExpr x
                                         ;[LexId (e) (LexInstanceId e)]
-               [LexAssign (targets value) (LexAssign (map assign-func
-                                                      targets) value)]
-               [LexAugAssign (op target value) (LexAugAssign op (assign-func target) value)]
+               ;[LexAssign (targets value) (LexAssign (map assign-func
+               ;                                           targets) value)]
+               ;[LexAugAssign (op target value) (LexAugAssign op (assign-func target) value)]
                [LexBlock (nls e) (LexBlock nls (toplevel e))]
                [LexClass (scope name super body) (toplevel x)]
-               [else (default-recur)]))))))
+               [else (assign-func x)]))))))
     ]
-   (toplevel expr)))
+   (toplevel expr))))
       
 (define (all-replaced-instance [es : LexExpr])
   (lexexpr-fold-tree
@@ -465,10 +496,15 @@
        [else (default-recur)]))))
 
 (define (replace-all-locals [expr : LexExpr] [locs : (listof symbol) ] [instance : (listof symbol)])
-  (let ((replace (lambda ([str : symbol] [ctx : symbol]) (if (empty? (flatten
-                                                                      (list
-                                                                       (filter (lambda (x) (equal? str x)) locs)
-                                                                       (filter (lambda (x) (equal? str x)) instance))))
+  (begin
+    ;(display "entering replace-all-locals\n")
+    ;(lexexpr-print expr)
+    ;(display "\n")
+    (let ((replace (lambda ([str : symbol] [ctx : symbol])
+                     (if (empty? (flatten
+                                  (list
+                                   (filter (lambda (x) (equal? str x)) locs)
+                                   (filter (lambda (x) (equal? str x)) instance))))
                                              (PyLexId str ctx)
                                              (if (contains-char? (symbol->string str) (chr "-"))
                                                  (error 'replace-all-locals
@@ -490,8 +526,8 @@
                                                             (extract-unreplaced-locals es))))
                                                  ;all (replaced) instance variables in this scope.
                                                  (all-replaced-instance es)
-                                                      ))]         
-         [else (default-recur)])))))
+                                                      ))]
+         [else (default-recur)]))))))
 
 (define (make-all-global [expr : LexExpr]) : LexExpr
 ;  (lexexpr-modify-tree
@@ -543,16 +579,28 @@
                  [LexLocalId (sym ctx) (list sym)]
                  [LexGlobalId (_ __) empty]
                  [LexInstanceId (_ __) empty]
-                 [else (default-recur)]
+                 [LexTuple (values) (flatten (map targ-fun values))]
+                 [else empty]
                  )))
             (spec (lambda (exp) (type-case LexExpr exp
                  [LexAssign (targets value)
                            (let
                                ((target-ids (flatten (map targ-fun
                                                  targets))))
-                             (flatten (list (extract-locals-helper value) target-ids)))]
-                 [LexAugAssign (op l r) (flatten (list (extract-locals-helper r) (targ-fun l)))]
+                             (flatten (list
+                                       (extract-locals-helper value)
+                                       target-ids
+                                       (map extract-locals-helper targets))))]
+                 [LexAugAssign (op l r) (flatten (list (extract-locals-helper r)
+                                                       (targ-fun l)
+                                                       (extract-locals-helper l)))]
+                 [LexFor (target iter body) (flatten (list
+                                                      (extract-locals-helper target)
+                                                      (targ-fun target)
+                                                      (extract-locals-helper iter)
+                                                      (extract-locals-helper body)))]
                  [LexBlock (nls es) empty]
+                 [LexExceptAs (types name body) (list name)]
                  [else (default-recur)]))))
         (lexexpr-fold-tree expr spec)))]
    
