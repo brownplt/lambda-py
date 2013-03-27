@@ -2,6 +2,7 @@ import sys
 
 #def strclass(cls): #for debug
 #    return "%s.%s" % (cls.__module__, cls.__name__)
+
 def getattr_default(obj, attr):
     try:
         return getattr(obj, attr)
@@ -31,8 +32,7 @@ class TestResult(object):
         self.failures.append((test, self._exc_info_to_string(err, test)))
 
     def addExpectedFailure(self, test, err):
-        tmp = (test, self._exc_info_to_string(err, test))
-        self.expectedFailures.append(tmp)
+        self.expectedFailures.append((test, self._exc_info_to_string(err, test)))
 
     def addUnexpectedSuccess(self, test):
         self.unexpectedSuccesses.append(test)
@@ -49,7 +49,7 @@ class TestResult(object):
 
 class TextTestResult(TestResult):
     def __init__(self):
-        super().__init__()
+        TestResult.__init__(self)
         self.showAll = True # temporarily set to True
         self.dots = True #temporarily set to True
 
@@ -74,7 +74,6 @@ class TextTestResult(TestResult):
         print("unexpected success")
 
 
-
 #---------TestSuite-----------#
 class BaseTestSuite(object):
     def __init__(self, *args):
@@ -96,8 +95,7 @@ class BaseTestSuite(object):
             raise TypeError(str(test) + ' is not callable')
         if isinstance(test, type) and issubclass(test,
                                                  (TestCase, TestSuite)):
-            raise TypeError("TestCases and TestSuites must be instantiated "
-                            "before passing them to addTest()")
+            raise TypeError("TestCases and TestSuites must be instantiated before passing them to addTest()")
         self._tests.append(test)
     def __call__(self, *args):
         # important!
@@ -121,24 +119,28 @@ class TextTestRunner(object):
 
     def run(self, test):
         result = self._makeResult()
-
         try:
             test(result) #invoke BaseTestSuite.__call__ then
         finally:
             print("Ran " + str(result.testsRun))
-        expectedFails = unexpectedSuccesses = 0
+        expectedFails = 0
+        unexpectedSuccesses = 0
         try:
-            results = map(len, (result.expectedFailures,
-                                result.unexpectedSuccesses))
+            expectedFails = len(result.expectedFailures)
         except AttributeError:
             pass
-        else:
-            expectedFails, unexpectedSuccesses = results
+
+        try:
+            unexpectedSuccesses = len(result.unexpectedSuccesses)
+        except AttributeError:
+            pass
 
         infos = []
         if not result.wasSuccessful():
             print("FAILED")
-            failed, errored = len(result.failures), len(result.errors)
+            failed = len(result.failures)
+            errored = len(result.errors)
+            #failed, errored = len(result.failures), len(result.errors)
             if failed:
                 infos.append("failures="+str(failed))
             if errored:
@@ -164,7 +166,7 @@ class TestLoader(object):
     def loadTestsFromModule(self, module):
         tests = []
         #NOTE: get TestCase obj from module. Is dir implemented?
-        for name in dir(module):
+        for name in module.__dict__.keys():
             obj = getattr_default(module, name)
             if isinstance(obj, type) and issubclass(obj, TestCase):
                 tests.append(self.loadTestsFromTestCase(obj))
@@ -177,12 +179,14 @@ class TestLoader(object):
                                 " Maybe you meant to derive from TestCase?")
 
         testCaseNames = self.getTestCaseNames(testCaseClass)
-        #NOTE: has hasattr been implemented?
         if not testCaseNames and hasattr(testCaseClass, 'runTest'):
             testCaseNames = ['runTest']
         #each method will be used to construct an instance of a TestCase's subclass
         #all the subclasses will be wrapped in TestSuite
-        loaded_suite = self.suiteClass(map(testCaseClass, testCaseNames))
+        suites = []
+        for names in testCaseNames:
+            suites.append(testCaseClass(names))
+        loaded_suite = self.suiteClass(suites)
         return loaded_suite
 
     def getTestCaseNames(self, testCaseClass):
@@ -191,7 +195,7 @@ class TestLoader(object):
             return attrname.startswith(self.prefix) and \
               callable(getattr_default(testCaseClass, attrname))
         #NOTE: has dir been implemented?
-        testFnNames = list(filter(isTestMethod, dir(testCaseClass)))
+        testFnNames = list(filter(isTestMethod, testCaseClass.__dict__.keys()))
         return testFnNames
 
 #---------TestCase-------#
@@ -206,10 +210,11 @@ class _Outcome(object):
 
 class _ExpectedFailure(Exception):
     def __init__(self, exc_info):
-        super(_ExpectedFailure, self).__init__()
+        Exception.__init__(self)
         self.exc_info = exc_info
 
 class _UnexpectedSuccess(Exception):
+    pass
 
 class TestCase(object):
     failureException = AssertionError

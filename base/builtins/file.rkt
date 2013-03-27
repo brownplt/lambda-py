@@ -43,7 +43,7 @@
 (define (file-readall (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaPort?
                (some (make-str-value
-                      (file-read-internal (MetaPort-p mval1) 1024)
+                      (file-readall-internal (MetaPort-p mval1))
                       (second args)))))
 
 (define (file-readline (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
