@@ -1,7 +1,7 @@
 #lang racket
 
 (require parser-tools/lex
-	 ragg/support
+         ragg/support
          (prefix-in : parser-tools/lex-sre))
 
 
@@ -15,11 +15,11 @@
 
 (define (lex-all port)
   (local [(define (lex-acc acc python-lexer)
-	    (let ((token (python-lexer)))
-	      (if (equal? (token-struct-type token) 'EOF)
-		  acc
-		  (lex-acc (cons token acc) python-lexer))))]
-	 (reverse (lex-acc (list) (get-python-lexer port)))))
+            (let ((token (python-lexer)))
+              (if (equal? (token-struct-type token) 'EOF)
+                  acc
+                  (lex-acc (cons token acc) python-lexer))))]
+         (reverse (lex-acc (list) (get-python-lexer port)))))
 
 #| LEXER PARTS AND RELATED FUNCTIONS |#
 
@@ -54,7 +54,7 @@ This only works because there are no valid source chars outside the ASCII range 
 (define (valid-identifier? lexeme)
   (let ((normalized-lexeme (string-normalize-nfkc lexeme)))
     (and (valid-python-id-start-char? (string-ref normalized-lexeme 0))
-	 (andmap valid-python-id-char? (string->list normalized-lexeme)))))
+         (andmap valid-python-id-char? (string->list normalized-lexeme)))))
 
 #| STRINGS |#
 (define-lex-abbrevs
@@ -69,14 +69,18 @@ This only works because there are no valid source chars outside the ASCII range 
 
 (define (parse-string lexeme)
   (let* ((raw (equal? "r" (substring lexeme 0 1)))
-	 (lexeme-noraw (substring lexeme (if raw 1 0)))
-	 (triple (equal? (substring lexeme-noraw 0 1) (substring lexeme-noraw 1 2)))
-	 (lexeme-no-quotes (substring lexeme-noraw 
-				      (if triple 3 1) 
-				      (- (string-length lexeme-noraw) (if triple 3 1)))))
+         (lexeme-noraw (substring lexeme (if raw 1 0)))
+         (triple (and
+                  (> (string-length lexeme-noraw) 2)
+                  (char=? (string-ref lexeme-noraw 0)
+                          (string-ref lexeme-noraw 1) 
+                          (string-ref lexeme-noraw 2))))
+         (lexeme-no-quotes (substring lexeme-noraw 
+                                      (if triple 3 1) 
+                                      (- (string-length lexeme-noraw) (if triple 3 1)))))
     (if raw lexeme-no-quotes (backslash-escaped lexeme-no-quotes))))
 
-; Char c in the set abfnrtv to escaped character of \c
+                                        ; Char c in the set abfnrtv to escaped character of \c
 (define (escape-char c)
   (match c
     [#\a #\7] ; bell
@@ -92,27 +96,27 @@ This only works because there are no valid source chars outside the ASCII range 
 
 (define (hex c)
   (member c '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\a #\b #\c )))
-    
+
 (define (backslash-escaped lexeme)
   (local ((define (escape char-lst acc)
-	    (match char-lst
-	      [`() (reverse acc)]
-	      [`(#\\) (error (string-append "String constant ends with backslash: " lexeme))]
-	      [(list-rest #\\ #\newline) (escape rest acc)]
-	      [(list-rest #\\ (and c (or #\\ #\' #\")) rest) 
-	       (escape rest (cons c acc))]
-	      [(list-rest #\\ (and c (or #\a #\b #\f #\n #\r #\t #\v)) rest)
-	       (escape rest (cons (escape-char c) acc))]
-	      [(list-rest #\\ (? octal c1) (? octal c2) (? octal c3) rest)
-	       (escape rest (cons (integer->char (+ c3 (* c2 8) (* c1 64))) acc))]
-	      [(list-rest #\\ (? octal c1) (? octal c2) rest)
-	       (escape rest (cons (integer->char (+ c2 (* c1 8)))))]
-	      [(list-rest #\\ (? octal c1) rest)
-	       (escape rest (cons (integer->char c1) rest))]
-	      [(list-rest c rest) (escape rest (cons c acc))])))
-	 
-	      #| TODO: Hex, unicode |#
-	 (list->string (escape (string->list lexeme) (list)))))
+            (match char-lst
+              [`() (reverse acc)]
+              [`(#\\) (error (string-append "String constant ends with backslash: " lexeme))]
+              [(list-rest #\\ #\newline) (escape rest acc)]
+              [(list-rest #\\ (and c (or #\\ #\' #\")) rest) 
+               (escape rest (cons c acc))]
+              [(list-rest #\\ (and c (or #\a #\b #\f #\n #\r #\t #\v)) rest)
+               (escape rest (cons (escape-char c) acc))]
+              [(list-rest #\\ (? octal c1) (? octal c2) (? octal c3) rest)
+               (escape rest (cons (integer->char (+ c3 (* c2 8) (* c1 64))) acc))]
+              [(list-rest #\\ (? octal c1) (? octal c2) rest)
+               (escape rest (cons (integer->char (+ c2 (* c1 8)))))]
+              [(list-rest #\\ (? octal c1) rest)
+               (escape rest (cons (integer->char c1) rest))]
+              [(list-rest c rest) (escape rest (cons c acc))])))
+         
+         #| TODO: Hex, unicode |#
+         (list->string (escape (string->list lexeme) (list)))))
 
 #| BYTESTRINGS |#
 (define-lex-abbrevs
@@ -130,15 +134,15 @@ This only works because there are no valid source chars outside the ASCII range 
 
 (define (parse-bytestring lexeme)
   (let* ((raw (member (string-ref lexeme 1) '(#\r #\R)))
-	 (lexeme-no-prefix (substring lexeme (if raw 2 1)))
-	 (triple (eq? (substring lexeme-no-prefix 0 1) (substring lexeme-no-prefix 1 2)))
-	 (lexeme-no-quotes (substring lexeme-no-prefix 
-				      (if triple 3 1) 
-				      (- (string-length lexeme-no-prefix) (if triple 3 1)))))
+         (lexeme-no-prefix (substring lexeme (if raw 2 1)))
+         (triple (eq? (substring lexeme-no-prefix 0 1) (substring lexeme-no-prefix 1 2)))
+         (lexeme-no-quotes (substring lexeme-no-prefix 
+                                      (if triple 3 1) 
+                                      (- (string-length lexeme-no-prefix) (if triple 3 1)))))
     (if raw lexeme-no-quotes 
-	(error "Bytestrings not supported")
-	#| TODO: backslash-escaped-bytestring, Byte strings do not recognize unicode escapes. |#
-	#;(backslash-escaped lexeme-no-quotes))))
+        (error "Bytestrings not supported")
+        #| TODO: backslash-escaped-bytestring, Byte strings do not recognize unicode escapes. |#
+        #;(backslash-escaped lexeme-no-quotes))))
 
 #| INTEGERS |#
 (define-lex-abbrevs
@@ -155,14 +159,14 @@ This only works because there are no valid source chars outside the ASCII range 
 
 (define (parse-integer lexeme)
   (let* ((has-radix (and (> (string-length lexeme) 2) (not (char-numeric? (string-ref lexeme 1)))))
-	 (radix (if (not has-radix) 10
-		    (case (char-downcase (string-ref lexeme 1))
-		      [(#\x) 16]
-		      [(#\o) 8]
-		      [(#\b) 2]))))
+         (radix (if (not has-radix) 10
+                    (case (char-downcase (string-ref lexeme 1))
+                      [(#\x) 16]
+                      [(#\o) 8]
+                      [(#\b) 2]))))
     (string->number (if (not has-radix) lexeme
-			(substring lexeme 2))
-		    radix)))
+                        (substring lexeme 2))
+                    radix)))
 #| FLOATS |#
 (define-lex-abbrevs
   (floatnumber (:or pointfloat exponentfloat))
@@ -184,11 +188,11 @@ This only works because there are no valid source chars outside the ASCII range 
 #| TODO: Optional warning system for space/tab mixing |#
 (define (count-spaces str)
   (foldl (lambda (char count)
-	   (+ count (if (eq? char #\space) 
-			1
-			(- 8 (modulo count 8)))))
-	 0
-	 (string->list str)))
+           (+ count (if (eq? char #\space) 
+                        1
+                        (- 8 (modulo count 8)))))
+         0
+         (string->list str)))
 
 (define comment-lexer
   (lexer
@@ -203,20 +207,19 @@ Simple lexer, produces physical/other tokens.
    ("#" (comment-lexer input-port))
 
    ((:or "class" "finally" "is" "return" "continue" "for" "lambda" "try" "def" "from" "nonlocal" "while" "and" "del" "global" "not" "with" "as" "elif" "if" "or" "yield" "assert" "else" "import" "pass" "break" "except" "in" "raise" 
-	 "+" "-" "*" "**" "/" "//" "%" "<<" ">>" "&" "|" "^" "~" "<" ">" "<=" ">=" "==" "!=" 
-	 "(" ")" "[" "]" "{" "}" "," ":" "." ";" "@" "=" "+=" "-=" "*=" "/=" "//=" "%=" "&=" "|=" "^=" ">>=" "<<=" "**=") 
+         "+" "-" "*" "**" "/" "//" "%" "<<" ">>" "&" "|" "^" "~" "<" ">" "<=" ">=" "==" "!=" 
+         "(" ")" "[" "]" "{" "}" "," ":" "." ";" "@" "=" "+=" "-=" "*=" "/=" "//=" "%=" "&=" "|=" "^=" ">>=" "<<=" "**=") 
     (token (string->symbol lexeme) lexeme))
    
    (integer (token 'NUMBER (cons 'integer (parse-integer lexeme))))
    (floatnumber (token 'NUMBER (cons 'float (parse-float lexeme))))
-   #;(imagnumber (token 'NUMBER (cons 'imaginary (parse-imaginary lexeme))))
    (imagnumber (token 'NUMBER (cons 'imaginary lexeme)))
    (stringliteral (token 'STRING (cons 'string (parse-string lexeme))))
    (bytesliteral (error "Bytes not yet supported.")) 
 
    (identifier (if (valid-identifier? lexeme)
-		   (token 'NAME (cons 'name lexeme)) ; Not sure whether these should be normalized.
-		   (error (string-append "Invalid unicode identifier: " lexeme))))
+                   (token 'NAME (cons 'name lexeme)) ; Not sure whether these should be normalized.
+                   (error (string-append "Invalid unicode identifier: " lexeme))))
 
    ((:: "\\" physical-eol) (lex input-port))
    (physical-eol (token 'PHYSICAL-NEWLINE))
@@ -225,126 +228,94 @@ Simple lexer, produces physical/other tokens.
 
 #| Logical lexer - produces logical/other tokens using physical lexer |#
 (define (get-python-lexer input-port)
-  (local (
+  (local ((define brace-depth 0)
 
-	  #|
-	  Traditional lexer function 'lex' will produce whitespace 
-	  tokens on any whitespace outside comments, so lines will be like one of...
-	  OTHER -> slurg (process indent for 0 spaces)
-	  WHITESPACE -> OTHER -> slurg (indent on whitespace)
-	  WHITESPACE (ignore)
-	  ...where slurg is other and whitespace.
-	  
-	  begin-line: consume token and...
-	  - PHYSICAL-NEWLINE: to begin-line
-	  - WHITESPACE: to leading-ws, store spaces 
-	  - OTHER: to pre-slurg storing physical token
-	  leading-ws: consume token and...
-	  - PHYSICAL-NEWLINE: to begin-line, zero spaces
-	  - WHITESPACE: What?
-	  - OTHER: to pre-slurg storing physical token
-	  pre-slurg: Not really a state. For 'clarity', all indent/dedent and the associated stored-lexeme are given by this state, then go to slurg.
-	  slurg: consume token and...
-	  - PHYSICAL-NEWLINE: to begin-line, zero spaces, produce NEWLINE
-	  - WHITESPACE: to slurg
-	  - OTHER: to slurg, produce other
-	  |#
+          (define state 'begin-line) ; lexer state. 
+          (define indent-stack '(0)) ; indent stack, strictly decreasing from top to bottom.
+          (define stored-token #f) ; To account for lookahead used for whitespace, 
+                                        ; sometimes store a token before process-indent
+          (define spaces 0) ; The amount of whitespace encountered in this line
 
-	  (define brace-depth 0)
+          (define (adjust-brace-depth token)
+            (cond [(member (token-struct-type token) (list '\( '\[ '\{))
+                   (set! brace-depth (+ brace-depth 1))]
+                  [(member (token-struct-type token) (list '\) '\] '\}))
+                   (set! brace-depth (- brace-depth 1))]))
 
-	  (define state 'begin-line) ; lexer state. 
-	  (define indent-stack '(0)) ; indent stack, strictly decreasing from top to bottom.
-	  (define stored-token #f) ; To account for lookahead used for whitespace, 
-					; sometimes store a token before process-indent
-	  (define spaces 0) ; The amount of whitespace encountered in this line
+          #| TODO: Probably rewrite as generator |#
+          (define (get-logical-token)
+            (let ((continue (lambda () (get-logical-token))))
+              (case state
+                [(begin-line) 
+                 (let ((physical-token (lex input-port)))
+                   (case (token-struct-type physical-token)
+                     [(PHYSICAL-NEWLINE) 
+                      (continue)]
+                     [(WHITESPACE)
+                      (set! state 'leading-ws)
+                      (set! spaces (token-struct-val physical-token))
+                      (continue)]
+                     [else
+                      (set! state 'pre-slurg)
+                      (set! stored-token physical-token)
+                      (continue)]))]
+                [(leading-ws) 
+                 (let ((physical-token (lex input-port)))
+                   (case (token-struct-type physical-token)
+                     [(PHYSICAL-NEWLINE)
+                      (set! state 'begin-line)
+                      (set! spaces 0)
+                      (continue)]
+                     [(WHITESPACE)
+                      (error "Whitespace after whitespace should not occur.")]
+                     [(EOF)
+                      (error "Lines cannot end with EOF. (Probably.)")]
+                     [else
+                      (set! state 'pre-slurg)
+                      (set! stored-token physical-token)
+                      (continue)]))]
 
-	  (define (adjust-brace-depth token)
-	    (cond [(member (token-struct-type token) (list '\( '\[ '\{))
-		   (set! brace-depth (+ brace-depth 1))]
-		  [(member (token-struct-type token) (list '\) '\] '\}))
-		   (set! brace-depth (- brace-depth 1))]))
+                [(pre-slurg) 
+                 (cond
+                  [(> spaces (car indent-stack))
+                   (set! indent-stack (cons spaces indent-stack))
+                   (token 'INDENT "INDENT")]
+                  [(< spaces (car indent-stack))
+                   (set! indent-stack (cdr indent-stack))
+                                        ; If the value of spaces is 'skipped' in indent-stack, bad dedent.
+                   (if (> spaces (car indent-stack)) 
+                       (error "Bad dedentation")
+                       (token 'DEDENT "DEDENT"))]
+                  [stored-token ; After all dedents/indents are consumed, the other token is left...
+                   (let ((t stored-token))
+                     (set! stored-token #f)
+                     (adjust-brace-depth t)
+                     t)]
+                  [#t 
+                   (set! state 'slurg)
+                   (continue)])]
+                [(slurg) 
+                 (let ((physical-token (lex input-port)))
+                   (case (token-struct-type physical-token)
+                     [(EOF)
+                      (if (> brace-depth 0)
+                          (error "File ended inside braces.")
+                          ;; Seems like it should be an error by the spec... Maybe I read it wrong.
+                          (begin
+                            (set! state 'begin-line)
+                            (token 'NEWLINE "NEWLINE")))]
+                     [(PHYSICAL-NEWLINE)
+                      (if (> brace-depth 0)
+                          (continue)
+                          (begin
+                            (set! state 'begin-line)
+                            (set! spaces 0)
+                            (token 'NEWLINE "NEWLINE")))]
+                     [(WHITESPACE)
+                      (continue)]
+                     [else
+                      (adjust-brace-depth physical-token)
+                      physical-token]))])))
 
-	  #|
-	  (define (blab t)
-	  (display "At ") (display t) (newline)
-	  (display "Brace-depth: ") (display brace-depth) (newline)
-	  (display "State: ") (display state) (newline))
-	  |#
-	  
-	  #| TODO: Probably rewrite as generator |#
-	  (define (get-logical-token)
-	    (let ((continue (lambda () (get-logical-token))))
-	      (case state
-		[(begin-line) 
-		 (let ((physical-token (lex input-port)))
-		   (case (token-struct-type physical-token)
-		     [(PHYSICAL-NEWLINE) 
-		      (continue)]
-		     [(WHITESPACE)
-		      (set! state 'leading-ws)
-		      (set! spaces (token-struct-val physical-token))
-		      (continue)]
-		     [else
-		      (set! state 'pre-slurg)
-		      (set! stored-token physical-token)
-		      (continue)]))]
-		[(leading-ws) 
-		 (let ((physical-token (lex input-port)))
-		   (case (token-struct-type physical-token)
-		     [(PHYSICAL-NEWLINE)
-		      (set! state 'begin-line)
-		      (set! spaces 0)
-		      (continue)]
-		     [(WHITESPACE)
-		      (error "Whitespace after whitespace should not occur.")]
-		     [(EOF)
-		      (error "Lines cannot end with EOF. (Probably.)")]
-		     [else
-		      (set! state 'pre-slurg)
-		      (set! stored-token physical-token)
-		      (continue)]))]
-
-		[(pre-slurg) 
-		 (cond
-		  [(> spaces (car indent-stack))
-		   (set! indent-stack (cons spaces indent-stack))
-		   (token 'INDENT "INDENT")]
-		  [(< spaces (car indent-stack))
-		   (set! indent-stack (cdr indent-stack))
-					; If the value of spaces is 'skipped' in indent-stack, bad dedent.
-		   (if (> spaces (car indent-stack)) 
-		       (error "Bad dedentation")
-		       (token 'DEDENT "DEDENT"))]
-		  [stored-token ; After all dedents/indents are consumed, the other token is left...
-		   (let ((t stored-token))
-		     (set! stored-token #f)
-		     (adjust-brace-depth t)
-		     t)]
-		  [#t 
-		   (set! state 'slurg)
-		   (continue)])]
-		[(slurg) 
-		 (let ((physical-token (lex input-port)))
-		   (case (token-struct-type physical-token)
-		     [(EOF)
-		      (if (> brace-depth 0)
-			  (error "File ended inside braces.")
-			  ;; Seems like it should be an error by the spec... Maybe I read it wrong.
-			  (begin
-			    (set! state 'begin-line)
-			    (token 'NEWLINE "NEWLINE")))]
-		     [(PHYSICAL-NEWLINE)
-		      (if (> brace-depth 0)
-			  (continue)
-			  (begin
-			    (set! state 'begin-line)
-			    (set! spaces 0)
-			    (token 'NEWLINE "NEWLINE")))]
-		     [(WHITESPACE)
-		      (continue)]
-		     [else
-		      (adjust-brace-depth physical-token)
-		      physical-token]))])))
-
-	  )
-	 get-logical-token))
+          )
+         get-logical-token))

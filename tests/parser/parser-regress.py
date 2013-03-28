@@ -4,10 +4,17 @@
 
 def f():
     # Expressions
-    
+
     1
     3.0e-12
     "String"
+    'String'
+    """String"""
+    '''String'''
+    ""
+    ''
+    """"""
+    ''''''
     (2)
     {}
     []
