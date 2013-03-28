@@ -473,16 +473,16 @@
                                            (member y locs)
                                            (LexInstanceId y ctx)
                                            x)]
-                         [else (default-recur)]))))
+                         [else (x)]))))
            (lambda (x)
              (type-case LexExpr x
                                         ;[LexId (e) (LexInstanceId e)]
-               ;[LexAssign (targets value) (LexAssign (map assign-func
-               ;                                           targets) value)]
-               ;[LexAugAssign (op target value) (LexAugAssign op (assign-func target) value)]
+               [LexAssign (targets value) (LexAssign (map assign-func
+                                                          targets) value)]
+               [LexAugAssign (op target value) (LexAugAssign op (assign-func target) value)]
                [LexBlock (nls e) (LexBlock nls (toplevel e))]
                [LexClass (scope name super body) (toplevel x)]
-               [else (assign-func x)]))))))
+               [else (default-recur)]))))))
     ]
    (toplevel expr))))
       
