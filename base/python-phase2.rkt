@@ -106,6 +106,8 @@
         (define list-of-identifiers empty)
         (define (hoist-functions [expr : LexExpr])
           (begin
+            (set! list-of-functions empty)
+            (set! list-of-identifiers empty)
           (let ((result (let ((replaced-body (replace-functions expr)))
             (introduce-locals
              list-of-identifiers
@@ -303,7 +305,10 @@
                                               class-expr
                                               )))
                                (LexSeq (list (LexAssign
-                                              (list class-expr)
+                                              (list (type-case LocalOrGlobal scope
+                                                      [Locally-scoped [] (LexLocalId name 'Store)]
+                                                      [Globally-scoped [] (LexGlobalId name 'Store)]
+                                                      [else (error 'e "should be no more instance scope!")]))
                                               (LexClass scope name bases (LexPass)))
                                              (deal-with-class
                                               new-body
@@ -329,19 +334,23 @@
           (lexexpr-modify-tree expr (lambda (e)
           (type-case LexExpr e
             [LexClass (scope name bases body)
-                      (LexAssign
-                       (list
-                        (type-case LocalOrGlobal scope
-                          [Locally-scoped [] (LexLocalId name 'Store)]
-                          [Instance-scoped [] (LexInstanceId name 'Store)]
-                          [Globally-scoped [] (LexGlobalId name 'Store)]
-                          [else (error 'replace-classes "unknown scope reached phase2")]))
-                       (LexApp (LexLam empty (LexSeq
-                                             (list
-                                              (LexClass (Locally-scoped) name
-                                                      (replace-classes bases )
-                                                      (replace-classes body))
-                                              (LexLocalId name 'Load)))) empty))]
+                      (type-case LocalOrGlobal scope
+                        [Instance-scoped
+                         []
+                         (LexAssign
+                          (list
+                           (LexInstanceId name 'Store))
+                       (LexApp (LexLam empty
+                                       (LexLocalLet
+                                        name (LexUndefined)
+                                        (LexSeq
+                                         (list
+                                          (LexClass (Locally-scoped) name
+                                                    (replace-classes bases )
+                                                    (replace-classes body))
+                                          (LexLocalId name 'Load))))) empty))]
+                        [else (default-recur)])]
+                      
             [else (default-recur)]))))]
         (top-level-deal-with-class (replace-classes  expr))))
 

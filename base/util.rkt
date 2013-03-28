@@ -422,6 +422,8 @@
     [(_ obj name arg ...) #'(py-app (py-getfield obj name) (list arg ...) (none))]))
 
 
+(define (symbol-append a b)
+  (string->symbol (string-append (symbol->string a) (symbol->string b))))
  
 (define (make-builtin-str [s : string]) : CExpr
   (CObject (gid '%str) (some (MetaStr s))))
