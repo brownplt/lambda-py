@@ -385,7 +385,7 @@
              (type-case LexExpr exp
              [PyLexId (sym ctx) (list sym)]
              [LexInstanceId (_ __) empty]
-             [LexTuple (values) (flatten (map target-fun values))]
+             [LexTuple (values) (flatten (map target-fun values))] 
              [else empty]))))
         (spec (lambda ([exp : LexExpr]) : (listof symbol)
                 (type-case LexExpr exp
@@ -395,7 +395,7 @@
                                (flatten (list
                                          (extract-locals-helper value)
                                          target-ids
-                                         (map extract-locals-helper targets))))]
+                                         (flatten (map extract-locals-helper targets)))))]
                   [LexAugAssign (op target value) (flatten (list (extract-locals-helper value)
                                                                 (target-fun target)
                                                                 (extract-locals-helper target))) ]
@@ -434,7 +434,8 @@
              [else (default-recur)]))))
         (extract-globals expr true))
          (extract-nonlocals expr))]]
-        post-remove))
+        (begin
+        post-remove)))
 
 (define (replace-all-instance [expr : LexExpr]) : LexExpr
   (begin
@@ -462,27 +463,40 @@
            [else (default-recur)]))))
     (define (second-level expr )
       (let
-          ((locs (find-all-instance expr)))
-        (lexexpr-modify-tree
-         expr
-         (let
-             ((assign-func
-               (lambda (x) : LexExpr
-                       (type-case LexExpr x
-                         [PyLexId (y ctx) (if
-                                           (member y locs)
-                                           (LexInstanceId y ctx)
-                                           x)]
-                         [else (x)]))))
-           (lambda (x)
-             (type-case LexExpr x
+          ((discovered-vars (find-all-instance expr)))
+        (begin
+          ;(display "found some instance: ")
+          ;(display discovered-vars)
+          ;(display "\n\n")
+        (letrec ((recur
+                  (lambda ([expr : LexExpr] [locs : (listof symbol)])
+                    (lexexpr-modify-tree
+                     expr
+                     (letrec
+                         ((assign-func
+                           (lambda (x) : LexExpr
+                                   (type-case LexExpr x
+                                     [PyLexId (y ctx) (if
+                                                       (member y locs)
+                                                       (LexInstanceId y ctx)
+                                                       x)]
+                                     [LexTuple (vals) (LexTuple (map assign-func vals))]
+                                     [else x]))))
+                       (lambda ([x : LexExpr]) : LexExpr
+                         (type-case LexExpr x
                                         ;[LexId (e) (LexInstanceId e)]
-               [LexAssign (targets value) (LexAssign (map assign-func
-                                                          targets) value)]
-               [LexAugAssign (op target value) (LexAugAssign op (assign-func target) value)]
-               [LexBlock (nls e) (LexBlock nls (toplevel e))]
-               [LexClass (scope name super body) (toplevel x)]
-               [else (default-recur)]))))))
+                           [LexAssign (targets value) (LexAssign (map assign-func targets)
+                                                                 (recur value locs))]
+                           [LexAugAssign (op target value) (LexAugAssign op (assign-func target)
+                                                                         (recur value locs))]
+                           [LexBlock (nls e) (LexBlock nls (toplevel e))]
+                           [LexFor (target iter body) (LexFor (assign-func target)
+                                                              (recur iter locs)
+                                                              (recur body locs)) ]
+                           [LexClass (scope name super body) (toplevel x)]
+                           [else (default-recur)])))))))
+          (recur expr discovered-vars)
+          ))))
     ]
    (toplevel expr))))
       
@@ -590,7 +604,7 @@
                              (flatten (list
                                        (extract-locals-helper value)
                                        target-ids
-                                       (map extract-locals-helper targets))))]
+                                       (flatten (map extract-locals-helper targets)))))]
                  [LexAugAssign (op l r) (flatten (list (extract-locals-helper r)
                                                        (targ-fun l)
                                                        (extract-locals-helper l)))]
