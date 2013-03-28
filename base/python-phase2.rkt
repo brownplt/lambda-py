@@ -104,17 +104,9 @@
           )
         (define list-of-functions empty)
         (define list-of-identifiers empty)
-        (define (replace-classes [expr : LexExpr])
-          (lexexpr-modify-tree expr (lambda (e)
-          (type-case LexExpr e
-            ;[LexClass (scope name bases body)
-            ;          (LexApp (LexLam empty (LexClass scope name
-            ;                                          (replace-classes bases )
-            ;                                          (replace-classes body))) empty)]
-            [else (default-recur)]))))
         (define (hoist-functions [expr : LexExpr])
           (begin
-          (let ((result (let ((replaced-body (replace-functions (replace-classes expr))))
+          (let ((result (let ((replaced-body (replace-functions expr)))
             (introduce-locals
              list-of-identifiers
              (LexSeq
@@ -332,8 +324,26 @@
                                   (if (Globally-scoped? scope)
                                       (LexGlobalId name 'Load)
                                       (LexLocalId name 'Load)))))]
-                 [else (default-recur)])))))]
-        (top-level-deal-with-class expr)))
+                 [else (default-recur)])))))
+          (define (replace-classes [expr : LexExpr])
+          (lexexpr-modify-tree expr (lambda (e)
+          (type-case LexExpr e
+            [LexClass (scope name bases body)
+                      (LexAssign
+                       (list
+                        (type-case LocalOrGlobal scope
+                          [Locally-scoped [] (LexLocalId name 'Store)]
+                          [Instance-scoped [] (LexInstanceId name 'Store)]
+                          [Globally-scoped [] (LexGlobalId name 'Store)]
+                          [else (error 'replace-classes "unknown scope reached phase2")]))
+                       (LexApp (LexLam empty (LexSeq
+                                             (list
+                                              (LexClass (Locally-scoped) name
+                                                      (replace-classes bases )
+                                                      (replace-classes body))
+                                              (LexLocalId name 'Load)))) empty))]
+            [else (default-recur)]))))]
+        (top-level-deal-with-class (replace-classes  expr))))
 
 (define (let-phase [expr : LexExpr] ) : LexExpr
 (collapse-pyseq

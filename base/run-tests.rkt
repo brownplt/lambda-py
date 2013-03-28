@@ -10,7 +10,7 @@
 (struct TestSpec (program-name program-src output error) #:transparent)
 
 
-(define INTERP-TIMEOUT-SECONDS 180)
+(define INTERP-TIMEOUT-SECONDS 500)
 
 ;; run-for-n-seconds :: (-> (pairof string string)) number ->
 ;;                      (pairof string string) U #f

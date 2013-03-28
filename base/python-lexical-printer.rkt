@@ -67,9 +67,27 @@
                  (let ((typecase-lambda
                         (lambda ([value : LexExpr]) : LexExpr
                                 (type-case LexExpr value
-                                  [LexFunc (a b c d e f) (lexexpr-print-helper value starting-tab)]
-                                  [LexFuncVarArg (a b c d e f) (lexexpr-print-helper value starting-tab)]
-                                  [LexClass (a b c d) (lexexpr-print-helper value starting-tab)]
+                                  [LexFunc (a b c d e f)
+                                           (begin
+                                             (display starting-tab)
+                                             (display "# assigned to ")
+                                             (comma-separate targets)
+                                             (display "\n")
+                                             (lexexpr-print-helper value starting-tab))]
+                                  [LexFuncVarArg (a b c d e f)
+                                                 (begin
+                                                   (display starting-tab)
+                                                   (display "# assigned to ")
+                                                   (comma-separate targets)
+                                                   (display "\n")
+                                                   (lexexpr-print-helper value starting-tab))]
+                                  [LexClass (a b c d)
+                                            (begin
+                                              (display starting-tab)
+                                              (display "# assigned to ")
+                                              (comma-separate targets)
+                                              (display "\n")
+                                              (lexexpr-print-helper value starting-tab))]
                                   [else (begin
                                           (display starting-tab)
                                           (comma-separate targets)
@@ -282,11 +300,11 @@
       [LexLam (args body)
               (begin
                 (display starting-tab)
-                (display "lambda ")
+                (display "(lambda ")
                 (comma-separate-2 args)
-                (display ": ")
-                (lexexpr-print-helper body (string-append " " starting-tab))
-                (display "\n")
+                (display ": \n")
+                (lexexpr-print-helper body (string-append "  " starting-tab))
+                (display ")")
                 this-expr)]
       [LexFunc (name args defaults body decorators class)
                (begin

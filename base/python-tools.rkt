@@ -65,10 +65,9 @@
 
 (define (desugar-w/macros port)
   (desugar
-   (desugar-macros
     (new-scope-phase
      (get-structured-python
-      (parse-python/port port (get-pypath)))))))
+      (parse-python/port port (get-pypath))))))
 
 
 (define (get-core-syntax port)
