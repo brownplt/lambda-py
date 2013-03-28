@@ -1,6 +1,7 @@
 #lang racket
 
-(require parser-tools/lex
+(require racket/generator
+         parser-tools/lex
          ragg/support
          (prefix-in : parser-tools/lex-sre))
 
@@ -228,94 +229,71 @@ Simple lexer, produces physical/other tokens.
 
 #| Logical lexer - produces logical/other tokens using physical lexer |#
 (define (get-python-lexer input-port)
-  (local ((define brace-depth 0)
+  (generator 
+   () 
+   (local ((define (next-token) 
+             (let ((physical-token (lex input-port)))
+               (values physical-token (token-struct-type physical-token) (token-struct-val physical-token))))
+           ;; adjust brace depth for any physical token
+           (define (adjust-depth depth t-type)
+             (case t-type 
+               [(\( \[ \{) (+ depth 1)]
+               [(\) \] \}) (if (< depth 1) 
+                               (error "Brace depth < 0")
+                               (- depth 1))]
+               [else depth]))
 
-          (define state 'begin-line) ; lexer state. 
-          (define indent-stack '(0)) ; indent stack, strictly decreasing from top to bottom.
-          (define stored-token #f) ; To account for lookahead used for whitespace, 
-                                        ; sometimes store a token before process-indent
-          (define spaces 0) ; The amount of whitespace encountered in this line
+           ;; Taking indent stack and latest amount of significant ws, 
+           ;; yield all necessary indent/dedent tokens and return new indent stack
+           (define (adjust-indent-stack indent ws-amount)
+             (cond [(= ws-amount (car indent)) indent]
+                   [(> ws-amount (car indent)) 
+                    (begin (yield (token 'INDENT "INDENT"))
+                           (cons ws-amount indent))]
+                   [(< ws-amount (car indent))
+                    (let ((new-stack (cdr indent)))
+                      (if (> ws-amount (car indent))
+                          (error "Bad indent")
+                          (begin (yield (token 'DEDENT "DEDENT"))
+                                 (adjust-indent-stack new-stack ws-amount))))]))
 
-          (define (adjust-brace-depth token)
-            (cond [(member (token-struct-type token) (list '\( '\[ '\{))
-                   (set! brace-depth (+ brace-depth 1))]
-                  [(member (token-struct-type token) (list '\) '\] '\}))
-                   (set! brace-depth (- brace-depth 1))]))
+           (define (begin-line indent)
+             (let-values (((t t-type t-val) (next-token)))
+               (case t-type
+                 [(PHYSICAL-NEWLINE) (begin-line indent)]
+                 [(WHITESPACE) (after-ws indent t-val)]
+                 [(EOF) (begin 
+                          (adjust-indent-stack indent 0)
+                          (yield (token 'EOF "EOF")))]
+                 [else (let ((new-indent (adjust-indent-stack indent 0)))
+                         (begin (yield t)
+                                (slurg new-indent (adjust-depth 0 t-type))))])))
+             
+           (define (after-ws indent ws-amount)
+             (let-values (((t t-type t-val) (next-token)))
+               (case t-type
+                 [(PHYSICAL-NEWLINE) (begin-line indent)]
+                 [(WHITESPACE) (error "Unexpected second whitespace token")]
+                 [(EOF) (begin (adjust-indent-stack indent 0)
+                               (yield (token 'EOF "EOF")))]
+                 [else (let ((new-indent (adjust-indent-stack indent ws-amount)))
+                         (begin (yield t)
+                                (slurg new-indent (adjust-depth 0 t-type))))])))
 
-          #| TODO: Probably rewrite as generator |#
-          (define (get-logical-token)
-            (let ((continue (lambda () (get-logical-token))))
-              (case state
-                [(begin-line) 
-                 (let ((physical-token (lex input-port)))
-                   (case (token-struct-type physical-token)
-                     [(PHYSICAL-NEWLINE) 
-                      (continue)]
-                     [(WHITESPACE)
-                      (set! state 'leading-ws)
-                      (set! spaces (token-struct-val physical-token))
-                      (continue)]
-                     [else
-                      (set! state 'pre-slurg)
-                      (set! stored-token physical-token)
-                      (continue)]))]
-                [(leading-ws) 
-                 (let ((physical-token (lex input-port)))
-                   (case (token-struct-type physical-token)
-                     [(PHYSICAL-NEWLINE)
-                      (set! state 'begin-line)
-                      (set! spaces 0)
-                      (continue)]
-                     [(WHITESPACE)
-                      (error "Whitespace after whitespace should not occur.")]
-                     [(EOF)
-                      (error "Lines cannot end with EOF. (Probably.)")]
-                     [else
-                      (set! state 'pre-slurg)
-                      (set! stored-token physical-token)
-                      (continue)]))]
-
-                [(pre-slurg) 
-                 (cond
-                  [(> spaces (car indent-stack))
-                   (set! indent-stack (cons spaces indent-stack))
-                   (token 'INDENT "INDENT")]
-                  [(< spaces (car indent-stack))
-                   (set! indent-stack (cdr indent-stack))
-                                        ; If the value of spaces is 'skipped' in indent-stack, bad dedent.
-                   (if (> spaces (car indent-stack)) 
-                       (error "Bad dedentation")
-                       (token 'DEDENT "DEDENT"))]
-                  [stored-token ; After all dedents/indents are consumed, the other token is left...
-                   (let ((t stored-token))
-                     (set! stored-token #f)
-                     (adjust-brace-depth t)
-                     t)]
-                  [#t 
-                   (set! state 'slurg)
-                   (continue)])]
-                [(slurg) 
-                 (let ((physical-token (lex input-port)))
-                   (case (token-struct-type physical-token)
-                     [(EOF)
-                      (if (> brace-depth 0)
-                          (error "File ended inside braces.")
-                          ;; Seems like it should be an error by the spec... Maybe I read it wrong.
-                          (begin
-                            (set! state 'begin-line)
-                            (token 'NEWLINE "NEWLINE")))]
-                     [(PHYSICAL-NEWLINE)
-                      (if (> brace-depth 0)
-                          (continue)
-                          (begin
-                            (set! state 'begin-line)
-                            (set! spaces 0)
-                            (token 'NEWLINE "NEWLINE")))]
-                     [(WHITESPACE)
-                      (continue)]
-                     [else
-                      (adjust-brace-depth physical-token)
-                      physical-token]))])))
-
-          )
-         get-logical-token))
+           ;; brace-depth is number >= 0. Remain in slurg while brace-depth > 0
+           (define (slurg indent brace-depth)
+             (let-values (((t t-type t-val) (next-token)))
+               (case t-type
+                 [(EOF) (if (> brace-depth 0) (error "EOF inside braces")
+                            (begin (yield (token 'NEWLINE "NEWLINE"))
+                                   (adjust-indent-stack indent 0)
+                                   (yield (token 'EOF "EOF"))))]
+                 [(PHYSICAL-NEWLINE)
+                  (if (> brace-depth 0)
+                      (slurg indent brace-depth)
+                      (begin (yield (token 'NEWLINE "NEWLINE"))
+                             (begin-line indent)))]
+                 [(WHITESPACE) (slurg indent brace-depth)]
+                 [else (begin (yield t)
+                              (slurg indent (adjust-depth brace-depth t-type)))]))))
+          (begin-line '(0)))))

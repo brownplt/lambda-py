@@ -19,9 +19,9 @@
 		       (parse-python program-port-1)))
 	 (python-ast (parse-python/port program-port-2 (get-pypath))))
     (if (equal? native-ast python-ast)
-	"Programs are equal?\n"
-	(string-append "=== Native parser ===\n"
-		       (pretty-format native-ast) 
-		       "\n=== Python parser ===\n"
-		       (pretty-format python-ast)
-		       "\n=====================\n"))))
+        "Programs are equal?\n"
+        (string-append "=== Native parser ===\n"
+                       (pretty-format native-ast) 
+                       "\n=== Python parser ===\n"
+                       (pretty-format python-ast)
+                       "\n=====================\n"))))
