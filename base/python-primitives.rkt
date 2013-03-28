@@ -223,6 +223,7 @@ primitives here.
     ['str= (prim-noalloc streq argvs)]
     ['strin (prim-noalloc strin argvs)]
     ['strbool (prim-noalloc strbool (fetch-heads argvs argsptrs))]
+    ['str (prim-alloc str argvs)]
 
     ;list
     ['list+ (prim-alloc list+ (fetch-heads argvs argsptrs))]

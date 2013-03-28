@@ -429,7 +429,7 @@
   (CObject (gid '%str) (some (MetaStr s))))
 
 (define (make-pre-str [s : string]) : CExpr
-  (CObject (CNone) (some (MetaStr s))))
+  (CBuiltinPrim 'str (list (CObject (CNone) (some (MetaStr s))))))
 
 (define (make-builtin-num [n : number]) : CExpr
   (CObject

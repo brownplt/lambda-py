@@ -40,7 +40,6 @@ def test_dynamics():
             raise AttributeError
         return object.__setattr__(self, name, value)
     C.__setattr__ = mysetattr
-    """ NB: this fails with an ugly error in get-class (Alejandro)
     try:
         a.spam = "not spam"
     except AttributeError:
@@ -53,7 +52,6 @@ def test_dynamics():
     d = D()
     d.foo = 1
     ___assertEqual(d.foo, 1)
-    """
     """ NB: this fails with object has no __int__ attribute (Alejandro)
     # Test handling of int*seq and seq*int
     class I(int):
