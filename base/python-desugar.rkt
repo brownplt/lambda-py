@@ -219,7 +219,7 @@
                              
       [LexNum (n) (make-builtin-num n)]
       [LexSlice (lower upper step) (error 'desugar "Shouldn't desugar slice directly")]
-      [LexBool (b) (if b (CTrue) (CFalse))]
+      [LexBool (b) (if b (CId 'True (GlobalId)) (CId 'False (GlobalId)))]
       [LexNone () (CNone)]
       [LexStr (s) (make-builtin-str s)]
       [LexLocalId (x ctx) (CId x (LocalId))]
@@ -340,7 +340,7 @@
 
       [LexUnaryOp (op operand)
                   (case op
-                    ['Not (CIf (py-app (CId '%bool (GlobalId)) (list (desugar operand)) (none)) (CFalse) (CTrue))]
+                    ['Not (CIf (py-app (CId '%bool (GlobalId)) (list (desugar operand)) (none)) (CId 'False (GlobalId)) (CId 'True (GlobalId)))]
                     ['USub (rec-desugar (LexBinOp (LexNum 0) 'Sub operand))]
                     ['UAdd (rec-desugar (LexBinOp (LexNum 0) 'Add operand))]
                     ['Invert (local [(define roperand (rec-desugar operand))]

@@ -8,8 +8,8 @@
 
 (define (make-builtin-bool [b : boolean]) : CExpr
   (if b
-      (CTrue)
-      (CFalse)))
+      (CId 'True (GlobalId))
+      (CId 'False (GlobalId))))
 
 (define (bool-init [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (local [(define meta-startuple (MetaTuple-v (some-v (VObjectClass-mval (first args)))))]
