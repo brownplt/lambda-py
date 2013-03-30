@@ -77,7 +77,10 @@ def f():
 
     # Statements
 
+    1
     1;
+    1;2
+    1;2;
 
     # Indent problems in editor...
     while p: break

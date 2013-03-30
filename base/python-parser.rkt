@@ -39,38 +39,31 @@ trailer, comp-op, suite and others should match their car, except s/_/-
 
 (define ast hasheq)
 
-(define (args-ast arg-name-list default-asts vararg kwarg)
-  (ast 'args (map (lambda (n)
-                    (ast 'nodetype "arg"
-                         'annotation #\nul
-                         'arg n))
-                  arg-name-list)
-       'defaults default-asts
-       'nodetype "arguments"
-       'vararg vararg
-       'kwargannotation #\nul
-       'kwarg kwarg
-       'varargannotation #\nul
-       'kw_defaults '()
-       'kwonlyargs '()))
-
 (define (module->ast py-ragg)
   (match py-ragg
     [(list 'file_input stmts ...)
      (ast 'nodetype "Module"
-          'body (map stmt->ast stmts))]
+          'body (flatten (map stmt->ast-list stmts)))]
     [_ (error "Only file_input is supported.")]))
 
-;; Transform most of the non-expression grammar from ragg into the ast (hasheq symbol->various) format
-(define (stmt->ast py-ragg)
+;; simple_stmt is the only derivation of stmt that Python parses into multiple statements
+(define (stmt->ast-list py-ragg)
+  (match py-ragg
+    [`(stmt ,any-stmt) (stmt->ast-list any-stmt)]
+    [`(simple_stmt ,clauses ... "NEWLINE")
+     (define (more-clauses clauses)
+       (match clauses
+         [`() '()]
+         [`(";" ,rest ...) (more-clauses rest)]
+         [`(,statement ,rest ...) (cons (non-simple-stmt->ast statement) (more-clauses rest))]))
+     (more-clauses clauses)]
+    [other-statement (list (non-simple-stmt->ast other-statement))]))
+
+;; Transform derivations of stmt other than simple_stmt into ast
+(define (non-simple-stmt->ast py-ragg)
   (match py-ragg
     [(list (or 'stmt 'flow_stmt 'small_stmt 'compound_stmt) stmt) 
-     (stmt->ast stmt)]
-    
-    ;; sipmle_stmt TODO: Multiple statements (requires changing stmt->ast to stmt->ast-list or something)
-    [(list 'simple_stmt stmt NEWLINE) (stmt->ast stmt)]
-
-    [(list 'simple_stmt stmt ";" NEWLINE) (stmt->ast stmt)]
+     (non-simple-stmt->ast stmt)]
 
     [(list 'yield_stmt expr)
      (ast 'nodetype "Expr"
@@ -631,9 +624,9 @@ trailer, comp-op, suite and others should match their car, except s/_/-
 (define (suite->ast-list suite)
   (match suite
     [(list 'suite stmt) 
-     (list (stmt->ast stmt))]
+     (flatten (stmt->ast-list stmt))]
     [(list 'suite "NEWLINE" "INDENT" stmts ... "DEDENT")
-     (map stmt->ast stmts)]))
+     (flatten (map stmt->ast-list stmts))]))
 
 (define (wrap-with-trailer trailer expr-ctx left-ast)
   (local ((define (make-call-ast args keywords kwarg stararg)
@@ -813,4 +806,19 @@ trailer, comp-op, suite and others should match their car, except s/_/-
            [`(comp_for "for" ,target-expr "in" ,iter-expr ,more ...)
             (more-clauses more '() target-expr iter-expr '())]
            [_ (error "Argument to build-comprehension must be a comp_for")])))
+
+(define (args-ast arg-name-list default-asts vararg kwarg)
+  (ast 'args (map (lambda (n)
+                    (ast 'nodetype "arg"
+                         'annotation #\nul
+                         'arg n))
+                  arg-name-list)
+       'defaults default-asts
+       'nodetype "arguments"
+       'vararg vararg
+       'kwargannotation #\nul
+       'kwarg kwarg
+       'varargannotation #\nul
+       'kw_defaults '()
+       'kwonlyargs '()))
 
