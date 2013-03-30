@@ -159,7 +159,7 @@ trailer, comp-op, suite and others should match their car, except s/_/-
      (ast 'nodetype "Nonlocal"
           'names (map cdr (every-other rest)))]
 
-    [(list 'with_stmt "with" clauses ... ":" with-suite)
+    [`(with_stmt "with" ,clauses ... ":" ,with-suite)
      (car
       (foldl 
        (lambda (with_clause inner-ast-list)
@@ -178,18 +178,21 @@ trailer, comp-op, suite and others should match their car, except s/_/-
        (suite->ast-list with-suite)
        (reverse (every-other clauses))))]
 
-    ;; if_stmt TODO: multiple elif and opt. else
-    [(list 'if_stmt "if" test ":" suite)
+    [`(if_stmt "if" ,test ":" ,suite ,rest ...)
+     (define (more-clauses clauses)
+       (match clauses
+         [`() '()]
+         [`("elif" ,test ":" ,suite ,rest ...) 
+          (list (ast 'nodetype "If"
+                     'test (expr->ast test "Load")
+                     'body (suite->ast-list suite)
+                     'orelse (more-clauses rest)))]
+          [`("else" ":" ,suite)
+           (suite->ast-list suite)]))
      (ast 'nodetype "If"
-          'orelse '()
           'test (expr->ast test "Load")
-          'body (suite->ast-list suite))]
-    
-    [(list 'if_stmt "if" test ":" suite1 "else" ":" suite2)
-     (ast 'nodetype "If"
-          'test (expr->ast test "Load")
-          'body (suite->ast-list suite1)
-          'orelse (suite->ast-list suite2))]
+          'body (suite->ast-list suite)
+          'orelse (more-clauses rest))]
     
     [`(import_stmt (import_name "import" (dotted_as_names ,names ...)))
      (ast 'nodetype "Import"

@@ -123,10 +123,18 @@ def f():
     with a, b, c: pass
     with d as e, f as g, h: pass
 
-    if k: pass
+    if a: 1
 
-    if l: pass
-    else: pass
+    if a: 1
+    else: 2
+
+    if a: 1
+    elif b: 2
+
+    if a: 1
+    elif b: 2
+    elif c: 3
+    else: 4
 
     try: pass
     finally: pass
