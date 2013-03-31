@@ -15,13 +15,28 @@
   (let* ((program-text (port->string port))
 	 (program-port-1 (open-input-string program-text))
 	 (program-port-2 (open-input-string program-text))	 
-	 (native-ast (with-handlers [(exn:fail? (lambda (e) e))]
-		       (parse-python program-port-1)))
-	 (python-ast (parse-python/port program-port-2 (get-pypath))))
+     (python-ast 
+      (with-handlers [(exn:fail? (lambda (e) 
+                                   (display "Python parser error:\n" (current-error-port))
+                                   (display e (current-error-port))
+                                   (exit 1)))]
+        
+        (parse-python/port program-port-2 (get-pypath))))
+	 (native-ast (with-handlers [(exn:fail? (lambda (e) e
+                                                    (display "Native parser error:\n")
+                                                    (pretty-print e)
+                                                    (display "=== Python parser ===\n")
+                                                    (pretty-write python-ast)
+                                                    (exit 1)
+                                                    ))]
+		       (parse-python program-port-1))))
     (if (equal? native-ast python-ast)
-        "Programs are equal?\n"
-        (string-append "=== Native parser ===\n"
-                       (pretty-format native-ast) 
-                       "\n=== Python parser ===\n"
-                       (pretty-format python-ast)
-                       "\n=====================\n"))))
+        ;; parser currently displays unhandled portion
+        (exit)
+        (begin
+          (display "Native parser did not match Python parser.\n") 
+          (display "=== Native parser ===\n")
+          (pretty-write native-ast)
+          (display "=== Python parser ===\n")
+          (pretty-write python-ast)
+          (exit 1)))))

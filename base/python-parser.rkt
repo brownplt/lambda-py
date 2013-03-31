@@ -488,6 +488,12 @@ trailer, comp-op, suite and others should match their car, except s/_/-
           'id name
           'ctx (ast 'nodetype expr-ctx))]
 
+    [(list 'atom (cons 'string str-parts) ...)
+     (ast 'nodetype "Str"
+          's (apply string-append str-parts))]
+
+    ;; atom TODO: Multiple strings, '...' (in lexer)
+    ;; Note: True, False, None lexed as names though they're in the grammar used.
     [(list 'atom (cons type val))
      (if (equal? expr-ctx "Store")
          (error "Cannot store to a literal")
@@ -495,7 +501,6 @@ trailer, comp-op, suite and others should match their car, except s/_/-
            [(integer float) (ast 'nodetype "Num" 'n val)]
            [(imaginary) (ast 'nodetype "Num" 
                              'n (ast 'nodetype "Complex" 'value val))]
-           [(string) (ast 'nodetype "Str" 's val)]
            [else (error "Literal not handled yet")]))]
 
     #| atom curly brace forms |#
@@ -660,13 +665,17 @@ trailer, comp-op, suite and others should match their car, except s/_/-
            [`(trailer "(" (arglist ,args ...) ")") (build-call args make-call-ast)]
            [`(trailer "." (name . ,name)) (attr-ast name)]
            ;; subscriptlist TODO... "...", multiple indexes, multiple indexes w/slices
-           [`(trailer "[" (subscriptlist (subscript ,index)) "]") 
-            (subscript-index-ast (expr->ast index "Load"))]
+
+           ;; TODO: Less bad
+           [`(trailer "[" (subscriptlist (subscript ":")) "]")
+            (subscript-slice-ast #\nul #\nul #\nul)]
            
            [`(trailer "[" (subscriptlist (subscript ":" (sliceop ":"))) "]")
             (subscript-slice-ast #\nul #\nul #\nul)]
            [`(trailer "[" (subscriptlist (subscript ,start ":" (sliceop ":"))) "]")
             (subscript-slice-ast (expr->ast start "Load") #\nul #\nul)]
+           [`(trailer "[" (subscriptlist (subscript ":" ,stop (sliceop ":"))) "]")
+            (subscript-slice-ast #\nul (expr->ast stop "Load") #\nul)]
            [`(trailer "[" (subscriptlist (subscript ":" (sliceop ":" ,step))) "]" )
             (subscript-slice-ast #\nul #\nul (expr->ast step "Load"))]
            [`(trailer "[" (subscriptlist (subscript ,lower ":" (sliceop ":" ,step))) "]")
@@ -675,6 +684,17 @@ trailer, comp-op, suite and others should match their car, except s/_/-
             (subscript-slice-ast (expr->ast lower "Load") (expr->ast upper "Load") #\nul)] 
            [`(trailer "[" (subscriptlist (subscript ,lower ":" ,upper (sliceop ":" ,step))) "]")
             (subscript-slice-ast (expr->ast lower "Load") (expr->ast upper "Load") (expr->ast step "Load"))]
+
+           [`(trailer "[" (subscriptlist (subscript ,start ":")) "]")
+            (subscript-slice-ast (expr->ast start "Load") #\nul #\nul)]
+           [`(trailer "[" (subscriptlist (subscript ":" ,stop)) "]")
+            (subscript-slice-ast #\nul (expr->ast stop "Load") #\nul)]
+           [`(trailer "[" (subscriptlist (subscript ,lower ":" ,upper)) "]")
+            (subscript-slice-ast (expr->ast lower "Load") (expr->ast upper "Load") #\nul)] 
+
+           [`(trailer "[" (subscriptlist (subscript ,index)) "]") 
+            (subscript-index-ast (expr->ast index "Load"))]
+           
            [_ 
             (display "=== Unhandled trailer ===\n")
             (pretty-write trailer)
