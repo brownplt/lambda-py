@@ -76,8 +76,8 @@ trailer, comp-op, suite and others should match their car, except s/_/-
      (ast 'nodetype "Break")]
     
     ;; TODO: Allow only assignments to those allowed by http://docs.python.org/3.2/reference/simple_stmts.html#assignment-statements
-    ;; expr_stmt TODO: multiple targets, multiple values? (in expr->ast ?)
-    [(list 'expr_stmt testlist "=" val)
+    ;; TODO: star expressions?
+    #;[(list 'expr_stmt testlist "=" val)
      (ast 'nodetype "Assign"
           'targets (list (expr->ast testlist "Store"))
           'value (expr->ast val "Load"))]
@@ -100,7 +100,21 @@ trailer, comp-op, suite and others should match their car, except s/_/-
           'target (expr->ast testlist "Store")
           'value (expr->ast val "Load"))]
 
-    [(list 'expr_stmt val)
+    [`(expr_stmt ,clauses ...)
+     (define (more-clauses clauses targets)
+       (match clauses
+         [`(,val) (if (null? targets)
+                     (ast 'nodetype "Expr"
+                          'value (expr->ast val "Load"))
+                     (ast 'nodetype "Assign"
+                          'value (expr->ast val "Load")
+                          'targets (reverse targets)))]
+         [`(,target "=" ,rest ...)
+          (more-clauses rest (cons (expr->ast target "Store")
+                                   targets))]))
+     (more-clauses clauses '())]
+
+     #;[(list 'expr_stmt val)
      (ast 'nodetype "Expr"
           'value (expr->ast val "Load"))]
 
@@ -378,6 +392,12 @@ trailer, comp-op, suite and others should match their car, except s/_/-
      (ast 'nodetype "Tuple"
           'ctx (ast 'nodetype expr-ctx)
           'elts (map (lambda (e) (expr->ast e expr-ctx)) (every-other elements)))]
+    
+    ;; AFAIK expr-ctx is always "Store" here
+    [`(star_expr "*" ,val)
+     (ast 'nodetype "Starred"
+          'ctx (ast 'nodetype expr-ctx)
+          'value (expr->ast val expr-ctx))]
 
     [(list 'test t-expr "if" cond-expr "else" f-expr)
      (ast 'nodetype "IfExp"
@@ -492,7 +512,7 @@ trailer, comp-op, suite and others should match their car, except s/_/-
      (ast 'nodetype "Str"
           's (apply string-append str-parts))]
 
-    ;; atom TODO: Multiple strings, '...' (in lexer)
+    ;; atom TODO: '...' (in lexer)
     ;; Note: True, False, None lexed as names though they're in the grammar used.
     [(list 'atom (cons type val))
      (if (equal? expr-ctx "Store")

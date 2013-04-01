@@ -90,6 +90,10 @@ def f():
 
     r = s
 
+    t = u = v
+
+    (*w,) = y,*z,a = b
+
     t += u
 
     v # expr...
