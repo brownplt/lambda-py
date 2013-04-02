@@ -103,7 +103,7 @@ This only works because there are no valid source chars outside the ASCII range 
             (match char-lst
               [`() (reverse acc)]
               [`(#\\) (error (string-append "String constant ends with backslash: " lexeme))]
-              [(list-rest #\\ #\newline) (escape rest acc)]
+              [(list-rest #\\ #\newline rest) (escape rest acc)]
               [(list-rest #\\ (and c (or #\\ #\' #\")) rest) 
                (escape rest (cons c acc))]
               [(list-rest #\\ (and c (or #\a #\b #\f #\n #\r #\t #\v)) rest)

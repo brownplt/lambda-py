@@ -76,12 +76,6 @@ trailer, comp-op, suite and others should match their car, except s/_/-
      (ast 'nodetype "Break")]
     
     ;; TODO: Allow only assignments to those allowed by http://docs.python.org/3.2/reference/simple_stmts.html#assignment-statements
-    ;; TODO: star expressions?
-    #;[(list 'expr_stmt testlist "=" val)
-     (ast 'nodetype "Assign"
-          'targets (list (expr->ast testlist "Store"))
-          'value (expr->ast val "Load"))]
-
     [(list 'expr_stmt testlist (list 'augassign op) val)
      (ast 'nodetype "AugAssign"
           'op (ast 'nodetype (case op 
@@ -113,10 +107,6 @@ trailer, comp-op, suite and others should match their car, except s/_/-
           (more-clauses rest (cons (expr->ast target "Store")
                                    targets))]))
      (more-clauses clauses '())]
-
-     #;[(list 'expr_stmt val)
-     (ast 'nodetype "Expr"
-          'value (expr->ast val "Load"))]
 
     [(list 'return_stmt "return" val)
      (ast 'nodetype "Return"
