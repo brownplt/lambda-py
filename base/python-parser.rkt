@@ -383,11 +383,12 @@ trailer, comp-op, suite and others should match their car, except s/_/-
           'ctx (ast 'nodetype expr-ctx)
           'elts (map (lambda (e) (expr->ast e expr-ctx)) (every-other elements)))]
     
-    ;; AFAIK expr-ctx is always "Store" here
     [`(star_expr "*" ,val)
-     (ast 'nodetype "Starred"
-          'ctx (ast 'nodetype expr-ctx)
-          'value (expr->ast val expr-ctx))]
+     (if (equal? expr-ctx "Store")
+         (ast 'nodetype "Starred"
+              'ctx (ast 'nodetype expr-ctx)
+              'value (expr->ast val expr-ctx))
+         (error "Starred expressions can only be used in assignment"))]
 
     [(list 'test t-expr "if" cond-expr "else" f-expr)
      (ast 'nodetype "IfExp"
@@ -501,6 +502,17 @@ trailer, comp-op, suite and others should match their car, except s/_/-
     [(list 'atom (cons 'string str-parts) ...)
      (ast 'nodetype "Str"
           's (apply string-append str-parts))]
+
+    ;; AFAICT, between the lexer and parser, this is exactly what python's AST library produces
+    ;; str-parts do contain escape sequences
+    [(list 'atom (cons 'bytes str-parts) ...)
+     (ast 'nodetype "Bytes"
+          's (ast 'nodetype "Bytes"
+                      'value (string-append "b'" (apply string-append str-parts) "'")))]
+
+    [(or (list 'atom (cons 'string str-parts) rest ...)
+         (list 'atom (cons 'bytes str-parts) rest ...))
+     (error "Cannot mix string and bytestring literals")]
 
     ;; atom TODO: '...' (in lexer)
     ;; Note: True, False, None lexed as names though they're in the grammar used.

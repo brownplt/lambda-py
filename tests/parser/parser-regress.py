@@ -18,6 +18,11 @@ def f():
     "a" 'b' """c""" '''d'''
     """\
 """
+    
+    b'hello' b"world"
+    'hello' "world"
+    b'\n' br'\n'
+
     (2)
     {}
     []

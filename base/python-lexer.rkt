@@ -27,8 +27,7 @@
 #| These are mostly transliterated from the Python spec and then (unfortunately) paired with re-parsing functions. |#
 
 (define-lex-abbrevs
-  (physical-eol (:or "\n" "\r\n" "\r"))
-  (line-continue (:: "\\" physical-eol)))
+  (physical-eol (:or "\n" "\r\n" "\r")))
 
 #| NAMES |#
 
@@ -81,7 +80,7 @@ This only works because there are no valid source chars outside the ASCII range 
                                       (- (string-length lexeme-noraw) (if triple 3 1)))))
     (if raw lexeme-no-quotes (backslash-escaped lexeme-no-quotes))))
 
-                                        ; Char c in the set abfnrtv to escaped character of \c
+;; Char c in the set abfnrtv to escaped character of \c
 (define (escape-char c)
   (match c
     [#\a #\7] ; bell
@@ -116,7 +115,7 @@ This only works because there are no valid source chars outside the ASCII range 
                (escape rest (cons (integer->char c1) rest))]
               [(list-rest c rest) (escape rest (cons c acc))])))
          
-         #| TODO: Hex, unicode |#
+         #| TODO: Hex escapes, unicode escapes on bytestrings (notably unicode character names) |#
          (list->string (escape (string->list lexeme) (list)))))
 
 #| BYTESTRINGS |#
@@ -134,16 +133,17 @@ This only works because there are no valid source chars outside the ASCII range 
   (bytesescapeseq (:: "\\" (char-range "\u0" "\u7f"))))
 
 (define (parse-bytestring lexeme)
-  (let* ((raw (member (string-ref lexeme 1) '(#\r #\R)))
-         (lexeme-no-prefix (substring lexeme (if raw 2 1)))
-         (triple (eq? (substring lexeme-no-prefix 0 1) (substring lexeme-no-prefix 1 2)))
-         (lexeme-no-quotes (substring lexeme-no-prefix 
-                                      (if triple 3 1) 
-                                      (- (string-length lexeme-no-prefix) (if triple 3 1)))))
-    (if raw lexeme-no-quotes 
-        (error "Bytestrings not supported")
-        #| TODO: backslash-escaped-bytestring, Byte strings do not recognize unicode escapes. |#
-        #;(backslash-escaped lexeme-no-quotes))))
+  (let-values ([(raw? lead-chars follow-chars)
+                (match lexeme
+                  [(regexp #rx"^(b|B)(r|R)[\"'][\"'][\"']") (values #t 5 3)]
+                  [(regexp #rx"^(b|B)[\"'][\"'][\"']") (values #f 4 3)]
+                  [(regexp #rx"^(b|B)(r|R)[\"']") (values #t 3 1)]
+                  [(regexp #rx"^(b|B)[\"']") (values #f 2 1)])])
+    (let ((unescaped-content (substring lexeme lead-chars (- (string-length lexeme) follow-chars))))
+      (if raw? 
+          ;; \n -> \\n ("\\n" -> "\\\\n")
+          (regexp-replace* #rx"[\\]" unescaped-content "\\\\\\\\")
+          unescaped-content))))
 
 #| INTEGERS |#
 (define-lex-abbrevs
@@ -216,7 +216,7 @@ Simple lexer, produces physical/other tokens.
    (floatnumber (token 'NUMBER (cons 'float (parse-float lexeme))))
    (imagnumber (token 'NUMBER (cons 'imaginary lexeme)))
    (stringliteral (token 'STRING (cons 'string (parse-string lexeme))))
-   (bytesliteral (error "Bytes not yet supported.")) 
+   (bytesliteral (token 'STRING (cons 'bytes (parse-bytestring lexeme))))
 
    (identifier (if (valid-identifier? lexeme)
                    (token 'NAME (cons 'name lexeme)) ; Not sure whether these should be normalized.

@@ -87,11 +87,8 @@
 (define (get-lexer-tokens port)
   (lex-all port))
 
-(define (get-ragg-sexp port)
-  (pretty-write (syntax->datum (parse (get-python-lexer port)))))
-
 (define (get-parse-tree port)
-  (parse-python (get-python-lexer port)))
+  (parse-python port))
 
 (define (parse-test port)
   (compare-parse port))
