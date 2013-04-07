@@ -67,6 +67,7 @@ This only works because there are no valid source chars outside the ASCII range 
   (longstringitem (:or (:~ "\\") stringescapeseq))
   (stringescapeseq (:: "\\" any-char)))
 
+;; TODO: Unicode escapes
 (define (parse-string lexeme)
   (let* ((raw (equal? "r" (substring lexeme 0 1)))
          (lexeme-noraw (substring lexeme (if raw 1 0)))
@@ -83,7 +84,7 @@ This only works because there are no valid source chars outside the ASCII range 
 ;; Char c in the set abfnrtv to escaped character of \c
 (define (escape-char c)
   (match c
-    [#\a #\7] ; bell
+    [#\a #\007] ; bell
     [#\b #\010] ; backspace
     [#\f #\014]
     [#\n #\012]
@@ -91,11 +92,15 @@ This only works because there are no valid source chars outside the ASCII range 
     [#\t #\tab]
     [#\v #\vtab]))
 
-(define (octal c)
+(define (octal-char? c)
   (member c '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7)))
 
-(define (hex c)
-  (member c '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\a #\b #\c )))
+;; Turn three octal chars into a one-byte char
+(define (octal-chars->char c1 c2 c3)
+  (integer->char (string->number (string c1 c2 c3) 8)))
+
+(define (hex-chars->char c1 c2)
+  (integer->char (string->number (string c1 c2) 16)))
 
 (define (backslash-escaped lexeme)
   (local ((define (escape char-lst acc)
@@ -107,15 +112,17 @@ This only works because there are no valid source chars outside the ASCII range 
                (escape rest (cons c acc))]
               [(list-rest #\\ (and c (or #\a #\b #\f #\n #\r #\t #\v)) rest)
                (escape rest (cons (escape-char c) acc))]
-              [(list-rest #\\ (? octal c1) (? octal c2) (? octal c3) rest)
-               (escape rest (cons (integer->char (+ c3 (* c2 8) (* c1 64))) acc))]
-              [(list-rest #\\ (? octal c1) (? octal c2) rest)
-               (escape rest (cons (integer->char (+ c2 (* c1 8)))))]
-              [(list-rest #\\ (? octal c1) rest)
-               (escape rest (cons (integer->char c1) rest))]
+              [(list-rest #\\ (? octal-char? c1) (? octal-char? c2) (? octal-char? c3) rest)
+               (escape rest (cons (octal-chars->char c1 c2 c3) acc))]
+              [(list-rest #\\ (? octal-char? c1) (? octal-char? c2) rest)
+               (escape rest (cons (octal-chars->char #\0 c1 c2) acc))]
+              [(list-rest #\\ (? octal-char? c1) rest)
+               (escape rest (cons (octal-chars->char #\0 #\0 c1) acc))]
+              [(list-rest #\\ #\x c1 c2 rest)
+               ;; TODO: Catch and rethrow errors as syntax errors
+               (escape rest (cons (hex-chars->char c1 c2) acc))]
               [(list-rest c rest) (escape rest (cons c acc))])))
          
-         #| TODO: Hex escapes, unicode escapes on bytestrings (notably unicode character names) |#
          (list->string (escape (string->list lexeme) (list)))))
 
 #| BYTESTRINGS |#
