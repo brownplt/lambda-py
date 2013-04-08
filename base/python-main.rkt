@@ -9,7 +9,8 @@
          "util.rkt"
          "python-evaluator.rkt"
          "python-lexical-printer.rkt"
-         "python-evaluator.rkt")
+         "python-evaluator.rkt"
+         "test-parser.rkt")
 
 (command-line
   #:once-each
@@ -69,7 +70,10 @@
    (display (results-summary (run-tests (mk-python-cmdline-eval (get-pypath)) dirname))))
 
   ("--test-parser" "Compare native parser results with Python parser for input"
-   (display (parse-test (current-input-port))))
+   (parse-test (current-input-port)))
+
+  ("--test-native-parser" dirname "Run all tests in dirname through native/python parser test"
+   (parse-tests dirname))
 
   ("--test-cps" "Run cps tests"
    ;; NOTE(dbp): this is somewhat of a hack, but cps-test.rkt has a

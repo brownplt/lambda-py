@@ -196,9 +196,10 @@ This only works because there are no valid source chars outside the ASCII range 
 #| TODO: Optional warning system for space/tab mixing |#
 (define (count-spaces str)
   (foldl (lambda (char count)
-           (+ count (if (eq? char #\space) 
-                        1
-                        (- 8 (modulo count 8)))))
+           (+ count (case char
+                      [(#\space) 1]
+                      [(#\014) 0] 
+                      [(#\tab) (- 8 (modulo count 8))])))
          0
          (string->list str)))
 
@@ -231,7 +232,7 @@ Simple lexer, produces physical/other tokens.
 
    ((:: "\\" physical-eol) (lex input-port))
    (physical-eol (token 'PHYSICAL-NEWLINE))
-   ((:+ (:or " " "\t")) (token 'WHITESPACE (count-spaces lexeme)))
+   ((:+ (:or " " "\t" "\f")) (token 'WHITESPACE (count-spaces lexeme)))
    ((eof) (token 'EOF "EOF"))))
 
 #| Logical lexer - produces logical/other tokens using physical lexer |#

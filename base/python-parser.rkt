@@ -79,6 +79,11 @@ trailer, comp-op, suite and others should match their car, except s/_/-
     [(list 'expr_stmt testlist (list 'augassign op) val)
      (ast 'nodetype "AugAssign"
           'op (ast 'nodetype (case op 
+#| 
+
++=      -=      *=      /=      //=     %=
+&=      |=      ^=      >>=     <<=     **=
+|#
                                [("+=") "Add"]
                                [("-=") "Sub"]
                                [("*=") "Mult"]
@@ -88,6 +93,7 @@ trailer, comp-op, suite and others should match their car, except s/_/-
                                [("|=") "BitOr"]
                                [("^=") "BitXor"]
                                [(">>=") "RShift"]
+                               [("<<=") "LShift"]
                                [("**=") "Pow"]
                                [("//=") "FloorDiv"]
                                [else (error "Unrecognized augassign op")]))

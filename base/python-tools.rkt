@@ -91,7 +91,7 @@
   (parse-python port))
 
 (define (parse-test port)
-  (compare-parse port))
+  (single-parse-test port))
 
 (define (run-python-nopy port)
   (interp
