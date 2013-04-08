@@ -4,13 +4,14 @@
 (require racket/cmdline
          racket/pretty
          "python-tools.rkt"
-         "parse-python.rkt"
          "run-tests.rkt"
          "util.rkt"
          "python-evaluator.rkt"
          "python-lexical-printer.rkt"
          "python-evaluator.rkt"
-         "test-parser.rkt")
+         "parser/test-parser.rkt"
+         "parser/python-python-parser.rkt")
+
 
 (command-line
   #:once-each

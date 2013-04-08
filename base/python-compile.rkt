@@ -4,8 +4,8 @@
          "python-phases.rkt"
          "python-desugar.rkt"
          "util.rkt"
-         (typed-in "parse-python.rkt" (parse-python/port : ('a 'b -> 'c)))
-         (typed-in "parse-python.rkt" (parse-python/string : ('a 'b -> 'c)))         
+         (typed-in "parser/python-python-parser.rkt" (parse-python/port : ('a 'b -> 'c)))
+         (typed-in "parser/python-python-parser.rkt" (parse-python/string : ('a 'b -> 'c)))         
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))   
          (typed-in racket/base (open-input-file : ('a -> 'b)))

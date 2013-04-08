@@ -1,7 +1,7 @@
 #lang plai
 
 (require "python-syntax.rkt")
-(require "parse-python.rkt")
+(require "parser/python-python-parser.rkt")
 (require racket/match
          racket/list
          racket/base)

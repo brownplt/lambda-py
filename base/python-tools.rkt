@@ -1,7 +1,6 @@
 #lang racket/base
 
 (require racket/pretty
-         "parse-python.rkt"
          "get-structured-python.rkt"
          "python-interp.rkt"
          "python-phases.rkt"
@@ -14,10 +13,11 @@
          "run-tests.rkt"
          "util.rkt"
          "python-evaluator.rkt"
-         "python-lexer.rkt"
-         "python-parser.rkt"
-         "python-grammar.rkt"
-         "test-parser.rkt")
+         "parser/python-python-parser.rkt"
+         "parser/python-lexer.rkt"
+         "parser/python-parser.rkt"
+         "parser/python-grammar.rkt"
+         "parser/test-parser.rkt")
 
 (provide (all-defined-out)
          set-pypath

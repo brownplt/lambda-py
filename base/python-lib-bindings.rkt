@@ -17,8 +17,6 @@
          "modules/builtin-modules.rkt"
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
-         (typed-in "parse-python.rkt"
-                   (parse-python/port : ('a string -> 'b)))
          (typed-in racket/base (open-input-file : ('a -> 'b)))
          "python-syntax.rkt"
          "python-lexical-syntax.rkt"

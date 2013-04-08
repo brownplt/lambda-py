@@ -2,10 +2,9 @@
 
 (require racket/pretty
 	 "python-parser.rkt"
-	 "parse-python.rkt"
-	 "python-lexer.rkt"
-     "run-tests.rkt" ;; borrow get-test-specs and TestSpec
-	 "util.rkt")
+	 "python-python-parser.rkt"
+     "../run-tests.rkt" ;; borrow get-test-specs and TestSpec
+	 "../util.rkt")
 
 (provide single-parse-test parse-tests)
 

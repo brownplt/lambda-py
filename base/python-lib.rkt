@@ -16,7 +16,7 @@
          (typed-in "python-lib-list.rkt" (python-libs : (listof string)))
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
-         (typed-in "parse-python.rkt" (parse-python/port : ('a string -> 'b)))
+         (typed-in "parser/python-python-parser.rkt" (parse-python/port : ('a string -> 'b)))
          "core-to-sexp.rkt"
          (typed-in "sexp-to-core.rkt" (sexp->core : ('a -> CExpr)))
          (typed-in racket/fasl (s-exp->fasl : ('a 'b -> 'c)) (fasl->s-exp : ('a -> 'b)))
