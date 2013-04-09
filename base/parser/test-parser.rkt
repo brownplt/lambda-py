@@ -1,10 +1,9 @@
 #lang racket
 
 (require racket/pretty
-	 "python-parser.rkt"
-	 "python-python-parser.rkt"
-     "../run-tests.rkt" ;; borrow get-test-specs and TestSpec
-	 "../util.rkt")
+         "parser.rkt"
+         "../run-tests.rkt" ;; borrow get-test-specs and TestSpec
+         "../util.rkt")
 
 (provide single-parse-test parse-tests)
 
@@ -38,14 +37,16 @@
 
 (define (compare-parse port)
   (let* ((program-text (port->string port))
-	 (program-port-1 (open-input-string program-text))
-	 (program-port-2 (open-input-string program-text))	 
-     (python-ast-or-exn
-      (with-handlers [(exn:fail? (lambda (e) e))]
-        (parse-python/port program-port-2 (get-pypath))))
-	 (native-ast-or-exn 
-      (with-handlers [(exn:fail? (lambda (e) e))]
-        (parse-python program-port-1))))
+         (program-port-1 (open-input-string program-text))
+         (program-port-2 (open-input-string program-text))	 
+         (python-ast-or-exn
+          (with-handlers [(exn:fail? (lambda (e) e))]
+            (parameterize [(parser python-parse-python/port)]
+              ((parser) program-port-1))))
+         (native-ast-or-exn 
+          (with-handlers [(exn:fail? (lambda (e) e))]
+            (parameterize [(parser native-parse-python/port)]
+              ((parser) program-port-2)))))
     (cond
      [(and (exn:fail? python-ast-or-exn)
            (exn:fail? native-ast-or-exn))

@@ -9,9 +9,8 @@
          "python-evaluator.rkt"
          "python-lexical-printer.rkt"
          "python-evaluator.rkt"
-         "parser/test-parser.rkt"
-         "parser/python-python-parser.rkt")
-
+         "parser/parser.rkt"
+         "parser/test-parser.rkt")
 
 (command-line
   #:once-each
@@ -24,7 +23,7 @@
    (display (cdr results) (current-error-port)))
 
   ("--get-syntax" "Get s-exp for python"
-   (pretty-write (parse-python/port (current-input-port) (get-pypath))))
+   (pretty-write ((parser) (current-input-port))))
   
   ("--get-surface-syntax" "Get surface syntax python"
    (pretty-write (get-surface-syntax (current-input-port))))
@@ -41,7 +40,6 @@
     ("--get-lexical-syntax-with-locals" "Get surface syntax python"
    (lexexpr-print (get-lexical-syntax-with-locals (current-input-port))))
 
-
   ("--get-core-syntax" "Get desugared python"
    (pretty-write (get-core-syntax (current-input-port))))
 
@@ -51,21 +49,11 @@
   ("--get-core-syntax-with-macros" "Get desugared python with ___ macros expanded"
    (pretty-write (desugar-w/macros (current-input-port))))
 
-  ("--get-lex-tokens" "Get tokens from experimental lexer"
+  ("--get-lex-tokens" "Get tokens from native lexer"
    (pretty-write (get-lexer-tokens (current-input-port))))
 
-  ("--get-parse-tree" "Get AST from experimental parser"
-   (pretty-write (get-parse-tree (current-input-port))))
-
-  ("--interp-nopy" "Interpret stdin as python"
-   (run-python-nopy (current-input-port)))
-
-  
   ("--test" dirname "Run all tests in dirname"
    (display (results-summary (run-tests (mk-proc-eval/silent python-test-runner) dirname))))
-
-  ("--test-nopy" dirname "Run all tests in dirname using racket lexer/parser"
-   (display (results-summary (run-tests (mk-proc-eval/silent python-test-runner-nopy) dirname))))
 
   ("--test-py" dirname "Run all tests in dirname using python"
    (display (results-summary (run-tests (mk-python-cmdline-eval (get-pypath)) dirname))))
@@ -83,6 +71,12 @@
 
   ("--python-path" path "Set the python path" 
    (set-pypath path))
+
+  ("--python-parser" "Use the python selected with --python-path to parse python"
+   (parser python-parse-python/port))
+
+  ("--native-parser" "Use the native racket parser to parse python (default)"
+   (parser native-parse-python/port))
 
   ("--progress-report" dirname "Generate a soft report"
    (printf "~a\n"
