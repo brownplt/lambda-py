@@ -5,6 +5,7 @@
 (require racket/match
          racket/list
          racket/base)
+(require (only-in plai-typed some none))
 
 #|
 
@@ -19,27 +20,17 @@ structure that you define in python-syntax.rkt
   (string->symbol (hash-ref nodejson 'nodetype)))
 
 (define (parse-func name body decorator-list args)
-  (cond
-   ; varargs
-   [(string?  (hash-ref args 'vararg))
-    (PyFuncVarArg (string->symbol name)
-                  (map (lambda(arg) 
-                         (string->symbol (hash-ref arg 'arg))) 
-                       (hash-ref args 'args)) 
-                  (string->symbol (hash-ref args 'vararg))
-                  (get-structured-python body)
-                  (map get-structured-python decorator-list))]
-   ; regular function
-   [else
-    (PyFunc (string->symbol name)
-            (map (lambda(arg)
-                   (string->symbol (hash-ref arg 'arg)))
-                 (hash-ref args 'args))
-            (map (lambda(arg) 
-                   (get-structured-python arg))
-                 (hash-ref args 'defaults)) 
-            (get-structured-python body)
-            (map get-structured-python decorator-list))]))
+  (PyFunc (string->symbol name)
+          (map (lambda(arg)
+                 (string->symbol (hash-ref arg 'arg)))
+               (hash-ref args 'args))
+          (if (string?  (hash-ref args 'vararg))
+              (some (string->symbol (hash-ref args 'vararg)))
+              (none))
+          (map (lambda(arg) (get-structured-python arg))
+               (hash-ref args 'defaults))
+          (get-structured-python body)
+          (map get-structured-python decorator-list)))
 
 (define (get-structured-python pyjson)
   (begin

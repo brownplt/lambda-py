@@ -57,22 +57,15 @@
                                                   (pre-desugar body)))))]
        [PyLam (args body)
               (LexLam args (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
-       [PyFunc (name args defaults body decorators)
-               (LexSeq (list (LexAssign (list (PyLexId name 'Store)) 
-                                        (LexFunc name args
-                                                 (map pre-desugar defaults)
-                                                 (LexBlock args (cascade-nonlocal args (pre-desugar body)))
-                                                 (map pre-desugar decorators)
-                                                 (none)))))]
-       
-       [PyFuncVarArg (name args sarg body decorators)
-                     (LexSeq (list
-                              (LexAssign (list (PyLexId name 'Store))
-                                         (LexFuncVarArg name args sarg
-                                                        (LexBlock (cons sarg args)
-                                                                  (cascade-nonlocal (cons sarg args) (pre-desugar body)))
-                                                        (map pre-desugar decorators)
-                                                        (none)))))]
+       [PyFunc (name args vararg defaults body decorators)
+               (let ([all-args (if (some? vararg) (cons (some-v vararg) args) args)])
+                 (LexSeq (list (LexAssign (list (PyLexId name 'Store)) 
+                                          (LexFunc name args vararg
+                                                   (map pre-desugar defaults)
+                                                   (LexBlock all-args
+                                                             (cascade-nonlocal all-args (pre-desugar body)))
+                                                   (map pre-desugar decorators)
+                                                   (none))))))]
        [PyImport (names asnames) 
                  (desugar-pyimport names asnames)]
        
@@ -183,17 +176,12 @@
                                                   (LexClass replace-scope name
                                                             (remove-unneeded-assigns bases)
                                                             (remove-unneeded-assigns body))]
-                                        [LexFunc (name args defaults body decorators class)
-                                                 (LexFunc name args
+                                        [LexFunc (name args vararg defaults body decorators class)
+                                                 (LexFunc name args vararg
                                                           (map remove-unneeded-assigns defaults)
                                                           (remove-unneeded-assigns body)
                                                           (map remove-unneeded-assigns decorators)
                                                           class)]
-                                        [LexFuncVarArg (name args sarg body decorators class)
-                                                       (LexFuncVarArg name args sarg
-                                                                      (remove-unneeded-assigns body)
-                                                                      (map remove-unneeded-assigns decorators)
-                                                                      class)]
                                         [else (error 'remove-unneeded-assigns
                                                      "undefined pattern present without declaration")]
                                         )

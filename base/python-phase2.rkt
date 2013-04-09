@@ -61,7 +61,7 @@
                                   (default-recur))))))
     (LexSeq (list
              (LexAssign (list (LexGlobalId '%globals 'Store))
-                        (LexFunc '%globals empty empty
+                        (LexFunc '%globals empty (none) empty
                                  (collecting-ids-body globals
                                                       (lambda (x y) (LexGlobalId x y)))
                                  empty (none)))
@@ -78,12 +78,12 @@
          expr
          (lambda (y)
            (type-case LexExpr y
-             [LexFunc (name args defaults body decorators class)
+             [LexFunc (name args vararg defaults body decorators class)
                       (if
                        (and
                         (> (string-length (symbol->string name )) (string-length "class-replacement"))
                         (equal? "class-replacement" (substring (symbol->string name) 0 (string-length "class-replacement"))))
-                       (LexFunc name args defaults body decorators (none))
+                       (LexFunc name args vararg defaults body decorators (none))
                        y)]
              [else (default-recur)]))))
       (define hoist-functions (local
@@ -134,39 +134,26 @@
          (lambda
              ([e : LexExpr])
            (type-case LexExpr e
-             [LexFunc (name args defaults body decorators class)
-                      (LexFunc name args
-                               (map replace-functions defaults)
-                               (begin
-                                 (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
-                                 (set! list-of-functions (cons
+             [LexFunc (name args vararg defaults body decorators class)
+                      (let ([all-args (if (some? vararg) (cons (some-v vararg) args) args)])
+                        (LexFunc name args vararg
+                                 (map replace-functions defaults)
+                                 (begin
+                                   (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
+                                   (set! list-of-functions (cons
                                                           
-                                                          (LexFunc (first list-of-identifiers)
-                                                                   args
-                                                                   empty
-                                                                   body
-                                                                   empty
-                                                                   (none)) list-of-functions))
-                                 (LexBlock empty (LexReturn (some (LexApp (LexLocalId (first list-of-identifiers) 'Load) (make-local-ids args)))))
-                                 )
-                               (map replace-functions decorators) class)
+                                                            (LexFunc (first list-of-identifiers)
+                                                                     all-args
+                                                                     (none)
+                                                                     empty
+                                                                     body
+                                                                     empty
+                                                                     (none)) list-of-functions))
+                                   (LexBlock empty (LexReturn (some (LexApp (LexLocalId (first list-of-identifiers) 'Load)
+                                                                            (make-local-ids all-args)))))
+                                   )
+                                 (map replace-functions decorators) class))
                       ]
-             [LexFuncVarArg (name args sarg body decorators class)
-                            (LexFuncVarArg name args sarg
-                               (begin
-                                 (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
-                                 (set! list-of-functions (cons
-                                                          (LexFunc (first list-of-identifiers)
-                                                                   (cons sarg args)
-                                                                   empty
-                                                                   body
-                                                                   empty
-                                                                   (none))
-                                                          list-of-functions))
-                                 (LexBlock empty (LexReturn
-                                  (some (LexApp (LexLocalId (first list-of-identifiers) 'Load) (make-local-ids (cons sarg args))))))
-                                 )
-                               (map replace-functions decorators) class)]
              [LexLam (args body) (begin
                                    (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
                                    (set! list-of-functions (cons e list-of-functions))
@@ -187,11 +174,9 @@
            (lambda (y)
              (type-case LexExpr y
                [LexInstanceId (x ctx) (LexDotField class-expr x)]
-               [LexFunc (name args defaults body decorators class)
-                        (LexFunc name args (map recur defaults) body decorators
+               [LexFunc (name args vararg defaults body decorators class)
+                        (LexFunc name args vararg (map recur defaults) body decorators
                                  (some class-expr))]
-               [LexFuncVarArg (name args sarg body decorators class)
-                              (LexFuncVarArg name args sarg body (map recur decorators) (some class-expr)) ]
                [LexClass (scope name bases body) (LexClass scope name bases body)]
                [else (default-recur)])))))
       (define (split-instance-into-instance-locals expr)
@@ -501,19 +486,12 @@
                         [none () (LexSeq (list restore-locals (LexReturn (none))))])]
        [LexLam (args body) (LexLam args (replace-lexinscopelocals (store-locals-careful body)))]
        ;I'm really not sure what's going on here....
-       [LexFunc (name args defaults body decoratos class)
+       [LexFunc (name args vararg defaults body decoratos class)
                 (LexFunc
                  name
                  args
+                 vararg
                  (map replace-lexinscopelocals defaults)
-                 (replace-lexinscopelocals (store-locals body))
-                 (map replace-lexinscopelocals decoratos)
-                 (option-map replace-lexinscopelocals class))]
-       [LexFuncVarArg (name args sarg body decoratos class)
-                (LexFuncVarArg
-                 name
-                 args
-                 sarg
                  (replace-lexinscopelocals (store-locals body))
                  (map replace-lexinscopelocals decoratos)
                  (option-map replace-lexinscopelocals class))]
@@ -525,7 +503,7 @@
 ;largely for ease of testing (I can read this code; desugared code not so much)
 (define (phase2-locals [ids : (listof symbol)]) : LexExpr
   (LexAssign (list (LexGlobalId '%locals 'Store)) 
-			 (LexFunc '%locals empty empty
+			 (LexFunc '%locals empty (none) empty
                       (collecting-ids-body ids (lambda (x y) (LexLocalId x y)))
                       empty (none))))
 

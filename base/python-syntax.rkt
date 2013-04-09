@@ -49,10 +49,8 @@
 
   ; functions
   [PyLam (args : (listof symbol)) (body : PyExpr)]
-  [PyFunc (name : symbol) (args : (listof symbol)) (defaults : (listof PyExpr)) 
-          (body : PyExpr) (decorators : (listof PyExpr))]
-  [PyFuncVarArg (name : symbol) (args : (listof symbol)) 
-                (sarg : symbol) (body : PyExpr) (decorators : (listof PyExpr))]
+  [PyFunc (name : symbol) (args : (listof symbol)) (vararg : (optionof symbol))
+          (defaults : (listof PyExpr)) (body : PyExpr) (decorators : (listof PyExpr))]
   [PyReturnValue (value : PyExpr)]
   [PyReturn]
   [PyApp (fun : PyExpr) (args : (listof PyExpr))]

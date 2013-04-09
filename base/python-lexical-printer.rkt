@@ -67,20 +67,13 @@
                  (let ((typecase-lambda
                         (lambda ([value : LexExpr]) : LexExpr
                                 (type-case LexExpr value
-                                  [LexFunc (a b c d e f)
+                                  [LexFunc (a b c d e f g)
                                            (begin
                                              (display starting-tab)
                                              (display "# assigned to ")
                                              (comma-separate targets)
                                              (display "\n")
                                              (lexexpr-print-helper value starting-tab))]
-                                  [LexFuncVarArg (a b c d e f)
-                                                 (begin
-                                                   (display starting-tab)
-                                                   (display "# assigned to ")
-                                                   (comma-separate targets)
-                                                   (display "\n")
-                                                   (lexexpr-print-helper value starting-tab))]
                                   [LexClass (a b c d)
                                             (begin
                                               (display starting-tab)
@@ -306,7 +299,7 @@
                 (lexexpr-print-helper body (string-append "  " starting-tab))
                 (display ")")
                 this-expr)]
-      [LexFunc (name args defaults body decorators class)
+      [LexFunc (name args vararg defaults body decorators class)
                (begin
                  (display starting-tab)
                  (if (empty? decorators)
@@ -316,6 +309,12 @@
                  (display name)
                  (display "(")
                  (comma-separate-2 args)
+                 (if (some? vararg)
+                     (begin
+                       (display ",")
+                       (display (some-v vararg))
+                       (display "*"))
+                     (display ""))
                  (if (empty? defaults)
                      (display "):\n")
                      (begin
@@ -327,28 +326,6 @@
                  (display "\n")
                  ;END TAB
                  this-expr)]
-      [LexFuncVarArg (name args sarg body decorators class)
-                     (begin
-                       (display starting-tab)
-                       (if (empty? decorators)
-                           (display "")
-                           (begin
-                           (display decorators)
-                           (display "\n")
-                           (display starting-tab)))
-                       (display "def ")
-                       (display name)
-                       (display "(")
-                       (comma-separate-2 args)
-                       (display ",")
-                       (display sarg)
-                       (display "*")
-                       (display "):\n")
-                                        ;TAB
-                       (lexexpr-print-helper body (string-append "  " starting-tab))
-                       (display "\n")
-                                        ;END TAB
-                       this-expr)]
       [LexReturn (value) (begin
                            (display "\n")
                            (display starting-tab)

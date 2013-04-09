@@ -356,9 +356,9 @@
       
       [LexLam (args body) (CFunc args (none) (CReturn (rec-desugar body)) (none))]
 
-      [LexFunc (name args defargs body decorators opt-class)
+      [LexFunc (name args vararg defargs body decorators opt-class)
                (cond
-                [(> (length defargs) 0 )
+                [(and (> (length defargs) 0 ) (none? vararg))
                    (local [(define last-arg (first (reverse args)))]
                      (rec-desugar
                        ; assuming 1 defarg for now, generalize later
@@ -366,43 +366,36 @@
                        ; or stararg), otherwise they are silently discarded. (Alejandro).
                        (LexLocalLet last-arg
                                     (first (reverse defargs))
-                           (LexFuncVarArg name empty
-                                          'stararg 
-                                          (LexSeq
-                                            (list
-                                              (LexIf (LexCompOp (LexApp
-                                                                  (LexDotField
-                                                                    (LexLocalId 'stararg 'Load)
-                                                                    '__len__)
-                                                                  empty)
-                                                                (list 'Gt)
-                                                                (list (LexNum 0)))
-                                                     (LexAssign (list (LexLocalId last-arg
-                                                                                  'DesugarVar))
-                                                                (LexSubscript
-                                                                  (LexLocalId 'stararg 'Load)
-                                                                  'Load
-                                                                  (LexNum 0)))
-                                                     (LexPass))
-                                              body))
-                                          decorators opt-class))))]
-                 [(empty? decorators)
-                   (local [(define body-r (rec-desugar body))] 
-                     (CFunc args (none) body-r (option-map id-to-symbol opt-class)))]
+                           (LexFunc name empty
+                                    (some 'stararg) empty
+                                    (LexSeq
+                                     (list
+                                      (LexIf (LexCompOp (LexApp
+                                                         (LexDotField
+                                                          (LexLocalId 'stararg 'Load)
+                                                          '__len__)
+                                                         empty)
+                                                        (list 'Gt)
+                                                        (list (LexNum 0)))
+                                             (LexAssign (list (LexLocalId last-arg
+                                                                          'DesugarVar))
+                                                        (LexSubscript
+                                                         (LexLocalId 'stararg 'Load)
+                                                         'Load
+                                                         (LexNum 0)))
+                                             (LexPass))
+                                      body))
+                                    decorators opt-class))))]
 
-                 [else
-                  (rec-desugar ;; apply decorators to the function
-                   (foldr (lambda (decorator func) (LexApp decorator (list func)))
-                          (LexFunc name args (list) body (list) opt-class)
-                          decorators))])]
+                [(empty? decorators)
+                 (local [(define body-r (rec-desugar body))] 
+                   (CFunc args vararg body-r (option-map id-to-symbol opt-class)))]
 
-      [LexFuncVarArg (name args sarg body decorators opt-class)
-                     (if (empty? decorators)
-                         (CFunc args (some sarg) (rec-desugar body) (option-map id-to-symbol opt-class))
-                         (rec-desugar ;; apply decorators to the function
-                          (foldr (lambda (decorator func) (LexApp decorator (list func)))
-                                 (LexFuncVarArg name args sarg body (list) opt-class)
-                                 decorators)))]
+                [else
+                 (rec-desugar ;; apply decorators to the function
+                  (foldr (lambda (decorator func) (LexApp decorator (list func)))
+                         (LexFunc name args vararg empty body (list) opt-class)
+                         decorators))])]
 
       [LexReturn (value) (CReturn (type-case (optionof CExpr) (option-map rec-desugar value)
                                     [some (v) v]
