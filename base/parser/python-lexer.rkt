@@ -67,7 +67,6 @@ This only works because there are no valid source chars outside the ASCII range 
   (longstringitem (:or (:~ "\\") stringescapeseq))
   (stringescapeseq (:: "\\" any-char)))
 
-;; TODO: Unicode escapes
 (define (parse-string lexeme)
   (let* ((raw (equal? "r" (substring lexeme 0 1)))
          (lexeme-noraw (substring lexeme (if raw 1 0)))
@@ -79,7 +78,7 @@ This only works because there are no valid source chars outside the ASCII range 
          (lexeme-no-quotes (substring lexeme-noraw 
                                       (if triple 3 1) 
                                       (- (string-length lexeme-noraw) (if triple 3 1)))))
-    (if raw lexeme-no-quotes (backslash-escaped lexeme-no-quotes))))
+    (if raw lexeme-no-quotes (backslash-escaped lexeme-no-quotes #t))))
 
 ;; Char c in the set abfnrtv to escaped character of \c
 (define (escape-char c)
@@ -95,14 +94,18 @@ This only works because there are no valid source chars outside the ASCII range 
 (define (octal-char? c)
   (member c '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7)))
 
-;; Turn three octal chars into a one-byte char
-(define (octal-chars->char c1 c2 c3)
-  (integer->char (string->number (string c1 c2 c3) 8)))
+;; Turn list of octal chars into represented byte, as a character
+(define (octal-chars->char . chars)
+  (integer->char (string->number (apply string chars) 8)))
 
-(define (hex-chars->char c1 c2)
-  (integer->char (string->number (string c1 c2) 16)))
+(define (hex-chars->char . chars)
+  (integer->char (string->number (apply string chars) 16)))
 
-(define (backslash-escaped lexeme)
+(define (character-name->char name)
+  (error "Character names not supported"))
+
+;; TODO: Catch and rethrow errors as syntax errors
+(define (backslash-escaped lexeme unicode?)
   (local ((define (escape char-lst acc)
             (match char-lst
               [`() (reverse acc)]
@@ -119,10 +122,15 @@ This only works because there are no valid source chars outside the ASCII range 
               [(list-rest #\\ (? octal-char? c1) rest)
                (escape rest (cons (octal-chars->char #\0 #\0 c1) acc))]
               [(list-rest #\\ #\x c1 c2 rest)
-               ;; TODO: Catch and rethrow errors as syntax errors
                (escape rest (cons (hex-chars->char c1 c2) acc))]
+              [(? (lambda _ unicode?) (list-rest #\\ #\u c1 c2 c3 c4 rest))
+               (escape rest (cons (hex-chars->char c1 c2 c3 c4) acc))]
+              [(? (lambda _ unicode?) (list-rest #\\ #\U c1 c2 c3 c4 c5 c6 c7 c8 rest))
+               (escape rest (cons (hex-chars->char c1 c2 c3 c4 c5 c6 c7 c8) acc))]
+              [(? (lambda _ unicode?) ;; Does this match shortest or not?
+                  (list #\\ #\N #\{ name-chars ... #\} rest ...))
+               (escape rest (cons (character-name->char (apply string name-chars)) acc))]
               [(list-rest c rest) (escape rest (cons c acc))])))
-         
          (list->string (escape (string->list lexeme) (list)))))
 
 #| BYTESTRINGS |#
@@ -139,6 +147,7 @@ This only works because there are no valid source chars outside the ASCII range 
   (longbyteschar (:- (char-range "\u0" "\u7f") "\\"))
   (bytesescapeseq (:: "\\" (char-range "\u0" "\u7f"))))
 
+;; The non-escaping here might be an artifact of python-parser.py
 (define (parse-bytestring lexeme)
   (let-values ([(raw? lead-chars follow-chars)
                 (match lexeme

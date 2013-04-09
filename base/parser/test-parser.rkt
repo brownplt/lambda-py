@@ -12,11 +12,20 @@
 
 (define (single-parse-test port)
   (match (compare-parse port)
-    [(list 'both-parsers-fail _ _) (display "Both parsers fail\n") (exit 1)]
-    [(list 'python-parser-fails _ _) (display "Python parser fails\n") (exit 2)]
-    [(list 'native-parser-fails _ _) (display "Native parser fails\n") (exit 3)]
+    [(list 'both-parsers-fail py-exn native-exn) (display "Both parsers fail\n")
+       (pretty-write native-exn)
+       (display "======\n")
+       (pretty-write py-exn)
+       (exit 1)]
+    [(list 'python-parser-fails py-exn _) (display "Python parser fails\n") 
+     (display (exn-message py-exn))
+     (exit 2)]
+    [(list 'native-parser-fails py-ast native-exn) (display "Native parser fails\n") 
+     (pretty-write py-ast)
+     (display (exn-message native-exn))
+     (exit 3)]
     ['equal (display "Programs are equal\n") (exit 0)]
-    [(list 'not-equal native py)
+    [(list 'not-equal py native)
      (display "Native parser does not match python parser\n")
      (display "=== Native ===\n")
      (pretty-write native)
@@ -28,7 +37,7 @@
   (for ([spec specs])
     (display (TestSpec-program-name spec)) (newline)
     (match (compare-parse (open-input-string (TestSpec-program-src spec)))
-      [(list 'both-parsers-fail _ _) (display "Both parsers fail\n")]
+      [(list 'both-parsers-fail native-exn py-exn) (display "Both parsers fail\n")]
       [(list 'python-parser-fails _ _) (display "Python parser fails\n")]
       [(list 'native-parser-fails _ _) (display "Native parser fails\n")]
       ['equal '()]
@@ -57,5 +66,5 @@
       (list 'native-parser-fails python-ast-or-exn native-ast-or-exn)]
      [(equal? native-ast-or-exn python-ast-or-exn) 
       'equal]
-     [else (list 'not-equal native-ast-or-exn python-ast-or-exn)])))
+     [else (list 'not-equal python-ast-or-exn native-ast-or-exn)])))
         ;; parser currently displays unhandled portion
