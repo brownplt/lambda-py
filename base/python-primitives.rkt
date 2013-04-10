@@ -12,6 +12,7 @@
          "builtins/file.rkt"
          "builtins/type.rkt"
          "builtins/super.rkt"
+         "builtins/function.rkt"
          "builtins/code.rkt"
          "python-compile.rkt"
          (typed-in racket/string (string-join : ((listof string) string -> string)))
@@ -263,6 +264,7 @@ primitives here.
 
     ;function
     ['is-func? (prim-noalloc is-func? argvs)]
+    ['func-args (prim-list-alloc func-args (cons (first argvs) (rest argsptrs)))]
 
     ;exceptions
     ['exception-str (alloc-result 

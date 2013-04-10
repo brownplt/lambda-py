@@ -358,41 +358,23 @@
 
       [LexFunc (name args vararg defargs body decorators opt-class)
                (cond
-                [(and (> (length defargs) 0 ) (none? vararg))
-                   (local [(define last-arg (first (reverse args)))]
-                     (rec-desugar
-                       ; assuming 1 defarg for now, generalize later
-                       ; NB: it also assumes no other arguments are present (fixed position
-                       ; or stararg), otherwise they are silently discarded. (Alejandro).
-                       (LexLocalLet last-arg
-                                    (first (reverse defargs))
-                           (LexFunc name empty
-                                    (some 'stararg) empty
-                                    (LexSeq
-                                     (list
-                                      (LexIf (LexCompOp (LexApp
-                                                         (LexDotField
-                                                          (LexLocalId 'stararg 'Load)
-                                                          '__len__)
-                                                         empty)
-                                                        (list 'Gt)
-                                                        (list (LexNum 0)))
-                                             (LexAssign (list (LexLocalId last-arg
-                                                                          'DesugarVar))
-                                                        (LexSubscript
-                                                         (LexLocalId 'stararg 'Load)
-                                                         'Load
-                                                         (LexNum 0)))
-                                             (LexPass))
-                                      body))
-                                    decorators opt-class))))]
+                [(and (empty? decorators) (empty? defargs))
+                 ;; the "normal" case, it could be absorved by the next, it is a little optimization
+                 ;; which works since __defaults__ returns () for functions without defaults.
+                 (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))]
 
                 [(empty? decorators)
-                 (local [(define body-r (rec-desugar body))] 
-                   (CFunc args vararg body-r (option-map id-to-symbol opt-class)))]
+                 ;; desugar the function and attach __defaults__ attribute
+                 (CLet '$func (LocalId)
+                       (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))
+                       (CSeq
+                        (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
+                                  (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defargs)))
+                        (CId '$func (LocalId))))]
 
                 [else
-                 (rec-desugar ;; apply decorators to the function
+                 ;; first apply decorators to the function
+                 (rec-desugar
                   (foldr (lambda (decorator func) (LexApp decorator (list func)))
                          (LexFunc name args vararg empty body (list) opt-class)
                          decorators))])]

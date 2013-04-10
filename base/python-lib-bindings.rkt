@@ -255,6 +255,7 @@
             (bind '%dir (CUndefined))
             (bind '%special_getattr (CUndefined))
             (bind '%obj_dict (CUndefined))
+            (bind '%call_stararg (CUndefined))
             (bind 'property (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
