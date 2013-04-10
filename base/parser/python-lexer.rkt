@@ -3,8 +3,8 @@
 (require racket/generator
          parser-tools/lex
          ragg/support
-         (prefix-in : parser-tools/lex-sre))
-
+         (prefix-in : parser-tools/lex-sre)
+         "unicode-char-names.rkt")
 
 #| TODO: Scan first two physical lines for encoding. |#
 #| TODO: Support other encodings (than utf-8). |#
@@ -102,7 +102,8 @@ This only works because there are no valid source chars outside the ASCII range 
   (integer->char (string->number (apply string chars) 16)))
 
 (define (character-name->char name)
-  (error "Character names not supported"))
+  (hash-ref unicode-char-names name 
+            (lambda () (error (string-append "Unicode character name not found: " name "\n")))))
 
 ;; TODO: Catch and rethrow errors as syntax errors
 (define (backslash-escaped lexeme unicode?)
@@ -127,8 +128,8 @@ This only works because there are no valid source chars outside the ASCII range 
                (escape rest (cons (hex-chars->char c1 c2 c3 c4) acc))]
               [(? (lambda _ unicode?) (list-rest #\\ #\U c1 c2 c3 c4 c5 c6 c7 c8 rest))
                (escape rest (cons (hex-chars->char c1 c2 c3 c4 c5 c6 c7 c8) acc))]
-              [(? (lambda _ unicode?) ;; Does this match shortest or not?
-                  (list #\\ #\N #\{ name-chars ... #\} rest ...))
+              [(? (lambda _ unicode?)
+                  (list #\\ #\N #\{ (and (not #\}) name-chars) ... #\} rest ...))
                (escape rest (cons (character-name->char (apply string name-chars)) acc))]
               [(list-rest c rest) (escape rest (cons c acc))])))
          (list->string (escape (string->list lexeme) (list)))))
