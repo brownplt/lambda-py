@@ -13,7 +13,7 @@
   (if (= (length args) 3)
       (type-case CVal (first args)
         [VObjectClass (_ opt-mval __ ___)
-          (type-case (optionof MetaVAl) opt-mval
+          (type-case (optionof MetaVal) opt-mval
             [some (mval)
               (type-case MetaVal mval
                 [MetaClosure (_ func-args __ ___ ____)
