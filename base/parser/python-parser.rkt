@@ -2,14 +2,19 @@
 
 (require racket/match
          "python-lexer.rkt"
-         "python-grammar.rkt")
+         (prefix-in grammar: "python-grammar.rkt"))
 
 (provide parse-python)
 
 #| 
+AST: hash of symbol -> (string | number | AST | #\nul)
+Values of these will match the ASDL spec at http://docs.python.org/3.2/library/ast.html with the constructor name under the 'nodetype key.
 
-The AST expected by get-structured-python is a hash of symbol -> (string | number | AST), as produced by Python's AST library and imported in parse-python.rkt. The main non-obvious aspect of it is the 'ctx attribute of each expression node, which is (probably) determined by the statement and expression productions. 
+This format matches that produced by python-python-parser.rkt and python-parser.py. The main non-obvious aspect of it is the 'ctx attribute of each expression node, which is determined by the statement type (or generator expression).
+|#
+(define ast hasheq)
 
+#|
 Ragg generates a parse tree in the form of a syntax object, which can look oddly nested because of Python's grammar:
 
 Example:
@@ -22,22 +27,18 @@ Example:
       (testlist (test (or_test (and_test (not_test (comparison (expr (xor_expr (and_expr (shift_expr (arith_expr (term (factor (power (atom NAME)))))))))))))))))
     NEWLINE)))
 
-Some pseudo-types used in function names to help make this legible...
+Most of this nesting is handled by the first clauses of expr->ast and non-simple-stmt->ast.
 
-(define (stmt? sexp)
-  (any expression that can be derived starting with stmt))
+Grammar LHS pseudo-types used in function names:
+stmt: any expression that can be derived starting with stmt - Python's statements
+expr: any expression that can be derived starting with testlist_star_expr (probably) - Python's expression language
+module/trailer/comp-op/suite/decorator etc.: Name matches the grammar LHS (here, their car)
 
-(define (expr? sexp)
-  (any expression that can be derived starting with testlist_star_expr (probably)))
-
-trailer, comp-op, suite and others should match their car, except s/_/-
+Also, I hope you like quasiquote match patterns. (Sorry.) This should move to syntax objects and syntax-case to support source position eventually.
 |#
 
-
 (define (parse-python port)
-  (module->ast (syntax->datum (parse (get-python-lexer port)))))
-
-(define ast hasheq)
+  (module->ast (syntax->datum (grammar:parse (get-python-lexer port)))))
 
 (define (module->ast py-ragg)
   (match py-ragg
@@ -80,11 +81,6 @@ trailer, comp-op, suite and others should match their car, except s/_/-
     [(list 'expr_stmt testlist (list 'augassign op) val)
      (ast 'nodetype "AugAssign"
           'op (ast 'nodetype (case op 
-#| 
-
-+=      -=      *=      /=      //=     %=
-&=      |=      ^=      >>=     <<=     **=
-|#
                                [("+=") "Add"]
                                [("-=") "Sub"]
                                [("*=") "Mult"]
@@ -512,13 +508,13 @@ trailer, comp-op, suite and others should match their car, except s/_/-
      (ast 'nodetype "Str"
           's (apply string-append str-parts))]
 
-    ;; AFAICT, between the lexer and parser, this is exactly what python's AST library produces
-    ;; str-parts do contain escape sequences
+    ;; str-parts do contain escape sequences here. Might be an artifact of the original non-bytes assignment.
     [(list 'atom (cons 'bytes str-parts) ...)
      (ast 'nodetype "Bytes"
           's (ast 'nodetype "Bytes"
                       'value (string-append "b'" (apply string-append str-parts) "'")))]
 
+    ;; Bytes sequences and string sequences have been matched already...
     [(or (list 'atom (cons 'string str-parts) rest ...)
          (list 'atom (cons 'bytes str-parts) rest ...))
      (error "Cannot mix string and bytestring literals")]
@@ -535,25 +531,28 @@ trailer, comp-op, suite and others should match their car, except s/_/-
            [else (error "Literal not handled yet")]))]
 
     #| atom curly brace forms |#
-    [(list 'atom "{" "}")
+    [`(atom "{" "}")
      (ast 'nodetype "Dict"
           'values '()
           'keys '())]
 
-    [(list 'atom "{" (list 'dictorsetmaker val-expr (and comp (list 'comp_for _ ...))) "}")
+    ;; Set comprehension
+    [`(atom "{" (dictorsetmaker ,val-expr ,(and comp (list 'comp_for _ ...))) "}")
      (build-comprehension comp (lambda (generators)
                                  (ast 'nodetype "SetComp"
                                       'generators generators
                                       'elt (expr->ast val-expr "Load"))))]
 
-    [(list 'atom "{" (list 'dictorsetmaker key-expr ":" val-expr (and comp (list 'comp_for _ ...))) "}")
+    ;; Dict comprehension
+    [`(atom "{" (dictorsetmaker ,key-expr ":" ,val-expr ,(and comp `(comp_for ,_ ...))) "}")
      (build-comprehension comp (lambda (generators)
                                  (ast 'nodetype "DictComp"
                                       'generators generators
                                       'key (expr->ast key-expr "Load")
                                       'value (expr->ast val-expr "Load"))))]
-
-    [(list 'atom "{" (list-rest 'dictorsetmaker ... (and items (list _ ":" _ ...))) "}")
+    
+    ;; Dict literal
+    [`(atom "{" (dictorsetmaker ,key ":" ,rest ...) "}")
      (local ((define (more-items items key-exprs value-exprs)
                (match items
                  [`() 
@@ -564,55 +563,65 @@ trailer, comp-op, suite and others should match their car, except s/_/-
                   (more-items more key-exprs value-exprs)]
                  [`(,key-expr ":" ,value-expr ,more ...)
                   (more-items more (cons key-expr key-exprs) (cons value-expr value-exprs))])))
-            (more-items items '() '()))]
+            (more-items (cons key (cons ":" rest)) '() '()))]
 
-    [(list 'atom "{" (list 'dictorsetmaker rest ...) "}")
+    ;; Set literal
+    [`(atom "{" (dictorsetmaker ,rest ...) "}")
      (ast 'nodetype "Set"
           'elts (map expr->value-ast (every-other rest)))]
 
     #| atom square bracket forms |#
-    [(list 'atom "[" "]")
+    [`(atom "[" "]")
      (ast 'nodetype "List"
           'elts '()
           'ctx (ast 'nodetype "Load"))]
 
-    [(list 'atom "[" (list 'testlist_comp elt-expr (and comp
-                                                        (list 'comp_for _ ...))) "]")
+    ;; List comprehension
+    [`(atom "[" (testlist_comp ,elt-expr ,(and comp (list 'comp_for _ ...))) "]")
      (build-comprehension comp
                           (lambda (generators)
                             (ast 'nodetype "ListComp"
                                  'elt (expr->ast elt-expr "Load")
                                  'generators generators)))]
 
-    [(list 'atom "[" (list 'testlist_comp exprs ...) "]")
+    ;; List literal
+    [`(atom "[" (testlist_comp ,exprs ...) "]")
      (ast 'nodetype "List"
           'ctx (ast 'nodetype "Load")
           'elts (map expr->value-ast (every-other exprs)))]
 
     #| atom paren forms |#
-    [(list 'atom "(" ")")
+    ;; 0-tuple
+    [`(atom "(" ")")
      (ast 'nodetype "Tuple"
           'ctx (ast 'nodetype expr-ctx)
           'elts '())]
 
-    [(list 'atom "(" (list 'testlist_comp elt-expr (and comp (list 'comp_for _ ...))) ")")
+    ;; Generator 
+    [`(atom "(" (testlist_comp ,elt-expr ,(and comp (list 'comp_for _ ...))) ")")
      (build-comprehension comp (lambda (generators)
                                  (ast 'nodetype "GeneratorExp"
                                       'elt (expr->ast elt-expr "Load")
                                       'generators generators)))]
 
-    [(list 'atom "(" (list 'testlist_comp expr1 "," exprs ...) ")")
+    ;; Tuple
+    [`(atom "(" (testlist_comp ,expr1 "," ,exprs ...) ")")
      (ast 'nodetype "Tuple"
           'ctx (ast 'nodetype expr-ctx)
           'elts (map (lambda (e) (expr->ast e expr-ctx)) (cons expr1 (every-other exprs))))]
 
-    [(list 'atom "(" expr ")")
+    ;; Parenthesized expression
+    [`(atom "(" ,expr ")")
      (expr->ast expr expr-ctx)]
 
     [_ 
      (display "=== Unhandled expression ===\n")
      (pretty-write py-ragg)
      (error (string-append "Unhandled expression"))]))
+
+;; A "Load" position convenience, esp for map
+(define (expr->value-ast expr)
+  (expr->ast expr "Load"))
 
 ;; Turn `(dotted_name ...) rep into a.b string
 (define (dotted-name->string name)
@@ -695,9 +704,8 @@ trailer, comp-op, suite and others should match their car, except s/_/-
            [`(trailer "(" ")") (build-call '() make-call-ast)]
            [`(trailer "(" (arglist ,args ...) ")") (build-call args make-call-ast)]
            [`(trailer "." (name . ,name)) (attr-ast name)]
-           ;; subscriptlist TODO... "...", multiple indexes, multiple indexes w/slices
+           ;; subscriptlist TODO... "...", multiple indexes, multiple indexes w/slices, less bad
 
-           ;; TODO: Less bad
            [`(trailer "[" (subscriptlist (subscript ":")) "]")
             (subscript-slice-ast #\nul #\nul #\nul)]
            
@@ -766,34 +774,35 @@ trailer, comp-op, suite and others should match their car, except s/_/-
               [`() (make-call-ast (reverse pos-args) (reverse key-args) kwarg stararg)]
               [`("," ,more ...)
                (more-args more pos-args key-args stararg kwarg)]
-              [`("*" ,(and (not ",") vararg-expr) ,more ...)
-               (more-args more pos-args key-args (expr->value-ast vararg-expr) kwarg)]
-              [`("**" ,kwarg-expr ,more ...)
-               (more-args more pos-args key-args stararg (expr->value-ast kwarg-expr))]
-              [`((argument ,key "=" ,val) ,more ...)
-               (more-args more pos-args 
-                          (cons (ast 'nodetype "keyword"
-                                     ;; This is backwards but works.
-                                     ;; See the note in the grammar.
-                                     'arg (hash-ref (expr->value-ast key) 'id)
-                                     'value (expr->value-ast val)) key-args)
-                          stararg kwarg)]
-              ;; bare generators grumble grumble
-              [`((argument ,expr ,comp_for) ,more ...)
-               (more-args more 
-                          (cons (build-comprehension comp_for
-                                                     (lambda (generators)
-                                                       (ast 'nodetype "GeneratorExp"
-                                                            'elt (expr->ast expr "Load")
-                                                            'generators generators)))
-                                pos-args) 
-                          key-args stararg kwarg)]
-              [`((argument ,expr) ,more ...)
-               (more-args more (cons (expr->value-ast expr) pos-args) key-args stararg kwarg)]
-              [_ 
-               (display args) (newline)
-               (error "Error parsing args")])))
-         (more-args args '() '() #\nul #\nul)))
+              [(list (and arg-parts (not ",")) ... more ...)
+               (match arg-parts
+                 [`("*" ,(and (not ",") vararg-expr))
+                  (more-args more pos-args key-args (expr->value-ast vararg-expr) kwarg)]
+                 [`("**" ,kwarg-expr)
+                  (more-args more pos-args key-args stararg (expr->value-ast kwarg-expr))]
+                 [`((argument ,key "=" ,val))
+                  (more-args more pos-args 
+                             (cons (ast 'nodetype "keyword"
+                                        ;; This is backwards but works - See the note in the grammar for argument.
+                                        'arg (hash-ref (expr->value-ast key) 'id)
+                                        'value (expr->value-ast val)) key-args)
+                             stararg kwarg)]
+                 ;; bare generators
+                 [`((argument ,expr ,comp_for))
+                  (more-args more 
+                             (cons (build-comprehension comp_for
+                                                        (lambda (generators)
+                                                          (ast 'nodetype "GeneratorExp"
+                                                               'elt (expr->ast expr "Load")
+                                                               'generators generators)))
+                                   pos-args)
+                             key-args stararg kwarg)]
+                 [`((argument ,expr))
+                  (more-args more (cons (expr->value-ast expr) pos-args) key-args stararg kwarg)]
+                 [_ 
+                  (display args) (newline)
+                  (error "Error parsing args")])])))
+    (more-args args '() '() #\nul #\nul)))
 
 (define (exprlist->ast lst expr-ctx)
   (match lst
@@ -811,29 +820,29 @@ trailer, comp-op, suite and others should match their car, except s/_/-
   (local (;; This needs either a macro or better taste.
           ;; A bunch of accumulators masquerading as a data structure
           ;; TODO: More accurate names for these
-          (struct Formals (positional-names default-asts vararg-name kwarg-name kwonly-names kwonly-default-asts))
+          (struct Formals (args default-asts vararg-name kwarg-name kwargs kw-default-asts))
           (define (arg-name->ast n)
             (ast 'nodetype "arg"
                  'annotation #\nul
                  'arg n))
           (define (formals->ast formals)
-            (match-let (((struct Formals (positional-names default-asts vararg-name 
-                                                           kwarg-name kwonly-names kwonly-default-asts)) 
+            (match-let (((struct Formals (args default-asts vararg-name 
+                                                           kwarg-name kwargs kw-default-asts)) 
                          formals))
-                       (ast 'args (map arg-name->ast (reverse positional-names))
+                       (ast 'args (map arg-name->ast (reverse args))
                             'defaults (reverse default-asts) ;; Defaults for only optional args
                             'nodetype "arguments"
                             'vararg vararg-name
                             'kwargannotation #\nul
                             'kwarg kwarg-name 
                             'varargannotation #\nul
-                            'kw_defaults (reverse kwonly-default-asts) ;; A default for each kwarg (#\nul if none)
-                            'kwonlyargs (map arg-name->ast (reverse kwonly-names)))))
+                            'kw_defaults (reverse kw-default-asts) ;; A default for each kwarg (#\nul if none)
+                            'kwonlyargs (map arg-name->ast (reverse kwargs)))))
           (define (more-args args kw? formals)
             (match args
               [`() 
                (if (and kw? 
-                        (null? (Formals-kwonly-names formals)) 
+                        (null? (Formals-kwargs formals)) 
                         (equal? #\nul (Formals-vararg-name formals)))
                    ;; A somewhat late and dirty way to catch this
                    (error "'*' must be followed by at least one named argument")
@@ -844,7 +853,6 @@ trailer, comp-op, suite and others should match their car, except s/_/-
                  ;; Each ,_ could be ,(or 'tfpdef 'vfpdef) for more precision
                  [`("*" (,_ (name . ,name)))
                   (more-args rest #t (struct-copy Formals formals [vararg-name name]))]
-                 ;; TODO: Verify that "Bare star" is followed by at least one kwarg
                  [`("*")
                   (more-args rest #t formals)]
                  [`("**" (,_ (name . ,name)))
@@ -853,13 +861,12 @@ trailer, comp-op, suite and others should match their car, except s/_/-
                   (more-args rest kw?
                              (if kw?
                                  (struct-copy Formals formals 
-                                              [kwonly-names
-                                               (cons arg-name (Formals-kwonly-names formals))]
-                                              [kwonly-default-asts
-                                                (cons (expr->ast default-expr "Load") (Formals-kwonly-default-asts formals))])
+                                              [kwargs (cons arg-name (Formals-kwargs formals))]
+                                              [kw-default-asts
+                                                (cons (expr->ast default-expr "Load") 
+                                                      (Formals-kw-default-asts formals))])
                                  (struct-copy Formals formals 
-                                              [positional-names 
-                                               (cons arg-name (Formals-positional-names formals))]
+                                              [args (cons arg-name (Formals-args formals))]
                                               [default-asts
                                                 (cons (expr->ast default-expr "Load") 
                                                       (Formals-default-asts formals))])))]
@@ -867,19 +874,15 @@ trailer, comp-op, suite and others should match their car, except s/_/-
                   (more-args rest kw?
                              (if kw?
                                  (struct-copy Formals formals 
-                                              [kwonly-names
-                                               (cons arg-name (Formals-kwonly-names formals))]
-                                              [kwonly-default-asts (cons #\nul (Formals-kwonly-default-asts formals))])
+                                              [kwargs (cons arg-name (Formals-kwargs formals))]
+                                              [kw-default-asts 
+                                               (cons #\nul (Formals-kw-default-asts formals))])
                                  (struct-copy Formals formals 
-                                              [positional-names
-                                               (cons arg-name (Formals-positional-names formals))])))]
+                                              [args (cons arg-name (Formals-args formals))])))]
                  [_ (display "=== Unhandled formal argument ===") (newline)
                     (pretty-write args)
                     (error "Unhandled formal argument")])])))
          (more-args args #f (Formals '() '() #\nul #\nul '() '()))))
-
-(define (expr->value-ast expr)
-  (expr->ast expr "Load"))
 
 (define (build-comprehension comp make-ast)
   (local ((define (generator-ast target-expr iter-expr if-exprs)

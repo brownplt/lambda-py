@@ -35,14 +35,20 @@
 (define (parse-tests dirname)
   (define specs (get-test-specs dirname))
   (for ([spec specs])
-    (display (TestSpec-program-name spec)) (newline)
     (match (compare-parse (open-input-string (TestSpec-program-src spec)))
-      [(list 'both-parsers-fail py-exn native-exn) (display "Both parsers fail\n")]
-      [(list 'python-parser-fails py-exn _) (display "Python parser fails\n")
-       (display (exn-message py-exn))]
-      [(list 'native-parser-fails _ _) (display "Native parser fails\n")]
+      [(list 'both-parsers-fail py-exn native-exn) 
+
+       (display (TestSpec-program-name spec)) (newline)
+       (display "Both parsers fail\n")]
+      [(list 'python-parser-fails py-exn _) 
+       (display (TestSpec-program-name spec)) (newline)
+       (display "Python parser fails\n")]
+      [(list 'native-parser-fails _ _) 
+       (display (TestSpec-program-name spec)) (newline)
+       (display "Native parser fails\n")]
       ['equal '()]
       [(list 'not-equal native py)
+       (display (TestSpec-program-name spec)) (newline)
        (display "Native parser fails to match python parser\n")])))
 
 (define (compare-parse port)
