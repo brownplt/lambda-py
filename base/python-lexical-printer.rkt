@@ -290,12 +290,23 @@
                    this-expr)] ;op = 'And | 'Or
       
                                         ; functions
-      [LexLam (args body)
+      [LexLam (args vararg defaults body)
               (begin
                 (display starting-tab)
                 (display "(lambda ")
                 (comma-separate-2 args)
-                (display ": \n")
+                (if (some? vararg)
+                    (begin
+                      (display ",")
+                      (display (some-v vararg))
+                      (display "*"))
+                    (display ""))
+                (if (empty? defaults)
+                     (display "):\n")
+                     (begin
+                       (display " (defaults: ")
+                       (comma-separate defaults)
+                       (display ")):\n")))
                 (lexexpr-print-helper body (string-append "  " starting-tab))
                 (display ")")
                 this-expr)]

@@ -154,7 +154,7 @@
                                    )
                                  (map replace-functions decorators) class))
                       ]
-             [LexLam (args body) (begin
+             [LexLam (args vararg defaults body) (begin
                                    (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
                                    (set! list-of-functions (cons e list-of-functions))
                                    (LexLocalId (first list-of-identifiers) 'Load))]
@@ -325,7 +325,7 @@
                          (LexAssign
                           (list
                            (LexInstanceId name 'Store))
-                       (LexApp (LexLam empty
+                       (LexApp (LexLam empty (none) empty
                                        (LexLocalLet
                                         name (LexUndefined)
                                         (LexSeq
@@ -484,7 +484,9 @@
                                                  restore-locals
                                                  (LexReturn (some (LexLocalId 'return-cleanup 'Load))))))]
                         [none () (LexSeq (list restore-locals (LexReturn (none))))])]
-       [LexLam (args body) (LexLam args (replace-lexinscopelocals (store-locals-careful body)))]
+       [LexLam (args vararg defaults body)
+               (LexLam args vararg (map replace-lexinscopelocals defaults)
+                       (replace-lexinscopelocals (store-locals-careful body)))]
        ;I'm really not sure what's going on here....
        [LexFunc (name args vararg defaults body decoratos class)
                 (LexFunc

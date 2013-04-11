@@ -354,11 +354,17 @@
       [LexListComp (elt gens) (desugar-listcomp elt gens)]
       [LexComprehen (target iter) (error 'desugar "Can't desugar LexComprehen")]
       
-      [LexLam (args body) (CFunc args (none) (CReturn (rec-desugar body)) (none))]
+      [LexLam (args vararg defaults body)
+              (CLet '$func (LocalId)
+                    (CFunc args vararg (CReturn (rec-desugar body)) (none))
+                    (CSeq
+                     (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
+                               (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defaults)))
+                     (CId '$func (LocalId))))]
 
-      [LexFunc (name args vararg defargs body decorators opt-class)
+      [LexFunc (name args vararg defaults body decorators opt-class)
                (cond
-                [(and (empty? decorators) (empty? defargs))
+                [(and (empty? decorators) (empty? defaults))
                  ;; the "normal" case, it could be absorved by the next, it is a little optimization
                  ;; which works since __defaults__ returns () for functions without defaults.
                  (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))]
@@ -369,7 +375,7 @@
                        (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))
                        (CSeq
                         (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
-                                  (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defargs)))
+                                  (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defaults)))
                         (CId '$func (LocalId))))]
 
                 [else

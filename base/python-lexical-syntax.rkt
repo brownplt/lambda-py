@@ -59,8 +59,10 @@
   [LexBoolOp (op : symbol) (values : (listof LexExpr))] ;op = 'And | 'Or
 
   ; functions
-  [LexLam (args : (listof symbol)) (body : LexExpr)]
-  [LexFunc (name : symbol) (args : (listof symbol)) (vararg : (optionof symbol)) (defaults : (listof LexExpr))
+  [LexLam (args : (listof symbol)) (vararg : (optionof symbol))
+          (defaults : (listof LexExpr)) (body : LexExpr)]
+  [LexFunc (name : symbol) (args : (listof symbol))
+           (vararg : (optionof symbol)) (defaults : (listof LexExpr))
            (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof LexExpr))]
   [LexReturn (value : (optionof LexExpr))]
   [LexApp (fun : LexExpr) (args : (listof LexExpr))]

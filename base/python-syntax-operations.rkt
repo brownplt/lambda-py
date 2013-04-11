@@ -96,8 +96,8 @@
                         (LexBoolOp op (map recur values))] ;op = 'And | 'Or
               
                                         ; functions
-              [PyLam (args body)
-                     (LexLam args (recur body))]
+              [PyLam (args vararg defaults body)
+                     (LexLam args vararg (map recur defaults) (recur body))]
               [PyFunc (name args vararg defaults body decorators)
                       (LexFunc name args vararg (map recur defaults) (recur body) (map recur decorators) (none))]
               [PyReturn () (LexReturn (none))]
@@ -214,8 +214,8 @@
                         (LexBoolOp op (map recur values))] ;op = 'And | 'Or
               
                                         ; functions
-              [LexLam (args body)
-                     (LexLam args (recur body))]
+              [LexLam (args vararg defaults body)
+                     (LexLam args vararg (map recur defaults) (recur body))]
 
               [LexFunc (name args vararg defaults body decorators class)
                       (LexFunc name args vararg (map recur defaults) (recur body) (map recur decorators)
@@ -329,8 +329,8 @@
                         (flatten (map recur values))] ;op = 'And | 'Or
               
                                         ; functions
-              [PyLam (args body)
-                     (recur body)]
+              [PyLam (args vararg defaults body)
+                     (flatten (list (map recur defaults) (list (recur body))))]
               [PyFunc (name args vararg defaults body decorators)
                       (flatten (list (map recur defaults) (list (recur body))))]
               [PyReturn () empty]
@@ -448,8 +448,8 @@
                         (flatten (map recur values))] ;op = 'And | 'Or
               
                                         ; functions
-              [LexLam (args body)
-                     (recur body)]
+              [LexLam (args vararg defaults body)
+                      (flatten (list (map recur defaults) (list (recur body))))]
               [LexFunc (name args vararg defaults body decorators class)
                       (flatten (list (map recur defaults) (list (recur body) (type-case (optionof LexExpr) class
                                                           [some (v) (recur v)]

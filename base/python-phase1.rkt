@@ -55,8 +55,10 @@
                                                         desugared-bases)))
                                         (LexBlock empty
                                                   (pre-desugar body)))))]
-       [PyLam (args body)
-              (LexLam args (LexBlock args (cascade-nonlocal args (pre-desugar body))))]
+       [PyLam (args vararg defaults body)
+              (let ([all-args (if (some? vararg) (cons (some-v vararg) args) args)])
+                (LexLam args vararg (map pre-desugar defaults)
+                        (LexBlock all-args (cascade-nonlocal all-args (pre-desugar body)))))]
        [PyFunc (name args vararg defaults body decorators)
                (let ([all-args (if (some? vararg) (cons (some-v vararg) args) args)])
                  (LexSeq (list (LexAssign (list (PyLexId name 'Store)) 

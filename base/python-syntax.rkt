@@ -48,7 +48,8 @@
   [PyBoolOp (op : symbol) (values : (listof PyExpr))] ;op = 'And | 'Or
 
   ; functions
-  [PyLam (args : (listof symbol)) (body : PyExpr)]
+  [PyLam (args : (listof symbol)) (vararg : (optionof symbol))
+         (defaults : (listof PyExpr)) (body : PyExpr)]
   [PyFunc (name : symbol) (args : (listof symbol)) (vararg : (optionof symbol))
           (defaults : (listof PyExpr)) (body : PyExpr) (decorators : (listof PyExpr))]
   [PyReturnValue (value : PyExpr)]
