@@ -52,10 +52,9 @@
          (defaults : (listof PyExpr)) (body : PyExpr)]
   [PyFunc (name : symbol) (args : (listof symbol)) (vararg : (optionof symbol))
           (defaults : (listof PyExpr)) (body : PyExpr) (decorators : (listof PyExpr))]
-  [PyReturnValue (value : PyExpr)]
-  [PyReturn]
-  [PyApp (fun : PyExpr) (args : (listof PyExpr))]
-  [PyAppStarArg (fun : PyExpr) (args : (listof PyExpr)) (stararg : PyExpr)]
+  [PyReturn (value : (optionof PyExpr))]
+  [PyApp (fun : PyExpr) (args : (listof PyExpr)) (keywords : (listof PyExpr))
+         (stararg : (optionof PyExpr)) (kwarg : (optionof PyExpr))]
 
   [PyDelete (targets : (listof PyExpr))]
 

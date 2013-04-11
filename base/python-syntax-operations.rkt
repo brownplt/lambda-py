@@ -100,11 +100,11 @@
                      (LexLam args vararg (map recur defaults) (recur body))]
               [PyFunc (name args vararg defaults body decorators)
                       (LexFunc name args vararg (map recur defaults) (recur body) (map recur decorators) (none))]
-              [PyReturn () (LexReturn (none))]
-              [PyReturnValue (v) (LexReturn (some (recur v)))]
-              [PyApp (fun args) (LexApp (recur fun) (map recur args))]
-              [PyAppStarArg (fun args stararg)
-                            (LexAppStarArg (recur fun) (map recur args) (recur stararg))]
+              [PyReturn (v) (LexReturn (option-map recur v))]
+              [PyApp (fun args keywords stararg kwarg)
+                     (if (none? stararg)
+                         (LexApp (recur fun) (map recur args))
+                         (LexAppStarArg (recur fun) (map recur args) (recur (some-v stararg))))]
               
               [PyDelete (targets) (LexDelete (map recur targets))]
               
@@ -333,13 +333,15 @@
                      (flatten (list (map recur defaults) (list (recur body))))]
               [PyFunc (name args vararg defaults body decorators)
                       (flatten (list (map recur defaults) (list (recur body))))]
-              [PyReturn () empty]
-              [PyReturnValue (value) (recur value)]
-              [PyApp (fun args) (flatten (list (list (recur fun)) (map recur args)))]
-              [PyAppStarArg (fun args stararg)
-                            (flatten (list (list (recur fun))
-                                           (map recur args)
-                                           (list (recur stararg))))]
+              [PyReturn (value) (type-case (optionof PyExpr) value
+                                  [none () empty]
+                                  [some (v) (recur v)])]
+              [PyApp (fun args keywords stararg kwarg)
+                     (if (none? stararg)
+                         (flatten (list (list (recur fun)) (map recur args)))
+                         (flatten (list (list (recur fun))
+                                        (map recur args)
+                                        (list (recur (some-v stararg))))))]
               
               [PyDelete (targets) (flatten (map recur targets))]
               

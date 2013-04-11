@@ -43,18 +43,26 @@ structure that you define in python-syntax.rkt
      (get-structured-python expr)]
 
     [(hash-table ('nodetype "Call")
-                 ('keywords keywords) ;; ignoring keywords for now
-                 ('kwargs kwargs)     ;; ignoring kwargs for now
-                 ('starargs starargs) ;; ignoring starargs for now
+                 ('keywords keywords)
+                 ('kwargs kwargs)
+                 ('starargs starargs)
                  ('args args-list)
                  ('func func-expr))
-     (if (equal? starargs #\nul)
-         (PyApp (get-structured-python func-expr)
-                (map get-structured-python args-list))
-         (PyAppStarArg
-           (get-structured-python func-expr)
-           (map get-structured-python args-list)
-           (get-structured-python starargs)))]
+     (PyApp (get-structured-python func-expr)
+            (map get-structured-python args-list)
+            (map get-structured-python keywords)
+            (if (equal? starargs #\nul)
+                (none)
+                (some (get-structured-python starargs)))
+            (if (equal? kwargs #\nul)
+                (none)
+                (some (get-structured-python kwargs))))]
+
+    [(hash-table ('nodetype "keyword")
+                 ('arg name)
+                 ('value val))
+     (PyTuple (list (PyStr name)
+                    (get-structured-python val)))]
 
     [(hash-table ('nodetype "BinOp")
                  ('left l)
@@ -185,9 +193,9 @@ structure that you define in python-syntax.rkt
     
     [(hash-table ('nodetype "Return")
                  ('value value))
-     (if (equal? #\nul value)
-                   (PyReturn)
-                   (PyReturnValue (get-structured-python value)))]
+     (PyReturn (if (equal? #\nul value)
+                   (none)
+                   (some (get-structured-python value))))]
     
     [(hash-table ('nodetype "Attribute")
                  ('value value)
