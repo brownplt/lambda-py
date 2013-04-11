@@ -15,7 +15,7 @@
     [(list 'both-parsers-fail py-exn native-exn) (display "Both parsers fail\n")
        (pretty-write native-exn)
        (display "======\n")
-       (pretty-write py-exn)
+       (display (exn-message py-exn))
        (exit 1)]
     [(list 'python-parser-fails py-exn _) (display "Python parser fails\n") 
      (display (exn-message py-exn))

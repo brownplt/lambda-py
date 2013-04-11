@@ -75,7 +75,8 @@ trailer, comp-op, suite and others should match their car, except s/_/-
     [(list 'break_stmt "break")
      (ast 'nodetype "Break")]
     
-    ;; TODO: Allow only assignments to those allowed by http://docs.python.org/3.2/reference/simple_stmts.html#assignment-statements
+    ;; TODO: Allow only assignments to those allowed by 
+    ;; http://docs.python.org/3.2/reference/simple_stmts.html#assignment-statements
     [(list 'expr_stmt testlist (list 'augassign op) val)
      (ast 'nodetype "AugAssign"
           'op (ast 'nodetype (case op 
@@ -379,7 +380,9 @@ trailer, comp-op, suite and others should match their car, except s/_/-
   (match py-ragg
 
     #| Expression fallthroughs... |#
-    [(list (or 'test_nocond 'argument 'testlist_comp 'testlist_star_expr 'testlist 'test 'or_test 'and_test 'not_test 'comparison 'expr 'xor_expr 'and_expr 'shift_expr 'arith_expr 'term 'factor 'power) expr)
+    [(list (or 'test_nocond 'argument 'testlist_comp 'testlist_star_expr 'testlist 'test 'or_test 'and_test 'not_test 
+               'comparison 'expr 'xor_expr 'and_expr 'shift_expr 'arith_expr 'term 'factor 'power) 
+           expr)
      (expr->ast expr expr-ctx)]
 
     ;; Single item handled above. All others are tuples.
@@ -763,7 +766,7 @@ trailer, comp-op, suite and others should match their car, except s/_/-
               [`() (make-call-ast (reverse pos-args) (reverse key-args) kwarg stararg)]
               [`("," ,more ...)
                (more-args more pos-args key-args stararg kwarg)]
-              [`("*" ,vararg-expr ,more ...)
+              [`("*" ,(and (not ",") vararg-expr) ,more ...)
                (more-args more pos-args key-args (expr->value-ast vararg-expr) kwarg)]
               [`("**" ,kwarg-expr ,more ...)
                (more-args more pos-args key-args stararg (expr->value-ast kwarg-expr))]
@@ -805,27 +808,75 @@ trailer, comp-op, suite and others should match their car, except s/_/-
 
 ;; Currently covers both typedargslist and varargslist
 (define (build-formals args)
-  (local ((define (more-args args positional-arg-names default-asts vararg kwarg)
+  (local (;; This needs either a macro or better taste.
+          ;; A bunch of accumulators masquerading as a data structure
+          ;; TODO: More accurate names for these
+          (struct Formals (positional-names default-asts vararg-name kwarg-name kwonly-names kwonly-default-asts))
+          (define (arg-name->ast n)
+            (ast 'nodetype "arg"
+                 'annotation #\nul
+                 'arg n))
+          (define (formals->ast formals)
+            (match-let (((struct Formals (positional-names default-asts vararg-name 
+                                                           kwarg-name kwonly-names kwonly-default-asts)) 
+                         formals))
+                       (ast 'args (map arg-name->ast (reverse positional-names))
+                            'defaults (reverse default-asts) ;; Defaults for only optional args
+                            'nodetype "arguments"
+                            'vararg vararg-name
+                            'kwargannotation #\nul
+                            'kwarg kwarg-name 
+                            'varargannotation #\nul
+                            'kw_defaults (reverse kwonly-default-asts) ;; A default for each kwarg (#\nul if none)
+                            'kwonlyargs (map arg-name->ast (reverse kwonly-names)))))
+          (define (more-args args kw? formals)
             (match args
-              [`() (args-ast (reverse positional-arg-names) (reverse default-asts) vararg kwarg)]
-              [`("," ,more ...)
-               (more-args more positional-arg-names default-asts vararg kwarg)]
-              [`("*" (,(or 'tfpdef 'vfpdef) (name . ,name)) ,more ...)
-               (more-args more positional-arg-names default-asts name kwarg)]
-              [`("**" (,(or 'tfpdef 'vfpdef) (name . ,name)) ,more ...)
-               (more-args more positional-arg-names default-asts vararg name)]
-              [`((,(or 'tfpdef 'vfpdef) (name . ,arg-name)) "=" ,default-expr ,more ...)
-               (more-args more
-                          (cons arg-name positional-arg-names)
-                          (cons (expr->ast default-expr "Load") default-asts)
-                          vararg kwarg)]
-              ;; Match order is significant here
-              [`((,(or 'tfpdef 'vfpdef) (name . ,arg-name)) ,more ...)
-               (more-args more (cons arg-name positional-arg-names) default-asts vararg kwarg)]
-              [_ (display "=== Unhandled formal argument ===") (newline)
-                 (pretty-write args)
-                 (error "Unhandled formal argument")])))
-         (more-args args '() '() #\nul #\nul)))
+              [`() 
+               (if (and kw? 
+                        (null? (Formals-kwonly-names formals)) 
+                        (equal? #\nul (Formals-vararg-name formals)))
+                   ;; A somewhat late and dirty way to catch this
+                   (error "'*' must be followed by at least one named argument")
+                   (formals->ast formals))]
+              [`("," ,rest ...) (more-args rest kw? formals)]
+              [(list (and arg-parts (not ",")) ... rest ...)
+               (match arg-parts
+                 ;; Each ,_ could be ,(or 'tfpdef 'vfpdef) for more precision
+                 [`("*" (,_ (name . ,name)))
+                  (more-args rest #t (struct-copy Formals formals [vararg-name name]))]
+                 ;; TODO: Verify that "Bare star" is followed by at least one kwarg
+                 [`("*")
+                  (more-args rest #t formals)]
+                 [`("**" (,_ (name . ,name)))
+                  (more-args rest kw? (struct-copy Formals formals [kwarg-name name]))]
+                 [`((,_ (name . ,arg-name)) "=" ,default-expr)
+                  (more-args rest kw?
+                             (if kw?
+                                 (struct-copy Formals formals 
+                                              [kwonly-names
+                                               (cons arg-name (Formals-kwonly-names formals))]
+                                              [kwonly-default-asts
+                                                (cons (expr->ast default-expr "Load") (Formals-kwonly-default-asts formals))])
+                                 (struct-copy Formals formals 
+                                              [positional-names 
+                                               (cons arg-name (Formals-positional-names formals))]
+                                              [default-asts
+                                                (cons (expr->ast default-expr "Load") 
+                                                      (Formals-default-asts formals))])))]
+                 [`((,_ (name . ,arg-name)))
+                  (more-args rest kw?
+                             (if kw?
+                                 (struct-copy Formals formals 
+                                              [kwonly-names
+                                               (cons arg-name (Formals-kwonly-names formals))]
+                                              [kwonly-default-asts (cons #\nul (Formals-kwonly-default-asts formals))])
+                                 (struct-copy Formals formals 
+                                              [positional-names
+                                               (cons arg-name (Formals-positional-names formals))])))]
+                 [_ (display "=== Unhandled formal argument ===") (newline)
+                    (pretty-write args)
+                    (error "Unhandled formal argument")])])))
+         (more-args args #f (Formals '() '() #\nul #\nul '() '()))))
 
 (define (expr->value-ast expr)
   (expr->ast expr "Load"))
@@ -854,19 +905,4 @@ trailer, comp-op, suite and others should match their car, except s/_/-
            [`(comp_for "for" ,target-expr "in" ,iter-expr ,more ...)
             (more-clauses more '() target-expr iter-expr '())]
            [_ (error "Argument to build-comprehension must be a comp_for")])))
-
-(define (args-ast arg-name-list default-asts vararg kwarg)
-  (ast 'args (map (lambda (n)
-                    (ast 'nodetype "arg"
-                         'annotation #\nul
-                         'arg n))
-                  arg-name-list)
-       'defaults default-asts
-       'nodetype "arguments"
-       'vararg vararg
-       'kwargannotation #\nul
-       'kwarg kwarg
-       'varargannotation #\nul
-       'kw_defaults '()
-       'kwonlyargs '()))
 

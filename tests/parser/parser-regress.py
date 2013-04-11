@@ -202,7 +202,8 @@ def f():
     def t(x,y=z,): pass
     def a(**b): pass
     def c(d,**e): pass
-    def f(h,i=j,*k,**l): pass
+    def f(*,g=h): pass
+    def m(h,i=j,*,k=l,m,**n):pass
 
     @k
     def l(): pass
