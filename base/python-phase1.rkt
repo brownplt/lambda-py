@@ -89,7 +89,8 @@
                      (LexAssign
                       (list (PyLexId (first asnames) 'Store))
                       (LexApp (PyLexId '__import__ 'Load)
-                              (list (LexStr (first names))))))
+                              (list (LexStr (first names)))
+                              (list) (none) (none))))
                     (desugar-pyimport/rec (rest names) (rest asnames)))]
                   [else
                    (append
@@ -98,11 +99,11 @@
                                         ; assign to a module object first, in case that the imported file
                                         ; needs information in current scope
                       (list (PyLexId (first asnames) 'Store))
-                      (LexApp (PyLexId '$module 'Load) (list)))
+                      (LexApp (PyLexId '$module 'Load) (list) (list) (none) (none)))
                      (LexAssign
                       (list (PyLexId (first asnames) 'Store))
                       (LexApp (PyLexId '__import__ 'Load)
-                              (list (LexStr (first names))))))
+                              (list (LexStr (first names))) (list) (none) (none))))
                     (desugar-pyimport/rec (rest names) (rest asnames)))]))]
          (LexSeq (desugar-pyimport/rec names asnames))))
 
@@ -121,7 +122,8 @@
           (define module-expr
             (LexAssign (list tmp-module)
                       (LexApp (PyLexId '__import__ 'Load)
-                              (list (LexStr module)))))]
+                              (list (LexStr module))
+                              (list) (none) (none))))]
     (cond [(not (equal? (first names) "*"))
            (local [(define (get-bind-exprs module names asnames)
                      (cond [(empty? names) (list)]
@@ -205,7 +207,8 @@
            (list (LexRaise
                   (LexApp
                    (LexGlobalId 'SyntaxError 'Load)
-                   (list (LexStr err))))))))
+                   (list (LexStr err))
+                   (list) (none) (none)))))))
                          
          
        (define (bindings-for-nonlocal [bindings : (listof symbol)] [expr : LexExpr]) : LexExpr

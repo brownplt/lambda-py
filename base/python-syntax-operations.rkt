@@ -102,9 +102,8 @@
                       (LexFunc name args vararg (map recur defaults) (recur body) (map recur decorators) (none))]
               [PyReturn (v) (LexReturn (option-map recur v))]
               [PyApp (fun args keywords stararg kwarg)
-                     (if (none? stararg)
-                         (LexApp (recur fun) (map recur args))
-                         (LexAppStarArg (recur fun) (map recur args) (recur (some-v stararg))))]
+                     (LexApp (recur fun) (map recur args) (map recur keywords)
+                             (option-map recur stararg) (option-map recur kwarg))]
               
               [PyDelete (targets) (LexDelete (map recur targets))]
               
@@ -221,9 +220,9 @@
                       (LexFunc name args vararg (map recur defaults) (recur body) (map recur decorators)
                                (option-map recur class))]
               [LexReturn (value) (LexReturn (option-map recur value))]
-              [LexApp (fun args) (LexApp (recur fun) (map recur args))]
-              [LexAppStarArg (fun args stararg)
-                            (LexAppStarArg (recur fun) (map recur args) (recur stararg))]
+              [LexApp (fun args keywords stararg kwarg)
+                      (LexApp (recur fun) (map recur args) (map recur keywords)
+                              (option-map recur stararg) (option-map recur kwarg))]
               
               [LexDelete (targets) (LexDelete (map recur targets))]
               
@@ -453,17 +452,24 @@
               [LexLam (args vararg defaults body)
                       (flatten (list (map recur defaults) (list (recur body))))]
               [LexFunc (name args vararg defaults body decorators class)
-                      (flatten (list (map recur defaults) (list (recur body) (type-case (optionof LexExpr) class
-                                                          [some (v) (recur v)]
-                                                          [none () empty]))))]
+                      (flatten (list (map recur defaults)
+                                     (list (recur body)
+                                           (type-case (optionof LexExpr) class
+                                             [some (v) (recur v)]
+                                             [none () empty]))))]
               [LexReturn (value) (type-case (optionof LexExpr) value
                                    [none () empty]
                                    [some (v) (recur v)])]
-              [LexApp (fun args) (flatten (list (list (recur fun)) (map recur args)))]
-              [LexAppStarArg (fun args stararg)
-                            (flatten (list (list (recur fun))
-                                           (map recur args)
-                                           (list (recur stararg))))]
+              [LexApp (fun args keywords stararg kwarg)
+                      (flatten (list (list (recur fun))
+                                     (map recur args)
+                                     (map recur keywords)
+                                     (if (some? stararg)
+                                         (list (recur (some-v stararg)))
+                                         empty)
+                                     (if (some? kwarg)
+                                         (list (recur (some-v kwarg)))
+                                         empty)))]
               
               [LexDelete (targets) (flatten (map recur targets))]
               

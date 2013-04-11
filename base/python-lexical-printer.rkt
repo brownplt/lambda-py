@@ -346,17 +346,29 @@
                              [none [] this-expr])
                            (display "\n")
                            this-expr)]
-      [LexApp (fun args) (begin
-                           (lexexpr-print-helper fun starting-tab)
-                           (display "(")
-                           (comma-separate args)
-                           (display ")")
-                           this-expr)]
-      [LexAppStarArg (fun args stararg)
-                     (begin
-                       (display this-expr)
-                       this-expr)]
-      
+      [LexApp (fun args keywords stararg kwarg)
+              (begin
+                (lexexpr-print-helper fun starting-tab)
+                (display "(")
+                (comma-separate args)
+                (if (empty? keywords)
+                    (display ")")
+                    (begin
+                      (display " keywords: ")
+                      (comma-separate keywords)
+                      (display ")")))
+                (if (some? stararg)
+                    (begin
+                      (display " *")
+                      (display (some-v stararg)))
+                    (display ""))
+                (if (some? kwarg)
+                    (begin
+                      (display " **")
+                      (display (some-v kwarg)))
+                    (display ""))
+                this-expr)]
+
       [LexDelete (targets) (begin
                              (display "\n")
                              (display starting-tab)

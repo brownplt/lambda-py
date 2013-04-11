@@ -150,7 +150,8 @@
                                                                      empty
                                                                      (none)) list-of-functions))
                                    (LexBlock empty (LexReturn (some (LexApp (LexLocalId (first list-of-identifiers) 'Load)
-                                                                            (make-local-ids all-args)))))
+                                                                            (make-local-ids all-args)
+                                                                            (list) (none) (none)))))
                                    )
                                  (map replace-functions decorators) class))
                       ]
@@ -333,7 +334,8 @@
                                           (LexClass (Locally-scoped) name
                                                     (replace-classes bases )
                                                     (replace-classes body))
-                                          (LexLocalId name 'Load))))) empty))]
+                                          (LexLocalId name 'Load)))))
+                               (list) (list) (none) (none)))]
                         [else (default-recur)])]
                       
             [else (default-recur)]))))]

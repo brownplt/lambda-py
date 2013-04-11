@@ -65,8 +65,8 @@
            (vararg : (optionof symbol)) (defaults : (listof LexExpr))
            (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof LexExpr))]
   [LexReturn (value : (optionof LexExpr))]
-  [LexApp (fun : LexExpr) (args : (listof LexExpr))]
-  [LexAppStarArg (fun : LexExpr) (args : (listof LexExpr)) (stararg : LexExpr)]
+  [LexApp (fun : LexExpr) (args : (listof LexExpr)) (keywords : (listof LexExpr))
+          (stararg : (optionof LexExpr)) (kwarg : (optionof LexExpr))]
 
   [LexDelete (targets : (listof LexExpr))]
 

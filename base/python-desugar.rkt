@@ -73,7 +73,7 @@
                      [body : LexExpr]) : CExpr
   (local [(define iter-id (new-id))]
     (rec-desugar
-     (LexLocalLet iter-id (LexApp (LexGlobalId '%iter 'Load) (list iter))
+     (LexLocalLet iter-id (LexApp (LexGlobalId '%iter 'Load) (list iter) (list) (none) (none))
                   (LexWhile (LexBool true)
                             (LexSeq
                              (list
@@ -81,7 +81,7 @@
                                (LexAssign (list target)
                                           (LexApp (LexDotField (LexLocalId iter-id 'Load)
                                                                '__next__)
-                                                  empty))
+                                                  (list) (list) (none) (none)))
                                (list (LexExcept (list (LexGlobalId 'StopIteration 'Load))
                                                 (LexBreak)))
                                (LexPass))
@@ -94,7 +94,7 @@
             (cond
               [(empty? gens) (LexApp (LexDotField (LexLocalId list-id 'Load)
                                                   'append)
-                                     (list body))]
+                                     (list body) (list) (none) (none))]
               [(cons? gens)
                (LexFor (LexComprehen-target (first gens))
                        (LexComprehen-iter (first gens))
@@ -128,7 +128,8 @@
               [(empty? es) ;; exceptions other than $Reraise are reraised if not catched
                 (rec-desugar (LexIf (LexApp (LexGlobalId '%isinstance 'Load)
                                             (list (LexLocalId exn-id 'Load)
-                                                  (LexGlobalId '$Reraise 'Load)))
+                                                  (LexGlobalId '$Reraise 'Load))
+                                            (list) (none) (none))
                                     (LexPass)
                                     (LexRaise (LexLocalId exn-id 'Load))))]
               [else
@@ -149,10 +150,12 @@
                              (list
                                (LexApp (LexGlobalId '%isinstance 'Load)
                                        (list (LexLocalId exn-id 'Load)
-                                             (LexGlobalId 'BaseException 'Load))))]
+                                             (LexGlobalId 'BaseException 'Load))
+                                       (list) (none) (none)))]
                             [else (map (lambda (t)
                                          (LexApp (LexGlobalId '%isinstance 'Load)
-                                                 (list (LexLocalId exn-id 'Load) t)))
+                                                 (list (LexLocalId exn-id 'Load) t)
+                                                 (list) (none) (none)))
                                        types)]))
                         (define condition (desugar-boolop 'Or checks))]
                   (CIf condition
@@ -241,7 +244,7 @@
       [LexRaise (expr) (local [(define expr-r
                                  (if (or (LexLocalId? expr) (LexGlobalId? expr))
                                      ;;handle the implicit construction case
-                                     (rec-desugar (LexApp expr empty)) 
+                                     (rec-desugar (LexApp expr (list) (list) (none) (none))) 
                                      (rec-desugar expr)))]
 
                          (CRaise 
@@ -256,7 +259,8 @@
                 (rec-desugar
                  (LexIf test
                        (LexPass)
-                       (LexRaise (LexApp (LexGlobalId 'AssertionError 'Load) msg))))]
+                       (LexRaise (LexApp (LexGlobalId 'AssertionError 'Load)
+                                         msg (list) (none) (none)))))]
 
       ; LexPass is an empty lambda
       [LexPass () (CApp (CFunc empty (none) (CNone) (none)) empty (none))] 
@@ -381,7 +385,7 @@
                 [else
                  ;; first apply decorators to the function
                  (rec-desugar
-                  (foldr (lambda (decorator func) (LexApp decorator (list func)))
+                  (foldr (lambda (decorator func) (LexApp decorator (list func) (list) (none) (none)))
                          (LexFunc name args vararg empty body (list) opt-class)
                          decorators))])]
 
@@ -457,17 +461,10 @@
 
       [LexContinue () (CContinue)]
 
-      [LexApp (fun args) (local [(define f (rec-desugar fun))
-                                 (define f-expr f)
-                                 (define results (map desugar args))]
-                           (py-app f-expr results (none)))]
+      [LexApp (fun args keywords stararg kwarg)
+              ;; keywords and kwarg are being ignored for now
+              (py-app (rec-desugar fun) (map rec-desugar args) (option-map rec-desugar stararg))]
 
-      [LexAppStarArg (fun args sarg)
-                     (local [(define f (rec-desugar fun))
-                             (define results (map rec-desugar args))
-                             (define s (rec-desugar sarg))]
-                             (py-app f results (some s)))]
-            
       [LexClass (scp name bases body)
                 (make-class name
                             ;TODO: would be better to change bases to be a (listof LexExpr)
