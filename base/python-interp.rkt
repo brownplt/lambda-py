@@ -62,8 +62,7 @@
                            (if (some? stararg)
                                (local [(define sarg-r
                                          (interp-env (some-v stararg) env sc stk))
-                                       ;; todo: support other types
-                                       ;; for star args
+                                       ;; stararg is forced to be a tuple by desugar
                                        (define l (MetaTuple-v
                                                    (some-v
                                                      (VObjectClass-mval
