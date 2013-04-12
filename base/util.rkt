@@ -422,12 +422,14 @@
     [(_ obj name arg ...) #'(py-app (py-getfield obj name) (list arg ...) (none))]))
 
 
+(define (symbol-append a b)
+  (string->symbol (string-append (symbol->string a) (symbol->string b))))
  
 (define (make-builtin-str [s : string]) : CExpr
   (CObject (gid '%str) (some (MetaStr s))))
 
 (define (make-pre-str [s : string]) : CExpr
-  (CObject (CNone) (some (MetaStr s))))
+  (CBuiltinPrim 'str (list (CObject (CNone) (some (MetaStr s))))))
 
 (define (make-builtin-num [n : number]) : CExpr
   (CObject
@@ -461,7 +463,7 @@
   (CLet '$fun (LocalId) fun
         (CIf (CBuiltinPrim 'is-func? (list (CId '$fun (LocalId))))
              ;; function call
-             (CApp (CId '$fun (LocalId)) args stararg)
+             (py-app-fun (CId '$fun (LocalId)) args stararg)
              ;; try to get __call__ attribute
              (CTryExceptElse
               (py-getfield (CId '$fun (LocalId)) '__call__)
@@ -471,15 +473,48 @@
               (CLet '$call (LocalId) (py-getfield (CId '$fun (LocalId)) '__call__)
                     (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
                          ;; __call__ is a function
-                         (CApp (CId '$call (LocalId)) args stararg)
+                         (py-app-fun (CId '$call (LocalId)) args stararg)
                          ;; else it should be a method, call __func__ and pass __self__ as first arg.
-                         (CApp (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
-                                                                (make-builtin-str "__func__")))
-                               (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
-                                                                      (make-builtin-str "__self__")))
-                                     args)
-                               stararg)))))))
+                         (py-app-fun (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                      (make-builtin-str "__func__")))
+                                     (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                            (make-builtin-str "__self__")))
+                                           args)
+                                     stararg)))))))
 
+;; helper to apply a function considering default arguments
+(define (py-app-fun [fun : CExpr] [args : (listof CExpr)] [stararg : (optionof CExpr)]) : CExpr
+  (CLet '$args (LocalId) (CBuiltinPrim 'func-args
+                                       (list fun (CId '%list (GlobalId))
+                                             (CId '%str (GlobalId))))
+        (CIf (CBuiltinPrim 'num>=
+                           (list (make-builtin-num (length args))
+                                 (CBuiltinPrim 'list-len
+                                               (list (CId '$args (LocalId))
+                                                     (CId '%int (GlobalId))))))
+             ;; no need for defaults, even if stararg is none
+             (CApp fun args stararg)
+             ;; it is assumed stararg is a tuple, needs to be generalized (issue #19)
+             (CLet '$stararg (LocalId) (if (some? stararg) (some-v stararg)
+                                           (CTuple (CId '%tuple (GlobalId)) empty))
+                   (CIf (CBuiltinPrim 'num>=
+                                      (list (CBuiltinPrim 'num+
+                                                          (list (make-builtin-num (length args))
+                                                                (CBuiltinPrim 'tuple-len
+                                                                              (list (CId '$stararg (LocalId))
+                                                                                    (CId '%int (GlobalId))))))
+                                            (CBuiltinPrim 'list-len
+                                                          (list (CId '$args (LocalId))
+                                                                (CId '%int (GlobalId))))))
+                        ;; no need for defaults due to stararg
+                        (CApp fun args stararg)
+                        ;; else call '%call_stararg to process defaults and, in the future, keywords.
+                        (CApp fun args (some (CApp (CId '%call_stararg (GlobalId))
+                                                   (list fun
+                                                         (CId '$args (LocalId))
+                                                         (make-builtin-num (length args))
+                                                         (CId '$stararg (LocalId)))
+                                                   (none)))))))))
 
 (define (py-setfield obj attr val)
   (CLet '$obj (LocalId) obj

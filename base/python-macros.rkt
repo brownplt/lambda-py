@@ -8,7 +8,7 @@
   (lexexpr-modify-tree expr
     (lambda (expr)
       (type-case LexExpr expr
-        [LexApp (fun args)
+        [LexApp (fun args keywords stararg kwarg)
          (cond
           [(and (LexGlobalId? fun) (equal? (LexGlobalId-x fun) '___assign)
                 (= (length args) 2) (LexStr? (first args)))

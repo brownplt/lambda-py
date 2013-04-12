@@ -1,12 +1,13 @@
 #lang racket/base
 
-(require racket/system racket/list)
+(require racket/system racket/list racket/runtime-path)
 (require (planet dherman/json:4:0))
 
+(define-runtime-path parser "python-parser.py")
 (define (get-parsed-json input-port python-path)
   (define stdout (open-output-string "stdout"))
   (define stderr (open-output-string "stderr"))
-  (define proc (process*/ports stdout input-port stderr python-path "parser/python-parser.py"))
+  (define proc (process*/ports stdout input-port stderr python-path parser))
   ((fifth proc) 'wait) 
   (define err-output (get-output-string stderr))
   (when (not (equal? err-output ""))

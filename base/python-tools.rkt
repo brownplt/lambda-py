@@ -26,12 +26,12 @@
 
 (define (run-python port)
   (interp
-    (python-lib
-     (desugar-generators
-      (desugar
-        (new-scope-phase
-          (get-structured-python
-            ((parser) port))))))))
+   (python-lib
+    (desugar-generators
+     (desugar
+      (new-scope-phase
+       (get-structured-python
+        ((parser) port))))))))
 
 (define (get-surface-syntax port)
   (get-structured-python
@@ -39,8 +39,8 @@
 
 (define (get-lexical-syntax port)
   (phase2-without-locals (scope-phase
-   (get-structured-python
-    ((parser) port)))))
+                          (get-structured-python
+                           ((parser) port)))))
 
 (define (get-phase1-syntax port)
   (scope-phase
@@ -54,9 +54,9 @@
 
 (define (desugar-w/lex port)
   (desugar
-    (new-scope-phase
-      (get-structured-python
-        ((parser) port)))))
+   (new-scope-phase
+    (get-structured-python
+     ((parser) port)))))
 
 (define (desugar-w/lib port)
   (python-lib
@@ -67,16 +67,15 @@
 
 (define (desugar-w/macros port)
   (desugar
-   (desugar-macros
-    (new-scope-phase
-     (get-structured-python
-      ((parser) port))))))
+   (new-scope-phase
+    (get-structured-python
+     ((parser) port)))))
 
 (define (get-core-syntax port)
   (desugar
-    (new-scope-phase
-      (get-structured-python
-        ((parser) port)))))
+   (new-scope-phase
+    (get-structured-python
+     ((parser) port)))))
 
 (define (get-lexer-tokens port)
   (lex-all port))

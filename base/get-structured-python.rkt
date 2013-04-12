@@ -4,6 +4,7 @@
 (require racket/match
          racket/list
          racket/base)
+(require (only-in plai-typed some none))
 
 #|
 
@@ -18,27 +19,17 @@ structure that you define in python-syntax.rkt
   (string->symbol (hash-ref nodejson 'nodetype)))
 
 (define (parse-func name body decorator-list args)
-  (cond
-   ; varargs
-   [(string?  (hash-ref args 'vararg))
-    (PyFuncVarArg (string->symbol name)
-                  (map (lambda(arg) 
-                         (string->symbol (hash-ref arg 'arg))) 
-                       (hash-ref args 'args)) 
-                  (string->symbol (hash-ref args 'vararg))
-                  (get-structured-python body)
-                  (map get-structured-python decorator-list))]
-   ; regular function
-   [else
-    (PyFunc (string->symbol name)
-            (map (lambda(arg)
-                   (string->symbol (hash-ref arg 'arg)))
-                 (hash-ref args 'args))
-            (map (lambda(arg) 
-                   (get-structured-python arg))
-                 (hash-ref args 'defaults)) 
-            (get-structured-python body)
-            (map get-structured-python decorator-list))]))
+  (PyFunc (string->symbol name)
+          (map (lambda(arg)
+                 (string->symbol (hash-ref arg 'arg)))
+               (hash-ref args 'args))
+          (if (string?  (hash-ref args 'vararg))
+              (some (string->symbol (hash-ref args 'vararg)))
+              (none))
+          (map (lambda(arg) (get-structured-python arg))
+               (hash-ref args 'defaults))
+          (get-structured-python body)
+          (map get-structured-python decorator-list)))
 
 (define (get-structured-python pyjson)
   (begin
@@ -51,18 +42,26 @@ structure that you define in python-syntax.rkt
      (get-structured-python expr)]
 
     [(hash-table ('nodetype "Call")
-                 ('keywords keywords) ;; ignoring keywords for now
-                 ('kwargs kwargs)     ;; ignoring kwargs for now
-                 ('starargs starargs) ;; ignoring starargs for now
+                 ('keywords keywords)
+                 ('kwargs kwargs)
+                 ('starargs starargs)
                  ('args args-list)
                  ('func func-expr))
-     (if (equal? starargs #\nul)
-         (PyApp (get-structured-python func-expr)
-                (map get-structured-python args-list))
-         (PyAppStarArg
-           (get-structured-python func-expr)
-           (map get-structured-python args-list)
-           (get-structured-python starargs)))]
+     (PyApp (get-structured-python func-expr)
+            (map get-structured-python args-list)
+            (map get-structured-python keywords)
+            (if (equal? starargs #\nul)
+                (none)
+                (some (get-structured-python starargs)))
+            (if (equal? kwargs #\nul)
+                (none)
+                (some (get-structured-python kwargs))))]
+
+    [(hash-table ('nodetype "keyword")
+                 ('arg name)
+                 ('value val))
+     (PyTuple (list (PyStr name)
+                    (get-structured-python val)))]
 
     [(hash-table ('nodetype "BinOp")
                  ('left l)
@@ -113,6 +112,11 @@ structure that you define in python-syntax.rkt
      (PyLam (map (lambda(arg)
                    (string->symbol (hash-ref arg 'arg)))
                  (hash-ref args 'args))
+            (if (string?  (hash-ref args 'vararg))
+                (some (string->symbol (hash-ref args 'vararg)))
+                (none))
+            (map (lambda(arg) (get-structured-python arg))
+                 (hash-ref args 'defaults))
             (get-structured-python body))]
 
     [(hash-table ('nodetype "arguments")
@@ -188,9 +192,9 @@ structure that you define in python-syntax.rkt
     
     [(hash-table ('nodetype "Return")
                  ('value value))
-     (if (equal? #\nul value)
-                   (PyReturn)
-                   (PyReturnValue (get-structured-python value)))]
+     (PyReturn (if (equal? #\nul value)
+                   (none)
+                   (some (get-structured-python value))))]
     
     [(hash-table ('nodetype "Attribute")
                  ('value value)

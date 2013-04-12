@@ -73,7 +73,7 @@
                      [body : LexExpr]) : CExpr
   (local [(define iter-id (new-id))]
     (rec-desugar
-     (LexLocalLet iter-id (LexApp (LexGlobalId '%iter 'Load) (list iter))
+     (LexLocalLet iter-id (LexApp (LexGlobalId '%iter 'Load) (list iter) (list) (none) (none))
                   (LexWhile (LexBool true)
                             (LexSeq
                              (list
@@ -81,7 +81,7 @@
                                (LexAssign (list target)
                                           (LexApp (LexDotField (LexLocalId iter-id 'Load)
                                                                '__next__)
-                                                  empty))
+                                                  (list) (list) (none) (none)))
                                (list (LexExcept (list (LexGlobalId 'StopIteration 'Load))
                                                 (LexBreak)))
                                (LexPass))
@@ -94,7 +94,7 @@
             (cond
               [(empty? gens) (LexApp (LexDotField (LexLocalId list-id 'Load)
                                                   'append)
-                                     (list body))]
+                                     (list body) (list) (none) (none))]
               [(cons? gens)
                (LexFor (LexComprehen-target (first gens))
                        (LexComprehen-iter (first gens))
@@ -128,7 +128,8 @@
               [(empty? es) ;; exceptions other than $Reraise are reraised if not catched
                 (rec-desugar (LexIf (LexApp (LexGlobalId '%isinstance 'Load)
                                             (list (LexLocalId exn-id 'Load)
-                                                  (LexGlobalId '$Reraise 'Load)))
+                                                  (LexGlobalId '$Reraise 'Load))
+                                            (list) (none) (none))
                                     (LexPass)
                                     (LexRaise (LexLocalId exn-id 'Load))))]
               [else
@@ -149,10 +150,12 @@
                              (list
                                (LexApp (LexGlobalId '%isinstance 'Load)
                                        (list (LexLocalId exn-id 'Load)
-                                             (LexGlobalId 'BaseException 'Load))))]
+                                             (LexGlobalId 'BaseException 'Load))
+                                       (list) (none) (none)))]
                             [else (map (lambda (t)
                                          (LexApp (LexGlobalId '%isinstance 'Load)
-                                                 (list (LexLocalId exn-id 'Load) t)))
+                                                 (list (LexLocalId exn-id 'Load) t)
+                                                 (list) (none) (none)))
                                        types)]))
                         (define condition (desugar-boolop 'Or checks))]
                   (CIf condition
@@ -219,7 +222,7 @@
                              
       [LexNum (n) (make-builtin-num n)]
       [LexSlice (lower upper step) (error 'desugar "Shouldn't desugar slice directly")]
-      [LexBool (b) (if b (CTrue) (CFalse))]
+      [LexBool (b) (if b (CId 'True (GlobalId)) (CId 'False (GlobalId)))]
       [LexNone () (CNone)]
       [LexStr (s) (make-builtin-str s)]
       [LexLocalId (x ctx) (CId x (LocalId))]
@@ -241,7 +244,7 @@
       [LexRaise (expr) (local [(define expr-r
                                  (if (or (LexLocalId? expr) (LexGlobalId? expr))
                                      ;;handle the implicit construction case
-                                     (rec-desugar (LexApp expr empty)) 
+                                     (rec-desugar (LexApp expr (list) (list) (none) (none))) 
                                      (rec-desugar expr)))]
 
                          (CRaise 
@@ -256,7 +259,8 @@
                 (rec-desugar
                  (LexIf test
                        (LexPass)
-                       (LexRaise (LexApp (LexGlobalId 'AssertionError 'Load) msg))))]
+                       (LexRaise (LexApp (LexGlobalId 'AssertionError 'Load)
+                                         msg (list) (none) (none)))))]
 
       ; LexPass is an empty lambda
       [LexPass () (CApp (CFunc empty (none) (CNone) (none)) empty (none))] 
@@ -340,7 +344,7 @@
 
       [LexUnaryOp (op operand)
                   (case op
-                    ['Not (CIf (py-app (CId '%bool (GlobalId)) (list (desugar operand)) (none)) (CFalse) (CTrue))]
+                    ['Not (CIf (py-app (CId '%bool (GlobalId)) (list (desugar operand)) (none)) (CId 'False (GlobalId)) (CId 'True (GlobalId)))]
                     ['USub (rec-desugar (LexBinOp (LexNum 0) 'Sub operand))]
                     ['UAdd (rec-desugar (LexBinOp (LexNum 0) 'Add operand))]
                     ['Invert (local [(define roperand (rec-desugar operand))]
@@ -354,55 +358,36 @@
       [LexListComp (elt gens) (desugar-listcomp elt gens)]
       [LexComprehen (target iter) (error 'desugar "Can't desugar LexComprehen")]
       
-      [LexLam (args body) (CFunc args (none) (CReturn (rec-desugar body)) (none))]
+      [LexLam (args vararg defaults body)
+              (CLet '$func (LocalId)
+                    (CFunc args vararg (CReturn (rec-desugar body)) (none))
+                    (CSeq
+                     (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
+                               (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defaults)))
+                     (CId '$func (LocalId))))]
 
-      [LexFunc (name args defargs body decorators opt-class)
+      [LexFunc (name args vararg defaults body decorators opt-class)
                (cond
-                [(> (length defargs) 0 )
-                   (local [(define last-arg (first (reverse args)))]
-                     (rec-desugar
-                       ; assuming 1 defarg for now, generalize later
-                       ; NB: it also assumes no other arguments are present (fixed position
-                       ; or stararg), otherwise they are silently discarded. (Alejandro).
-                       (LexLocalLet last-arg
-                                    (first (reverse defargs))
-                           (LexFuncVarArg name empty
-                                          'stararg 
-                                          (LexSeq
-                                            (list
-                                              (LexIf (LexCompOp (LexApp
-                                                                  (LexDotField
-                                                                    (LexLocalId 'stararg 'Load)
-                                                                    '__len__)
-                                                                  empty)
-                                                                (list 'Gt)
-                                                                (list (LexNum 0)))
-                                                     (LexAssign (list (LexLocalId last-arg
-                                                                                  'DesugarVar))
-                                                                (LexSubscript
-                                                                  (LexLocalId 'stararg 'Load)
-                                                                  'Load
-                                                                  (LexNum 0)))
-                                                     (LexPass))
-                                              body))
-                                          decorators opt-class))))]
-                 [(empty? decorators)
-                   (local [(define body-r (rec-desugar body))] 
-                     (CFunc args (none) body-r (option-map id-to-symbol opt-class)))]
+                [(and (empty? decorators) (empty? defaults))
+                 ;; the "normal" case, it could be absorved by the next, it is a little optimization
+                 ;; which works since __defaults__ returns () for functions without defaults.
+                 (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))]
 
-                 [else
-                  (rec-desugar ;; apply decorators to the function
-                   (foldr (lambda (decorator func) (LexApp decorator (list func)))
-                          (LexFunc name args (list) body (list) opt-class)
-                          decorators))])]
+                [(empty? decorators)
+                 ;; desugar the function and attach __defaults__ attribute
+                 (CLet '$func (LocalId)
+                       (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))
+                       (CSeq
+                        (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
+                                  (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defaults)))
+                        (CId '$func (LocalId))))]
 
-      [LexFuncVarArg (name args sarg body decorators opt-class)
-                     (if (empty? decorators)
-                         (CFunc args (some sarg) (rec-desugar body) (option-map id-to-symbol opt-class))
-                         (rec-desugar ;; apply decorators to the function
-                          (foldr (lambda (decorator func) (LexApp decorator (list func)))
-                                 (LexFuncVarArg name args sarg body (list) opt-class)
-                                 decorators)))]
+                [else
+                 ;; first apply decorators to the function
+                 (rec-desugar
+                  (foldr (lambda (decorator func) (LexApp decorator (list func) (list) (none) (none)))
+                         (LexFunc name args vararg empty body (list) opt-class)
+                         decorators))])]
 
       [LexReturn (value) (CReturn (type-case (optionof CExpr) (option-map rec-desugar value)
                                     [some (v) v]
@@ -476,17 +461,10 @@
 
       [LexContinue () (CContinue)]
 
-      [LexApp (fun args) (local [(define f (rec-desugar fun))
-                                 (define f-expr f)
-                                 (define results (map desugar args))]
-                           (py-app f-expr results (none)))]
+      [LexApp (fun args keywords stararg kwarg)
+              ;; keywords and kwarg are being ignored for now
+              (py-app (rec-desugar fun) (map rec-desugar args) (option-map rec-desugar stararg))]
 
-      [LexAppStarArg (fun args sarg)
-                     (local [(define f (rec-desugar fun))
-                             (define results (map rec-desugar args))
-                             (define s (rec-desugar sarg))]
-                             (py-app f results (some s)))]
-            
       [LexClass (scp name bases body)
                 (make-class name
                             ;TODO: would be better to change bases to be a (listof LexExpr)

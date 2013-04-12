@@ -61,7 +61,7 @@
                                   (default-recur))))))
     (LexSeq (list
              (LexAssign (list (LexGlobalId '%globals 'Store))
-                        (LexFunc '%globals empty empty
+                        (LexFunc '%globals empty (none) empty
                                  (collecting-ids-body globals
                                                       (lambda (x y) (LexGlobalId x y)))
                                  empty (none)))
@@ -78,12 +78,12 @@
          expr
          (lambda (y)
            (type-case LexExpr y
-             [LexFunc (name args defaults body decorators class)
+             [LexFunc (name args vararg defaults body decorators class)
                       (if
                        (and
                         (> (string-length (symbol->string name )) (string-length "class-replacement"))
                         (equal? "class-replacement" (substring (symbol->string name) 0 (string-length "class-replacement"))))
-                       (LexFunc name args defaults body decorators (none))
+                       (LexFunc name args vararg defaults body decorators (none))
                        y)]
              [else (default-recur)]))))
       (define hoist-functions (local
@@ -104,17 +104,11 @@
           )
         (define list-of-functions empty)
         (define list-of-identifiers empty)
-        (define (replace-classes [expr : LexExpr])
-          (lexexpr-modify-tree expr (lambda (e)
-          (type-case LexExpr e
-            #;[LexClass (scope name bases body)
-                      (LexApp (LexLam empty (LexClass scope name
-                                                      (replace-classes bases )
-                                                      (replace-classes body))) empty)]
-            [else (default-recur)]))))
         (define (hoist-functions [expr : LexExpr])
           (begin
-          (let ((result (let ((replaced-body (replace-functions (replace-classes expr))))
+            (set! list-of-functions empty)
+            (set! list-of-identifiers empty)
+          (let ((result (let ((replaced-body (replace-functions expr)))
             (introduce-locals
              list-of-identifiers
              (LexSeq
@@ -140,40 +134,28 @@
          (lambda
              ([e : LexExpr])
            (type-case LexExpr e
-             [LexFunc (name args defaults body decorators class)
-                      (LexFunc name args
-                               (map replace-functions defaults)
-                               (begin
-                                 (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
-                                 (set! list-of-functions (cons
+             [LexFunc (name args vararg defaults body decorators class)
+                      (let ([all-args (if (some? vararg) (cons (some-v vararg) args) args)])
+                        (LexFunc name args vararg
+                                 (map replace-functions defaults)
+                                 (begin
+                                   (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
+                                   (set! list-of-functions (cons
                                                           
-                                                          (LexFunc (first list-of-identifiers)
-                                                                   args
-                                                                   empty
-                                                                   body
-                                                                   empty
-                                                                   (none)) list-of-functions))
-                                 (LexBlock empty (LexReturn (some (LexApp (LexLocalId (first list-of-identifiers) 'Load) (make-local-ids args)))))
-                                 )
-                               (map replace-functions decorators) class)
+                                                            (LexFunc (first list-of-identifiers)
+                                                                     all-args
+                                                                     (none)
+                                                                     empty
+                                                                     body
+                                                                     empty
+                                                                     (none)) list-of-functions))
+                                   (LexBlock empty (LexReturn (some (LexApp (LexLocalId (first list-of-identifiers) 'Load)
+                                                                            (make-local-ids all-args)
+                                                                            (list) (none) (none)))))
+                                   )
+                                 (map replace-functions decorators) class))
                       ]
-             [LexFuncVarArg (name args sarg body decorators class)
-                            (LexFuncVarArg name args sarg
-                               (begin
-                                 (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
-                                 (set! list-of-functions (cons
-                                                          (LexFunc (first list-of-identifiers)
-                                                                   (cons sarg args)
-                                                                   empty
-                                                                   body
-                                                                   empty
-                                                                   (none))
-                                                          list-of-functions))
-                                 (LexBlock empty (LexReturn
-                                  (some (LexApp (LexLocalId (first list-of-identifiers) 'Load) (make-local-ids (cons sarg args))))))
-                                 )
-                               (map replace-functions decorators) class)]
-             [LexLam (args body) (begin
+             [LexLam (args vararg defaults body) (begin
                                    (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
                                    (set! list-of-functions (cons e list-of-functions))
                                    (LexLocalId (first list-of-identifiers) 'Load))]
@@ -193,11 +175,9 @@
            (lambda (y)
              (type-case LexExpr y
                [LexInstanceId (x ctx) (LexDotField class-expr x)]
-               [LexFunc (name args defaults body decorators class)
-                        (LexFunc name args (map recur defaults) body decorators
+               [LexFunc (name args vararg defaults body decorators class)
+                        (LexFunc name args vararg (map recur defaults) body decorators
                                  (some class-expr))]
-               [LexFuncVarArg (name args sarg body decorators class)
-                              (LexFuncVarArg name args sarg body (map recur decorators) (some class-expr)) ]
                [LexClass (scope name bases body) (LexClass scope name bases body)]
                [else (default-recur)])))))
       (define (split-instance-into-instance-locals expr)
@@ -243,11 +223,53 @@
                                 (LexAssign (list (LexLocalId (first affected-var) 'Store)) value)
                                 (LexAssign targets (LexLocalId (first affected-var) 'Load))))
                               ]
-                             [else (error 'e "can't handle multiple assignment yet.")]))]
+                             [else
+                              (type-case LexExpr (first targets)
+                                [LexTuple (targs)
+                                          (LexSeq
+                                           (flatten
+                                            (list
+                                             (list
+                                              (LexAssign
+                                               (list
+                                                (LexTuple (map
+                                                           (lambda (y) (LexLocalId y 'Store))
+                                                           affected-var))) value))
+                                             (2-map (lambda ([a : LexExpr] [b : symbol])
+                                                      (LexAssign (list a) (LexLocalId b 'Load))
+                                                      )
+                                                    targs affected-var)))) ]
+                                [else (error 'split-instance "we don't handle multiple targets.")]
+                             #|[else (error 'e (string-append
+                                              "can't handle multiple assignment yet."
+                                              (to-string affected-var)))];|#
+                             )]))]
                                         ;[LexAugAssign (op target value )]
+               [LexFor (target iter body) (type-case LexExpr target
+                                            [LexInstanceId
+                                             (x ctx)
+                                             (LexSeq
+                                              (list
+                                               (LexFor
+                                                (LexLocalId x ctx)
+                                                       (split-instance-into-instance-locals-helper iter)
+                                                       (split-instance-into-instance-locals-helper body))
+                                               (LexAssign (list target) (LexLocalId x 'Load))))
+                                                           ]
+                                            [else (default-recur)])]
                [LexBlock (nls es) e]
                [LexClass (scope name bases body) e]
                [else (default-recur)])))))
+
+      (define (2-map fun arg1 arg2)
+        (cond
+         [(and (empty? arg1) (empty? arg2)) empty]
+         [(or (and (empty? arg1) (not (empty? arg2)))
+              (and (not (empty? arg1)) (empty? arg2)))
+          (error '2-map "argument lists must be of same length")]
+         [else (cons (fun (first arg1) (first arg2)) (2-map fun (rest arg1) (rest arg2)))]))
+           
+      
       (define (deal-with-class expr class-expr)
         (begin 
         ;(display (string-append "deal-with-class on " (to-string expr)))
@@ -269,7 +291,10 @@
                                               class-expr
                                               )))
                                (LexSeq (list (LexAssign
-                                              (list class-expr)
+                                              (list (type-case LocalOrGlobal scope
+                                                      [Locally-scoped [] (LexLocalId name 'Store)]
+                                                      [Globally-scoped [] (LexGlobalId name 'Store)]
+                                                      [else (error 'e "should be no more instance scope!")]))
                                               (LexClass scope name bases (LexPass)))
                                              (deal-with-class
                                               new-body
@@ -290,8 +315,31 @@
                                   (if (Globally-scoped? scope)
                                       (LexGlobalId name 'Load)
                                       (LexLocalId name 'Load)))))]
-                 [else (default-recur)])))))]
-        (top-level-deal-with-class expr)))
+                 [else (default-recur)])))))
+          (define (replace-classes [expr : LexExpr])
+          (lexexpr-modify-tree expr (lambda (e)
+          (type-case LexExpr e
+            [LexClass (scope name bases body)
+                      (type-case LocalOrGlobal scope
+                        [Instance-scoped
+                         []
+                         (LexAssign
+                          (list
+                           (LexInstanceId name 'Store))
+                       (LexApp (LexLam empty (none) empty
+                                       (LexLocalLet
+                                        name (LexUndefined)
+                                        (LexSeq
+                                         (list
+                                          (LexClass (Locally-scoped) name
+                                                    (replace-classes bases )
+                                                    (replace-classes body))
+                                          (LexLocalId name 'Load)))))
+                               (list) (list) (none) (none)))]
+                        [else (default-recur)])]
+                      
+            [else (default-recur)]))))]
+        (top-level-deal-with-class (replace-classes  expr))))
 
 (define (let-phase [expr : LexExpr] ) : LexExpr
 (collapse-pyseq
@@ -438,21 +486,16 @@
                                                  restore-locals
                                                  (LexReturn (some (LexLocalId 'return-cleanup 'Load))))))]
                         [none () (LexSeq (list restore-locals (LexReturn (none))))])]
-       [LexLam (args body) (LexLam args (replace-lexinscopelocals (store-locals-careful body)))]
+       [LexLam (args vararg defaults body)
+               (LexLam args vararg (map replace-lexinscopelocals defaults)
+                       (replace-lexinscopelocals (store-locals-careful body)))]
        ;I'm really not sure what's going on here....
-       [LexFunc (name args defaults body decoratos class)
+       [LexFunc (name args vararg defaults body decoratos class)
                 (LexFunc
                  name
                  args
+                 vararg
                  (map replace-lexinscopelocals defaults)
-                 (replace-lexinscopelocals (store-locals body))
-                 (map replace-lexinscopelocals decoratos)
-                 (option-map replace-lexinscopelocals class))]
-       [LexFuncVarArg (name args sarg body decoratos class)
-                (LexFuncVarArg
-                 name
-                 args
-                 sarg
                  (replace-lexinscopelocals (store-locals body))
                  (map replace-lexinscopelocals decoratos)
                  (option-map replace-lexinscopelocals class))]
@@ -464,7 +507,7 @@
 ;largely for ease of testing (I can read this code; desugared code not so much)
 (define (phase2-locals [ids : (listof symbol)]) : LexExpr
   (LexAssign (list (LexGlobalId '%locals 'Store)) 
-			 (LexFunc '%locals empty empty
+			 (LexFunc '%locals empty (none) empty
                       (collecting-ids-body ids (lambda (x y) (LexLocalId x y)))
                       empty (none))))
 
@@ -510,26 +553,6 @@
   (LexAssign (list (LexGlobalId '%locals 'Store))
              (LexLocalId '%locals-save 'Load)))
 
-#;(define (phase2-locals [ids : (listof symbol)]) : LexExpr
-  (let ((ids (filter-locals ids)))
-  (begin
-    (LexCore
-     (CAssign (CId '%locals (GlobalId))
-              (CFunc empty (none)
-                     (CReturn
-                       (py-app (CId '%dict (GlobalId))
-                             (list
-                              (CList (CId '%list (GlobalId))
-                                     (pairs->tupleargs
-                                      (map (lambda (y) (make-builtin-str (symbol->string y))) ids)
-                                      (map (lambda (y) (CTryExceptElse 
-                                         (CId y (LocalId))
-                                         '%-%
-                                          (make-builtin-str "this isn't actually bound right now")
-                                         (CId y (LocalId)))) ids))))
-                             (none)) 
-                       
-                       ) (none) ))))))
 
 (define (collect-locals-in-scope expr starting-locals) : (listof symbol)
   (flatten

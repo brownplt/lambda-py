@@ -35,12 +35,19 @@
                               (hash empty)
                               (some (third args))))))
 
+;; str: creates a normal str but, if %str is not bound yet, it creates an
+;; internal str useful for bootstrapping.
 (define (str (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaStr?
                (some (VObjectClass 'str
                               (some (MetaStr (MetaStr-s mval1)))
                               (hash empty)
-                              (some (second args))))))
+                              (type-case (optionof Address) (lookup '%str env)
+                                [none () (none)]
+                                [some (w) (let ([str_cls (fetch-once w sto)])
+                                            (if (VUndefined? str_cls)
+                                                (none)
+                                                (some str_cls)))])))))
 
 (define (str* (args : (listof CVal)) [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaStr? MetaNum?

@@ -55,9 +55,8 @@
          (define pyast ((parser) f))
          (define core-ast
                  (desugar 
-                  (desugar-macros
                     (new-scope-phase
-                      (get-structured-python pyast)))))
+                      (get-structured-python pyast))))
          (define cache-file (open-output-file with-ext))]
          (begin
           (s-exp->fasl (core->sexp core-ast) cache-file)

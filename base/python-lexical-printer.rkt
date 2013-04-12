@@ -67,9 +67,20 @@
                  (let ((typecase-lambda
                         (lambda ([value : LexExpr]) : LexExpr
                                 (type-case LexExpr value
-                                  [LexFunc (a b c d e f) (lexexpr-print-helper value starting-tab)]
-                                  [LexFuncVarArg (a b c d e f) (lexexpr-print-helper value starting-tab)]
-                                  [LexClass (a b c d) (lexexpr-print-helper value starting-tab)]
+                                  [LexFunc (a b c d e f g)
+                                           (begin
+                                             (display starting-tab)
+                                             (display "# assigned to ")
+                                             (comma-separate targets)
+                                             (display "\n")
+                                             (lexexpr-print-helper value starting-tab))]
+                                  [LexClass (a b c d)
+                                            (begin
+                                              (display starting-tab)
+                                              (display "# assigned to ")
+                                              (comma-separate targets)
+                                              (display "\n")
+                                              (lexexpr-print-helper value starting-tab))]
                                   [else (begin
                                           (display starting-tab)
                                           (comma-separate targets)
@@ -279,16 +290,27 @@
                    this-expr)] ;op = 'And | 'Or
       
                                         ; functions
-      [LexLam (args body)
+      [LexLam (args vararg defaults body)
               (begin
                 (display starting-tab)
-                (display "lambda ")
+                (display "(lambda ")
                 (comma-separate-2 args)
-                (display ": ")
-                (lexexpr-print-helper body (string-append " " starting-tab))
-                (display "\n")
+                (if (some? vararg)
+                    (begin
+                      (display ",")
+                      (display (some-v vararg))
+                      (display "*"))
+                    (display ""))
+                (if (empty? defaults)
+                     (display "):\n")
+                     (begin
+                       (display " (defaults: ")
+                       (comma-separate defaults)
+                       (display ")):\n")))
+                (lexexpr-print-helper body (string-append "  " starting-tab))
+                (display ")")
                 this-expr)]
-      [LexFunc (name args defaults body decorators class)
+      [LexFunc (name args vararg defaults body decorators class)
                (begin
                  (display starting-tab)
                  (if (empty? decorators)
@@ -298,6 +320,12 @@
                  (display name)
                  (display "(")
                  (comma-separate-2 args)
+                 (if (some? vararg)
+                     (begin
+                       (display ",")
+                       (display (some-v vararg))
+                       (display "*"))
+                     (display ""))
                  (if (empty? defaults)
                      (display "):\n")
                      (begin
@@ -309,28 +337,6 @@
                  (display "\n")
                  ;END TAB
                  this-expr)]
-      [LexFuncVarArg (name args sarg body decorators class)
-                     (begin
-                       (display starting-tab)
-                       (if (empty? decorators)
-                           (display "")
-                           (begin
-                           (display decorators)
-                           (display "\n")
-                           (display starting-tab)))
-                       (display "def ")
-                       (display name)
-                       (display "(")
-                       (comma-separate-2 args)
-                       (display ",")
-                       (display sarg)
-                       (display "*")
-                       (display "):\n")
-                                        ;TAB
-                       (lexexpr-print-helper body (string-append "  " starting-tab))
-                       (display "\n")
-                                        ;END TAB
-                       this-expr)]
       [LexReturn (value) (begin
                            (display "\n")
                            (display starting-tab)
@@ -340,17 +346,29 @@
                              [none [] this-expr])
                            (display "\n")
                            this-expr)]
-      [LexApp (fun args) (begin
-                           (lexexpr-print-helper fun starting-tab)
-                           (display "(")
-                           (comma-separate args)
-                           (display ")")
-                           this-expr)]
-      [LexAppStarArg (fun args stararg)
-                     (begin
-                       (display this-expr)
-                       this-expr)]
-      
+      [LexApp (fun args keywords stararg kwarg)
+              (begin
+                (lexexpr-print-helper fun starting-tab)
+                (display "(")
+                (comma-separate args)
+                (if (empty? keywords)
+                    (display ")")
+                    (begin
+                      (display " keywords: ")
+                      (comma-separate keywords)
+                      (display ")")))
+                (if (some? stararg)
+                    (begin
+                      (display " *")
+                      (display (some-v stararg)))
+                    (display ""))
+                (if (some? kwarg)
+                    (begin
+                      (display " **")
+                      (display (some-v kwarg)))
+                    (display ""))
+                this-expr)]
+
       [LexDelete (targets) (begin
                              (display "\n")
                              (display starting-tab)

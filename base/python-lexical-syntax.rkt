@@ -59,14 +59,14 @@
   [LexBoolOp (op : symbol) (values : (listof LexExpr))] ;op = 'And | 'Or
 
   ; functions
-  [LexLam (args : (listof symbol)) (body : LexExpr)]
-  [LexFunc (name : symbol) (args : (listof symbol)) (defaults : (listof LexExpr))
+  [LexLam (args : (listof symbol)) (vararg : (optionof symbol))
+          (defaults : (listof LexExpr)) (body : LexExpr)]
+  [LexFunc (name : symbol) (args : (listof symbol))
+           (vararg : (optionof symbol)) (defaults : (listof LexExpr))
            (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof LexExpr))]
-  [LexFuncVarArg (name : symbol) (args : (listof symbol)) 
-                (sarg : symbol) (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof LexExpr))]
   [LexReturn (value : (optionof LexExpr))]
-  [LexApp (fun : LexExpr) (args : (listof LexExpr))]
-  [LexAppStarArg (fun : LexExpr) (args : (listof LexExpr)) (stararg : LexExpr)]
+  [LexApp (fun : LexExpr) (args : (listof LexExpr)) (keywords : (listof LexExpr))
+          (stararg : (optionof LexExpr)) (kwarg : (optionof LexExpr))]
 
   [LexDelete (targets : (listof LexExpr))]
 
