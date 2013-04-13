@@ -9,7 +9,6 @@
          "builtins/bool.rkt"
          "builtins/set.rkt"
          "builtins/file.rkt"
-         "builtins/method.rkt"
          "modules/builtin-modules.rkt"
          "util.rkt"
          "python-lib-bindings.rkt"

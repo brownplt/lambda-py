@@ -140,9 +140,9 @@
 (define (interp-let [name : symbol] [type : IdType]
                     [val : CVal] [sto : Store]
                     [body : CExpr] [env : Env] [stk : Stack]) : Result
-  (local [(define loc (new-loc))
+  (local [(define-values (sto2 loc) (alloc sto val))
           (define newenv (cons (hash-set (first env) name loc) (rest env)))]
-    (interp-env body newenv (hash-set sto loc val) stk)))
+    (interp-env body newenv sto2 stk)))
 
 ;; interp-id will first lookup id in env, then fetch the value of the id in the sto.
 (define (interp-id [id : symbol] [type : IdType]
@@ -490,11 +490,13 @@
                           (cond [(empty? vars)
                                  (values e s attr)]
                                 [else
-                                 (let ((loc (new-loc))
-                                       (sym (first vars)))
+                                 (local [
+                                  (define-values (sto2 loc) (alloc s vnone))
+                                  (define sym (first vars))
+                                 ]
                                    (inject-vars (rest vars)
                                                 (hash-set e sym loc)
-                                                (hash-set s loc vnone)
+                                                sto2
                                                 (hash-set attr sym loc)))]))
 
                         (define (filter-env vars e new-env)
@@ -536,7 +538,7 @@
        ;(if (some? mayb-loc) (pprint value) (pprint "OLD STO"))
        ;(display "\n")
   (if (some? mayb-loc)
-      (alloc-result vnone (hash-set sto (some-v mayb-loc) value))
+      (alloc-result vnone (update sto (some-v mayb-loc) value))
       (type-case IdType (CId-type id)
                  [LocalId () (mk-exception 'NameError
                                            (string-append "name '"
@@ -566,17 +568,17 @@
     (lambda (address antecedent mval d class)
      (local [(define loc (hash-ref d f))]
        (type-case (optionof Address) loc
-         [some (w) (alloc-result vnone (hash-set sto w value))]
-         [none () (local [(define w (new-loc))
+         [some (w) (alloc-result vnone (update sto w value))]
+         [none () (local [(define-values (sto2 w) (alloc sto value))
                           (define snew
                             (begin ;(display vo) (display "\n")
                                    ;(display objw) (display "\n")
-                            (hash-set sto address 
+                            (update sto2 address 
                                       (VObjectClass antecedent
                                                mval
                                                (hash-set d f w)
                                                class))))]
-                      (alloc-result vnone (hash-set snew w value)))])))
+                      (alloc-result vnone snew))])))
     (lambda (v) (error 'interp (format "Can't assign to nonobject ~a." v)))
     (lambda (vo) (error 'interp (format "Expected pointer, got ~a in assign-to-field" vo))))))
 
@@ -642,10 +644,9 @@
          ;; If the object is immutable, we can make a new store location.
          (local [(define val (first vals))
                  (define vv (v*s-v val))
-                 (define loc (new-loc))
-                 (define e (cons (hash-set (first ext) (first args) loc) (rest ext)))
-                 ; TODO(Sumner): why env and not ext here?
-                 (define s (hash-set sto loc vv))]
+                 (define-values (s loc) (alloc sto vv))
+                 (define e (cons (hash-set (first ext) (first args) loc) (rest ext)))]
+                 ; TODO(Sumner): why env and not ext here?]
                 (bind-args (rest args) sarg (rest vals) (rest arges) env e s))]))
 
 (define (return-exception env [sto : Store]) : Result
@@ -659,7 +660,7 @@
 
 (define (interp expr)
   (begin (reset-state)
-  (type-case Result (interp-env expr (list (hash empty)) (hash empty) empty)
+  (type-case Result (interp-env expr (list (hash empty)) (store (hash empty) 0) empty)
     [v*s (vexpr sexpr) (display "")]
     [Return (vexpr sexpr)
      (raise-user-error (format "Unexpected return reached toplevel: ~a" vexpr))]
