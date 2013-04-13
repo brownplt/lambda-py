@@ -60,24 +60,25 @@
                 [v*s/list (argvs-r sc)
                  (local [(define result
                            (if (some? stararg)
-                               (local [(define sarg-r
-                                         (interp-env (some-v stararg) env sc stk))
-                                       ;; stararg is forced to be a tuple by desugar
-                                       (define l (MetaTuple-v
-                                                   (some-v
-                                                     (VObjectClass-mval
-                                                       (fetch-ptr (v*s-v sarg-r) (v*s-s sarg-r))))))]
-                                 (begin ;(display (format "applying: ~a\n" (get-fun-mval vfun sfun)))
-                                        ;(display (format "starargs: ~a\n"
-                                        ;                 (map (lambda (p) (fetch-ptr p (v*s-s sarg-r))) l)))
-                                 (bind-and-execute body opt-class argxs vararg
-                                                   (append argvs-r (map (lambda (v)
-                                                                          (v*s v (v*s-s sarg-r)))
-                                                                        l))
-                                                   (append arges (map (lambda(x)
-                                                                        (make-builtin-num 0))
-                                                                      l))
-                                                   env cenv (v*s-s sarg-r) stk)))
+                               (let ([sarg-r (interp-env (some-v stararg) env sc stk)])
+                                 (if (v*s? sarg-r)
+                                     ;; stararg is forced to be a tuple by desugar
+                                     (let ([l (MetaTuple-v
+                                               (some-v
+                                                (VObjectClass-mval
+                                                 (fetch-ptr (v*s-v sarg-r) (v*s-s sarg-r)))))])
+                                       (begin ;(display (format "applying: ~a\n" (get-fun-mval vfun sfun)))
+                                              ;(display (format "starargs: ~a\n"
+                                              ;                 (map (lambda (p) (fetch-ptr p (v*s-s sarg-r))) l)))
+                                       (bind-and-execute body opt-class argxs vararg
+                                                         (append argvs-r (map (lambda (v)
+                                                                                (v*s v (v*s-s sarg-r)))
+                                                                              l))
+                                                         (append arges (map (lambda(x)
+                                                                              (make-builtin-num 0))
+                                                                            l))
+                                                         env cenv (v*s-s sarg-r) stk)))
+                                     sarg-r))
                                (bind-and-execute body opt-class argxs vararg
                                                  argvs-r arges env
                                                  cenv sc stk)))]
