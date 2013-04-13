@@ -61,24 +61,24 @@ This only works because there are no valid source chars outside the ASCII range 
   (stringliteral (:: (:? stringprefix) (:or shortstring longstring)))
   (stringprefix (:or "r" "R"))
   (shortstring (:or (:: "'" (:* single-shortstringitem) "'") (:: "\"" (:* double-shortstringitem) "\"")))
-  (longstring (:or (:: "'''" (:- (:* longstringitem) (:: (:* any-char) "'''" (:* any-char))) "'''") (:: "\"\"\"" (:- (:* longstringitem) (:: (:* any-char) "\"\"\"" (:* any-char))) "\"\"\"")))
+  (longstring (:or (:: "'''" (:- (:* longstringitem) (:: (:* any-char) "'''" (:* any-char))) "'''") 
+                   (:: "\"\"\"" (:- (:* longstringitem) (:: (:* any-char) "\"\"\"" (:* any-char))) "\"\"\"")))
   (single-shortstringitem (:or (:~ "'" "\\" "\n" "\r") stringescapeseq))
   (double-shortstringitem (:or (:~ "\"" "\\" "\n" "\r") stringescapeseq))
   (longstringitem (:or (:~ "\\") stringescapeseq))
   (stringescapeseq (:: "\\" any-char)))
 
 (define (parse-string lexeme)
-  (let* ((raw (equal? "r" (substring lexeme 0 1)))
-         (lexeme-noraw (substring lexeme (if raw 1 0)))
-         (triple (and
-                  (> (string-length lexeme-noraw) 2)
-                  (char=? (string-ref lexeme-noraw 0)
-                          (string-ref lexeme-noraw 1) 
-                          (string-ref lexeme-noraw 2))))
-         (lexeme-no-quotes (substring lexeme-noraw 
-                                      (if triple 3 1) 
-                                      (- (string-length lexeme-noraw) (if triple 3 1)))))
-    (if raw lexeme-no-quotes (backslash-escaped lexeme-no-quotes #t))))
+  (let-values ([(raw? lead-chars follow-chars)
+                (match lexeme
+                  [(regexp #rx"^(r|R)(\"\"\"|''')") (values #t 4 3)]
+                  [(regexp #rx"^(\"\"\"|''')") (values #f 3 3)]
+                  [(regexp #rx"^(r|R)[\"']") (values #t 2 1)]
+                  [(regexp #rx"^[\"']") (values #f 1 1)])])
+    (let ((unescaped-content (substring lexeme lead-chars (- (string-length lexeme) follow-chars))))
+      (if raw? 
+          unescaped-content
+          (backslash-escaped unescaped-content #t)))))
 
 ;; Char c in the set abfnrtv to escaped character of \c
 (define (escape-char c)
@@ -152,8 +152,8 @@ This only works because there are no valid source chars outside the ASCII range 
 (define (parse-bytestring lexeme)
   (let-values ([(raw? lead-chars follow-chars)
                 (match lexeme
-                  [(regexp #rx"^(b|B)(r|R)[\"'][\"'][\"']") (values #t 5 3)]
-                  [(regexp #rx"^(b|B)[\"'][\"'][\"']") (values #f 4 3)]
+                  [(regexp #rx"^(b|B)(r|R)(\"\"\"|''')") (values #t 5 3)]
+                  [(regexp #rx"^(b|B)(\"\"\"|''')") (values #f 4 3)]
                   [(regexp #rx"^(b|B)(r|R)[\"']") (values #t 3 1)]
                   [(regexp #rx"^(b|B)[\"']") (values #f 2 1)])])
     (let ((unescaped-content (substring lexeme lead-chars (- (string-length lexeme) follow-chars))))
