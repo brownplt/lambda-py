@@ -32,3 +32,23 @@ tests/
   and other tests.
 
 
+Installation
+------------
+
+You will need Racket >= 5.3.3
+
+http://download.racket-lang.org/all-versions.html
+
+There are two additional files in this repo that are Racket packages lambda-py
+uses.  Install them with:
+
+> raco setup -A plai-typed-18Feb2013.plt
+> raco setup -A ragg-mangled.plt
+
+Then you should be able to build lambda-py itself:
+
+> cd base/
+> make
+
+If you encounter any problems or have any other questions, send mail to
+lambda-py@googlegroups.com
