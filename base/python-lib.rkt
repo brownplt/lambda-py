@@ -16,7 +16,8 @@
          (typed-in "python-lib-list.rkt" (python-libs : (listof string)))
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))
-         (typed-in "parse-python.rkt" (parse-python/port : ('a string -> 'b)))
+         ;;(typed-in "parser/python-python-parser.rkt" (parse-python/port : ('a string -> 'b)))
+         "parser/parser.rkt"
          "core-to-sexp.rkt"
          (typed-in "sexp-to-core.rkt" (sexp->core : ('a -> CExpr)))
          (typed-in racket/fasl (s-exp->fasl : ('a 'b -> 'c)) (fasl->s-exp : ('a -> 'b)))
@@ -51,7 +52,7 @@
        (when (file-exists? with-ext) (delete-file with-ext))
        (local
         [(define f (open-input-file path))
-         (define pyast (parse-python/port f (get-pypath)))
+         (define pyast ((parser) f))
          (define core-ast
                  (desugar 
                     (new-scope-phase

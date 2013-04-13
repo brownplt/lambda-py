@@ -1,7 +1,6 @@
 #lang plai
 
 (require "python-syntax.rkt")
-(require "parse-python.rkt")
 (require racket/match
          racket/list
          racket/base)
@@ -382,11 +381,12 @@ structure that you define in python-syntax.rkt
      (get-structured-python (first pyjson))]
 
     [(list) (PyPass)] 
+
+    [#\nul (PyNone)]
     
-    [empty (PyNone)]
-
-    [_ (error 'parse "Haven't handled a case yet: ")])))
-
+    [_ (error 'parse (string-append "Haven't handled a case yet: "
+				    (pretty-format pyjson)
+				    ))])))
 
 ;; tests!
 (print-only-errors true)
