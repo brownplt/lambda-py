@@ -14,7 +14,6 @@
  (typed-in racket/set (set : ( -> set?)))
  (typed-in racket/set (set-add : (set? 'a -> set?)))
  (typed-in racket/base (exact? : (number -> boolean)))
- 
  )
 (require [typed-in racket (format : (string 'a -> string))])
 (require [typed-in racket (flatten : ((listof (listof 'a) ) -> (listof 'a)))])

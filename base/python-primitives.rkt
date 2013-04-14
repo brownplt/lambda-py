@@ -158,7 +158,7 @@ primitives here.
     (type-case (optionof CVal) (f args env sto)
       [some (v)
         (type-case CVal to-update
-          [VPointer (a) (v*s v (hash-set sto a v))]
+          [VPointer (a) (v*s v (update sto a v))]
           [else
             (prim-error "Non-ptr (update): " op args)])]
       [none ()

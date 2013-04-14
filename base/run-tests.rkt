@@ -1,7 +1,7 @@
 #lang racket
 
-(provide json-summary run-test-specs-from-s-exp
-         serialize-test-suite run-tests results-summary simple-summary [struct-out Result])
+(provide json-summary run-test-specs-from-s-exp get-test-specs
+         serialize-test-suite run-tests results-summary simple-summary [struct-out Result] [struct-out TestSpec])
 (require racket/set)
 
 (struct Result (name timeout? expected-out actual-out expected-err actual-err)

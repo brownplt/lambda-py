@@ -28,7 +28,9 @@ class QuickVisitor(ast.NodeVisitor):
     return n_dict
 
 if __name__ == '__main__':
- input_str = sys.stdin.read()
+ from codecs import getreader
+ utf8_stdin = getreader('utf8')(sys.stdin.buffer)
+ input_str = utf8_stdin.read()
  try:
    compile(input_str,'<string>','exec')
    print(json.dumps(QuickVisitor().visit(ast.parse(input_str))))

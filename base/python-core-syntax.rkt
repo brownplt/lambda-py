@@ -78,13 +78,16 @@ ParselTongue.
 
 (define-type-alias Address number)
 (define Address->string number->string)
-(define-type-alias Store (hashof Address CVal))
-(define new-loc
-  (let ([n (box 0)])
-    (lambda ()
-      (begin
-        (set-box! n (add1 (unbox n)))
-        (unbox n)))))
+(define-type Store
+  [store (locs : (hashof Address CVal)) (next-loc : Address)])
+(define (alloc sto val)
+  (type-case Store sto
+    [store (locs next-loc)
+     (values (store (hash-set locs next-loc val) (add1 next-loc)) next-loc)]))
+(define (update sto loc val)
+  (type-case Store sto
+    [store (locs next-loc)
+     (store (hash-set locs loc val) next-loc)]))
 
 (define-type Result
   [v*s (v : CVal) (s : Store)]
@@ -94,8 +97,7 @@ ParselTongue.
   [Continue (s : Store)])
 
 (define (alloc-result val sto)
-  (local ([define l (new-loc)]
-          [define new-sto (hash-set sto l val)])
+  (local ([define-values (new-sto l) (alloc sto val)])
    (v*s (VPointer l) new-sto)))
 
 (define (alloc-result-list vals [vpointers : (listof CVal)] sto)
@@ -150,10 +152,12 @@ ParselTongue.
 
 ;; fetch only once in the store
 (define (fetch-once [w : Address] [sto : Store]) : CVal
-  (type-case (optionof CVal) (hash-ref sto w)
-             [some (v) v]
-             [none () (error 'interp
-                             (string-append "No value at address " (Address->string w)))]))
+  (type-case Store sto
+   [store (locs next-loc)
+    (type-case (optionof CVal) (hash-ref locs w)
+     [some (v) v]
+     [none () (error 'interp
+                     (string-append "No value at address " (Address->string w)))])]))
 
 (define (fetch-ptr [val : CVal] [sto : Store] ) : CVal
   (type-case CVal val
@@ -161,22 +165,18 @@ ParselTongue.
     [else (error 'interp (string-append "fetch-ptr got a non-VPointer: " (to-string val)))]))
 
 (define (mk-exception [type : symbol] [arg : string] [env : Env] [sto : Store]) : Result
-  (local [(define exn-loc (new-loc))
-          (define arg-loc (new-loc))
-          (define args-loc (new-loc))
-          (define args-field-loc (new-loc))
-          (define cls (fetch-once (some-v (lookup type env)) sto))
-          (define arg-val (VObjectClass 'str (some (MetaStr arg)) (hash empty) (none)))]
-    (Exception
-      (VPointer exn-loc)
-      (hash-set
-        (hash-set
-          (hash-set
-           (hash-set sto arg-loc arg-val)
-           args-loc (VObjectClass 'tuple (some (MetaTuple (list (VPointer arg-loc)))) (hash empty) (none)))
-          args-field-loc (VPointer args-loc))
-        exn-loc
-        (VObjectClass 'exception (none) (hash-set (hash empty) 'args args-field-loc) (some cls))))))
+  (local [
+    (define cls (fetch-once (some-v (lookup type env)) sto))
+    (define arg-val (VObjectClass 'str (some (MetaStr arg)) (hash empty) (none)))
+    (define-values (sto-arg arg-loc) (alloc sto arg-val))
+    (define-values (sto-args args-loc)
+      (alloc sto-arg (VObjectClass 'tuple (some (MetaTuple (list (VPointer arg-loc)))) (hash empty) (none))))
+    (define-values (sto-args-field args-field-loc)
+      (alloc sto-args (VPointer args-loc)))
+    (define-values (sto-exn exn-loc)
+      (alloc sto-args-field (VObjectClass 'exception (none) (hash-set (hash empty) 'args args-field-loc) (some cls))))
+  ]
+    (Exception (VPointer exn-loc) sto-exn)))
 
 (define-type ActivationRecord
   [Frame (class : (optionof CVal)) (self : (optionof CVal))])

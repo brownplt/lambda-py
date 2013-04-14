@@ -4,8 +4,8 @@
          "python-phases.rkt"
          "python-desugar.rkt"
          "util.rkt"
-         (typed-in "parse-python.rkt" (parse-python/port : ('a 'b -> 'c)))
-         (typed-in "parse-python.rkt" (parse-python/string : ('a 'b -> 'c)))         
+         "parser/parser.rkt"
+
          (typed-in "get-structured-python.rkt"
                    (get-structured-python : ('a -> 'b)))   
          (typed-in racket/base (open-input-file : ('a -> 'b)))
@@ -15,7 +15,7 @@
   (desugar
    (new-scope-phase
     (get-structured-python
-     (parse-python/port port (get-pypath))))))
+     ((parser) port)))))
 
 (define (compile-string str)
   (compile-port
