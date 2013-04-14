@@ -28,6 +28,8 @@ class range:
         for e in self:
             result.append(e)
         return result
+    def __tuple__(self):
+        return self.__list__().__tuple__()
 
 # range iterator: just iterates over ranges
 class range_iterator:

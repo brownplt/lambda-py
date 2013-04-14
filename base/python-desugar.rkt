@@ -462,8 +462,8 @@
       [LexContinue () (CContinue)]
 
       [LexApp (fun args keywords stararg kwarg)
-              ;; keywords and kwarg are being ignored for now
-              (py-app (rec-desugar fun) (map rec-desugar args) (option-map rec-desugar stararg))]
+              (py-app-kw (rec-desugar fun) (map rec-desugar args) (map rec-desugar keywords)
+                         (option-map rec-desugar stararg) (option-map rec-desugar kwarg))]
 
       [LexClass (scp name bases body)
                 (make-class name

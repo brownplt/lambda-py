@@ -14,7 +14,6 @@
  (typed-in racket/set (set : ( -> set?)))
  (typed-in racket/set (set-add : (set? 'a -> set?)))
  (typed-in racket/base (exact? : (number -> boolean)))
- 
  )
 (require [typed-in racket (format : (string 'a -> string))])
 (require [typed-in racket (flatten : ((listof (listof 'a) ) -> (listof 'a)))])
@@ -458,12 +457,17 @@
             (CSeq local-func
                   (strip-CLet real-body)))]))
 
-;; sinctactic sugar to apply a function or method
+;; sinctactic sugar to apply a function or method without keywords
 (define (py-app [fun : CExpr] [args : (listof CExpr)] [stararg : (optionof CExpr)]) : CExpr
+  (py-app-kw fun args (list) stararg (none)))
+
+;; sinctactic sugar to apply a function or method, considering keywords
+(define (py-app-kw [fun : CExpr] [args : (listof CExpr)] [keywords : (listof CExpr)]
+                    [stararg : (optionof CExpr)] [kwarg : (optionof CExpr)]) : CExpr
   (CLet '$fun (LocalId) fun
         (CIf (CBuiltinPrim 'is-func? (list (CId '$fun (LocalId))))
              ;; function call
-             (py-app-fun (CId '$fun (LocalId)) args stararg)
+             (py-app-fun (CId '$fun (LocalId)) args keywords stararg kwarg)
              ;; try to get __call__ attribute
              (CTryExceptElse
               (py-getfield (CId '$fun (LocalId)) '__call__)
@@ -473,30 +477,34 @@
               (CLet '$call (LocalId) (py-getfield (CId '$fun (LocalId)) '__call__)
                     (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
                          ;; __call__ is a function
-                         (py-app-fun (CId '$call (LocalId)) args stararg)
+                         (py-app-fun (CId '$call (LocalId)) args keywords stararg kwarg)
                          ;; else it should be a method, call __func__ and pass __self__ as first arg.
                          (py-app-fun (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
                                                                       (make-builtin-str "__func__")))
                                      (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
                                                                             (make-builtin-str "__self__")))
                                            args)
-                                     stararg)))))))
+                                     keywords stararg kwarg)))))))
 
-;; helper to apply a function considering default arguments
-(define (py-app-fun [fun : CExpr] [args : (listof CExpr)] [stararg : (optionof CExpr)]) : CExpr
+;; helper to apply a function considering default arguments and keywords
+(define (py-app-fun [fun : CExpr] [args : (listof CExpr)] [keywords : (listof CExpr)]
+                    [stararg : (optionof CExpr)] [kwarg : (optionof CExpr)]) : CExpr
   (CLet '$args (LocalId) (CBuiltinPrim 'func-args
-                                       (list fun (CId '%list (GlobalId))
-                                             (CId '%str (GlobalId))))
+                                       (list fun (CId '%list (GlobalId)) (CId '%str (GlobalId))))
+    (cond
+      [(and (empty? keywords) (none? kwarg))
+        ;; no keywords case is special cased for bootstraping
         (CIf (CBuiltinPrim 'num>=
                            (list (make-builtin-num (length args))
                                  (CBuiltinPrim 'list-len
                                                (list (CId '$args (LocalId))
                                                      (CId '%int (GlobalId))))))
-             ;; no need for defaults, even if stararg is none
-             (CApp fun args stararg)
-             ;; it is assumed stararg is a tuple, needs to be generalized (issue #19)
-             (CLet '$stararg (LocalId) (if (some? stararg) (some-v stararg)
-                                           (CTuple (CId '%tuple (GlobalId)) empty))
+             ;; no need for defaults, even if stararg is none.
+             (CApp fun args (option-map to-tuple stararg))
+             ;; check if stararg suffices, else look at defaults
+             (CLet '$stararg (LocalId) (if (none? stararg)
+                                           (CTuple (CId '%tuple (GlobalId)) empty)
+                                           (to-tuple (some-v stararg)))
                    (CIf (CBuiltinPrim 'num>=
                                       (list (CBuiltinPrim 'num+
                                                           (list (make-builtin-num (length args))
@@ -507,14 +515,40 @@
                                                           (list (CId '$args (LocalId))
                                                                 (CId '%int (GlobalId))))))
                         ;; no need for defaults due to stararg
-                        (CApp fun args stararg)
-                        ;; else call '%call_stararg to process defaults and, in the future, keywords.
+                        (CApp fun args (some (CId '$stararg (LocalId))))
+                        ;; else call '%call_stararg to process defaults
                         (CApp fun args (some (CApp (CId '%call_stararg (GlobalId))
                                                    (list fun
                                                          (CId '$args (LocalId))
                                                          (make-builtin-num (length args))
-                                                         (CId '$stararg (LocalId)))
-                                                   (none)))))))))
+                                                         (CTuple (CId '%tuple (GlobalId)) empty)
+                                                         (CId '$stararg (LocalId))
+                                                         (CNone))
+                                                   (none)))))))]
+      [else
+       ;; call '%call_stararg to process defaults and keywords
+       (CApp fun args (some (CApp (CId '%call_stararg (GlobalId))
+                                  (list fun
+                                        (CId '$args (LocalId))
+                                        (make-builtin-num (length args))
+                                        (CTuple (CId '%tuple (GlobalId)) keywords)
+                                        (if (none? stararg)
+                                            (CTuple (CId '%tuple (GlobalId)) empty)
+                                            (to-tuple stararg))
+                                        (if (none? kwarg)
+                                            (CNone)
+                                            (some-v kwarg)))
+                                  (none))))])))
+
+;; to-tuple: helper function to convert to a tuple, if it is not already one.
+(define (to-tuple [exp : CExp]) : CExp
+  (CLet '$exp (LocalId) exp
+        (CIf (CBuiltinPrim 'isinstance
+                           (list (CId '$exp (LocalId))
+                                 (CId '%tuple (GlobalId))))
+             (CId '$exp (LocalId))
+             (py-app (CId '%tuple (GlobalId))
+                     (list (CId '$exp (LocalId))) (none)))))
 
 (define (py-setfield obj attr val)
   (CLet '$obj (LocalId) obj

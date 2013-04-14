@@ -29,7 +29,20 @@ class function(object):
 ___assign("%function", function)
 
 # function to compute stararg using defaults and keywords
-def ___call_stararg(fun, params, nargs, stararg):
+def ___call_stararg(fun, params, nargs, keywords, stararg, kwarg):
+  # collect keyword arguments (first check can be avoided with Python parser)
+  kw_dict = {}
+  for (k, v) in keywords:
+    if k in kw_dict:
+      raise SyntaxError("keyword argument repeated")
+    kw_dict[k] = v
+  if kwarg:
+    for k in kwarg:
+      if k in kw_dict:
+        raise TypeError("multiple values for argument")
+      kw_dict[k] = kwarg[k]
+
+  # TODO: use kw_dict to fill missing arguments before __defaults__
   missing_args = params.__len__() - nargs - stararg.__len__()
   n_defaults = fun.__defaults__.__len__()
   result = stararg.__list__()
