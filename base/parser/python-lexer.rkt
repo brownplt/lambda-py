@@ -24,10 +24,10 @@
 
 #| LEXER PARTS AND RELATED FUNCTIONS |#
 
-#| These are mostly transliterated from the Python spec and then (unfortunately) paired with re-parsing functions. |#
-
+#| Strings are detected by the start and then parsed by a separate lexer. The rest are transliterated from the Python spec and then paired with re-parsing functions. |#
 (define-lex-abbrevs
-  (physical-eol (:or "\n" "\r\n" "\r")))
+  (physical-eol (:or "\n" "\r\n" "\r"))
+  (begin-string (:: (:? (:or "b" "B")) (:? (:or "r" "R")) (:or "'" "\"" "'''" "\"\"\""))))
 
 #| NAMES |#
 
@@ -57,28 +57,6 @@ This only works because there are no valid source chars outside the ASCII range 
          (andmap valid-python-id-char? (string->list normalized-lexeme)))))
 
 #| STRINGS |#
-(define-lex-abbrevs
-  (stringliteral (:: (:? stringprefix) (:or shortstring longstring)))
-  (stringprefix (:or "r" "R"))
-  (shortstring (:or (:: "'" (:* single-shortstringitem) "'") (:: "\"" (:* double-shortstringitem) "\"")))
-  (longstring (:or (:: "'''" (:- (:* longstringitem) (:: (:* any-char) "'''" (:* any-char))) "'''") 
-                   (:: "\"\"\"" (:- (:* longstringitem) (:: (:* any-char) "\"\"\"" (:* any-char))) "\"\"\"")))
-  (single-shortstringitem (:or (:~ "'" "\\" "\n" "\r") stringescapeseq))
-  (double-shortstringitem (:or (:~ "\"" "\\" "\n" "\r") stringescapeseq))
-  (longstringitem (:or (:~ "\\") stringescapeseq))
-  (stringescapeseq (:: "\\" any-char)))
-
-(define (parse-string lexeme)
-  (let-values ([(raw? lead-chars follow-chars)
-                (match lexeme
-                  [(regexp #rx"^(r|R)(\"\"\"|''')") (values #t 4 3)]
-                  [(regexp #rx"^(\"\"\"|''')") (values #f 3 3)]
-                  [(regexp #rx"^(r|R)[\"']") (values #t 2 1)]
-                  [(regexp #rx"^[\"']") (values #f 1 1)])])
-    (let ((unescaped-content (substring lexeme lead-chars (- (string-length lexeme) follow-chars))))
-      (if raw? 
-          unescaped-content
-          (backslash-escaped unescaped-content #t)))))
 
 ;; Char c in the set abfnrtv to escaped character of \c
 (define (escape-char c)
@@ -94,7 +72,6 @@ This only works because there are no valid source chars outside the ASCII range 
 (define (octal-char? c)
   (member c '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7)))
 
-;; Turn list of octal chars into represented byte, as a character
 (define (octal-chars->char . chars)
   (integer->char (string->number (apply string chars) 8)))
 
@@ -135,32 +112,8 @@ This only works because there are no valid source chars outside the ASCII range 
          (list->string (escape (string->list lexeme) (list)))))
 
 #| BYTESTRINGS |#
-(define-lex-abbrevs
-  (bytesliteral (:: bytesprefix (:or shortbytes longbytes)))
-  (bytesprefix (:or "b" "B" "br" "Br" "bR" "BR"))
-  (shortbytes (:or (:: "'" (:* single-shortbytesitem) "'") (:: "\"" (:* double-shortbytesitem) "\"")))
-  (longbytes (:or (:: "'''" (:* longbytesitem) "'''") (:: "\"\"\"" (:* longbytesitem) "\"\"\"")))
-  (single-shortbytesitem (:or single-shortbyteschar bytesescapeseq))
-  (double-shortbytesitem (:or double-shortbyteschar bytesescapeseq))
-  (longbytesitem (:or longbyteschar bytesescapeseq))
-  (single-shortbyteschar (:- (char-range "\u0" "\u7f") (:or "\\" "\n" "\r" "'")))
-  (double-shortbyteschar (:- (char-range "\u0" "\u7f") (:or "\\" "\n" "\r" "\"")))
-  (longbyteschar (:- (char-range "\u0" "\u7f") "\\"))
-  (bytesescapeseq (:: "\\" (char-range "\u0" "\u7f"))))
-
-;; The non-escaping here might be an artifact of python-parser.py
-(define (parse-bytestring lexeme)
-  (let-values ([(raw? lead-chars follow-chars)
-                (match lexeme
-                  [(regexp #rx"^(b|B)(r|R)(\"\"\"|''')") (values #t 5 3)]
-                  [(regexp #rx"^(b|B)(\"\"\"|''')") (values #f 4 3)]
-                  [(regexp #rx"^(b|B)(r|R)[\"']") (values #t 3 1)]
-                  [(regexp #rx"^(b|B)[\"']") (values #f 2 1)])])
-    (let ((unescaped-content (substring lexeme lead-chars (- (string-length lexeme) follow-chars))))
-      (if raw? 
-          ;; \n -> \\n ("\\n" -> "\\\\n")
-          (regexp-replace* #rx"[\\]" unescaped-content "\\\\\\\\")
-          unescaped-content))))
+(define (unescaped l)
+  (regexp-replace* #rx"[\\]" l "\\\\\\\\"))
 
 #| INTEGERS |#
 (define-lex-abbrevs
@@ -200,9 +153,6 @@ This only works because there are no valid source chars outside the ASCII range 
 (define-lex-abbrevs
   (imagnumber (:: (:or floatnumber intpart) (:or "j" "J"))))
 
-(define (parse-imaginary lexeme)
-  (* 0+1i (string->number (substring lexeme 0 (- (string-length lexeme) 1)))))
-
 #| TODO: Optional warning system for space/tab mixing |#
 (define (count-spaces str)
   (foldl (lambda (char count)
@@ -218,9 +168,42 @@ This only works because there are no valid source chars outside the ASCII range 
    (physical-eol (token 'PHYSICAL-NEWLINE))
    (any-char (comment-lexer input-port))))
 
-#|
-Simple lexer, produces physical/other tokens.
-|#
+;; Lex string up to endquotes and return token - port should start with string contents.
+;; quote-char: #\' or #\"
+;; quote-count: 1 or 3
+(define (string-lexer port quote-char quote-count bytestring? raw?)
+  ;; unquote-count: <= quote-count
+  ;; lexeme-lst: reversed list of lexemes including separate endquotes
+  (define (finish-string lexeme-lst)
+    (let ((content-string (string-append* (reverse (if (equal? quote-count 3)
+                                                        (cdddr lexeme-lst)
+                                                        (cdr lexeme-lst))))))
+      (cond [(and bytestring? raw?) (token 'STRING (cons 'bytes (unescaped content-string)))]
+            [bytestring? (token 'STRING (cons 'bytes content-string))]
+            [raw? (token 'STRING (cons 'string content-string))]
+            [else (token 'STRING (cons 'string (backslash-escaped content-string #t)))])))
+  (define (continue-string port unquote-count lexeme-lst)
+    (define lex
+      (lexer
+       ("'" (continue-string port
+                             (if (equal? quote-char #\') (add1 unquote-count) 0)
+                             (cons lexeme lexeme-lst)))
+       ("\"" (continue-string port
+                              (if (equal? quote-char #\") (add1 unquote-count) 0)
+                              (cons lexeme lexeme-lst)))
+       ((:or "\\\"" "\\'")
+        (continue-string port 0 (cons lexeme lexeme-lst)))
+       ((:: "\\" physical-eol)
+        (continue-string port 0 lexeme-lst))
+       (any-char ;; Including backslashes alone
+        (continue-string port 0 (cons lexeme lexeme-lst)))
+       ((eof) (error "EOF in string"))))
+    (if (equal? unquote-count quote-count)
+        (finish-string lexeme-lst)
+        (lex port)))
+  (continue-string port 0 '()))
+
+;; Physical lexer 
 (define lex
   (lexer 
    ("#" (comment-lexer input-port))
@@ -233,8 +216,25 @@ Simple lexer, produces physical/other tokens.
    (integer (token 'NUMBER (cons 'integer (parse-integer lexeme))))
    (floatnumber (token 'NUMBER (cons 'float (parse-float lexeme))))
    (imagnumber (token 'NUMBER (cons 'imaginary lexeme)))
-   (stringliteral (token 'STRING (cons 'string (parse-string lexeme))))
-   (bytesliteral (token 'STRING (cons 'bytes (parse-bytestring lexeme))))
+
+   (begin-string 
+    (match lexeme
+      [(regexp #rx"^(b|B)(r|R)(\"\"\"|''')")
+       (string-lexer input-port (string-ref lexeme 2) 3 #t #t)]
+      [(regexp #rx"^(b|B)(\"\"\"|''')")
+       (string-lexer input-port (string-ref lexeme 1) 3 #t #f)]
+      [(regexp #rx"^(b|B)(r|R)[\"']")
+       (string-lexer input-port (string-ref lexeme 2) 1 #t #t)]
+      [(regexp #rx"^(b|B)[\"']")
+       (string-lexer input-port (string-ref lexeme 1) 1 #t #f)]
+      [(regexp #rx"^(r|R)(\"\"\"|''')")
+       (string-lexer input-port (string-ref lexeme 1) 3 #f #t)]
+      [(regexp #rx"^(\"\"\"|''')")
+       (string-lexer input-port (string-ref lexeme 0) 3 #f #f)]
+      [(regexp #rx"^(r|R)[\"']")
+       (string-lexer input-port (string-ref lexeme 1) 1 #f #t)]
+      [(regexp #rx"^[\"']") 
+       (string-lexer input-port (string-ref lexeme 0) 1 #f #f)]))
 
    (identifier (if (valid-identifier? lexeme)
                    (token 'NAME (cons 'name lexeme)) ; Not sure whether these should be normalized.
@@ -245,7 +245,7 @@ Simple lexer, produces physical/other tokens.
    ((:+ (:or " " "\t" "\f")) (token 'WHITESPACE (count-spaces lexeme)))
    ((eof) (token 'EOF "EOF"))))
 
-#| Logical lexer - produces logical/other tokens using physical lexer |#
+;; Logical lexer - produces logical/other tokens using physical lexer
 (define (get-python-lexer input-port)
   (generator 
    () 
