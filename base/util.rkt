@@ -535,7 +535,7 @@
                                         (CTuple (CId '%tuple (GlobalId)) keywords)
                                         (if (none? stararg)
                                             (CTuple (CId '%tuple (GlobalId)) empty)
-                                            (to-tuple stararg))
+                                            (to-tuple (some-v stararg)))
                                         (if (none? kwarg)
                                             (CNone)
                                             (some-v kwarg)))
