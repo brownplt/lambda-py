@@ -5,25 +5,85 @@
   (only-in plai-typed some none)
   "python-core-syntax.rkt")
 
-(provide sexp->core)
+(provide sexp->core sexp->store sexp->env sexp->val)
+
+(define (sexp->env sexp)
+  (match sexp
+    [(list 'env (? list? pairs))
+     (make-immutable-hash pairs)]
+    [_ (error 'sexp->env (format "Bad env: ~a" sexp))]))
+(define (sexp->store sexp)
+  (match sexp
+    [(list 'store (? list? locs) next-loc)
+     (define locs-vals
+      (make-immutable-hash
+        (map (lambda (p) (cons (car p) (sexp->val (cdr p))))
+             locs)))
+     (store locs-vals next-loc)]
+    [_ (error 'sexp->store (format "Bad store: ~a" sexp))]))
+
+(define (sexp->mval mval)
+  (define (sexp->mdict sexp)
+    (match sexp
+      [(? list? pairs)
+       (make-immutable-hash
+        (map (lambda (p) (cons (sexp->val (car p))
+                               (sexp->val (cdr p))))
+             pairs))]
+      [_ (error 'sexp->mdict (format "Weird mdict: ~a" sexp))]))
+  (match mval
+    [(list 'meta-none) (MetaNone)]
+    [(list 'meta-num n) (MetaNum n)]
+    [(list 'meta-str s) (MetaStr s)]
+    [(list 'meta-class c) (MetaClass c)]
+    [(list 'meta-list vs) (MetaList (map sexp->val vs))]
+    [(list 'meta-tuple vs) (MetaTuple (map sexp->val vs))]
+    [(list 'meta-set vs) (MetaSet (map sexp->val vs))]
+    [(list 'meta-dict d) (MetaDict (sexp->mdict d))]
+    [(list 'meta-closure e xs x b c)
+     (MetaClosure (sexp->env e)
+                  xs
+                  (sexp->var/opt x)
+                  (sexp->core b)
+                  (sexp->var/opt c))]
+    [(list 'meta-code e f g)
+     (MetaCode (sexp->core e) f g)]
+    [else (error 'sexp->core (format "Bizarre mval sexp: ~a" mval))]))
+(define (sexp->mval/opt maybe-mval)
+  (match maybe-mval
+    [(list 'some-meta m) (some (sexp->mval m))]
+    [(list 'no-meta) (none)]
+    [else (error 'sexp->core (format "Bizarre mval/opt sexp: ~a" maybe-mval))]))
+(define (sexp->var/opt maybe-var)
+  (match maybe-var
+    [(list 'some-var x) (some x)]
+    [(list 'no-var) (none)]))
+
+(define (sexp->val/opt maybe-val)
+  (match maybe-val
+    [(list 'some-val v) (some (sexp->val v))]
+    [(list 'no-val) (none)]))
+(define (sexp->val sexp)
+  (define (sexp->dict sexp)
+    (match sexp
+      [(? list? pairs)
+       (make-immutable-hash pairs)]
+      [_ (error 'sexp->dict (format "Weird dict: ~a" sexp))]))
+  (match sexp
+    [(list 'vobjectclass ante mval dict class)
+     (VObjectClass ante
+                   (sexp->mval/opt mval)
+                   (sexp->dict dict)
+                   (sexp->val/opt class))]
+    [(list 'vundefined)
+     (VUndefined)]
+    [(list 'vsym s)
+     (VSym s)]
+    [(list 'vpointer a)
+     (VPointer a)]))
+  
 
 (define (sexp->core sexp)
-  (define (sexp->var/opt maybe-var)
-    (match maybe-var
-      [(list 'some-var x) (some x)]
-      [(list 'no-var) (none)]))
-  (define (sexp->mval mval)
-    (match mval
-      [(list 'meta-none) (MetaNone)]
-      [(list 'meta-num n) (MetaNum n)]
-      [(list 'meta-str s) (MetaStr s)]
-      [(list 'meta-class c) (MetaClass c)]
-      [else (error 'sexp->core (format "Bizarre mval sexp: ~a" mval))]))
-  (define (sexp->mval/opt maybe-mval)
-    (match maybe-mval
-      [(list 'some-meta m) (some (sexp->mval m))]
-      [(list 'no-meta) (none)]
-      [else (error 'sexp->core (format "Bizarre mval/opt sexp: ~a" maybe-mval))]))
   (define (sexp->idtype idtype)
     (match idtype
       ['local (LocalId)]

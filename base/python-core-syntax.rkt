@@ -105,7 +105,7 @@ ParselTongue.
     [(empty? vals) (v*s/list vpointers sto)]
     [else (type-case Result (alloc-result (first vals) sto)
             [v*s (vp s)
-             (alloc-result-list (rest vals) (cons vp vpointers) s)]
+             (alloc-result-list (rest vals) (append vpointers (list vp)) s)]
             [else
              (error 'alloc-result-list "alloc-result returns non v*s Result")])]))
 

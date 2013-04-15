@@ -42,13 +42,27 @@ def ___call_stararg(fun, params, nargs, keywords, stararg, kwarg):
         raise TypeError("multiple values for argument")
       kw_dict[k] = kwarg[k]
 
-  # TODO: use kw_dict to fill missing arguments before __defaults__
-  missing_args = params.__len__() - nargs - stararg.__len__()
-  n_defaults = fun.__defaults__.__len__()
+  # use kw_dict and __defaults__ to fill missing arguments
+  n_params = params.__len__()
+  defaults = fun.__defaults__
+  n_defaults = defaults.__len__()
   result = stararg.__list__()
-  if missing_args <= n_defaults:
-    for i in range(n_defaults-missing_args, n_defaults):
-      result.append(fun.__defaults__[i])
+  i = nargs + stararg.__len__()
+  while i < n_params:
+    arg = params[i]
+    if arg in kw_dict:
+      result.append(kw_dict[arg])
+      del kw_dict[arg]
+    elif n_params - i <= n_defaults:
+      result.append(defaults[n_defaults - n_params + i])
+    else:
+      raise TypeError("missing argument " + arg)
+    i += 1
+
+  # TODO: if fun has **kwarg use kw_dict as argument
+  if kw_dict != {}:
+    raise TypeError("unexpected keyword argument(s): " + kw_dict.__str__())
+
   return result.__tuple__()
 
 ___assign("%call_stararg", ___call_stararg)

@@ -7,6 +7,8 @@
          "python-lexical-syntax.rkt"
          "python-core-syntax.rkt"
          "python-syntax-operations.rkt"
+         "core-to-sexp.rkt"
+         "sexp-to-core.rkt"
          (typed-in racket (format : (string 'a -> string))))
 
 
@@ -43,15 +45,6 @@
                   (list 'o)))
 (test (c3-merge ex5 empty) (some (list 'd 'c 'b 'a 'o)))
 
-(test (pyexpr-modify-tree
-       (PyTuple (list (PyStr "ji") (PyTuple (list (PyStr "yo")))))
-       (lambda (e)
-         (type-case PyExpr e
-           [PyStr (s) (PyLexId (string->symbol s) 'none)]
-           [else (error 'pyexpr-modify-tree (format "pyexpr-modify-tree: Not a PyStr ~a" e))])))
-      (LexTuple (list (PyLexId 'ji 'none) (LexTuple (list (PyLexId 'yo 'none)))))
-      )
-
 (test (Let 'x (CNone) (make-builtin-str "foo"))
       (CLet 'x (LocalId) (CNone)
         (make-builtin-str "foo")))
@@ -59,3 +52,31 @@
 (test (Prim 'num< (make-builtin-str "foo") (make-builtin-str "bar"))
       (CBuiltinPrim 'num< (list (make-builtin-str "foo") (make-builtin-str "bar"))))
 
+(define (roundtrip in out core)
+  (test (out (in core)) core))
+(define (expr-trip core)
+  (roundtrip core->sexp sexp->core core))
+(define (val-trip v)
+  (roundtrip val->sexp sexp->val v))
+(define (store-trip s)
+  (roundtrip store->sexp sexp->store s))
+
+(expr-trip (CSym 'foo))
+
+(val-trip (VUndefined)) 
+
+(val-trip (VObjectClass 'some-c (some (MetaNum 42)) (hash (list (values 'bar 42))) (none)))
+
+(val-trip (VObjectClass 'some-c
+                        (some (MetaClosure (hash (list (values 'foo 0)))
+                                           (list 'x 'y 'z)
+                                           (some 'va)
+                                           (CSym 'body)
+                                           (some 'cls)))
+                        (hash empty)
+                        (some (VSym 'a-class-value))))
+
+(store-trip (store (hash (list
+                          (values 0 (VSym 'foo))
+                          (values 1 (VPointer 1))))
+                   2))
