@@ -58,9 +58,6 @@
   ("--test-py" dirname "Run all tests in dirname using python"
    (display (results-summary (run-tests (mk-python-cmdline-eval (get-pypath)) dirname))))
 
-  ("--test-parser" "Compare native parser results with Python parser for input"
-   (parse-test (current-input-port)))
-
   ("--test-native-parser" dirname "Run all tests in dirname through native/python parser test"
    (parse-tests dirname))
 

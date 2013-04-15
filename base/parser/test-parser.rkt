@@ -5,32 +5,10 @@
          "../run-tests.rkt" ;; borrow get-test-specs and TestSpec
          "../util.rkt")
 
-(provide single-parse-test parse-tests)
+(provide parse-tests)
 
-; Take a port, provide its contents to native parser and python parser
-; If equal?, return success message, otherwise a failure message wiht both ASTs
-
-(define (single-parse-test port)
-  (match (compare-parse port)
-    [(list 'both-parsers-fail py-exn native-exn) (display "Both parsers fail\n")
-       (pretty-write native-exn)
-       (display "======\n")
-       (display (exn-message py-exn))
-       (exit 1)]
-    [(list 'python-parser-fails py-exn _) (display "Python parser fails\n") 
-     (display (exn-message py-exn))
-     (exit 2)]
-    [(list 'native-parser-fails py-ast native-exn) (display "Native parser fails\n") 
-     (pretty-write py-ast)
-     (display (exn-message native-exn))
-     (exit 3)]
-    ['equal (display "Programs are equal\n") (exit 0)]
-    [(list 'not-equal py native)
-     (display "Native parser does not match python parser\n")
-     (display "=== Native ===\n")
-     (pretty-write native)
-     (display "=== Python ===\n")
-     (pretty-write py)]))
+;; For single files, a bash script like this is useful:
+;; diff <(./pymain.sh --native-parser --get-syntax < $1) <(./pymain.sh --python-parser --get-syntax < $1)
 
 (define (parse-tests dirname)
   (define specs (get-test-specs dirname))

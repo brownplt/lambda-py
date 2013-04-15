@@ -39,8 +39,6 @@ racket python-main.rkt $PPATH --test-py $TESTDIR
 function run_parser_test_options {
 echo "--test-native-parser"
 racket python-main.rkt $PPATH --test-native-parser $TESTDIR
-echo "--test-parser"
-racket python-main.rkt $PPATH --test-parser <<<$TESTPY
 }
 
 echo "===== Parser switch options ====="
