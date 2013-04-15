@@ -96,10 +96,14 @@
                         (LexBoolOp op (map recur values))] ;op = 'And | 'Or
               
                                         ; functions
-              [PyLam (args vararg defaults body)
-                     (LexLam args vararg (map recur defaults) (recur body))]
-              [PyFunc (name args vararg defaults body decorators)
-                      (LexFunc name args vararg (map recur defaults) (recur body) (map recur decorators) (none))]
+              [PyLam (args vararg kwonlyargs kwarg defaults kw_defaults body)
+                     (LexLam args vararg kwonlyargs kwarg
+                             (map recur defaults) (map recur kw_defaults)
+                             (recur body))]
+              [PyFunc (name args vararg kwonlyargs kwarg defaults kw_defaults body decorators)
+                      (LexFunc name args vararg kwonlyargs kwarg
+                               (map recur defaults) (map recur kw_defaults)
+                               (recur body) (map recur decorators) (none))]
               [PyReturn (v) (LexReturn (option-map recur v))]
               [PyApp (fun args keywords stararg kwarg)
                      (LexApp (recur fun) (map recur args) (map recur keywords)
@@ -213,12 +217,16 @@
                         (LexBoolOp op (map recur values))] ;op = 'And | 'Or
               
                                         ; functions
-              [LexLam (args vararg defaults body)
-                     (LexLam args vararg (map recur defaults) (recur body))]
+              [LexLam (args vararg kwonlyargs kwarg defaults kw_defaults body)
+                      (LexLam args vararg kwonlyargs kwarg
+                              (map recur defaults) (map recur kw_defaults)
+                              (recur body))]
 
-              [LexFunc (name args vararg defaults body decorators class)
-                      (LexFunc name args vararg (map recur defaults) (recur body) (map recur decorators)
-                               (option-map recur class))]
+              [LexFunc (name args vararg kwonlyargs kwarg defaults kw_defaults body decorators class)
+                       (LexFunc name args vararg kwonlyargs kwarg
+                                (map recur defaults) (map recur kw_defaults)
+                                (recur body) (map recur decorators)
+                                (option-map recur class))]
               [LexReturn (value) (LexReturn (option-map recur value))]
               [LexApp (fun args keywords stararg kwarg)
                       (LexApp (recur fun) (map recur args) (map recur keywords)
@@ -328,9 +336,9 @@
                         (flatten (map recur values))] ;op = 'And | 'Or
               
                                         ; functions
-              [PyLam (args vararg defaults body)
+              [PyLam (args vararg kwonlyargs kwarg defaults kw_defaults body)
                      (flatten (list (map recur defaults) (list (recur body))))]
-              [PyFunc (name args vararg defaults body decorators)
+              [PyFunc (name args vararg kwonlyargs kwarg defaults kw_defaults body decorators)
                       (flatten (list (map recur defaults) (list (recur body))))]
               [PyReturn (value) (type-case (optionof PyExpr) value
                                   [none () empty]
@@ -449,14 +457,16 @@
                         (flatten (map recur values))] ;op = 'And | 'Or
               
                                         ; functions
-              [LexLam (args vararg defaults body)
-                      (flatten (list (map recur defaults) (list (recur body))))]
-              [LexFunc (name args vararg defaults body decorators class)
-                      (flatten (list (map recur defaults)
-                                     (list (recur body)
-                                           (type-case (optionof LexExpr) class
-                                             [some (v) (recur v)]
-                                             [none () empty]))))]
+              [LexLam (args vararg kwonlyargs kwarg defaults kw_defaults body)
+                      (flatten (list (map recur defaults) (map recur kw_defaults)
+                                     (list (recur body))))]
+              [LexFunc (name args vararg kwonlyargs kwarg defaults kw_defaults body decorators class)
+                       (flatten (list (map recur defaults)
+                                      (map recur kw_defaults)
+                                      (list (recur body)
+                                            (type-case (optionof LexExpr) class
+                                              [some (v) (recur v)]
+                                              [none () empty]))))]
               [LexReturn (value) (type-case (optionof LexExpr) value
                                    [none () empty]
                                    [some (v) (recur v)])]

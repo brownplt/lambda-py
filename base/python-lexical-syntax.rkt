@@ -60,9 +60,12 @@
 
   ; functions
   [LexLam (args : (listof symbol)) (vararg : (optionof symbol))
-          (defaults : (listof LexExpr)) (body : LexExpr)]
-  [LexFunc (name : symbol) (args : (listof symbol))
-           (vararg : (optionof symbol)) (defaults : (listof LexExpr))
+          (kwonlyargs : (listof symbol)) (kwarg : (optionof symbol))
+          (defaults : (listof LexExpr)) (kw_defaults : (listof LexExpr))
+          (body : LexExpr)]
+  [LexFunc (name : symbol) (args : (listof symbol)) (vararg : (optionof symbol))
+           (kwonlyargs : (listof symbol)) (kwarg : (optionof symbol))
+           (defaults : (listof LexExpr)) (kw_defaults : (listof LexExpr))
            (body : LexExpr) (decorators : (listof LexExpr)) (class : (optionof LexExpr))]
   [LexReturn (value : (optionof LexExpr))]
   [LexApp (fun : LexExpr) (args : (listof LexExpr)) (keywords : (listof LexExpr))

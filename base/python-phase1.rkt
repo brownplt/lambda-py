@@ -55,15 +55,16 @@
                                                         desugared-bases)))
                                         (LexBlock empty
                                                   (pre-desugar body)))))]
-       [PyLam (args vararg defaults body)
-              (let ([all-args (if (some? vararg) (cons (some-v vararg) args) args)])
-                (LexLam args vararg (map pre-desugar defaults)
+       [PyLam (args vararg kwonlyargs kwarg defaults kw_defaults body)
+              (let ([all-args (flatten (list args (option->list vararg) kwonlyargs (option->list kwarg)))])
+                (LexLam args vararg kwonlyargs kwarg (map pre-desugar defaults) (map pre-desugar kw_defaults)
                         (LexBlock all-args (cascade-nonlocal all-args (pre-desugar body)))))]
-       [PyFunc (name args vararg defaults body decorators)
-               (let ([all-args (if (some? vararg) (cons (some-v vararg) args) args)])
+       [PyFunc (name args vararg kwonlyargs kwarg defaults kw_defaults body decorators)
+               (let ([all-args (flatten (list args (option->list vararg) kwonlyargs (option->list kwarg)))])
                  (LexSeq (list (LexAssign (list (PyLexId name 'Store)) 
-                                          (LexFunc name args vararg
+                                          (LexFunc name args vararg kwonlyargs kwarg
                                                    (map pre-desugar defaults)
+                                                   (map pre-desugar kw_defaults)
                                                    (LexBlock all-args
                                                              (cascade-nonlocal all-args (pre-desugar body)))
                                                    (map pre-desugar decorators)
@@ -180,9 +181,11 @@
                                                   (LexClass replace-scope name
                                                             (remove-unneeded-assigns bases)
                                                             (remove-unneeded-assigns body))]
-                                        [LexFunc (name args vararg defaults body decorators class)
-                                                 (LexFunc name args vararg
+                                        [LexFunc (name args vararg kwonlyargs kwarg defaults kw_defaults
+                                                       body decorators class)
+                                                 (LexFunc name args vararg kwonlyargs kwarg
                                                           (map remove-unneeded-assigns defaults)
+                                                          (map remove-unneeded-assigns kw_defaults)
                                                           (remove-unneeded-assigns body)
                                                           (map remove-unneeded-assigns decorators)
                                                           class)]

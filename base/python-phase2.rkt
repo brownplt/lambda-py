@@ -61,7 +61,7 @@
                                   (default-recur))))))
     (LexSeq (list
              (LexAssign (list (LexGlobalId '%globals 'Store))
-                        (LexFunc '%globals empty (none) empty
+                        (LexFunc '%globals empty (none) empty (none) empty empty
                                  (collecting-ids-body globals
                                                       (lambda (x y) (LexGlobalId x y)))
                                  empty (none)))
@@ -78,12 +78,12 @@
          expr
          (lambda (y)
            (type-case LexExpr y
-             [LexFunc (name args vararg defaults body decorators class)
+             [LexFunc (name args vararg kwonlyargs kwarg defaults kw_defaults body decorators class)
                       (if
                        (and
                         (> (string-length (symbol->string name )) (string-length "class-replacement"))
                         (equal? "class-replacement" (substring (symbol->string name) 0 (string-length "class-replacement"))))
-                       (LexFunc name args vararg defaults body decorators (none))
+                       (LexFunc name args vararg kwonlyargs kwarg defaults kw_defaults body decorators (none))
                        y)]
              [else (default-recur)]))))
       (define hoist-functions (local
@@ -134,10 +134,11 @@
          (lambda
              ([e : LexExpr])
            (type-case LexExpr e
-             [LexFunc (name args vararg defaults body decorators class)
-                      (let ([all-args (if (some? vararg) (cons (some-v vararg) args) args)])
-                        (LexFunc name args vararg
+             [LexFunc (name args vararg kwonlyargs kwarg defaults kw_defaults body decorators class)
+                      (let ([all-args (flatten (list args (option->list vararg) kwonlyargs (option->list kwarg)))])
+                        (LexFunc name args vararg kwonlyargs kwarg
                                  (map replace-functions defaults)
+                                 (map replace-functions kw_defaults)
                                  (begin
                                    (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
                                    (set! list-of-functions (cons
@@ -145,6 +146,9 @@
                                                             (LexFunc (first list-of-identifiers)
                                                                      all-args
                                                                      (none)
+                                                                     empty
+                                                                     (none)
+                                                                     empty
                                                                      empty
                                                                      body
                                                                      empty
@@ -155,7 +159,7 @@
                                    )
                                  (map replace-functions decorators) class))
                       ]
-             [LexLam (args vararg defaults body) (begin
+             [LexLam (args vararg kwonlyargs kwarg defaults kw_defaults body) (begin
                                    (set! list-of-identifiers (cons (generate-identifier) list-of-identifiers))
                                    (set! list-of-functions (cons e list-of-functions))
                                    (LexLocalId (first list-of-identifiers) 'Load))]
@@ -175,8 +179,10 @@
            (lambda (y)
              (type-case LexExpr y
                [LexInstanceId (x ctx) (LexDotField class-expr x)]
-               [LexFunc (name args vararg defaults body decorators class)
-                        (LexFunc name args vararg (map recur defaults) body decorators
+               [LexFunc (name args vararg kwonlyargs kwarg defaults kw_defaults body decorators class)
+                        (LexFunc name args vararg kwonlyargs kwarg
+                                 (map recur defaults) (map recur kw_defaults)
+                                 body decorators
                                  (some class-expr))]
                [LexClass (scope name bases body) (LexClass scope name bases body)]
                [else (default-recur)])))))
@@ -326,7 +332,7 @@
                          (LexAssign
                           (list
                            (LexInstanceId name 'Store))
-                       (LexApp (LexLam empty (none) empty
+                       (LexApp (LexLam empty (none) empty (none) empty empty
                                        (LexLocalLet
                                         name (LexUndefined)
                                         (LexSeq
@@ -486,16 +492,21 @@
                                                  restore-locals
                                                  (LexReturn (some (LexLocalId 'return-cleanup 'Load))))))]
                         [none () (LexSeq (list restore-locals (LexReturn (none))))])]
-       [LexLam (args vararg defaults body)
-               (LexLam args vararg (map replace-lexinscopelocals defaults)
+       [LexLam (args vararg kwonlyargs kwarg defaults kw_defaults body)
+               (LexLam args vararg kwonlyargs kwarg
+                       (map replace-lexinscopelocals defaults)
+                       (map replace-lexinscopelocals kw_defaults)
                        (replace-lexinscopelocals (store-locals-careful body)))]
        ;I'm really not sure what's going on here....
-       [LexFunc (name args vararg defaults body decoratos class)
+       [LexFunc (name args vararg kwonlyargs kwarg defaults kw_defaults body decoratos class)
                 (LexFunc
                  name
                  args
                  vararg
+                 kwonlyargs
+                 kwarg
                  (map replace-lexinscopelocals defaults)
+                 (map replace-lexinscopelocals kw_defaults)
                  (replace-lexinscopelocals (store-locals body))
                  (map replace-lexinscopelocals decoratos)
                  (option-map replace-lexinscopelocals class))]
@@ -507,7 +518,7 @@
 ;largely for ease of testing (I can read this code; desugared code not so much)
 (define (phase2-locals [ids : (listof symbol)]) : LexExpr
   (LexAssign (list (LexGlobalId '%locals 'Store)) 
-			 (LexFunc '%locals empty (none) empty
+			 (LexFunc '%locals empty (none) empty (none) empty empty
                       (collecting-ids-body ids (lambda (x y) (LexLocalId x y)))
                       empty (none))))
 

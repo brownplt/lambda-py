@@ -180,9 +180,15 @@
 
 ;; option-map: unwrap the option, perform the function (if applicable), re-wrap.
 (define (option-map [fn : ('a -> 'b)] [thing : (optionof 'a)]) : (optionof 'b)
-    (type-case (optionof 'a) thing
-          [some (v) (some (fn v))]
-              [none () (none)]))
+  (type-case (optionof 'a) thing
+    [some (v) (some (fn v))]
+    [none () (none)]))
+
+;; option->list: convert  option to a list
+(define (option->list [thing : (optionof 'a)]) : (listof 'a)
+  (type-case (optionof 'a) thing
+    [some (v) (list v)]
+    [none () (list)]))
 
 ;; get-class: retrieve the object's class
 (define (get-class [obj : CVal] [env : Env] [sto : Store]) : CVal

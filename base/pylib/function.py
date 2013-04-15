@@ -34,12 +34,12 @@ def ___call_stararg(fun, params, nargs, keywords, stararg, kwarg):
   kw_dict = {}
   for (k, v) in keywords:
     if k in kw_dict:
-      raise SyntaxError("keyword argument repeated")
+      raise SyntaxError("keyword argument repeated: " + k)
     kw_dict[k] = v
   if kwarg:
     for k in kwarg:
       if k in kw_dict:
-        raise TypeError("multiple values for argument")
+        raise TypeError("multiple values for argument: " + k)
       kw_dict[k] = kwarg[k]
 
   # use kw_dict and __defaults__ to fill missing arguments

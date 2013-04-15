@@ -67,7 +67,7 @@
                  (let ((typecase-lambda
                         (lambda ([value : LexExpr]) : LexExpr
                                 (type-case LexExpr value
-                                  [LexFunc (a b c d e f g)
+                                  [LexFunc (a b c d e f g h i j)
                                            (begin
                                              (display starting-tab)
                                              (display "# assigned to ")
@@ -290,27 +290,44 @@
                    this-expr)] ;op = 'And | 'Or
       
                                         ; functions
-      [LexLam (args vararg defaults body)
+      [LexLam (args vararg kwonlyargs kwarg defaults kw_defaults body)
               (begin
                 (display starting-tab)
                 (display "(lambda ")
                 (comma-separate-2 args)
                 (if (some? vararg)
                     (begin
-                      (display ",")
+                      (display ", ")
                       (display (some-v vararg))
                       (display "*"))
-                    (display ""))
+                    (display " "))
+                (if (empty? kwonlyargs)
+                    (display " ")
+                    (begin
+                      (display ", ")
+                      (comma-separate-2 kwonlyargs)))
+                (if (some? kwarg)
+                    (begin
+                      (display ", ")
+                      (display (some-v kwarg))
+                      (display "**"))
+                    (display " "))
                 (if (empty? defaults)
-                     (display "):\n")
+                     (display " ")
                      (begin
                        (display " (defaults: ")
                        (comma-separate defaults)
+                       (display ")")))
+                (if (empty? kw_defaults)
+                     (display "):\n")
+                     (begin
+                       (display " (kw_defaults: ")
+                       (comma-separate kw_defaults)
                        (display ")):\n")))
                 (lexexpr-print-helper body (string-append "  " starting-tab))
                 (display ")")
                 this-expr)]
-      [LexFunc (name args vararg defaults body decorators class)
+      [LexFunc (name args vararg kwonlyargs kwarg defaults kw_defaults body decorators class)
                (begin
                  (display starting-tab)
                  (if (empty? decorators)
@@ -322,15 +339,32 @@
                  (comma-separate-2 args)
                  (if (some? vararg)
                      (begin
-                       (display ",")
+                       (display ", ")
                        (display (some-v vararg))
                        (display "*"))
-                     (display ""))
+                     (display " "))
+                 (if (empty? kwonlyargs)
+                     (display " ")
+                     (begin
+                       (display ", ")
+                       (comma-separate-2 kwonlyargs)))
+                 (if (some? kwarg)
+                     (begin
+                       (display ", ")
+                       (display (some-v kwarg))
+                       (display "**"))
+                     (display " "))
                  (if (empty? defaults)
-                     (display "):\n")
+                     (display " ")
                      (begin
                        (display " (defaults: ")
                        (comma-separate defaults)
+                       (display ")")))
+                 (if (empty? kw_defaults)
+                     (display "):\n")
+                     (begin
+                       (display " (kw_defaults: ")
+                       (comma-separate kw_defaults)
                        (display ")):\n")))
                  ;TAB
                  (lexexpr-print-helper body (string-append "  " starting-tab))

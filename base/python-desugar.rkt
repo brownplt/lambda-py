@@ -10,7 +10,8 @@
 (require (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/list (last : ((listof 'a) -> 'a)))
          (typed-in racket/list (count : (('a -> boolean) (listof 'a) -> number)))
-         (typed-in racket/base (append : ((listof 'a) (listof 'a) -> (listof 'a)))))
+         (typed-in racket/base (append : ((listof 'a) (listof 'a) -> (listof 'a))))
+         (typed-in racket (flatten : ((listof (listof 'a) ) -> (listof 'a)))))
 
 
 (define (desugar-boolop [op : symbol] [values : (listof LexExpr)]) : CExpr
@@ -170,6 +171,31 @@
     [LexLocalId (x ctx) x]
     [LexGlobalId (x ctx) x]
     [else (error 'desugar "cannot convert non-id to symbol with id-to-symbol")]))
+
+;; helper for function desugar
+(define (desugar-func [name : symbol] [args : (listof symbol)] [vararg : (optionof symbol)]
+                      [kwonlyargs : (listof symbol)] [kwarg : (optionof symbol)]
+                      [defaults : (listof LexExpr)] [kw_defaults : (listof LexExpr)]
+                      [body : LexExpr] [opt-class : (optionof LexExpr)])
+  (cond
+    ;; the "normal" case, it could be absorved by the next, it is a little optimization
+    ;; which works since __defaults__ returns () for functions without defaults, etc.
+    [(and (empty? kwonlyargs) (none? kwarg) (empty? defaults) (empty? kw_defaults))
+     (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))]
+    [else
+     (CLet '$func (LocalId)
+           ;; keyword-only and kwarg are ignored for now
+           (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))
+           (CSeq
+            (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__name__")
+                      (make-builtin-str (symbol->string name)))
+            (CSeq
+             (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
+                       (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defaults)))
+             (CSeq
+              (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__kwdefaults__")
+                        (CTuple (CId '%tuple (GlobalId)) (map rec-desugar kw_defaults)))
+              (CId '$func (LocalId))))))]))
 
 (define (rec-desugar [expr : LexExpr] ) : CExpr 
   (begin ;(display expr) (display "\n\n")
@@ -358,35 +384,21 @@
       [LexListComp (elt gens) (desugar-listcomp elt gens)]
       [LexComprehen (target iter) (error 'desugar "Can't desugar LexComprehen")]
       
-      [LexLam (args vararg defaults body)
-              (CLet '$func (LocalId)
-                    (CFunc args vararg (CReturn (rec-desugar body)) (none))
-                    (CSeq
-                     (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
-                               (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defaults)))
-                     (CId '$func (LocalId))))]
+      [LexLam (args vararg kwonlyargs kwarg defaults kw_defaults body)
+              (desugar-func 'lambda args vararg kwonlyargs kwarg defaults kw_defaults
+                            (LexReturn (some body)) (none))]
 
-      [LexFunc (name args vararg defaults body decorators opt-class)
+      [LexFunc (name args vararg kwonlyargs kwarg defaults kw_defaults body decorators opt-class)
                (cond
-                [(and (empty? decorators) (empty? defaults))
-                 ;; the "normal" case, it could be absorved by the next, it is a little optimization
-                 ;; which works since __defaults__ returns () for functions without defaults.
-                 (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))]
-
                 [(empty? decorators)
-                 ;; desugar the function and attach __defaults__ attribute
-                 (CLet '$func (LocalId)
-                       (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))
-                       (CSeq
-                        (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
-                                  (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defaults)))
-                        (CId '$func (LocalId))))]
-
+                 ;; no decorators, desugar function
+                 (desugar-func name args vararg kwonlyargs kwarg defaults kw_defaults
+                               body opt-class)]
                 [else
                  ;; first apply decorators to the function
                  (rec-desugar
                   (foldr (lambda (decorator func) (LexApp decorator (list func) (list) (none) (none)))
-                         (LexFunc name args vararg empty body (list) opt-class)
+                         (LexFunc name args vararg kwonlyargs kwarg defaults kw_defaults body (list) opt-class)
                          decorators))])]
 
       [LexReturn (value) (CReturn (type-case (optionof CExpr) (option-map rec-desugar value)

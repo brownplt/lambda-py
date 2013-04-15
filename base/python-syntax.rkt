@@ -49,9 +49,13 @@
 
   ; functions
   [PyLam (args : (listof symbol)) (vararg : (optionof symbol))
-         (defaults : (listof PyExpr)) (body : PyExpr)]
+         (kwonlyargs : (listof symbol)) (kwarg : (optionof symbol))
+         (defaults : (listof PyExpr)) (kw_defaults : (listof PyExpr))
+         (body : PyExpr)]
   [PyFunc (name : symbol) (args : (listof symbol)) (vararg : (optionof symbol))
-          (defaults : (listof PyExpr)) (body : PyExpr) (decorators : (listof PyExpr))]
+          (kwonlyargs : (listof symbol)) (kwarg : (optionof symbol))
+          (defaults : (listof PyExpr)) (kw_defaults : (listof PyExpr))
+          (body : PyExpr) (decorators : (listof PyExpr))]
   [PyReturn (value : (optionof PyExpr))]
   [PyApp (fun : PyExpr) (args : (listof PyExpr)) (keywords : (listof PyExpr))
          (stararg : (optionof PyExpr)) (kwarg : (optionof PyExpr))]
