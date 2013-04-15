@@ -17,7 +17,11 @@
 (define (lex-all port)
   (local [(define (lex-acc acc python-lexer)
             (let ((token (python-lexer)))
-              (if (equal? (token-struct-type token) 'EOF)
+              (if (equal? 
+                   (cond 
+                    [(position-token? token) (token-struct-type (position-token-token token))]
+                    [(token-struct? token) (token-struct-type token)])
+                   'EOF)
                   acc
                   (lex-acc (cons token acc) python-lexer))))]
          (reverse (lex-acc (list) (get-python-lexer port)))))
@@ -168,7 +172,7 @@ This only works because there are no valid source chars outside the ASCII range 
    (physical-eol (token 'PHYSICAL-NEWLINE))
    (any-char (comment-lexer input-port))))
 
-;; Lex string up to endquotes and return token - port should start with string contents.
+;; Lex string up to endquotes and return content pair - port should start with string contents.
 ;; quote-char: #\' or #\"
 ;; quote-count: 1 or 3
 (define (string-lexer port quote-char quote-count bytestring? raw?)
@@ -178,10 +182,10 @@ This only works because there are no valid source chars outside the ASCII range 
     (let ((content-string (string-append* (reverse (if (equal? quote-count 3)
                                                         (cdddr lexeme-lst)
                                                         (cdr lexeme-lst))))))
-      (cond [(and bytestring? raw?) (token 'STRING (cons 'bytes (unescaped content-string)))]
-            [bytestring? (token 'STRING (cons 'bytes content-string))]
-            [raw? (token 'STRING (cons 'string content-string))]
-            [else (token 'STRING (cons 'string (backslash-escaped content-string #t)))])))
+      (cond [(and bytestring? raw?) (cons 'bytes (unescaped content-string))]
+            [bytestring? (cons 'bytes content-string)]
+            [raw? (cons 'string content-string)]
+            [else (cons 'string (backslash-escaped content-string #t))])))
   (define (continue-string port unquote-count lexeme-lst)
     (define lex
       (lexer
@@ -203,54 +207,63 @@ This only works because there are no valid source chars outside the ASCII range 
         (lex port)))
   (continue-string port 0 '()))
 
+(define-syntax pos-token
+  (syntax-rules ()
+    ((_ sym val)
+     (token sym val 
+            #:line (position-line start-pos)
+            #:column (position-col start-pos)
+            #:offset (position-offset start-pos)))))
+
 ;; Physical lexer 
 (define lex
-  (lexer 
+  (lexer
    ("#" (comment-lexer input-port))
-
    ((:or "class" "finally" "is" "return" "continue" "for" "lambda" "try" "def" "from" "nonlocal" "while" "and" "del" "global" "not" "with" "as" "elif" "if" "or" "yield" "assert" "else" "import" "pass" "break" "except" "in" "raise" 
          "+" "-" "*" "**" "/" "//" "%" "<<" ">>" "&" "|" "^" "~" "<" ">" "<=" ">=" "==" "!=" 
          "(" ")" "[" "]" "{" "}" "," ":" "." ";" "@" "=" "+=" "-=" "*=" "/=" "//=" "%=" "&=" "|=" "^=" ">>=" "<<=" "**=") 
-    (token (string->symbol lexeme) lexeme))
+    (pos-token (string->symbol lexeme) lexeme))
    
-   (integer (token 'NUMBER (cons 'integer (parse-integer lexeme))))
-   (floatnumber (token 'NUMBER (cons 'float (parse-float lexeme))))
-   (imagnumber (token 'NUMBER (cons 'imaginary lexeme)))
+   (integer (pos-token 'NUMBER (cons 'integer (parse-integer lexeme))))
+   (floatnumber (pos-token 'NUMBER (cons 'float (parse-float lexeme))))
+   (imagnumber (pos-token 'NUMBER (cons 'imaginary lexeme)))
 
    (begin-string 
-    (match lexeme
-      [(regexp #rx"^(b|B)(r|R)(\"\"\"|''')")
-       (string-lexer input-port (string-ref lexeme 2) 3 #t #t)]
-      [(regexp #rx"^(b|B)(\"\"\"|''')")
-       (string-lexer input-port (string-ref lexeme 1) 3 #t #f)]
-      [(regexp #rx"^(b|B)(r|R)[\"']")
-       (string-lexer input-port (string-ref lexeme 2) 1 #t #t)]
-      [(regexp #rx"^(b|B)[\"']")
-       (string-lexer input-port (string-ref lexeme 1) 1 #t #f)]
-      [(regexp #rx"^(r|R)(\"\"\"|''')")
-       (string-lexer input-port (string-ref lexeme 1) 3 #f #t)]
-      [(regexp #rx"^(\"\"\"|''')")
-       (string-lexer input-port (string-ref lexeme 0) 3 #f #f)]
-      [(regexp #rx"^(r|R)[\"']")
-       (string-lexer input-port (string-ref lexeme 1) 1 #f #t)]
-      [(regexp #rx"^[\"']") 
-       (string-lexer input-port (string-ref lexeme 0) 1 #f #f)]))
+    (pos-token 'STRING
+               (match lexeme
+                 [(regexp #rx"^(b|B)(r|R)(\"\"\"|''')")
+                  (string-lexer input-port (string-ref lexeme 2) 3 #t #t)]
+                 [(regexp #rx"^(b|B)(\"\"\"|''')")
+                  (string-lexer input-port (string-ref lexeme 1) 3 #t #f)]
+                 [(regexp #rx"^(b|B)(r|R)[\"']")
+                  (string-lexer input-port (string-ref lexeme 2) 1 #t #t)]
+                 [(regexp #rx"^(b|B)[\"']")
+                  (string-lexer input-port (string-ref lexeme 1) 1 #t #f)]
+                 [(regexp #rx"^(r|R)(\"\"\"|''')")
+                  (string-lexer input-port (string-ref lexeme 1) 3 #f #t)]
+                 [(regexp #rx"^(\"\"\"|''')")
+                  (string-lexer input-port (string-ref lexeme 0) 3 #f #f)]
+                 [(regexp #rx"^(r|R)[\"']")
+                  (string-lexer input-port (string-ref lexeme 1) 1 #f #t)]
+                 [(regexp #rx"^[\"']") 
+                  (string-lexer input-port (string-ref lexeme 0) 1 #f #f)])))
 
    (identifier (if (valid-identifier? lexeme)
-                   (token 'NAME (cons 'name lexeme)) ; Not sure whether these should be normalized.
+                   (pos-token 'NAME (cons 'name lexeme)) ; Not sure whether these should be normalized.
                    (error (string-append "Invalid unicode identifier: " lexeme))))
 
    ((:: "\\" physical-eol) (lex input-port))
-   (physical-eol (token 'PHYSICAL-NEWLINE))
-   ((:+ (:or " " "\t" "\f")) (token 'WHITESPACE (count-spaces lexeme)))
+   (physical-eol (pos-token 'PHYSICAL-NEWLINE "PHYSICAL-NEWLINE"))
+   ((:+ (:or " " "\t" "\f")) (pos-token 'WHITESPACE (count-spaces lexeme)))
    ((eof) (token 'EOF "EOF"))))
 
 ;; Logical lexer - produces logical/other tokens using physical lexer
 (define (get-python-lexer input-port)
+  (port-count-lines! input-port)
   (generator 
    () 
    (local ((define (next-token) 
-             (let ((physical-token (lex input-port)))
+             (let* ((physical-token (lex input-port)))
                (values physical-token (token-struct-type physical-token) (token-struct-val physical-token))))
            ;; adjust brace depth for any physical token
            (define (adjust-depth depth t-type)
