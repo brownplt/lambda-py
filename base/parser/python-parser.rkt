@@ -686,53 +686,57 @@ Also, I hope you like quasiquote match patterns. (Sorry.) This should move to sy
                  'ctx (ast 'nodetype expr-ctx)
                  'attr attr
                  'value left-ast))
-          (define (subscript-slice-ast lower upper step)
-            (ast 'nodetype "Subscript"
-                 'value left-ast
-                 'ctx (ast 'nodetype expr-ctx)
-                 'slice (ast 'nodetype "Slice"
-                             'lower lower
-                             'upper upper
-                             'step step)))
-          (define (subscript-index-ast index)
-            (ast 'nodetype "Subscript"
-                 'ctx (ast 'nodetype expr-ctx)
-                 'value left-ast
-                 'slice (ast 'nodetype "Index"
-                             'value index))))
-         (match trailer
-           [`(trailer "(" ")") (build-call '() make-call-ast)]
-           [`(trailer "(" (arglist ,args ...) ")") (build-call args make-call-ast)]
-           [`(trailer "." (name . ,name)) (attr-ast name)]
-           ;; subscriptlist TODO... "...", multiple indexes, multiple indexes w/slices, less bad
-
-           [`(trailer "[" (subscriptlist (subscript ":")) "]")
-            (subscript-slice-ast #\nul #\nul #\nul)]
-           
-           [`(trailer "[" (subscriptlist (subscript ":" (sliceop ":"))) "]")
-            (subscript-slice-ast #\nul #\nul #\nul)]
-           [`(trailer "[" (subscriptlist (subscript ,start ":" (sliceop ":"))) "]")
-            (subscript-slice-ast (expr->ast start "Load") #\nul #\nul)]
-           [`(trailer "[" (subscriptlist (subscript ":" ,stop (sliceop ":"))) "]")
-            (subscript-slice-ast #\nul (expr->ast stop "Load") #\nul)]
-           [`(trailer "[" (subscriptlist (subscript ":" (sliceop ":" ,step))) "]" )
-            (subscript-slice-ast #\nul #\nul (expr->ast step "Load"))]
-           [`(trailer "[" (subscriptlist (subscript ,lower ":" (sliceop ":" ,step))) "]")
-            (subscript-slice-ast (expr->ast lower "Load") #\nul (expr->ast step "Load"))]
-           [`(trailer "[" (subscriptlist (subscript ,lower ":" ,upper (sliceop ":"))) "]")
-            (subscript-slice-ast (expr->ast lower "Load") (expr->ast upper "Load") #\nul)] 
-           [`(trailer "[" (subscriptlist (subscript ,lower ":" ,upper (sliceop ":" ,step))) "]")
-            (subscript-slice-ast (expr->ast lower "Load") (expr->ast upper "Load") (expr->ast step "Load"))]
-
-           [`(trailer "[" (subscriptlist (subscript ,start ":")) "]")
-            (subscript-slice-ast (expr->ast start "Load") #\nul #\nul)]
-           [`(trailer "[" (subscriptlist (subscript ":" ,stop)) "]")
-            (subscript-slice-ast #\nul (expr->ast stop "Load") #\nul)]
-           [`(trailer "[" (subscriptlist (subscript ,lower ":" ,upper)) "]")
-            (subscript-slice-ast (expr->ast lower "Load") (expr->ast upper "Load") #\nul)] 
-
-           [`(trailer "[" (subscriptlist (subscript ,index)) "]") 
-            (subscript-index-ast (expr->ast index "Load"))]
+          (define (subscript->ast s slice?)
+            (define (maybe-test->ast t) ;; (test ...) or '()
+              (if (null? t) #\nul
+                  (expr->value-ast (first t))))
+            (match s
+              ;; The grammar here is [test] : [test] [sliceop]
+              [`(subscript ,maybe-lower ... ":"
+                           ,(and maybe-upper `(test ,_)) ...
+                           (sliceop ":" ,maybe-step) ...
+                           (sliceop ":") ...)
+               (ast 'nodetype "Slice"
+                    'lower (maybe-test->ast maybe-lower)
+                    'upper (maybe-test->ast maybe-upper)
+                    'step (maybe-test->ast maybe-step))]
+              [`(subscript ,index) 
+               (if slice? 
+                   (ast 'nodetype "Index"
+                        'value (expr->value-ast index))
+                   (expr->value-ast index))]
+              [_ (error "Unhandled subscript")])))
+                                
+    (match trailer
+      [`(trailer "(" ")") (build-call '() make-call-ast)]
+      [`(trailer "(" (arglist ,args ...) ")") (build-call args make-call-ast)]
+      [`(trailer "." (name . ,name)) (attr-ast name)]
+      
+      ;; Subscript lists: "Subscript" containing slice of:
+      ;; 2+ subscripts, at least one slice -> "ExtSlice" w/dims as "Slice" and "Index"
+      ;; 2+ subscripts, no slices -> "Index" w/value "Tuple" w/elts as values
+      ;; 1 subscript, slice -> "Slice" 
+      ;; 1 subscript, not slice -> "Index" w/value as value
+      ;; This is probably more hairy than necessary
+      [`(trailer "[" (subscriptlist ,subscripts ...) "]")
+       (ast 'nodetype "Subscript"
+            'ctx (ast 'nodetype expr-ctx)
+            'value left-ast
+            'slice (let* ((multiple-subscripts? (> (length subscripts) 1))
+                          (slice? (findf (match-lambda [`(subscript ,_ ... ":" ,_ ...) #t]
+                                                       [else #f]) subscripts))
+                          (subscript-asts (map (lambda (s) (subscript->ast s slice?)) (every-other subscripts))))
+                     (cond [(and multiple-subscripts? slice?)
+                            (ast 'nodetype "ExtSlice"
+                                 'dims subscript-asts)]
+                           [multiple-subscripts?
+                            (ast 'nodetype "Index"
+                                 'value (ast 'nodetype "Tuple"
+                                             'ctx (ast 'nodetype "Load")
+                                             'elts subscript-asts))]
+                           [slice? (first subscript-asts)]
+                           [else (ast 'nodetype "Index"
+                                      'value (first subscript-asts))])))]
            
            [_ 
             (display "=== Unhandled trailer ===\n")
