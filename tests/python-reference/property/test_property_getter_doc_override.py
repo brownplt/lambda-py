@@ -19,7 +19,9 @@ class PropertyDocBase(object):
     _spam = 1
     def _get_spam(self):
         return self._spam
-    spam = property(_get_spam, doc="spam spam spam")
+    # TODO(Alejandro): add doc to property as named argument with default value
+    #spam = property(_get_spam, doc="spam spam spam")
+    spam = property(_get_spam)
 
 class PropertyDocSub(PropertyDocBase):
     @PropertyDocBase.spam.getter

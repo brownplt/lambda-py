@@ -18,8 +18,17 @@ class function(object):
     if ___delta("str=", key, "__call__"):
       # the __call__ attribute is the function itself
       return self
-    if ___delta("str=", key, "__defaults__"):
-      # for functions withoud defaults, they are ()
+    elif ___delta("str=", key, "___nkwonlyargs"):
+      # for functions without keyword-only args
+      return 0
+    elif ___delta("str=", key, "___nkwarg"):
+      # for functions without kwarg
+      return 0
+    elif ___delta("str=", key, "__defaults__"):
+      # for functions without defaults
+      return ()
+    elif ___delta("str=", key, "__kwdefaults__"):
+      # for functions without kwdefaults
       return ()
     else:
       str = ___id("%str")
@@ -28,8 +37,10 @@ class function(object):
 
 ___assign("%function", function)
 
-# function to compute stararg using defaults and keywords
-def ___call_stararg(fun, params, nargs, keywords, stararg, kwarg):
+# function to compute positional arguments list according to
+# http://docs.python.org/3.2/reference/expressions.html#calls
+def ___call_stararg(fun, params, args, keywords, stararg, kwarg):
+
   # collect keyword arguments (first check can be avoided with Python parser)
   kw_dict = {}
   for (k, v) in keywords:
@@ -42,26 +53,61 @@ def ___call_stararg(fun, params, nargs, keywords, stararg, kwarg):
         raise TypeError("multiple values for argument: " + k)
       kw_dict[k] = kwarg[k]
 
-  # use kw_dict and __defaults__ to fill missing arguments
-  n_params = params.__len__()
+  # parameters
+  n_params = params.__len__() # total number of parameters
+  n_kwonly = fun.___nkwonlyargs # number of keyword-only paramters
+  n_kwarg = fun.___nkwarg # number of kwarg (0 or 1)
+  n_pospar = n_params - n_kwonly - n_kwarg # number of positional parameters
+
+  # positional arguments
+  pos_args = args + stararg
+  n_posarg = pos_args.__len__()
+
+  # defaults
   defaults = fun.__defaults__
   n_defaults = defaults.__len__()
-  result = stararg.__list__()
-  i = nargs + stararg.__len__()
-  while i < n_params:
+  kwdefaults = fun.__kwdefaults__
+  n_kwdefaults = kwdefaults.__len__()
+
+  result = []
+  i = 0
+  # for positional parameters use positional arguments, then keywords, then defaults
+  while i < n_pospar:
     arg = params[i]
-    if arg in kw_dict:
+    if i < n_posarg:
+      result.append(pos_args[i])
+    elif arg in kw_dict:
       result.append(kw_dict[arg])
       del kw_dict[arg]
-    elif n_params - i <= n_defaults:
-      result.append(defaults[n_defaults - n_params + i])
+    elif n_pospar - i <= n_defaults:
+      result.append(defaults[n_defaults - n_pospar + i])
     else:
       raise TypeError("missing argument " + arg)
     i += 1
 
-  # TODO: if fun has **kwarg use kw_dict as argument
-  if kw_dict != {}:
+  # for keyword-only parameters use keywords, then defaults
+  while i < n_pospar + n_kwonly:
+    arg = params[i]
+    if arg in kw_dict:
+      result.append(kw_dict[arg])
+      del kw_dict[arg]
+    elif n_pospar + n_kwonly - i <= n_kwdefaults:
+      result.append(kwdefaults[n_kwdefaults - n_pospar - n_kwonly + i])
+    else:
+      raise TypeError("missing keyword-only argument " + arg)
+    i += 1
+
+  # for **kwarg use kw_dict but, raise TypeError if not empty
+  if n_kwarg > 0:
+    result.append(kw_dict)
+  elif kw_dict != {}:
     raise TypeError("unexpected keyword argument(s): " + kw_dict.__str__())
+
+  # remaining positional arguments go to vararg
+  i = n_pospar
+  while i < n_posarg:
+    result.append(pos_args[i])
+    i += 1
 
   return result.__tuple__()
 

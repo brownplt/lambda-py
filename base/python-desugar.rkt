@@ -184,18 +184,26 @@
      (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))]
     [else
      (CLet '$func (LocalId)
-           ;; keyword-only and kwarg are ignored for now
-           (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))
+           ;; keyword-only and kwarg are appended to positional arguments,
+           ;; ___nkwonlyargs and ___nkwarg attributes account for them.
+           (CFunc (flatten (list args kwonlyargs (option->list kwarg))) vararg
+                  (rec-desugar body) (option-map id-to-symbol opt-class))
            (CSeq
             (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__name__")
                       (make-builtin-str (symbol->string name)))
             (CSeq
-             (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
-                       (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defaults)))
+             (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___nkwonlyargs")
+                       (make-builtin-num (length kwonlyargs)))
              (CSeq
-              (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__kwdefaults__")
-                        (CTuple (CId '%tuple (GlobalId)) (map rec-desugar kw_defaults)))
-              (CId '$func (LocalId))))))]))
+              (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___nkwarg")
+                        (make-builtin-num (length (option->list kwarg))))
+              (CSeq
+               (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
+                         (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defaults)))
+               (CSeq
+                (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__kwdefaults__")
+                          (CTuple (CId '%tuple (GlobalId)) (map rec-desugar kw_defaults)))
+                (CId '$func (LocalId))))))))]))
 
 (define (rec-desugar [expr : LexExpr] ) : CExpr 
   (begin ;(display expr) (display "\n\n")

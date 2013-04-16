@@ -32,10 +32,10 @@ structure that you define in python-syntax.rkt
           (if (string?  (hash-ref args 'kwarg))
               (some (string->symbol (hash-ref args 'kwarg)))
               (none))
-          (map (lambda(arg) (get-structured-python arg))
-               (hash-ref args 'defaults))
-          (map (lambda(arg) (get-structured-python arg))
-               (hash-ref args 'kw_defaults))
+          (map get-structured-python
+               (remove #\nul (hash-ref args 'defaults)))
+          (map get-structured-python
+               (remove #\nul (hash-ref args 'kw_defaults)))
           (get-structured-python body)
           (map get-structured-python decorator-list)))
 
@@ -129,10 +129,10 @@ structure that you define in python-syntax.rkt
             (if (string?  (hash-ref args 'kwarg))
                 (some (string->symbol (hash-ref args 'kwarg)))
                 (none))
-            (map (lambda(arg) (get-structured-python arg))
-                 (hash-ref args 'defaults))
-            (map (lambda(arg) (get-structured-python arg))
-                 (hash-ref args 'kw_defaults))
+            (map get-structured-python
+                 (remove #\nul (hash-ref args 'defaults)))
+            (map get-structured-python
+                 (remove #\nul (hash-ref args 'kw_defaults)))
             (get-structured-python body))]
 
     [(hash-table ('nodetype "arguments")

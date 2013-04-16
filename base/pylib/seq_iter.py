@@ -95,9 +95,10 @@ class FuncIter:
         return l
 
     def __next__(self):
+        if self.stopped:
+            raise StopIteration()
         f = self.func
         v = f()
-
         if v == self.stopwhen:
             self.stopped = True
             raise StopIteration()
