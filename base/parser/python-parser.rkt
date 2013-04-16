@@ -368,7 +368,7 @@ Also, I hope you like quasiquote match patterns. (Sorry.) This should move to sy
     [`(parameters "(" (typedargslist ,args ...) ")") args]
     [`(parameters "(" ")") '()]))
 
-;; Destructure ragg python expressions to python ast with ctx value appropriate to the statement, expression, and position.
+;; Destructure ragg python expressions to python ast with ctx value appropriate to the statement, expression, and position
 ;; I'm assuming for now that this will handle testlist *and* test, in all cases.
 ;; I believe the expr-ctx passed on will inherently be "Load" in almost all cases, 
 ;; but I'm passing expr-ctx forward until I'm sure.
@@ -613,6 +613,10 @@ Also, I hope you like quasiquote match patterns. (Sorry.) This should move to sy
     ;; Parenthesized expression
     [`(atom "(" ,expr ")")
      (expr->ast expr expr-ctx)]
+    
+    ;; An oddity... no ctx.
+    [`(atom "...")
+     (ast 'nodetype "Ellipsis")]
 
     [_ 
      (display "=== Unhandled expression ===\n")
