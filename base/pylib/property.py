@@ -1,16 +1,11 @@
 class property(object):
-  def __init__(self, *args):
-    int = ___id("%int")
-    length = ___delta("tuple-len", args, int)
-    self.fget = None
-    self.fset = None
-    self.fdel = None
-    if length > 0:
-      self.fget = args[0]
-    if length > 1:
-      self.fset = args[1]
-    if length > 2:
-      self.fdel = args[2]
+  def __init__(self, fget=None, fset=None, fdel=None, doc=None):
+    self.fget = fget
+    self.fset = fset
+    self.fdel = fdel
+    if doc is None and fget is not None:
+      doc = fget.__doc__
+    self.__doc__ = doc
 
   def __get__(self, obj, obj_cls):
     if obj is None:
@@ -29,14 +24,11 @@ class property(object):
       raise AttributeError("Can't delete attribute")
     self.fdel(obj)
 
-  def getter(self, g):
-    self.fget = g
-    return self
+  def getter(self, fget):
+    return type(self)(fget, self.fset, self.fdel, self.__doc__)
 
-  def setter(self, s):
-    self.fset = s
-    return self
+  def setter(self, fset):
+    return type(self)(self.fget, fset, self.fdel, self.__doc__)
 
-  def deleter(self, d):
-    self.fdel = d
-    return self
+  def deleter(self, fdel):
+    return type(self)(self.fget, self.fset, fdel, self.__doc__)

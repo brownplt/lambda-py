@@ -18,6 +18,12 @@ class function(object):
     if ___delta("str=", key, "__call__"):
       # the __call__ attribute is the function itself
       return self
+    elif ___delta("str=", key, "__name__"):
+      # default name
+      return ""
+    elif ___delta("str=", key, "__doc__"):
+      # default docstring
+      return ""
     elif ___delta("str=", key, "___nkwonlyargs"):
       # for functions without keyword-only args
       return 0
