@@ -300,15 +300,16 @@ Also, I hope you like quasiquote match patterns. (Sorry.) This should move to sy
                     [`("else" ":" ,else-suite) (suite->ast-list else-suite)]
                     [`() '()]))]
 
-    ;; funcdef TODO: Unfinished formal handling in build-formals
     [`(funcdef "def" 
                (name . ,name) 
-               ,parameters ":" ,suite)
+               ,parameters ,maybe-annotation ... ":" ,suite)
      (ast 'nodetype "FunctionDef"
           'body (suite->ast-list suite)
           'args (build-formals (parameters->arg-sexp parameters))
           'name name
-          'returns #\nul
+          'returns (match maybe-annotation
+                     [`() #\nul]
+                     [`("->" ,anno) (expr->value-ast anno)])  
           'decorator_list '())]
 
     [`(decorated
@@ -827,25 +828,31 @@ Also, I hope you like quasiquote match patterns. (Sorry.) This should move to sy
 (define (build-formals args)
   (local (;; This needs either a macro or better taste.
           ;; A bunch of accumulators masquerading as a data structure
-          ;; TODO: More accurate names for these
-          (struct Formals (args default-asts vararg-name kwarg-name kwargs kw-default-asts))
-          (define (arg-name->ast n)
-            (ast 'nodetype "arg"
-                 'annotation #\nul
-                 'arg n))
+          ;; TODO/warning: Some of these fields are asts/ast-lists and some still have to be "parsed"... 
+          (struct Formals (args default-asts vararg-name kwarg-name kwargs kw-default-asts vararg-annotation kwarg-annotation))
+          ;; Take an fpdef and return the name string and annotation AST (can be #\nul)
+          (define (fpdef-values d)
+            (match d
+              [`(,_ (name . ,name)) (values name #\nul)]
+              [`(,_ (name . ,name) ":" ,annotation) (values name (expr->value-ast annotation))]))
+          (define (*fpdef->ast n) ;; TODO: Write
+            (let-values (((name anno) (fpdef-values n)))
+              (ast 'nodetype "arg"
+                   'annotation anno
+                   'arg name)))
           (define (formals->ast formals)
-            (match-let (((struct Formals (args default-asts vararg-name 
-                                                           kwarg-name kwargs kw-default-asts)) 
+            (match-let (((struct Formals (args default-asts vararg-name kwarg-name
+                                               kwargs kw-default-asts vararg-annotation kwarg-annotation)) 
                          formals))
-                       (ast 'args (map arg-name->ast (reverse args))
+                       (ast 'args (map *fpdef->ast (reverse args))
                             'defaults (reverse default-asts) ;; Defaults for only optional args
                             'nodetype "arguments"
                             'vararg vararg-name
-                            'kwargannotation #\nul
-                            'kwarg kwarg-name 
-                            'varargannotation #\nul
+                            'kwargannotation kwarg-annotation
+                            'kwarg kwarg-name
+                            'varargannotation vararg-annotation
                             'kw_defaults (reverse kw-default-asts) ;; A default for each kwarg (#\nul if none)
-                            'kwonlyargs (map arg-name->ast (reverse kwargs)))))
+                            'kwonlyargs (map *fpdef->ast (reverse kwargs)))))
           (define (more-args args kw? formals)
             (match args
               [`() 
@@ -858,39 +865,40 @@ Also, I hope you like quasiquote match patterns. (Sorry.) This should move to sy
               [`("," ,rest ...) (more-args rest kw? formals)]
               [(list (and arg-parts (not ",")) ... rest ...)
                (match arg-parts
-                 ;; Each ,_ could be ,(or 'tfpdef 'vfpdef) for more precision
-                 [`("*" (,_ (name . ,name)))
-                  (more-args rest #t (struct-copy Formals formals [vararg-name name]))]
+                 [`("*" ,fpdef)
+                  (let-values (((name anno) (fpdef-values fpdef)))
+                    (more-args rest #t (struct-copy Formals formals [vararg-name name] [vararg-annotation anno])))]
                  [`("*")
                   (more-args rest #t formals)]
-                 [`("**" (,_ (name . ,name)))
-                  (more-args rest kw? (struct-copy Formals formals [kwarg-name name]))]
-                 [`((,_ (name . ,arg-name)) "=" ,default-expr)
+                 [`("**" ,fpdef)
+                  (let-values (((name anno) (fpdef-values fpdef)))
+                    (more-args rest kw? (struct-copy Formals formals [kwarg-name name] [kwarg-annotation anno])))]
+                 [`(,fpdef "=" ,default-expr)
                   (more-args rest kw?
                              (if kw?
                                  (struct-copy Formals formals 
-                                              [kwargs (cons arg-name (Formals-kwargs formals))]
+                                              [kwargs (cons fpdef (Formals-kwargs formals))]
                                               [kw-default-asts
-                                                (cons (expr->ast default-expr "Load") 
-                                                      (Formals-kw-default-asts formals))])
+                                               (cons (expr->ast default-expr "Load") 
+                                                     (Formals-kw-default-asts formals))])
                                  (struct-copy Formals formals 
-                                              [args (cons arg-name (Formals-args formals))]
+                                              [args (cons fpdef (Formals-args formals))]
                                               [default-asts
                                                 (cons (expr->ast default-expr "Load") 
                                                       (Formals-default-asts formals))])))]
-                 [`((,_ (name . ,arg-name)))
+                 [`(,fpdef)
                   (more-args rest kw?
                              (if kw?
                                  (struct-copy Formals formals 
-                                              [kwargs (cons arg-name (Formals-kwargs formals))]
+                                              [kwargs (cons fpdef (Formals-kwargs formals))]
                                               [kw-default-asts 
                                                (cons #\nul (Formals-kw-default-asts formals))])
                                  (struct-copy Formals formals 
-                                              [args (cons arg-name (Formals-args formals))])))]
+                                              [args (cons fpdef (Formals-args formals))])))]
                  [_ (display "=== Unhandled formal argument ===") (newline)
                     (pretty-write args)
                     (error "Unhandled formal argument")])])))
-         (more-args args #f (Formals '() '() #\nul #\nul '() '()))))
+         (more-args args #f (Formals '() '() #\nul #\nul '() '() #\nul #\nul))))
 
 (define (build-comprehension comp make-ast)
   (local ((define (generator-ast target-expr iter-expr if-exprs)
