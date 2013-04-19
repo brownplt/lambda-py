@@ -352,7 +352,7 @@ This only works because there are no valid source chars outside the ASCII range 
                (case t-type
                  [(PHYSICAL-NEWLINE) (begin-line indent last-newline)]
                  [(WHITESPACE) (error "Unexpected second whitespace token")]
-                 [(EOF) (begin (adjust-indent-stack indent 0)
+                 [(EOF) (begin (adjust-indent-stack indent 0 last-newline)
                                (yield (token 'EOF "EOF")))]
                  [else (let ((new-indent (adjust-indent-stack indent ws-amount last-newline)))
                          (begin (yield t)
