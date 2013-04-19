@@ -20,10 +20,10 @@ class function(object):
       return self
     elif ___delta("str=", key, "__name__"):
       # default name
-      return ""
+      return None
     elif ___delta("str=", key, "__doc__"):
       # default docstring
-      return ""
+      return None
     elif ___delta("str=", key, "___nkwonlyargs"):
       # for functions without keyword-only args
       return 0

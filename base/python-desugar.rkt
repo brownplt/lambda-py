@@ -71,7 +71,7 @@
 |#
 
 (define (desugar-for [target : LexExpr] [iter : LexExpr]
-                     [body : LexExpr]) : CExpr
+                     [body : LexExpr] [orelse : LexExpr]) : CExpr
   (local [(define iter-id (new-id))]
     (rec-desugar
      (LexLocalLet iter-id (LexApp (LexGlobalId '%iter 'Load) (list iter) (list) (none) (none))
@@ -84,7 +84,7 @@
                                                                '__next__)
                                                   (list) (list) (none) (none)))
                                (list (LexExcept (list (LexGlobalId 'StopIteration 'Load))
-                                                (LexBreak)))
+                                                (LexSeq (list orelse (LexBreak)))))
                                (LexPass))
                               body))
                             (LexPass))))))
@@ -99,7 +99,8 @@
               [(cons? gens)
                (LexFor (LexComprehen-target (first gens))
                        (LexComprehen-iter (first gens))
-                       (make-comploop (rest gens)))]))
+                       (make-comploop (rest gens))
+                       (LexPass))]))
           (define full-expr
             (LexLocalLet list-id (LexList empty)
                          (LexSeq
@@ -528,7 +529,7 @@
                                            (rec-desugar body)
                                            (rec-desugar orelse))]
 
-      [LexFor (target iter body) (desugar-for target iter body)]
+      [LexFor (target iter body orelse) (desugar-for target iter body orelse)]
 
       ;; target is interpreted twice. FIX ME
       [LexAugAssign (op target value)

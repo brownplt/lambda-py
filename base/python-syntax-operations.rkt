@@ -74,8 +74,8 @@
                                         ;loops 
               [PyWhile (test body orelse)
                        (LexWhile (recur test) (recur body) (recur orelse))]
-              [PyFor (target iter body)
-                     (LexFor (recur target) (recur iter) (recur body))]
+              [PyFor (target iter body orelse)
+                     (LexFor (recur target) (recur iter) (recur body) (recur orelse))]
               
                                         ; pass & assert
               [PyPass () (LexPass)]
@@ -192,8 +192,8 @@
                                         ;loops 
               [LexWhile (test body orelse)
                        (LexWhile (recur test) (recur body) (recur orelse))]
-              [LexFor (target iter body)
-                     (LexFor (recur target) (recur iter) (recur body))]
+              [LexFor (target iter body orelse)
+                     (LexFor (recur target) (recur iter) (recur body) (recur orelse))]
               
                                         ; pass & assert
               [LexPass () (LexPass)]
@@ -313,8 +313,8 @@
                                         ;loops 
               [PyWhile (test body orelse)
                        (flatten (list (recur test) (recur body) (recur orelse)))]
-              [PyFor (target iter body)
-                     (flatten (list (recur target) (recur iter) (recur body)))]
+              [PyFor (target iter body orelse)
+                     (flatten (list (recur target) (recur iter) (recur body) (recur orelse)))]
               
                                         ; pass & assert
               [PyPass () empty]
@@ -431,8 +431,8 @@
                                         ;loops 
               [LexWhile (test body orelse)
                        (flatten (list (recur test) (recur body) (recur orelse)))]
-              [LexFor (target iter body)
-                     (flatten (list (recur target) (recur iter) (recur body)))]
+              [LexFor (target iter body orelse)
+                     (flatten (list (recur target) (recur iter) (recur body) (recur orelse)))]
               
                                         ; pass & assert
               [LexPass () empty]

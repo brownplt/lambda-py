@@ -5,8 +5,8 @@ def index(iterable, item):
             break
         i += 1
     else:
-        i = -1
+        i = None
     return i
 
 ___assertEqual(index('abcde', 'c'), 2)
-___assertEqual(index('abcde', 'C'), -1)
+___assertEqual(index('abcde', 'C'), None)

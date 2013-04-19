@@ -28,7 +28,7 @@
 
   ;loops 
   [PyWhile (test : PyExpr) (body : PyExpr) (orelse : PyExpr)]
-  [PyFor (target : PyExpr) (iter : PyExpr) (body : PyExpr)]
+  [PyFor (target : PyExpr) (iter : PyExpr) (body : PyExpr) (orelse : PyExpr)]
   
   ; pass & assert
   [PyPass]

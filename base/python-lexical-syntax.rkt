@@ -37,7 +37,7 @@
 
   ;loops 
   [LexWhile (test : LexExpr) (body : LexExpr) (orelse : LexExpr)]
-  [LexFor (target : LexExpr) (iter : LexExpr) (body : LexExpr)]
+  [LexFor (target : LexExpr) (iter : LexExpr) (body : LexExpr) (orelse : LexExpr)]
   
   ; pass & assert
   [LexPass]

@@ -251,18 +251,19 @@
                                               (to-string affected-var)))];|#
                              )]))]
                                         ;[LexAugAssign (op target value )]
-               [LexFor (target iter body) (type-case LexExpr target
-                                            [LexInstanceId
-                                             (x ctx)
-                                             (LexSeq
-                                              (list
-                                               (LexFor
-                                                (LexLocalId x ctx)
+               [LexFor (target iter body orelse) (type-case LexExpr target
+                                                   [LexInstanceId
+                                                    (x ctx)
+                                                    (LexSeq
+                                                     (list
+                                                      (LexFor
+                                                       (LexLocalId x ctx)
                                                        (split-instance-into-instance-locals-helper iter)
-                                                       (split-instance-into-instance-locals-helper body))
-                                               (LexAssign (list target) (LexLocalId x 'Load))))
-                                                           ]
-                                            [else (default-recur)])]
+                                                       (split-instance-into-instance-locals-helper body)
+                                                       (split-instance-into-instance-locals-helper orelse))
+                                                      (LexAssign (list target) (LexLocalId x 'Load))))
+                                                    ]
+                                                   [else (default-recur)])]
                [LexBlock (nls es) e]
                [LexClass (scope name bases body) e]
                [else (default-recur)])))))

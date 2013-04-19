@@ -212,7 +212,7 @@
                   (display "\n")
                   this-expr)]
                   
-      [LexFor (target iter body)
+      [LexFor (target iter body orelse)
               (begin
                 (display starting-tab)
                 (display "for ")
@@ -221,7 +221,12 @@
                 (lexexpr-print-helper iter "")
                 (display ":\n")
                 (lexexpr-print-helper body (string-append "  " starting-tab))
-                 this-expr)]
+                (display "\n")
+                (display starting-tab)
+                (display "else:\n")
+                (lexexpr-print-helper orelse (string-append "  " starting-tab))
+                (display "\n")
+                this-expr)]
 
       
                                         ; pass & assert

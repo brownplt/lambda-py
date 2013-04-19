@@ -249,7 +249,8 @@ structure that you define in python-syntax.rkt
                  ('orelse else))
      (PyFor (get-structured-python target)
             (get-structured-python iter)
-            (get-structured-python body))]
+            (get-structured-python body)
+            (get-structured-python else))]
 
     [(hash-table ('nodetype "ListComp")
                  ('elt elt)

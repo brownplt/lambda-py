@@ -395,10 +395,11 @@
                   [LexAugAssign (op target value) (flatten (list (extract-locals-helper value)
                                                                 (target-fun target)
                                                                 (extract-locals-helper target))) ]
-                  [LexFor (target iter body) (flatten (list (target-fun target)
-                                                            (extract-locals-helper target)
-                                                       (extract-locals-helper iter)
-                                                       (extract-locals-helper body)))]
+                  [LexFor (target iter body orelse) (flatten (list (target-fun target)
+                                                                   (extract-locals-helper target)
+                                                                   (extract-locals-helper iter)
+                                                                   (extract-locals-helper body)
+                                                                   (extract-locals-helper orelse)))]
                   [PyLexNonLocal (ids) ids]
                   [LexBlock (nls es) empty]
                   [LexExceptAs (types name body) (list name)]
@@ -423,9 +424,10 @@
              [LexAssign (lhs rhs)
                         (flatten (list (flatten (map inst-lam lhs)) (find-all-instance rhs)))]
              [LexAugAssign (op lhs rhs) (flatten (list (inst-lam lhs) (find-all-instance rhs)))]
-             [LexFor (target iter body) (flatten (list (inst-lam target)
-                                                       (find-all-instance iter)
-                                                       (find-all-instance body)))]
+             [LexFor (target iter body orelse) (flatten (list (inst-lam target)
+                                                              (find-all-instance iter)
+                                                              (find-all-instance body)
+                                                              (find-all-instance orelse)))]
              [LexBlock (_ __) empty]
              [else (default-recur)]))))
         (extract-globals expr true))
@@ -486,9 +488,10 @@
                            [LexAugAssign (op target value) (LexAugAssign op (assign-func target)
                                                                          (recur value locs))]
                            [LexBlock (nls e) (LexBlock nls (toplevel e))]
-                           [LexFor (target iter body) (LexFor (assign-func target)
-                                                              (recur iter locs)
-                                                              (recur body locs)) ]
+                           [LexFor (target iter body orelse) (LexFor (assign-func target)
+                                                                     (recur iter locs)
+                                                                     (recur body locs)
+                                                                     (recur body orelse)) ]
                            [LexClass (scope name super body) (toplevel x)]
                            [else (default-recur)])))))))
           (recur expr discovered-vars)
@@ -604,11 +607,12 @@
                  [LexAugAssign (op l r) (flatten (list (extract-locals-helper r)
                                                        (targ-fun l)
                                                        (extract-locals-helper l)))]
-                 [LexFor (target iter body) (flatten (list
-                                                      (extract-locals-helper target)
-                                                      (targ-fun target)
-                                                      (extract-locals-helper iter)
-                                                      (extract-locals-helper body)))]
+                 [LexFor (target iter body orelse) (flatten (list
+                                                             (extract-locals-helper target)
+                                                             (targ-fun target)
+                                                             (extract-locals-helper iter)
+                                                             (extract-locals-helper body)
+                                                             (extract-locals-helper orelse)))]
                  [LexBlock (nls es) empty]
                  [LexExceptAs (types name body) (list name)]
                  [else (default-recur)]))))
