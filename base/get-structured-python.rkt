@@ -174,6 +174,14 @@ structure that you define in python-syntax.rkt
            (PySeq
              (map get-structured-python body))
            (get-structured-python orelse))]
+
+    [(hash-table ('nodetype "IfExp")
+                 ('body body)
+                 ('test test)
+                 ('orelse orelse))
+     (PyIf (get-structured-python test)
+           (get-structured-python body)
+           (get-structured-python orelse))]
     
     [(hash-table ('nodetype "ClassDef")
                  ('name name)
