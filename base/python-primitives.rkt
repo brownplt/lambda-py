@@ -84,7 +84,7 @@ primitives here.
 (define (num% args env sto)
     (check-types-pred args env sto MetaNum? MetaNum? 
                         (some (VObject 'num (some (MetaNum 
-                                                    (quotient (MetaNum-n mval1) 
+                                                    (modulo (MetaNum-n mval1)
                                                        (MetaNum-n mval2))))
                                         (hash empty)))))
 
