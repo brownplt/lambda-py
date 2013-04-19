@@ -99,7 +99,11 @@
               [(cons? gens)
                (LexFor (LexComprehen-target (first gens))
                        (LexComprehen-iter (first gens))
-                       (make-comploop (rest gens))
+                       (if (empty? (LexComprehen-ifs (first gens)))
+                           (make-comploop (rest gens))
+                           (LexIf (LexBoolOp 'And (LexComprehen-ifs (first gens)))
+                                  (make-comploop (rest gens))
+                                  (LexPass)))
                        (LexPass))]))
           (define full-expr
             (LexLocalLet list-id (LexList empty)
@@ -391,7 +395,7 @@
       [LexBoolOp (op values) (desugar-boolop op values)]
       [LexCompOp (l op rights) (desugar-compop l op rights)]
       [LexListComp (elt gens) (desugar-listcomp elt gens)]
-      [LexComprehen (target iter) (error 'desugar "Can't desugar LexComprehen")]
+      [LexComprehen (target iter ifs) (error 'desugar "Can't desugar LexComprehen")]
       
       [LexLam (args vararg kwonlyargs kwarg defaults kw_defaults body)
               (desugar-func 'lambda args vararg kwonlyargs kwarg defaults kw_defaults

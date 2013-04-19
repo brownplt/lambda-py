@@ -280,7 +280,8 @@ structure that you define in python-syntax.rkt
                  ('ifs ifs))
      (PyComprehen
        (get-structured-python target)
-       (get-structured-python iter))]
+       (get-structured-python iter)
+       (map get-structured-python ifs))]
 
     [(hash-table ('nodetype "Set")
                  ('elts elts))

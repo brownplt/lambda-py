@@ -430,7 +430,7 @@
                    (begin
                      (display this-expr)
                      this-expr)]
-      [LexComprehen (target iter)
+      [LexComprehen (target iter ifs)
                     (begin 
                     (display this-expr)
                     this-expr)]

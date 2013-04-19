@@ -117,8 +117,8 @@
               
               [PyListComp (body generators)
                           (LexListComp (recur body) (map recur generators))]
-              [PyComprehen (target iter)
-                           (LexComprehen (recur target) (recur iter))]
+              [PyComprehen (target iter ifs)
+                           (LexComprehen (recur target) (recur iter) (map recur ifs))]
               
                                         ; builtin data structures
               [PyStr (s) (LexStr s)]
@@ -240,8 +240,8 @@
               
               [LexListComp (body generators)
                           (LexListComp (recur body) (map recur generators))]
-              [LexComprehen (target iter)
-                           (LexComprehen (recur target) (recur iter))]
+              [LexComprehen (target iter ifs)
+                           (LexComprehen (recur target) (recur iter) (map recur ifs))]
               
                                         ; Builtin data structures
               [LexStr (s) (LexStr s)]
@@ -358,7 +358,7 @@
               
               [PyListComp (body generators)
                           (flatten (list (list (recur body)) (map recur generators)))]
-              [PyComprehen (target iter)
+              [PyComprehen (target iter ifs)
                            (flatten (list (recur target) (recur iter)))]
               
                                         ; builtin data structures
@@ -489,8 +489,8 @@
               
               [LexListComp (body generators)
                           (flatten (list (list (recur body)) (map recur generators)))]
-              [LexComprehen (target iter)
-                           (flatten (list (recur target) (recur iter)))]
+              [LexComprehen (target iter ifs)
+                           (flatten (list (list (recur target) (recur iter)) (map recur ifs)))]
               
                                         ; builtin data structures
               [LexStr (s)  empty]
