@@ -6,11 +6,15 @@
          (prefix-in : parser-tools/lex-sre)
          "unicode-char-names.rkt")
 
-#| TODO: Scan first two physical lines for encoding. |#
-#| TODO: Support other encodings (than utf-8). |#
+#| 
+TODO: Scan first two physical lines for encoding.
+TODO: Support other encodings (than utf-8).
 
-#| 'Logical' refers *here* to the spec's logical newlines (NEWLINE) as well as INDENT/DEDENT tokens. |#
-#| 'Physical' refers *here* to PHYSICAL-NEWLINE and WHITESPACE tokens. |#
+'Logical' refers *here* to the spec's logical newlines (NEWLINE) as well as INDENT/DEDENT tokens.
+'Physical' refers *here* to PHYSICAL-NEWLINE and WHITESPACE tokens. 
+
+
+|#
 
 (provide lex-all get-python-lexer)
 
@@ -36,8 +40,9 @@
 #| NAMES |#
 
 #| 
-Catch all unicode non-ascii characters and test explicitly. 
-This only works because there are no valid source chars outside the ASCII range except in identifiers.
+Identifiers
+Regarding unicode: catch all unicode non-ascii characters in the lexer and test explicitly. 
+This only works because there are no valid source chars outside the ASCII range except in identifiers and strings.
 |#
 (define-lex-abbrevs
   (identifier (:: identifier-start (:* identifier-continue)))
@@ -62,7 +67,7 @@ This only works because there are no valid source chars outside the ASCII range 
 
 #| STRINGS |#
 
-;; Char c in the set abfnrtv to escaped character of \c
+;; Char c in the set abfnrtv to escape character of \c
 (define (escape-char c)
   (match c
     [#\a #\007] ; bell
@@ -167,34 +172,36 @@ This only works because there are no valid source chars outside the ASCII range 
          0
          (string->list str)))
 
-(define comment-lexer
-  (lexer
-   (physical-eol (token 'PHYSICAL-NEWLINE))
-   (any-char (comment-lexer input-port))))
-
 ;; Lex string up to endquotes and return content pair - port should start with string contents.
 ;; quote-char: #\' or #\"
 ;; quote-count: 1 or 3
-(define (string-lexer port quote-char quote-count bytestring? raw?)
+(define (string-lexer port quote-char quote-count bytestring? raw? real-start-pos)
   ;; unquote-count: <= quote-count
   ;; lexeme-lst: reversed list of lexemes including separate endquotes
-  (define (finish-string lexeme-lst)
+  (define (finish-string lexeme-lst end-pos)
     (let ((content-string (string-append* (reverse (if (equal? quote-count 3)
                                                         (cdddr lexeme-lst)
                                                         (cdr lexeme-lst))))))
-      (cond [(and bytestring? raw?) (cons 'bytes (unescaped content-string))]
-            [bytestring? (cons 'bytes content-string)]
-            [raw? (cons 'string content-string)]
-            [else (cons 'string (backslash-escaped content-string #t))])))
-  (define (continue-string port unquote-count lexeme-lst)
-    (define lex
+      (token 'STRING 
+             (cond [(and bytestring? raw?) (cons 'bytes (unescaped content-string))]
+                   [bytestring? (cons 'bytes content-string)]
+                   [raw? (cons 'string content-string)]
+                   [else (cons 'string (backslash-escaped content-string #t))])
+            #:line (position-line real-start-pos)
+            #:column (position-col real-start-pos)
+            #:offset (position-offset real-start-pos)
+            #:span (- (position-offset end-pos) (position-offset real-start-pos)))))
+  (define (continue-string port unquote-count lexeme-lst [last-end-pos #f])
+    (define string-part-lex
       (lexer
        ("'" (continue-string port
                              (if (equal? quote-char #\') (add1 unquote-count) 0)
-                             (cons lexeme lexeme-lst)))
+                             (cons lexeme lexeme-lst)
+                             end-pos))
        ("\"" (continue-string port
                               (if (equal? quote-char #\") (add1 unquote-count) 0)
-                              (cons lexeme lexeme-lst)))
+                              (cons lexeme lexeme-lst)
+                              end-pos))
        ((:or "\\\"" "\\'")
         (continue-string port 0 (cons lexeme lexeme-lst)))
        ((:: "\\" physical-eol)
@@ -203,8 +210,8 @@ This only works because there are no valid source chars outside the ASCII range 
         (continue-string port 0 (cons lexeme lexeme-lst)))
        ((eof) (error "EOF in string"))))
     (if (equal? unquote-count quote-count)
-        (finish-string lexeme-lst)
-        (lex port)))
+        (finish-string lexeme-lst last-end-pos)
+        (string-part-lex port)))
   (continue-string port 0 '()))
 
 (define-syntax pos-token
@@ -213,7 +220,13 @@ This only works because there are no valid source chars outside the ASCII range 
      (token sym val 
             #:line (position-line start-pos)
             #:column (position-col start-pos)
-            #:offset (position-offset start-pos)))))
+            #:offset (position-offset start-pos)
+            #:span (- (position-offset end-pos) (position-offset start-pos))))))
+
+(define comment-lexer
+  (lexer
+   (physical-eol (pos-token 'PHYSICAL-NEWLINE "PHYSICAL-NEWLINE"))
+   (any-char (comment-lexer input-port))))
 
 ;; Physical lexer 
 (define lex
@@ -221,6 +234,7 @@ This only works because there are no valid source chars outside the ASCII range 
    ("#" (comment-lexer input-port))
    ((:or "class" "finally" "is" "return" "continue" "for" "lambda" "try" "def" "from" "nonlocal" "while" "and" "del" "global" "not" "with" "as" "elif" "if" "or" "yield" "assert" "else" "import" "pass" "break" "except" "in" "raise" 
          "..."
+         "->"
          "+" "-" "*" "**" "/" "//" "%" "<<" ">>" "&" "|" "^" "~" "<" ">" "<=" ">=" "==" "!=" 
          "(" ")" "[" "]" "{" "}" "," ":" "." ";" "@" "=" "+=" "-=" "*=" "/=" "//=" "%=" "&=" "|=" "^=" ">>=" "<<=" "**=") 
     (pos-token (string->symbol lexeme) lexeme))
@@ -230,24 +244,23 @@ This only works because there are no valid source chars outside the ASCII range 
    (imagnumber (pos-token 'NUMBER (cons 'imaginary lexeme)))
 
    (begin-string 
-    (pos-token 'STRING
-               (match lexeme
-                 [(regexp #rx"^(b|B)(r|R)(\"\"\"|''')")
-                  (string-lexer input-port (string-ref lexeme 2) 3 #t #t)]
-                 [(regexp #rx"^(b|B)(\"\"\"|''')")
-                  (string-lexer input-port (string-ref lexeme 1) 3 #t #f)]
-                 [(regexp #rx"^(b|B)(r|R)[\"']")
-                  (string-lexer input-port (string-ref lexeme 2) 1 #t #t)]
-                 [(regexp #rx"^(b|B)[\"']")
-                  (string-lexer input-port (string-ref lexeme 1) 1 #t #f)]
-                 [(regexp #rx"^(r|R)(\"\"\"|''')")
-                  (string-lexer input-port (string-ref lexeme 1) 3 #f #t)]
-                 [(regexp #rx"^(\"\"\"|''')")
-                  (string-lexer input-port (string-ref lexeme 0) 3 #f #f)]
-                 [(regexp #rx"^(r|R)[\"']")
-                  (string-lexer input-port (string-ref lexeme 1) 1 #f #t)]
-                 [(regexp #rx"^[\"']") 
-                  (string-lexer input-port (string-ref lexeme 0) 1 #f #f)])))
+    (match lexeme
+      [(regexp #rx"^(b|B)(r|R)(\"\"\"|''')")
+       (string-lexer input-port (string-ref lexeme 2) 3 #t #t start-pos)]
+      [(regexp #rx"^(b|B)(\"\"\"|''')")
+       (string-lexer input-port (string-ref lexeme 1) 3 #t #f start-pos)]
+      [(regexp #rx"^(b|B)(r|R)[\"']")
+       (string-lexer input-port (string-ref lexeme 2) 1 #t #t start-pos)]
+      [(regexp #rx"^(b|B)[\"']")
+       (string-lexer input-port (string-ref lexeme 1) 1 #t #f start-pos)]
+      [(regexp #rx"^(r|R)(\"\"\"|''')")
+       (string-lexer input-port (string-ref lexeme 1) 3 #f #t start-pos)]
+      [(regexp #rx"^(\"\"\"|''')")
+       (string-lexer input-port (string-ref lexeme 0) 3 #f #f start-pos)]
+      [(regexp #rx"^(r|R)[\"']")
+       (string-lexer input-port (string-ref lexeme 1) 1 #f #t start-pos)]
+      [(regexp #rx"^[\"']") 
+       (string-lexer input-port (string-ref lexeme 0) 1 #f #f start-pos)]))
 
    (identifier (if (valid-identifier? lexeme)
                    (pos-token 'NAME (cons 'name lexeme)) ; Not sure whether these should be normalized.
@@ -258,6 +271,14 @@ This only works because there are no valid source chars outside the ASCII range 
    ((:+ (:or " " "\t" "\f")) (pos-token 'WHITESPACE (count-spaces lexeme)))
    ((eof) (token 'EOF "EOF"))))
 
+;; Rewrite a token's type and content to symbol name, copying source position
+(define (rename-token t name)
+  (token name (symbol->string name)
+         #:offset (token-struct-offset t)
+         #:line (token-struct-line t)
+         #:column (token-struct-column t)
+         #:span (token-struct-span t)))
+  
 ;; Logical lexer - produces logical/other tokens using physical lexer
 (define (get-python-lexer input-port)
   (port-count-lines! input-port)
@@ -266,7 +287,8 @@ This only works because there are no valid source chars outside the ASCII range 
    (local ((define (next-token) 
              (let* ((physical-token (lex input-port)))
                (values physical-token (token-struct-type physical-token) (token-struct-val physical-token))))
-           ;; adjust brace depth for any physical token
+           ;; Adjust brace depth for any physical token
+           ;; Actual matching occurs in the parser; this just provides logical lines for valid programs
            (define (adjust-depth depth t-type)
              (case t-type 
                [(\( \[ \{) (+ depth 1)]
@@ -277,55 +299,79 @@ This only works because there are no valid source chars outside the ASCII range 
 
            ;; Taking indent stack and latest amount of significant ws, 
            ;; yield all necessary indent/dedent tokens and return new indent stack
-           (define (adjust-indent-stack indent ws-amount)
+           ;; if last-newline is #f instead of a token, signal an error (this is more a parser issue, but to keep it simple...)
+           (define (adjust-indent-stack indent ws-amount last-newline)
              (cond [(= ws-amount (car indent)) indent]
                    [(> ws-amount (car indent)) 
-                    (begin (yield (token 'INDENT "INDENT"))
-                           (cons ws-amount indent))]
+                    (begin 
+                      (unless last-newline
+                        (error "First line cannot be indented. (No newline while adjusting indentation.)"))
+                      (yield (rename-token last-newline 'INDENT)) 
+                      ;; The newline isn't a great position source for INDENTs, but indent positions 
+                      ;; probably won't be a major source of frustration.
+                      (cons ws-amount indent))]
                    [(< ws-amount (car indent))
                     (let ((new-stack (cdr indent)))
                       (if (> ws-amount (car indent))
                           (error "Bad indent")
-                          (begin (yield (token 'DEDENT "DEDENT"))
-                                 (adjust-indent-stack new-stack ws-amount))))]))
+                          (begin 
+                            (unless last-newline
+                              (error "Firstq line cannot be indented. (No newline while adjusting indentation.)"))
+                            (yield (rename-token last-newline 'DEDENT))
+                            (adjust-indent-stack new-stack ws-amount last-newline))))]))
 
-           (define (begin-line indent)
+           #|
+           Something like a three state machine plus some arbitrary data per state.
+           (begin-line and after are really two states, one with #f for last-newline until 
+           slurg gets a PHYSICAL-NEWLINE, with error signalled in adjust-indent-stack)
+           
+           States: begin-line, after-ws, slurg
+           Input set: PHYSICAL-NEWLINE, WHITESPACE, EOF, other
+
+           indent: Indent list, strictly decreasing from top to bottom
+           last-newline: The last physical newline from slurg or #f. Used for source position in INDENT/DEDENT tokens.
+           last-t: Similar to last-newline, for the edge case of EOF in slurg.
+           ws-amount: integer size of last whitespace token
+           brace-depth: integer number of open braces of *any* kind, closed by *any* kind
+           |#
+
+           (define (begin-line indent last-newline)
              (let-values (((t t-type t-val) (next-token)))
                (case t-type
-                 [(PHYSICAL-NEWLINE) (begin-line indent)]
-                 [(WHITESPACE) (after-ws indent t-val)]
+                 [(PHYSICAL-NEWLINE) (begin-line indent last-newline)]
+                 [(WHITESPACE) (after-ws indent t-val last-newline)]
                  [(EOF) (begin 
-                          (adjust-indent-stack indent 0)
+                          (adjust-indent-stack indent 0 last-newline)
                           (yield (token 'EOF "EOF")))]
-                 [else (let ((new-indent (adjust-indent-stack indent 0)))
+                 [else (let ((new-indent (adjust-indent-stack indent 0 last-newline)))
                          (begin (yield t)
-                                (slurg new-indent (adjust-depth 0 t-type))))])))
+                                (slurg new-indent (adjust-depth 0 t-type) t)))])))
              
-           (define (after-ws indent ws-amount)
+           (define (after-ws indent ws-amount last-newline)
              (let-values (((t t-type t-val) (next-token)))
                (case t-type
-                 [(PHYSICAL-NEWLINE) (begin-line indent)]
+                 [(PHYSICAL-NEWLINE) (begin-line indent last-newline)]
                  [(WHITESPACE) (error "Unexpected second whitespace token")]
                  [(EOF) (begin (adjust-indent-stack indent 0)
                                (yield (token 'EOF "EOF")))]
-                 [else (let ((new-indent (adjust-indent-stack indent ws-amount)))
+                 [else (let ((new-indent (adjust-indent-stack indent ws-amount last-newline)))
                          (begin (yield t)
-                                (slurg new-indent (adjust-depth 0 t-type))))])))
+                                (slurg new-indent (adjust-depth 0 t-type) t)))])))
 
            ;; brace-depth is number >= 0. Remain in slurg while brace-depth > 0
-           (define (slurg indent brace-depth)
+           (define (slurg indent brace-depth last-t)
              (let-values (((t t-type t-val) (next-token)))
                (case t-type
                  [(EOF) (if (> brace-depth 0) (error "EOF inside braces")
-                            (begin (yield (token 'NEWLINE "NEWLINE"))
-                                   (adjust-indent-stack indent 0)
+                            (begin (yield (rename-token last-t 'NEWLINE)) ;; last-t: Author feels lazy; just copy last real token.
+                                   (adjust-indent-stack indent 0 last-t) 
                                    (yield (token 'EOF "EOF"))))]
                  [(PHYSICAL-NEWLINE)
                   (if (> brace-depth 0)
-                      (slurg indent brace-depth)
-                      (begin (yield (token 'NEWLINE "NEWLINE"))
-                             (begin-line indent)))]
-                 [(WHITESPACE) (slurg indent brace-depth)]
+                      (slurg indent brace-depth t)
+                      (begin (yield (rename-token t 'NEWLINE))
+                             (begin-line indent t)))] ;; Note: This is where actual last-newline originates.
+                 [(WHITESPACE) (slurg indent brace-depth t)]
                  [else (begin (yield t)
-                              (slurg indent (adjust-depth brace-depth t-type)))]))))
-          (begin-line '(0)))))
+                              (slurg indent (adjust-depth brace-depth t-type) t))]))))
+          (begin-line '(0) #f))))

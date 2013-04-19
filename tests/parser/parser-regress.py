@@ -105,7 +105,7 @@ def f():
 
     {x,y,z}
 
-    ...
+    ... 
 
     # Statements
 
@@ -214,6 +214,7 @@ def f():
     def c(d,**e): pass
     def f(*,g=h): pass
     def m(h,i=j,*,k=l,m,**n):pass
+    def f(a:b, c:d=e, *f:g, h:i, j:k=l, **m:n): pass
 
     @k
     def l(): pass
