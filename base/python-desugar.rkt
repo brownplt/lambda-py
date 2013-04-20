@@ -113,6 +113,26 @@
                            (LexLocalId list-id 'Load)))))]
     (rec-desugar full-expr)))
 
+(define (desugar-generatorexp [body : LexExpr] [gens : (listof LexExpr)] ) : CExpr
+  (local [(define gen-id (new-id))
+          (define (make-comploop gens)
+            (cond
+              [(empty? gens) (LexYield body)]
+              [(cons? gens)
+               (LexFor (LexComprehen-target (first gens))
+                       (LexComprehen-iter (first gens))
+                       (if (empty? (LexComprehen-ifs (first gens)))
+                           (make-comploop (rest gens))
+                           (LexIf (LexBoolOp 'And (LexComprehen-ifs (first gens)))
+                                  (make-comploop (rest gens))
+                                  (LexPass)))
+                       (LexPass))]))
+          (define full-expr
+            (LexApp (LexFunc gen-id empty (none) empty (none) empty empty
+                             (make-comploop gens) empty (none))
+                    empty empty (none) (none)))]
+    (rec-desugar full-expr)))
+
 (define (which-scope [scp : LocalOrGlobal]) : IdType
   (type-case LocalOrGlobal scp
     [Locally-scoped () (LocalId)]
@@ -395,7 +415,7 @@
       [LexBoolOp (op values) (desugar-boolop op values)]
       [LexCompOp (l op rights) (desugar-compop l op rights)]
       [LexListComp (elt gens) (desugar-listcomp elt gens)]
-      [LexGeneratorExp (elt gens) (desugar-listcomp elt gens)]
+      [LexGeneratorExp (elt gens) (desugar-generatorexp elt gens)]
       [LexComprehen (target iter ifs) (error 'desugar "Can't desugar LexComprehen")]
       
       [LexLam (args vararg kwonlyargs kwarg defaults kw_defaults body)

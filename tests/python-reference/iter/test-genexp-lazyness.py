@@ -14,6 +14,6 @@ def list_take(iterable, n):
 N = 1073741824
 # small number of elements to be taken from the iterable
 n = 5
-
+g = (i for i in range(N))
 # test lazyness of generator expressions
-___assertEqual(list_take((i for i in range(N)), n), list(range(n)))
+___assertEqual(list_take(g, n), list(range(n)))
