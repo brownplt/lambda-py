@@ -9,7 +9,7 @@ def isinstance(obj, classinfo):
         return ___delta("isinstance", obj, classinfo)
     elif ___delta("isinstance", classinfo, tuple):
         any = ___id("%any")
-        return any((isinstance(obj, cls) for cls in classinfo))
+        return any([isinstance(obj, cls) for cls in classinfo])
     else:
         raise TypeError("isinstance() arg 2 must be a type or a tuple of types")
 
@@ -28,7 +28,7 @@ def issubclass(cls, classinfo):
         return classinfo in cls.__mro__
     elif tuple in ___delta("$class", classinfo).__mro__:
         any = ___id("%any")
-        return any((issubclass(cls, c) for c in classinfo))
+        return any([issubclass(cls, c) for c in classinfo])
     else:
         raise TypeError("issubclass() arg 2 must be a class or a tuple of classes")
 

@@ -117,6 +117,8 @@
               
               [PyListComp (body generators)
                           (LexListComp (recur body) (map recur generators))]
+              [PyGeneratorExp (body generators)
+                              (LexGeneratorExp (recur body) (map recur generators))]
               [PyComprehen (target iter ifs)
                            (LexComprehen (recur target) (recur iter) (map recur ifs))]
               
@@ -240,6 +242,8 @@
               
               [LexListComp (body generators)
                           (LexListComp (recur body) (map recur generators))]
+              [LexGeneratorExp (body generators)
+                               (LexGeneratorExp (recur body) (map recur generators))]
               [LexComprehen (target iter ifs)
                            (LexComprehen (recur target) (recur iter) (map recur ifs))]
               
@@ -358,6 +362,8 @@
               
               [PyListComp (body generators)
                           (flatten (list (list (recur body)) (map recur generators)))]
+              [PyGeneratorExp (body generators)
+                              (flatten (list (list (recur body)) (map recur generators)))]
               [PyComprehen (target iter ifs)
                            (flatten (list (recur target) (recur iter)))]
               
@@ -489,6 +495,8 @@
               
               [LexListComp (body generators)
                           (flatten (list (list (recur body)) (map recur generators)))]
+              [LexGeneratorExp (body generators)
+                               (flatten (list (list (recur body)) (map recur generators)))]
               [LexComprehen (target iter ifs)
                            (flatten (list (list (recur target) (recur iter)) (map recur ifs)))]
               

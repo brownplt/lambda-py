@@ -270,7 +270,7 @@ structure that you define in python-syntax.rkt
     [(hash-table ('nodetype "GeneratorExp")
                  ('elt elt)
                  ('generators gens))
-     (PyListComp
+     (PyGeneratorExp
        (get-structured-python elt)
        (map get-structured-python gens))]
 

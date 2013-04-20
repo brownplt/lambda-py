@@ -77,6 +77,7 @@
   [LexSubscript (left : LexExpr) (context : symbol) (slice : LexExpr)]
 
   [LexListComp (body : LexExpr) (generators : (listof LexExpr))]
+  [LexGeneratorExp (body : LexExpr) (generators : (listof LexExpr))]
   [LexComprehen (target : LexExpr) (iter : LexExpr) (ifs : (listof LexExpr))]
 
   ;new identifiers for scope.

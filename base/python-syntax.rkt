@@ -66,6 +66,7 @@
   [PySubscript (left : PyExpr) (context : symbol) (slice : PyExpr)]
 
   [PyListComp (body : PyExpr) (generators : (listof PyExpr))]
+  [PyGeneratorExp (body : PyExpr) (generators : (listof PyExpr))]
   [PyComprehen (target : PyExpr) (iter : PyExpr) (ifs : (listof PyExpr))]
 
   ; builtin data structures

@@ -3,7 +3,7 @@ class range:
     def __init__(self, *args):
         isinstance = ___id("%isinstance")
         any = ___id("%any")
-        if any((not isinstance(arg, int) for arg in args)):
+        if any([not isinstance(arg, int) for arg in args]):
             raise TypeError("range arguments must be int")
         self.start = 0
         self.step = 1

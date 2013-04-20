@@ -43,6 +43,8 @@
                (lexexpr-print-helper test "")
                (display ":\n")
                (lexexpr-print-helper body (string-append "  " starting-tab))
+               (display "\n")
+               (display starting-tab)
                (display "else:\n")
                (lexexpr-print-helper orelse (string-append "  " starting-tab))
                (display "\n")
@@ -430,6 +432,10 @@
                    (begin
                      (display this-expr)
                      this-expr)]
+      [LexGeneratorExp (body generators)
+                       (begin
+                         (display this-expr)
+                         this-expr)]
       [LexComprehen (target iter ifs)
                     (begin 
                     (display this-expr)
