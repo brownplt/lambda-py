@@ -491,7 +491,7 @@
                            [LexFor (target iter body orelse) (LexFor (assign-func target)
                                                                      (recur iter locs)
                                                                      (recur body locs)
-                                                                     (recur body orelse)) ]
+                                                                     (recur orelse locs)) ]
                            [LexClass (scope name super body) (toplevel x)]
                            [else (default-recur)])))))))
           (recur expr discovered-vars)
