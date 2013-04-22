@@ -114,8 +114,7 @@
     (rec-desugar full-expr)))
 
 (define (desugar-generatorexp [body : LexExpr] [gens : (listof LexExpr)] ) : CExpr
-  (local [(define gen-id (new-id))
-          (define (make-comploop gens)
+  (local [(define (make-comploop gens)
             (cond
               [(empty? gens) (LexYield body)]
               [(cons? gens)
@@ -127,11 +126,9 @@
                                   (make-comploop (rest gens))
                                   (LexPass)))
                        (LexPass))]))
-          (define full-expr
-            (LexApp (LexFunc gen-id empty (none) empty (none) empty empty
-                             (make-comploop gens) empty (none))
-                    empty empty (none) (none)))]
-    (rec-desugar full-expr)))
+          (define gen-fun
+            (CFunc empty (none) (rec-desugar (make-comploop gens)) (none)))]
+    (CApp gen-fun empty (none))))
 
 (define (which-scope [scp : LocalOrGlobal]) : IdType
   (type-case LocalOrGlobal scp
@@ -203,8 +200,7 @@
                       [defaults : (listof LexExpr)] [kw_defaults : (listof LexExpr)]
                       [body : LexExpr] [opt-class : (optionof LexExpr)])
   (cond
-    ;; the "normal" case, it could be absorved by the next, it is a little optimization
-    ;; which works since __defaults__ returns () for functions without defaults, etc.
+    ;; the "normal" case is receives different treatment to enable bootstrapping.
     [(and (empty? kwonlyargs) (none? kwarg) (empty? defaults) (empty? kw_defaults))
      (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))]
     [else
@@ -214,8 +210,8 @@
            (CFunc (flatten (list args kwonlyargs (option->list kwarg))) vararg
                   (rec-desugar body) (option-map id-to-symbol opt-class))
            (CSeq
-            (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__name__")
-                      (make-builtin-str (symbol->string name)))
+            (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___kwcall")
+                      (CTrue)) ;; this functio has kw arguments and/or defaults
             (CSeq
              (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___nkwonlyargs")
                        (make-builtin-num (length kwonlyargs)))

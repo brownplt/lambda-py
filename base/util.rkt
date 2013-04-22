@@ -471,34 +471,30 @@
 (define (py-app-kw [fun : CExpr] [args : (listof CExpr)] [keywords : (listof CExpr)]
                     [stararg : (optionof CExpr)] [kwarg : (optionof CExpr)]) : CExpr
   (CLet '$fun (LocalId) fun
-        (CIf (CBuiltinPrim 'is-func? (list (CId '$fun (LocalId))))
-             ;; function call
-             (py-app-fun (CId '$fun (LocalId)) args keywords stararg kwarg)
-             ;; try to get __call__ attribute
-             (CTryExceptElse
-              (py-getfield (CId '$fun (LocalId)) '__call__)
-              ;; exception raised, not callable
-              '_ (CRaise (some (make-exception 'TypeError "object is not callable")))
-              ;; no exception, __call__ is available
-              (CLet '$call (LocalId) (py-getfield (CId '$fun (LocalId)) '__call__)
-                    (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
-                         ;; __call__ is a function
-                         (py-app-fun (CId '$call (LocalId)) args keywords stararg kwarg)
-                         ;; else it should be a method, call __func__ and pass __self__ as first arg.
-                         (py-app-fun (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
-                                                                      (make-builtin-str "__func__")))
-                                     (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
-                                                                            (make-builtin-str "__self__")))
-                                           args)
-                                     keywords stararg kwarg)))))))
+        ;; try to get __call__ attribute
+        (CTryExceptElse
+         (py-getfield (CId '$fun (LocalId)) '__call__)
+         ;; exception raised, not callable
+         '_ (CRaise (some (make-exception 'TypeError "object is not callable")))
+         ;; no exception, __call__ is available
+         (CLet '$call (LocalId) (py-getfield (CId '$fun (LocalId)) '__call__)
+               (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
+                    ;; __call__ is a function
+                    (py-app-fun (CId '$call (LocalId)) args keywords stararg kwarg)
+                    ;; else it should be a method, call __func__ and pass __self__ as first arg.
+                    (py-app-fun (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                 (make-builtin-str "__func__")))
+                                (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                       (make-builtin-str "__self__")))
+                                      args)
+                                keywords stararg kwarg))))))
 
 ;; helper to apply a function considering default arguments and keywords
 (define (py-app-fun [fun : CExpr] [args : (listof CExpr)] [keywords : (listof CExpr)]
                     [stararg : (optionof CExpr)] [kwarg : (optionof CExpr)]) : CExpr
   (local
-    ;; helper which makes the call using %call_stararg to convert arguments to positional
-    ([define (call-stararg [fun-id : symbol] [params-id : symbol]
-                           [stararg-id : (optionof symbol)]) : CExpr
+    (;; helper which makes the call using %call_stararg to convert arguments to positional
+     [define (call-stararg [fun-id : symbol] [params-id : symbol]) : CExpr
        (CApp (CId '$fun (LocalId))
              empty
              (some (CApp (CId '%call_stararg (GlobalId))
@@ -506,14 +502,12 @@
                                (CId params-id (LocalId))
                                (CTuple (CId '%tuple (GlobalId)) args)
                                (CTuple (CId '%tuple (GlobalId)) keywords)
-                               (if (some? stararg-id)
-                                   (CId (some-v stararg-id) (LocalId))
-                                   (if (none? stararg)
-                                       (CTuple (CId '%tuple (GlobalId)) empty)
-                                       (to-tuple (some-v stararg))))
+                               (if (some? stararg)
+                                   (to-tuple (some-v stararg))
+                                   (CTuple (CId '%tuple (GlobalId)) empty))
                                (if (none? kwarg) (CNone) (some-v kwarg)))
                          (none))))]
-     ;; to-tuple: helper function to convert to a tuple, if it is not already one.
+     ;; to-tuple: convert exp to a tuple, if it is not already one.
      [define (to-tuple [exp : CExp]) : CExp
        (CLet '$exp (LocalId) exp
              (CIf (CBuiltinPrim 'isinstance (list (CId '$exp (LocalId)) (CId '%tuple (GlobalId))))
@@ -525,39 +519,15 @@
                                                    (CId '%list (GlobalId)) (CId '%str (GlobalId))))
         (cond
           [(and (empty? keywords) (none? kwarg))
-           ;; no keywords case is special cased for bootstraping in the simplest case
-           (CIf (CBuiltinPrim 'obj-hasattr (list (CId '$fun (LocalId)) (make-builtin-str "___nkwonlyargs")))
-                (call-stararg '$fun '$params (none)) ;; function has keyword-only arguments
-           (CIf (CBuiltinPrim 'obj-hasattr (list (CId '$fun (LocalId)) (make-builtin-str "___nkwarg")))
-                (call-stararg '$fun '$params (none)) ;; function has **kwarg present
-           ;; the function has no keyword-only arguments nor **kwarg, see if there is enough arguments
-           (CIf (CBuiltinPrim 'num>=
-                              (list (make-builtin-num (length args))
-                                    (CBuiltinPrim 'list-len
-                                                  (list (CId '$params (LocalId))
-                                                        (CId '%int (GlobalId))))))
-                ;; no need for defaults, even if stararg is none.
-                (CApp (CId '$fun (LocalId)) args (option-map to-tuple stararg))
-                ;; check if stararg suffices, else look at defaults
-                (CLet '$stararg (LocalId) (if (none? stararg)
-                                              (CTuple (CId '%tuple (GlobalId)) empty)
-                                              (to-tuple (some-v stararg)))
-                      (CIf (CBuiltinPrim 'num>=
-                                         (list (CBuiltinPrim 'num+
-                                                             (list (make-builtin-num (length args))
-                                                                   (CBuiltinPrim 'tuple-len
-                                                                                 (list (CId '$stararg (LocalId))
-                                                                                       (CId '%int (GlobalId))))))
-                                               (CBuiltinPrim 'list-len
-                                                             (list (CId '$params (LocalId))
-                                                                   (CId '%int (GlobalId))))))
-                           ;; no need for defaults due to stararg
-                           (CApp (CId '$fun (LocalId)) args (some (CId '$stararg (LocalId))))
-                           ;; try to use defaults defaults
-                           (call-stararg '$fun '$params (some '$stararg)))))))]
+           ;; call without keywords can be simplified if there is no keyword/defaults in the function
+           (CIf (CBuiltinPrim 'obj-hasattr (list (CId '$fun (LocalId)) (make-builtin-str "___kwcall")))
+                ;; function has keywords arguments and/or defaults
+                (call-stararg '$fun '$params)
+                ;; no keywords/no defaults special cased for bootstraping
+                (CApp (CId '$fun (LocalId)) args (option-map to-tuple stararg)))]
           [else
            ;; call with keywords or **expression
-           (call-stararg '$fun '$params (none))])))))
+           (call-stararg '$fun '$params)])))))
 
 (define (py-setfield obj attr val)
   (CLet '$obj (LocalId) obj
