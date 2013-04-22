@@ -2,6 +2,7 @@
 
 (require racket/match
          "python-lexer.rkt"
+         "stx-util.rkt"
          (prefix-in grammar: "python-grammar.rkt"))
 
 (provide parse-python)
@@ -12,7 +13,21 @@ Values of these will match the ASDL spec at http://docs.python.org/3.2/library/a
 
 This format matches that produced by python-python-parser.rkt and python-parser.py. The main non-obvious aspect of it is the 'ctx attribute of each expression node, which is determined by the statement type (or generator expression).
 |#
+
+(define parser-src-loc (make-parameter #f))
+
 (define ast hasheq)
+
+;; AST from rest, wrapped in a SrcLoc AST from the source info in stx
+(define (ast-of-stx stx . rest)
+  (if (parser-src-loc)
+      (ast 'nodetype "SrcLoc"
+           'line (syntax-line stx)
+           'column (syntax-column stx)
+           'position (syntax-position stx)
+           'span (syntax-span stx)
+           'ast (apply ast rest))
+      (apply ast rest)))
 
 #|
 Ragg generates a parse tree in the form of a syntax object, which can look oddly nested because of Python's grammar:
@@ -38,7 +53,8 @@ Also, I hope you like quasiquote match patterns. (Sorry.) This should move to sy
 |#
 
 (define (parse-python port)
-  (module->ast (syntax->datum (grammar:parse (get-python-lexer port)))))
+  (let-values (((datum stx-hash) (syntax->datum+stx-hash (grammar:parse (get-python-lexer port)))))
+    (module->ast datum)))
 
 (define (module->ast py-ragg)
   (match py-ragg
