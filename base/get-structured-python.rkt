@@ -267,6 +267,26 @@ structure that you define in python-syntax.rkt
        (get-structured-python elt)
        (map get-structured-python gens))]
 
+    [(hash-table ('nodetype "SetComp")
+                 ('elt elt)
+                 ('generators gens))
+     (PyApp (PyId '%set 'Load)
+            (list (PyListComp
+                   (get-structured-python elt)
+                   (map get-structured-python gens)))
+            (list) (none) (none))]
+
+    [(hash-table ('nodetype "DictComp")
+                 ('key key)
+                 ('value value)
+                 ('generators gens))
+     (PyApp (PyId '%dict 'Load)
+            (list (PyListComp
+                   (PyTuple (list (get-structured-python key)
+                                  (get-structured-python value)))
+                   (map get-structured-python gens)))
+            (list) (none) (none))]
+
     [(hash-table ('nodetype "GeneratorExp")
                  ('elt elt)
                  ('generators gens))
