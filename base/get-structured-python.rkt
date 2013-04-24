@@ -39,12 +39,23 @@ structure that you define in python-syntax.rkt
           (get-structured-python body)
           (map get-structured-python decorator-list)))
 
+;; Instead of building "complete" source location information in the above layer,
+;; it's being built gradually by wrapping in "SrcLoc" AST nodes.
+
+;; Capture the "next one up" in here. Only set in the top case and only used in _ case.
+(define current-src-pos (make-parameter #f))
+
 (define (get-structured-python pyjson)
   (begin
   (match pyjson
+    [(hash-table ('nodetype "SrcLoc") 
+                 ('ast inner-pyjson)
+                 (_ _) ...)
+     (parameterize [(current-src-pos pyjson)]
+       (get-structured-python inner-pyjson))]
+
     [(hash-table ('nodetype "Module") ('body expr-list))
      (PyModule (map get-structured-python expr-list))]
-
 
     [(hash-table ('nodetype "Expr") ('value expr))
      (get-structured-python expr)]
@@ -410,7 +421,15 @@ structure that you define in python-syntax.rkt
 
     [#\nul (PyNone)]
     
-    [_ (error 'parse (string-append "Haven't handled a case yet: "
+    [_ (error 'parse (string-append 
+                      (let-values (((src-line src-column src-position)
+                                    (if (current-src-pos)
+                                        (values (hash-ref (current-src-pos) 'line)
+                                                (hash-ref (current-src-pos) 'column)
+                                                (hash-ref (current-src-pos) 'position))
+                                        (values #f #f #f))))
+                        (format "Haven't handled a case yet (Line ~a, Column ~a, Position ~a):~n"
+                                src-line src-column src-position))
 				    (pretty-format pyjson)
 				    ))])))
 

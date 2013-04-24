@@ -8,7 +8,7 @@
 (provide parse-tests)
 
 ;; For single files, a bash script like this is useful:
-;; diff <(./pymain.sh --native-parser --get-syntax < $1) <(./pymain.sh --python-parser --get-syntax < $1)
+;; diff <(./pymain.sh --native-parser-no-srcloc --get-syntax < $1) <(./pymain.sh --python-parser --get-syntax < $1)
 
 (define (parse-tests dirname)
   (define specs (get-test-specs dirname))
