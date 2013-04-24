@@ -1,24 +1,24 @@
 #lang racket
 
+(provide parse-python parser-src-loc)
+
 (require racket/match
          "python-lexer.rkt"
          "stx-util.rkt"
          (prefix-in grammar: "python-grammar.rkt"))
 
-(provide parse-python)
-
 #| 
 AST: hash of symbol -> (string | number | AST | #\nul)
-Values of these will match the ASDL spec at http://docs.python.org/3.2/library/ast.html with the constructor name under the 'nodetype key.
+Values of these will match the ASDL spec at http://docs.python.org/3.2/library/ast.html with the constructor name under the 'nodetype key. The exception is the "SrcLoc" nodetype which is used to wrap ASTs for which we have a specific source location (should include statements and all expressions).
 
-This format matches that produced by python-python-parser.rkt and python-parser.py. The main non-obvious aspect of it is the 'ctx attribute of each expression node, which is determined by the statement type (or generator expression).
+This format matches that produced by python-python-parser.rkt and python-parser.py. The main non-obvious aspect of it is the 'ctx attribute of each expression node, which is determined by the statement type (or by being the target of a generator).
 |#
 
 (define parser-src-loc (make-parameter #f))
 
 (define ast hasheq)
 
-;; AST from rest, wrapped in a SrcLoc AST from the source info in stx
+;; AST from pairs in rest, wrapped (if enabled by parser-src-loc) in a SrcLoc AST from the source info in stx
 (define (ast-of-stx stx . rest)
   (if (parser-src-loc)
       (ast 'nodetype "SrcLoc"
@@ -50,20 +50,46 @@ expr: any expression that can be derived starting with testlist_star_expr (proba
 module/trailer/comp-op/suite/decorator etc.: Name matches the grammar LHS (here, their car)
 
 Also, I hope you like quasiquote match patterns. (Sorry.) This should move to syntax objects and syntax-case to support source position eventually.
+
+In order to support source positions, use a bad parody of syntax->datum called syntax->datum+stx-hash to get the same S-expression along with a hash of each pair/list/string to its original syntax object. This produces a lot of functions of the form *->ast with two arguments, but the second is "just" a way to get src-pos information in.
 |#
 
 (define (parse-python port)
-  (let-values (((datum stx-hash) (syntax->datum+stx-hash (grammar:parse (get-python-lexer port)))))
-    (module->ast datum)))
+  (destructure-parse (grammar:parse (get-python-lexer port))))
 
-(define (module->ast py-ragg)
+;; This should not "change" during an entire call to file_input->ast, and I'm too lazy to want to rebuild it as an argument to all the calls.
+(define get-stx (make-parameter (lambda (s) (error "No syntax object retrieval defined"))))
+
+;; Call into the *->ast chain to turn ragg sexp syntax object into AST
+(define (destructure-parse stx)
+  (let-values (((datum src-hash) (syntax->datum+stx-hash stx)))
+    (parameterize [(get-stx (lambda (s) (hash-ref src-hash s)))]
+      (file-input->ast datum))))
+
+;; Should error with source position if file-input is working right.
+;; TODO: Move this into a racket test set.
+(define (test-file-input-error)
+  (destructure-parse ((grammar:make-rule-parser single_input) (get-python-lexer (open-input-string "a = 1\n")))))
+
+(define (file-input->ast py-ragg)
   (match py-ragg
     [(list 'file_input stmts ...)
-     (ast 'nodetype "Module"
-          'body (flatten (map stmt->ast-list stmts)))]
-    [_ (error "Only file_input is supported.")]))
+     (ast-of-stx ((get-stx) py-ragg)
+                 'nodetype "Module"
+                 'body (flatten (map stmt->ast-list stmts)))]
+    [_ (error-at-syntax ((get-stx) py-ragg) "Only file_input is supported.")]))
+
+#|
+  Flowchart of most of the action here. Everything else is minor helpers and
+  some builders for the more interesting bits (calls, defs, comprehensions)
+
+  stmt->ast-list +-----> non-simple-stmt->ast +-----> expr->ast +--+
+         ^                         +                    ^          |
+         +--+ suite->ast-list <----+                    +----------+
+|#
 
 ;; simple_stmt is the only derivation of stmt that Python parses into multiple statements
+;; simple_stmt->ast-list + non-simple-stmt->ast cover the whole statement "language"
 (define (stmt->ast-list py-ragg)
   (match py-ragg
     [`(stmt ,any-stmt) (stmt->ast-list any-stmt)]
@@ -786,6 +812,13 @@ Also, I hope you like quasiquote match patterns. (Sorry.) This should move to sy
                                   'func dec-ast)))]
          [_ (error "Unhandled decorator rest")]))]
     [_ (error "Unhandled decorator")]))
+
+
+
+(define (error-at-syntax stx msg)
+  ;; TODO: Better error style
+  (error (format "Parse error: Line ~a, Column ~a, Position ~a~n~a" 
+          (syntax-line stx) (syntax-column stx) (syntax-position stx) msg)))
 
 (define (every-other lst)
   (cond [(null? lst) '()]

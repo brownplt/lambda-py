@@ -75,6 +75,10 @@
   ("--native-parser" "Use the native racket parser to parse python (default)"
    (parser native-parse-python/port))
 
+  ;; For diff testing against --python-parser
+  ("--native-parser-no-srcloc" "Use the native racket parser to parse python, excluding source position information"
+   (parser native-parse-python-no-srcloc/port))
+
   ("--progress-report" dirname "Generate a soft report"
    (printf "~a\n"
     (jsexpr->json

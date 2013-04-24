@@ -15,7 +15,6 @@
   (for ([spec specs])
     (match (compare-parse (open-input-string (TestSpec-program-src spec)))
       [(list 'both-parsers-fail py-exn native-exn) 
-
        (display (TestSpec-program-name spec)) (newline)
        (display "Both parsers fail\n")]
       [(list 'python-parser-fails py-exn _) 
@@ -39,7 +38,7 @@
               ((parser) program-port-1))))
          (native-ast-or-exn 
           (with-handlers [(exn:fail? (lambda (e) e))]
-            (parameterize [(parser native-parse-python/port)]
+            (parameterize [(parser native-parse-python-no-srcloc/port)]
               ((parser) program-port-2)))))
     (cond
      [(and (exn:fail? python-ast-or-exn)
