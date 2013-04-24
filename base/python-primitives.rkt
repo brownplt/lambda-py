@@ -141,7 +141,9 @@ primitives here.
   (local [
   (define (prim-error msg op args)
     (mk-exception 'TypeError
-      (string-append msg (string-append (symbol->string op) (format " ~a" args)))
+      (string-append msg
+        (string-append (symbol->string op)
+          (format " ~a" (map (lambda (arg) (pretty arg sto)) args))))
       env
       sto))
   (define (fetch-heads l1 l2)

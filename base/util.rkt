@@ -215,7 +215,7 @@
   (type-case CVal arg
     [VObjectClass (a mval d class) (if (some? mval)
                             (pretty-metaval (some-v mval) sto)
-                            "Can't print non-builtin object.")]
+                            (string-append "<" (string-append (symbol->string a) " object>")))]
     [VSym (s) (symbol->string s)]
     [VUndefined () "Undefined"]
     [VPointer (a) (pretty (fetch-ptr arg sto) sto)]))
@@ -224,7 +224,7 @@
   (let ((pretty (lambda (y) (pretty y sto))))
     (type-case MetaVal mval
       [MetaNum (n) (number->string n)]
-      [MetaStr (s) s]
+      [MetaStr (s) (string-append "'" (string-append s "'"))]
       [MetaClass (c) (string-append "<class "
                                     (string-append (symbol->string c)
                                                    ">"))]
@@ -255,6 +255,8 @@
               (string-append "{"
                              (string-join (map pretty (set->list elts)) ", "))
               "}")]
+    [MetaClosure (env args vararg body opt-class)
+                 "<function>"]
     [else "builtin-value"]
     )))
 
@@ -463,43 +465,48 @@
             (CSeq local-func
                   (strip-CLet real-body)))]))
 
-;; sinctactic sugar to apply a function or method without keywords
+;; syntactic sugar to apply a function or method without keywords
 (define (py-app [fun : CExpr] [args : (listof CExpr)] [stararg : (optionof CExpr)]) : CExpr
   (py-app-kw fun args (list) stararg (none)))
 
-;; sinctactic sugar to apply a function or method, considering keywords
+;; syntactic sugar to apply a function or method, considering keywords
 (define (py-app-kw [fun : CExpr] [args : (listof CExpr)] [keywords : (listof CExpr)]
                     [stararg : (optionof CExpr)] [kwarg : (optionof CExpr)]) : CExpr
-  (CLet '$fun (LocalId) fun
-        ;; try to get __call__ attribute
+  (CLet '$call (LocalId) fun
         (CTryExceptElse
-         (py-getfield (CId '$fun (LocalId)) '__call__)
+         ;; try to get __call__ attribute (functions and methods special cased only for performance)
+         (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
+              (CNone) ;; do nothing: function.__call__ is the function itself
+              (CIf (CBuiltinPrim 'isinstance (list (CId '$call (LocalId)) (CId '%method (GlobalId))))
+                   (CNone) ;; do nothing: method.__call__ is the method itself
+                   (CAssign (CId '$call (LocalId)) (py-getfield (CId '$call (LocalId)) '__call__))))
          ;; exception raised, not callable
          '_ (CRaise (some (make-exception 'TypeError "object is not callable")))
          ;; no exception, __call__ is available
-         (CLet '$call (LocalId) (py-getfield (CId '$fun (LocalId)) '__call__)
-               (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
-                    ;; __call__ is a function
-                    (py-app-fun (CId '$call (LocalId)) args keywords stararg kwarg)
-                    ;; else it should be a method, call __func__ and pass __self__ as first arg.
-                    (py-app-fun (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
-                                                                 (make-builtin-str "__func__")))
-                                (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
-                                                                       (make-builtin-str "__self__")))
-                                      args)
-                                keywords stararg kwarg))))))
+         (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
+              ;; __call__ is a function
+              (py-app-fun (CId '$call (LocalId)) args keywords stararg kwarg)
+              ;; else it should be a method, call __func__ and pass __self__ as first arg.
+              (py-app-fun (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                           (make-builtin-str "__func__")))
+                          (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                 (make-builtin-str "__self__")))
+                                args)
+                          keywords stararg kwarg)))))
 
 ;; helper to apply a function considering default arguments and keywords
 (define (py-app-fun [fun : CExpr] [args : (listof CExpr)] [keywords : (listof CExpr)]
                     [stararg : (optionof CExpr)] [kwarg : (optionof CExpr)]) : CExpr
   (local
     (;; helper which makes the call using %call_stararg to convert arguments to positional
-     [define (call-stararg [fun-id : symbol] [params-id : symbol]) : CExpr
+     [define (call-stararg [fun-id : symbol]) : CExpr
        (CApp (CId '$fun (LocalId))
              empty
              (some (CApp (CId '%call_stararg (GlobalId))
                          (list (CId fun-id (LocalId))
-                               (CId params-id (LocalId))
+                               (CBuiltinPrim 'func-args
+                                             (list (CId fun-id (LocalId))
+                                                   (CId '%list (GlobalId)) (CId '%str (GlobalId))))
                                (CTuple (CId '%tuple (GlobalId)) args)
                                (CTuple (CId '%tuple (GlobalId)) keywords)
                                (if (some? stararg)
@@ -513,21 +520,19 @@
              (CIf (CBuiltinPrim 'isinstance (list (CId '$exp (LocalId)) (CId '%tuple (GlobalId))))
                   (CId '$exp (LocalId))
                   (py-app (CId '%tuple (GlobalId)) (list (CId '$exp (LocalId))) (none))))])
+
     (CLet '$fun (LocalId) fun
-      (CLet '$params (LocalId) (CBuiltinPrim 'func-args
-                                             (list (CId '$fun (LocalId))
-                                                   (CId '%list (GlobalId)) (CId '%str (GlobalId))))
-        (cond
-          [(and (empty? keywords) (none? kwarg))
-           ;; call without keywords can be simplified if there is no keyword/defaults in the function
-           (CIf (CBuiltinPrim 'obj-hasattr (list (CId '$fun (LocalId)) (make-builtin-str "___kwcall")))
-                ;; function has keywords arguments and/or defaults
-                (call-stararg '$fun '$params)
-                ;; no keywords/no defaults special cased for bootstraping
-                (CApp (CId '$fun (LocalId)) args (option-map to-tuple stararg)))]
-          [else
-           ;; call with keywords or **expression
-           (call-stararg '$fun '$params)])))))
+      (cond
+        [(and (empty? keywords) (none? kwarg))
+         ;; call without keywords can be simplified if there is no keyword/defaults in the function
+         (CIf (CBuiltinPrim 'obj-hasattr (list (CId '$fun (LocalId)) (make-builtin-str "___kwcall")))
+              ;; function has keywords arguments and/or defaults
+              (call-stararg '$fun)
+              ;; no keywords/no defaults special cased for bootstraping
+              (CApp (CId '$fun (LocalId)) args (option-map to-tuple stararg)))]
+        [else
+         ;; call with keywords or **expression
+         (call-stararg '$fun)]))))
 
 (define (py-setfield obj attr val)
   (CLet '$obj (LocalId) obj
@@ -550,7 +555,7 @@
            (make-builtin-str (symbol->string attr)))
           (none))))
 
-;; sintactic sugar to get a field from an object
+;; syntactic sugar to get a field from an object
 (define (py-getfield [obj-exp : CExpr] [attr : symbol]) : CExpr
   (local [(define (is-special-method? [n : symbol])
             (member n (list '__in__ '__call__ '__eq__ '__cmp__ '__str__ '__getitem__ '__gt__ '__lt__ '__lte__ '__gte__)))]
