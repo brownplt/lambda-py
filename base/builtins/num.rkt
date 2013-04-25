@@ -101,6 +101,14 @@
                                                   (CId 'other (LocalId)))))
                          (some 'num)))
              
+             (def 'num '__pow__
+                  (CFunc (list 'self 'other)  (none)
+                         (CReturn (CBuiltinPrim 'num**
+                                                (list
+                                                  (CId 'self (LocalId))
+                                                  (CId 'other (LocalId)))))
+                         (some 'num)))
+
              (def 'num '__div__ 
                   (CFunc (list 'self 'other)  (none)
                          (CIf (py-app (py-getfield (CId 'other (LocalId)) '__eq__) 

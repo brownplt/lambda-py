@@ -341,6 +341,9 @@
                    ['Mult (py-app (py-getfield left-c '__mult__)
                                 (list right-c)
                                 (none))]
+                   ['Pow (py-app (py-getfield left-c '__pow__)
+                                 (list right-c)
+                                 (none))]
                    ['Div (py-app (py-getfield left-c '__div__)
                                (list right-c)
                                (none))]

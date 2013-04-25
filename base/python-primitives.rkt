@@ -20,6 +20,7 @@
          (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (quotient : (number number -> number)))
          (typed-in racket/base (remainder : (number number -> number)))
+         (typed-in racket/base (expt : (number number -> number)))
          (typed-in racket/base (car : (('a * 'b) -> 'a)))
          (typed-in racket/base (cdr : (('a * 'b) -> 'b)))
          (typed-in racket/list (take : ((listof 'a) number -> (listof 'a))))
@@ -68,6 +69,12 @@ primitives here.
                                                     (* (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
                                        (hash empty))))))
+
+(define (num** args env sto)
+  (check-types-pred args env sto MetaNum? MetaNum?
+                        (some (make-builtin-numv (expt (MetaNum-n mval1)
+                                                       (MetaNum-n mval2))))))
+
 (define (num/ args env sto)
     (check-types-pred args env sto MetaNum? MetaNum? 
                         (some (VObject 'num (some (MetaNum 
@@ -201,6 +208,7 @@ primitives here.
     ['num+ (prim-alloc num+ argvs)]
     ['num- (prim-alloc num- argvs)]
     ['num* (prim-alloc num* argvs)]
+    ['num** (prim-alloc num** argvs)]
     ['num/ (prim-alloc num/ argvs)]
     ['num// (prim-alloc num// argvs)]
     ['num% (prim-alloc num% argvs)]

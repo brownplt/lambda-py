@@ -1,0 +1,6 @@
+___assertEqual(0**17, 0)
+___assertEqual(17**0, 1)
+___assertEqual(0**0, 1)
+___assertEqual(17**1, 17)
+___assertEqual(2**10, 1024)
+___assertEqual(2**-2, 0.25)
