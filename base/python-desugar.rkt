@@ -362,6 +362,12 @@
                    ['BitXor (py-app (py-getfield left-c '__xor__)
                                   (list right-c)
                                   (none))]
+                   ['LShift (py-app (py-getfield left-c '__lshift__)
+                                    (list right-c)
+                                    (none))]
+                   ['RShift (py-app (py-getfield left-c '__rshift__)
+                                    (list right-c)
+                                    (none))]
                    ['Eq (py-app (py-getfield left-c '__eq__)
                               (list right-c)
                               (none))]

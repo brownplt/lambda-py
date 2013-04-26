@@ -1,0 +1,6 @@
+___assertEqual(~1, -2)
+___assertEqual(3 & 2, 2)
+___assertEqual(1 | 2, 3)
+___assertEqual(1 ^ 2, 3)
+___assertEqual(1 << 3, 8)
+___assertEqual(64 >> 3, 8)

@@ -3,7 +3,12 @@
 (require "../python-core-syntax.rkt")
 (require "../util.rkt"
          "type.rkt"
-         (typed-in racket/base (exact? : (number -> boolean))))
+         (typed-in racket
+                   [bitwise-and : (number number -> number)]
+                   [bitwise-ior : (number number -> number)]
+                   [bitwise-xor : (number number -> number)]
+                   [arithmetic-shift : (number number -> number)]
+                   [exact? : (number -> boolean)]))
 
 (define (make-builtin-numv [n : number]) : CVal
   (VObject
@@ -41,7 +46,61 @@
                          (CIf (CBuiltinPrim 'num= (list (Id 'self) (py-num 0)))
                               (CReturn (gid 'False))
                               (CReturn (gid 'True)))
-                         (some 'int))))))
+                         (some 'int)))
+
+             (def 'int '__and__
+                  (CFunc (list 'self 'other)  (none)
+                         (CReturn (CBuiltinPrim 'int-and
+                                                (list
+                                                 (CId 'self (LocalId))
+                                                 (CId 'other (LocalId)))))
+                         (some 'int)))
+
+             (def 'int '__or__
+                  (CFunc (list 'self 'other)  (none)
+                         (CReturn (CBuiltinPrim 'int-or
+                                                (list
+                                                 (CId 'self (LocalId))
+                                                 (CId 'other (LocalId)))))
+                         (some 'int)))
+
+             (def 'int '__xor__
+                  (CFunc (list 'self 'other)  (none)
+                         (CReturn (CBuiltinPrim 'int-xor
+                                                (list
+                                                 (CId 'self (LocalId))
+                                                 (CId 'other (LocalId)))))
+                         (some 'int)))
+
+             (def 'int '__lshift__
+                  (CFunc (list 'self 'other)  (none)
+                         (CReturn (CBuiltinPrim 'int-shift
+                                                (list
+                                                 (CId 'self (LocalId))
+                                                 (CId 'other (LocalId)))))
+                         (some 'int)))
+
+             (def 'int '__rshift__
+                  (CFunc (list 'self 'other)  (none)
+                         (CReturn (CBuiltinPrim 'int-shift
+                                                (list
+                                                 (CId 'self (LocalId))
+                                                 (CBuiltinPrim 'num-
+                                                               (list
+                                                                (make-builtin-num 0)
+                                                                (CId 'other (LocalId)))))))
+                         (some 'int)))
+
+             (def 'int '__invrt__
+                  (CFunc  (list 'self) (none)
+                          (CReturn (CBuiltinPrim 'num-
+                                                 (list
+                                                  (make-builtin-num 0)
+                                                  (CBuiltinPrim 'num+
+                                                                (list (CId 'self (LocalId))
+                                                                      (make-builtin-num
+                                                                       1))))))
+                          (some 'int))))))
 
 (define float-class
   (seq-ops (list
@@ -187,17 +246,6 @@
                                                   (CId 'other (LocalId)))))
                          (some 'num)))
              
-             (def 'num '__invrt__
-                  (CFunc  (list 'self) (none)
-                          (CReturn (CBuiltinPrim 'num-
-                                                 (list 
-                                                  (make-builtin-num 0) 
-                                                  (CBuiltinPrim 'num+
-                                                                (list (CId 'self (LocalId)) 
-                                                                      (make-builtin-num
-                                                                       1))))))
-                          (some 'num)))
-             
              (def 'num '__abs__
                   (CFunc (list 'self) (none)
                          (CIf (CBuiltinPrim 'num< 
@@ -231,3 +279,22 @@
                                                   (CId 'other (LocalId)))))
                          (some 'num))))))
 
+(define (int-and args env sto)
+  (check-types-pred args env sto MetaNum? MetaNum?
+                        (some (make-builtin-numv (bitwise-and (MetaNum-n mval1)
+                                                              (MetaNum-n mval2))))))
+
+(define (int-or args env sto)
+  (check-types-pred args env sto MetaNum? MetaNum?
+                        (some (make-builtin-numv (bitwise-ior (MetaNum-n mval1)
+                                                              (MetaNum-n mval2))))))
+
+(define (int-xor args env sto)
+  (check-types-pred args env sto MetaNum? MetaNum?
+                        (some (make-builtin-numv (bitwise-xor (MetaNum-n mval1)
+                                                              (MetaNum-n mval2))))))
+
+(define (int-shift args env sto)
+  (check-types-pred args env sto MetaNum? MetaNum?
+                    (some (make-builtin-numv (arithmetic-shift (MetaNum-n mval1)
+                                                                   (MetaNum-n mval2))))))

@@ -224,7 +224,7 @@
   (let ((pretty (lambda (y) (pretty y sto))))
     (type-case MetaVal mval
       [MetaNum (n) (number->string n)]
-      [MetaStr (s) (string-append "'" (string-append s "'"))]
+      [MetaStr (s) s]
       [MetaClass (c) (string-append "<class "
                                     (string-append (symbol->string c)
                                                    ">"))]
