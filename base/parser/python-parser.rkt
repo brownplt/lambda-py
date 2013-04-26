@@ -8,7 +8,7 @@
          (prefix-in grammar: "python-grammar.rkt"))
 
 #| 
-AST: hash of symbol -> (string | number | AST | #\nul)
+AST: hash of symbol -> (string | number | AST | list of AST | #\nul)
 Values of these will match the ASDL spec at http://docs.python.org/3.2/library/ast.html with the constructor name under the 'nodetype key. The exception is the "SrcLoc" nodetype which is used to wrap ASTs for which we have a specific source location (should include statements and all expressions).
 
 This format matches that produced by python-python-parser.rkt and python-parser.py. The main non-obvious aspect of it is the 'ctx attribute of each expression node, which is determined by the statement type (or by being the target of a generator).
@@ -18,16 +18,6 @@ This format matches that produced by python-python-parser.rkt and python-parser.
 
 (define ast hasheq)
 
-;; AST from pairs in rest, wrapped (if enabled by parser-src-loc) in a SrcLoc AST from the source info in stx
-(define (ast-of-stx stx . rest)
-  (if (parser-src-loc)
-      (ast 'nodetype "SrcLoc"
-           'line (syntax-line stx)
-           'column (syntax-column stx)
-           'position (syntax-position stx)
-           'span (syntax-span stx)
-           'ast (apply ast rest))
-      (apply ast rest)))
 
 #|
 Ragg generates a parse tree in the form of a syntax object, which can look oddly nested because of Python's grammar:
@@ -57,8 +47,21 @@ In order to support source positions, use a bad parody of syntax->datum called s
 (define (parse-python port)
   (destructure-parse (grammar:parse (get-python-lexer port))))
 
-;; This should not "change" during an entire call to file_input->ast, and I'm too lazy to want to rebuild it as an argument to all the calls.
+;; destructure-parse and ast-of-sexp use the get-stx parameter to avoid passing the 
+;; syntax hash around explicitly *a lot*, since it won't change or do anything
+;; interesting during a parse.
 (define get-stx (make-parameter (lambda (s) (error "No syntax object retrieval defined"))))
+
+(define (ast-of-sexp sexp #:end [end #f] . rest)
+  (let ((stx ((get-stx) sexp)))
+    (if (parser-src-loc)
+        (ast 'nodetype "SrcLoc"
+             'line (syntax-line stx)
+             'column (syntax-column stx)
+             'position (syntax-position stx)
+             'span (syntax-span stx)
+             'ast (apply ast rest))
+        (apply ast rest))))
 
 ;; Call into the *->ast chain to turn ragg sexp syntax object into AST
 (define (destructure-parse stx)
@@ -74,9 +77,9 @@ In order to support source positions, use a bad parody of syntax->datum called s
 (define (file-input->ast py-ragg)
   (match py-ragg
     [(list 'file_input stmts ...)
-     (ast-of-stx ((get-stx) py-ragg)
-                 'nodetype "Module"
-                 'body (flatten (map stmt->ast-list stmts)))]
+     (ast-of-sexp py-ragg
+                  'nodetype "Module"
+                  'body (flatten (map stmt->ast-list stmts)))]
     [_ (error-at-syntax ((get-stx) py-ragg) "Only file_input is supported.")]))
 
 #|
@@ -109,97 +112,114 @@ In order to support source positions, use a bad parody of syntax->datum called s
      (non-simple-stmt->ast stmt)]
 
     [(list 'yield_stmt expr)
-     (ast 'nodetype "Expr"
-          'value (expr->ast expr "Load"))]
+     (ast-of-sexp py-ragg
+                 'nodetype "Expr"
+                 'value (expr->ast expr "Load"))]
 
     [(list 'continue_stmt "continue") 
-     (ast 'nodetype "Continue")]
+     (ast-of-sexp py-ragg
+                  'nodetype "Continue")]
     
     [(list 'break_stmt "break")
-     (ast 'nodetype "Break")]
+     (ast-of-sexp py-ragg
+                  'nodetype "Break")]
     
     ;; TODO: Allow only assignments to those allowed by 
     ;; http://docs.python.org/3.2/reference/simple_stmts.html#assignment-statements
     [(list 'expr_stmt testlist (list 'augassign op) val)
-     (ast 'nodetype "AugAssign"
-          'op (ast 'nodetype (case op 
-                               [("+=") "Add"]
-                               [("-=") "Sub"]
-                               [("*=") "Mult"]
-                               [("/=") "Div"]
-                               [("%=") "Mod"]
-                               [("&=") "BitAnd"]
-                               [("|=") "BitOr"]
-                               [("^=") "BitXor"]
-                               [(">>=") "RShift"]
-                               [("<<=") "LShift"]
-                               [("**=") "Pow"]
-                               [("//=") "FloorDiv"]
-                               [else (error "Unrecognized augassign op")]))
-          'target (expr->ast testlist "Store")
-          'value (expr->ast val "Load"))]
+     (ast-of-sexp py-ragg
+                  'nodetype "AugAssign"
+                  'op (ast 'nodetype (case op 
+                                       [("+=") "Add"]
+                                       [("-=") "Sub"]
+                                       [("*=") "Mult"]
+                                       [("/=") "Div"]
+                                       [("%=") "Mod"]
+                                       [("&=") "BitAnd"]
+                                       [("|=") "BitOr"]
+                                       [("^=") "BitXor"]
+                                       [(">>=") "RShift"]
+                                       [("<<=") "LShift"]
+                                       [("**=") "Pow"]
+                                       [("//=") "FloorDiv"]
+                                       [else (error "Unrecognized augassign op")]))
+                  'target (expr->ast testlist "Store")
+                  'value (expr->ast val "Load"))]
 
     [`(expr_stmt ,clauses ...)
      (define (more-clauses clauses targets)
        (match clauses
          [`(,val) (if (null? targets)
-                     (ast 'nodetype "Expr"
-                          'value (expr->ast val "Load"))
-                     (ast 'nodetype "Assign"
-                          'value (expr->ast val "Load")
-                          'targets (reverse targets)))]
+                      (ast-of-sexp py-ragg
+                                   'nodetype "Expr"
+                                   'value (expr->ast val "Load"))
+                      (ast-of-sexp py-ragg
+                                   'nodetype "Assign"
+                                   'value (expr->ast val "Load")
+                                   'targets (reverse targets)))]
          [`(,target "=" ,rest ...)
           (more-clauses rest (cons (expr->ast target "Store")
                                    targets))]))
      (more-clauses clauses '())]
 
     [(list 'return_stmt "return" val)
-     (ast 'nodetype "Return"
-          'value (expr->ast val "Load"))]
+     (ast-of-sexp py-ragg
+                  'nodetype "Return"
+                  'value (expr->ast val "Load"))]
 
     [(list 'return_stmt "return")
-     (ast 'nodetype "Return"
-          'value #\nul)]
+     (ast-of-sexp py-ragg 
+                  'nodetype "Return"
+                  'value #\nul)]
 
     [(list 'del_stmt "del" expr)
-     (ast 'nodetype "Delete"
-          'targets (exprlist->ast-list expr "Del"))]
+     (ast-of-sexp py-ragg 
+                  'nodetype "Delete"
+                  'targets (exprlist->ast-list expr "Del"))]
 
     [(list 'raise_stmt "raise")
-     (ast 'nodetype "Raise"
-          'exc #\nul
-          'cause #\nul)]
+     (ast-of-sexp py-ragg 
+                  'nodetype "Raise"
+                  'exc #\nul
+                  'cause #\nul)]
 
     [(list 'raise_stmt "raise" exc)
-     (ast 'nodetype "Raise"
-          'exc (expr->ast exc "Load")
-          'cause #\nul)]
+     (ast-of-sexp py-ragg 
+                  'nodetype "Raise"
+                  'exc (expr->ast exc "Load")
+                  'cause #\nul)]
 
     [(list 'raise_stmt "raise" exc "from" inner-exc)
-     (ast 'nodetype "Raise"
-          'exc (expr->ast exc "Load")
-          'cause (expr->ast inner-exc "Load"))]
+     (ast-of-sexp py-ragg 
+                  'nodetype "Raise"
+                  'exc (expr->ast exc "Load")
+                  'cause (expr->ast inner-exc "Load"))]
 
     [(list 'pass_stmt "pass")
-     (ast 'nodetype "Pass")]
-
+     (ast-of-sexp py-ragg 
+                  'nodetype "Pass")]
+    
     [(list 'assert_stmt "assert" expr)
-     (ast 'nodetype "Assert"
-          'test (expr->ast expr "Load")
-          'msg #\nul)]
+     (ast-of-sexp py-ragg 
+                  'nodetype "Assert"
+                  'test (expr->ast expr "Load")
+                  'msg #\nul)]
 
     [(list 'assert_stmt "assert" test-expr "," msg-expr)
-     (ast 'nodetype "Assert"
-          'test (expr->ast test-expr "Load")
-          'msg (expr->ast msg-expr "Load"))]
+     (ast-of-sexp py-ragg 
+                  'nodetype "Assert"
+                  'test (expr->ast test-expr "Load")
+                  'msg (expr->ast msg-expr "Load"))]
 
     [(list 'global_stmt "global" rest ...)
-     (ast 'nodetype "Global"
-          'names (map cdr (every-other rest)))]
+     (ast-of-sexp py-ragg 
+                  'nodetype "Global"
+                  'names (map cdr (every-other rest)))]
 
     [(list 'nonlocal_stmt "nonlocal" rest ...)
-     (ast 'nodetype "Nonlocal"
-          'names (map cdr (every-other rest)))]
+     (ast-of-sexp py-ragg 
+                  'nodetype "Nonlocal"
+                  'names (map cdr (every-other rest)))]
 
     [`(with_stmt "with" ,clauses ... ":" ,with-suite)
      (car
@@ -207,12 +227,13 @@ In order to support source positions, use a bad parody of syntax->datum called s
        (lambda (with_clause inner-ast-list)
          (match with_clause
            [`(with_item ,elt-expr)
-            (list (ast 'nodetype "With"
+            (list (ast-of-sexp with_clause
+                               'nodetype "With"
                        'body inner-ast-list
                        'optional_vars #\nul
                        'context_expr (expr->ast elt-expr "Load")))]
            [`(with_item ,elt-expr "as" ,var-expr)
-            (list (ast 'nodetype "With"
+            (list (ast-of-sexp with_clause 'nodetype "With"
                        'body inner-ast-list
                        'optional_vars (expr->ast var-expr "Store")
                        'context_expr (expr->ast elt-expr "Load")))]
@@ -225,16 +246,20 @@ In order to support source positions, use a bad parody of syntax->datum called s
        (match clauses
          [`() '()]
          [`("elif" ,test ":" ,suite ,rest ...) 
-          (list (ast 'nodetype "If"
-                     'test (expr->ast test "Load")
-                     'body (suite->ast-list suite)
-                     'orelse (more-clauses rest)))]
+          (list (ast-of-sexp (car clauses) ;; TODO: Multiple sexps here, get a SrcLoc from the span of them
+                             #:end rest
+                             ;; Technically we can grab that string... but it's dumb
+                             'nodetype "If"
+                             'test (expr->ast test "Load")
+                             'body (suite->ast-list suite)
+                             'orelse (more-clauses rest)))]
           [`("else" ":" ,suite)
            (suite->ast-list suite)]))
-     (ast 'nodetype "If"
-          'test (expr->ast test "Load")
-          'body (suite->ast-list suite)
-          'orelse (more-clauses rest))]
+     (ast-of-sexp py-ragg
+                  'nodetype "If"
+                  'test (expr->ast test "Load")
+                  'body (suite->ast-list suite)
+                  'orelse (more-clauses rest))]
     
     [`(import_stmt (import_name "import" (dotted_as_names ,names ...)))
      (ast 'nodetype "Import"
