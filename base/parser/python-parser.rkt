@@ -40,26 +40,38 @@ expr: any expression that can be derived starting with testlist_star_expr (proba
 module/trailer/comp-op/suite/decorator etc.: Name matches the grammar LHS (here, their car)
 
 Also, I hope you like quasiquote match patterns. (Sorry.) This should move to syntax objects and syntax-case to support source position eventually.
-
-In order to support source positions, use a bad parody of syntax->datum called syntax->datum+stx-hash to get the same S-expression along with a hash of each pair/list/string to its original syntax object. This produces a lot of functions of the form *->ast with two arguments, but the second is "just" a way to get src-pos information in.
 |#
-
 (define (parse-python port)
   (destructure-parse (grammar:parse (get-python-lexer port))))
+
+
+#|
+Source Location
+
+The abbreviations src-loc and srcloc are used frequently.
+
+In order to support source positions (and not have to rewrite away from racket/match), use a bad parody of syntax->datum called syntax->datum+stx-hash to get the sexp parse tree & a syntax hash. Parse tree is s-expression as returned by syntax->datum applied to a ragg syntax object. The syntax hash is a hash from each list or string in the parse tree (no numbers or atoms) to its original syntax object. Use helper parameter get-stx and constructor ast-of-sexp to get an AST node with source location info.
+|#
 
 ;; destructure-parse and ast-of-sexp use the get-stx parameter to avoid passing the 
 ;; syntax hash around explicitly *a lot*, since it won't change or do anything
 ;; interesting during a parse.
 (define get-stx (make-parameter (lambda (s) (error "No syntax object retrieval defined"))))
 
+;; An AST node with source location info of sexp (via current get-stx, if currect parser-src-loc).
+;; If #:end is also provided, the SrcLoc span reflects the "span" from sexp to end, regardless of nesting.
 (define (ast-of-sexp sexp #:end [end #f] . rest)
-  (let ((stx ((get-stx) sexp)))
+  (let ((stx ((get-stx) sexp))
+        (end-stx (if end ((get-stx) end) #f)))
     (if (parser-src-loc)
         (ast 'nodetype "SrcLoc"
              'line (syntax-line stx)
              'column (syntax-column stx)
              'position (syntax-position stx)
-             'span (syntax-span stx)
+             'span (if end
+                       (+ (- (syntax-position end-stx) (syntax-position stx)) 
+                          (syntax-span end-stx))
+                       (syntax-span stx))
              'ast (apply ast rest))
         (apply ast rest))))
 
@@ -227,13 +239,14 @@ In order to support source positions, use a bad parody of syntax->datum called s
        (lambda (with_clause inner-ast-list)
          (match with_clause
            [`(with_item ,elt-expr)
-            (list (ast-of-sexp with_clause
+            (list (ast-of-sexp py-ragg ;; TODO: More fine-grained placement of these clauses...
                                'nodetype "With"
                        'body inner-ast-list
                        'optional_vars #\nul
                        'context_expr (expr->ast elt-expr "Load")))]
            [`(with_item ,elt-expr "as" ,var-expr)
-            (list (ast-of-sexp with_clause 'nodetype "With"
+            (list (ast-of-sexp py-ragg ;; TODO: ^
+                               'nodetype "With"
                        'body inner-ast-list
                        'optional_vars (expr->ast var-expr "Store")
                        'context_expr (expr->ast elt-expr "Load")))]
@@ -246,14 +259,13 @@ In order to support source positions, use a bad parody of syntax->datum called s
        (match clauses
          [`() '()]
          [`("elif" ,test ":" ,suite ,rest ...) 
-          (list (ast-of-sexp (car clauses) ;; TODO: Multiple sexps here, get a SrcLoc from the span of them
-                             #:end rest
-                             ;; Technically we can grab that string... but it's dumb
+          (list (ast-of-sexp (car clauses) 
+                             #:end py-ragg ;; Span from "elif" to end of entire chain including else
                              'nodetype "If"
                              'test (expr->ast test "Load")
                              'body (suite->ast-list suite)
                              'orelse (more-clauses rest)))]
-          [`("else" ":" ,suite)
+          [`("else" ":" ,suite) ;; TODO: An optional "start" sexp or start location for suites?
            (suite->ast-list suite)]))
      (ast-of-sexp py-ragg
                   'nodetype "If"
@@ -262,18 +274,21 @@ In order to support source positions, use a bad parody of syntax->datum called s
                   'orelse (more-clauses rest))]
     
     [`(import_stmt (import_name "import" (dotted_as_names ,names ...)))
-     (ast 'nodetype "Import"
-          'names (map (lambda (name)
-                        (match name
-                          [`(dotted_as_name ,name) 
-                           (ast 'nodetype "alias"
-                                'name (dotted-name->string name)
-                                'asname #\nul)]
-                          [`(dotted_as_name ,name "as" (name . ,as-name))
-                           (ast 'nodetype "alias"
-                                'name (dotted-name->string name)
-                                'asname as-name)]))
-                      (every-other names)))]
+     (ast-of-sexp py-ragg
+                  'nodetype "Import"
+                  'names (map (lambda (name)
+                                (match name
+                                  [`(dotted_as_name ,name) 
+                                   (ast-of-sexp name
+                                                'nodetype "alias"
+                                                'name (dotted-name->string name)
+                                                'asname #\nul)]
+                                  [`(dotted_as_name ,name "as" (name . ,as-name))
+                                   (ast-of-sexp name
+                                                'nodetype "alias"
+                                                'name (dotted-name->string name)
+                                                'asname as-name)]))
+                              (every-other names)))]
 
     [`(import_stmt (import_from "from" ,maybe-source-name ... "import" ,destinations ...))
      (define (fold-sources sources level name)
@@ -283,45 +298,51 @@ In order to support source positions, use a bad parody of syntax->datum called s
          [`("..." ,rest ...) (fold-sources rest (+ 3 level) name)]
          [`(,dotted-name ,rest ...) (fold-sources rest level (dotted-name->string dotted-name))]
          [_ (display sources) (newline) (error "Unhandled import source")]))
-     (define-values (level source-name) (fold-sources maybe-source-name 0 #\nul))
-     (define (import-as-name->ast name)
-       (match name
+     (define (import-as-name->ast import-as-name)
+       (match import-as-name
          [`(import_as_name (name . ,name))
-          (ast 'nodetype "alias" 
-               'name name
-               'asname #\nul)]
+          (ast-of-sexp import-as-name
+                       'nodetype "alias" 
+                       'name name
+                       'asname #\nul)]
          [`(import_as_name (name . ,name) "as" (name . ,interior-name))
-          (ast 'nodetype "alias"
-               'name name
-               'asname interior-name)]))
-     (ast 'nodetype "ImportFrom"
-          'names (match destinations
-                   [`((import_as_names ,names ...))
-                    (map import-as-name->ast (every-other names))]
-                   [`("(" (import_as_names ,names ...) ")")
-                    (map import-as-name->ast (every-other names))]
-                   [`("*") (list (ast 'nodetype "alias"
-                                      'name "*"
-                                      'asname #\nul))]
-                   [_ (display destinations) (newline) (error "Unmatched import destination")])
-          'level level
-          'module source-name)]
+          (ast-of-sexp import-as-name
+                       'nodetype "alias"
+                       'name name
+                       'asname interior-name)]))
+     (define-values (level source-name) (fold-sources maybe-source-name 0 #\nul))
+     (ast-of-sexp py-ragg
+                  'nodetype "ImportFrom"
+                  'names (match destinations
+                           [`((import_as_names ,names ...))
+                            (map import-as-name->ast (every-other names))]
+                           [`("(" (import_as_names ,names ...) ")")
+                            (map import-as-name->ast (every-other names))]
+                           [`("*") (list (ast ;; no srcloc for now
+                                          'nodetype "alias"
+                                          'name "*"
+                                          'asname #\nul))]
+                           [_ (display destinations) (newline) (error "Unmatched import destination")])
+                  'level level
+                  'module source-name)]
 
     [`(try_stmt "try" ":" ,try-suite ,rest ...)
      (local ((define (more-clauses lst handler-ast-list orelse-ast-list finalbody-ast-list)
                (if (null? lst)
                    (let ((try-except-ast 
-                          (ast 'nodetype "TryExcept"
-                               'body (suite->ast-list try-suite)
-                               'orelse orelse-ast-list
-                               'handlers (reverse handler-ast-list))))
+                          (ast-of-sexp py-ragg
+                                       'nodetype "TryExcept"
+                                       'body (suite->ast-list try-suite)
+                                       'orelse orelse-ast-list
+                                       'handlers (reverse handler-ast-list))))
                      (if (null? finalbody-ast-list) 
                          try-except-ast
-                         (ast 'nodetype "TryFinally"
-                              'body (if (null? handler-ast-list)
-                                        (suite->ast-list try-suite)
-                                        (list try-except-ast))
-                              'finalbody finalbody-ast-list)))
+                         (ast-of-sexp py-ragg
+                                      'nodetype "TryFinally"
+                                      'body (if (null? handler-ast-list)
+                                                (suite->ast-list try-suite)
+                                                (list try-except-ast))
+                                      'finalbody finalbody-ast-list)))
                    (match lst
                      [`("finally" ":" ,finally-suite ,rest ...)
                       (more-clauses rest
@@ -341,43 +362,47 @@ In order to support source positions, use a bad parody of syntax->datum called s
                           [`() (values #\nul #\nul)]))
                       (more-clauses rest
                                     (cons 
-                                     (ast 'nodetype "ExceptHandler"
-                                          'body (suite->ast-list handler-suite) 
-                                          'name error-name
-                                          'type test-ast)
+                                     (ast-of-sexp (car lst) #:end handler-suite
+                                                  'nodetype "ExceptHandler"
+                                                  'body (suite->ast-list handler-suite) 
+                                                  'name error-name
+                                                  'type test-ast)
                                      handler-ast-list)
                                     orelse-ast-list
                                     finalbody-ast-list)]))))
             (more-clauses rest '() '() '()))]
 
     [`(while_stmt "while" ,test-expr ":" ,body-suite ,maybe-else ...)
-     (ast 'nodetype "While"
-          'test (expr->ast test-expr "Load")
-          'orelse (match maybe-else
-                    [`("else" ":" ,else-suite) (suite->ast-list else-suite)]
-                    [`() '()])
-          'body (suite->ast-list body-suite))]
+     (ast-of-sexp py-ragg
+                  'nodetype "While"
+                  'test (expr->ast test-expr "Load")
+                  'orelse (match maybe-else
+                            [`("else" ":" ,else-suite) (suite->ast-list else-suite)]
+                            [`() '()])
+                  'body (suite->ast-list body-suite))]
 
     [`(for_stmt "for" ,bound-list "in" ,expr-list ":" ,body-suite ,maybe-else ...)
-     (ast 'nodetype "For"
-          'iter (expr->ast expr-list "Load")
-          'target (exprlist->ast bound-list "Store")
-          'body (suite->ast-list body-suite)
-          'orelse (match maybe-else
-                    [`("else" ":" ,else-suite) (suite->ast-list else-suite)]
-                    [`() '()]))]
+     (ast-of-sexp py-ragg
+                  'nodetype "For"
+                  'iter (expr->ast expr-list "Load")
+                  'target (exprlist->ast bound-list "Store")
+                  'body (suite->ast-list body-suite)
+                  'orelse (match maybe-else
+                            [`("else" ":" ,else-suite) (suite->ast-list else-suite)]
+                            [`() '()]))]
 
     [`(funcdef "def" 
                (name . ,name) 
                ,parameters ,maybe-annotation ... ":" ,suite)
-     (ast 'nodetype "FunctionDef"
-          'body (suite->ast-list suite)
-          'args (build-formals (parameters->arg-sexp parameters))
-          'name name
-          'returns (match maybe-annotation
-                     [`() #\nul]
-                     [`("->" ,anno) (expr->value-ast anno)])  
-          'decorator_list '())]
+     (ast
+                  'nodetype "FunctionDef"
+                  'body (suite->ast-list suite)
+                  'args (build-formals (parameters->arg-sexp parameters))
+                  'name name
+                  'returns (match maybe-annotation
+                             [`() #\nul]
+                             [`("->" ,anno) (expr->value-ast anno)])  
+                  'decorator_list '())]
 
     [`(decorated
        (decorators 

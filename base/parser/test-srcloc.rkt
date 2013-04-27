@@ -34,18 +34,18 @@
 (define (check-src-loc parsed-prog path line column position span)
   (let ((target-ast (follow-parse-path parsed-prog path)))
     (check-equal? "SrcLoc" (hash-ref target-ast 'nodetype) "Not a SrcLoc")
-    (check-equal? position (hash-ref target-ast 'position) "Incorrect SrcLoc position")
-    (check-equal? line (hash-ref target-ast 'line) "Incorrect SrcLoc line")
-    (check-equal? column (hash-ref target-ast 'column) "Incorrect SrcLoc column")
-    (check-equal? span (hash-ref target-ast 'span) "Incorrect SrcLoc span")))
+    (check-equal? (map (lambda (k) (hash-ref target-ast k))
+                       '(line column position span))
+                  (list line column position span))))
 
-;; Line is 1-based
-;; Column is 0-based
-;; Position is 1-based
-;; Span: Statements with suites will end with the last possible terminating newline, I believe. Not yet checked.
+;; Line: 1-based line number of start of construct
+;; Column: 0-based character offset into line
+;; Position: 1-based character offset into file
+;; Span: Statements with suites will end with the first newline after the last stmt
+;; or the last token before EOF. Some here strings have extra newlines to keep this
+;; straightforward.
 
-;; Note: These don't really belong in test-begin. I should rebuild check-src-loc as a 
-;; define-check that explicitly checks all four numbers at once...
+;; Note: These don't really belong in test-begin. Will fix once I take time to get RackUnit.
 
 (test-begin 
  "Test that in-def statements parse with expected source locations"
@@ -73,9 +73,108 @@
    
 (test-begin
  "Test srcloc of some bare simple statements"
- (let ((prog (parse "del a;raise;raise b from c")))
+ (let ((prog (parse "del a;raise;raise b from c;assert True")))
    (check-src-loc prog '(("Module" body 0)) 1 0 1 5)
    (check-src-loc prog '(("Module" body 1)) 1 6 7 5)
    (check-src-loc prog '(("Module" body 2)) 1 12 13 14)
+   (check-src-loc prog '(("Module" body 3)) 1 27 28 11)
 ))
 
+(test-begin
+ "Global, nonlocal & pass"
+ (let ((prog (parse 
+#<<EOF
+def f():
+  y = 0
+  def g():global x;nonlocal y
+  def h():pass
+EOF
+))) ;; This depends on the source here retaining spaces and Unix newlines
+   (check-src-loc prog '(("Module" body 0) ("FunctionDef" body 1) ("FunctionDef" body 0)) 3 10 28 8)
+   (check-src-loc prog '(("Module" body 0) ("FunctionDef" body 1) ("FunctionDef" body 1)) 3 19 37 10)
+   (check-src-loc prog '(("Module" body 0) ("FunctionDef" body 2) ("FunctionDef" body 0)) 4 10 58 4)
+))
+
+(test-begin
+ "Single and multi-line with"
+ (let ((prog (parse
+#<<EOF
+with a:pass
+with b, c as d:
+  pass
+
+EOF
+)))
+  (check-src-loc prog '(("Module" body 0)) 1 0 1 12) ;; 12 here: suite -> simple_stmt which includes newline
+  (check-src-loc prog '(("Module" body 1)) 2 0 13 23) ;; 2nd with statement - entire
+  (check-src-loc prog '(("Module" body 1) ("With" body 0)) 2 0 13 23) ;; 2nd with statement - second clause.
+  ;; Same as the whole statement. This is "correct" for now.
+))
+
+(test-begin
+ "if, elif and else"
+ (let ((prog (parse
+#<<EOF
+if a: pass
+elif b: pass
+else: pass
+
+EOF
+)))
+   (check-src-loc prog '(("Module" body 0)) 1 0 1 35) ;; if
+   (check-src-loc prog '(("Module" body 0) ("If" orelse 0)) 2 0 12 24) ;; elif
+   ;; Else clause has no specific tracking for now, as there's nowhere to put it...
+))   
+
+(test-begin
+ "Import, ImportFrom and individual names in ImportFrom"
+ (let ((prog (parse "from a import b as c;import d")))
+   (check-src-loc prog '(("Module" body 0)) 1 0 1 20)  ;; from...import
+   (check-src-loc prog '(("Module" body 1)) 1 21 22 8) ;; import...
+   (check-src-loc prog '(("Module" body 0) ("ImportFrom" names 0)) 1 14 15 6) ;; b as c
+))
+
+(test-begin
+ "Try with except, else, finally"
+ (let ((prog (parse
+#<<EOF
+try: pass
+except p: pass
+except q: pass
+except: pass
+else: pass
+finally: pass
+
+try: pass
+except: pass
+
+EOF
+)))
+   (check-src-loc prog '(("Module" body 0)) 1 0 1 78) ;; Entire first try
+   (check-src-loc prog '(("Module" body 0) ("TryFinally" body 0) ("TryExcept" handlers 0))
+                        2 0 11 15) ;; except p
+   (check-src-loc prog '(("Module" body 0) ("TryFinally" body 0) ("TryExcept" handlers 2))
+                        4 0 41 13) ;; except
+   
+   (check-src-loc prog '(("Module" body 1)) 8 0 80 23) ;; Entire second try
+   (check-src-loc prog '(("Module" body 1) ("TryExcept" handlers 0)) 9 0 90 13) ;; except
+   
+   ;; else/finally don't have an AST, so no special SrcLoc for now...
+))
+
+(test-begin
+ "While and for loops"
+ (let ((prog (parse
+#<<EOF
+while True:pass
+for a in b:pass
+for c in d:pass
+else: pass
+
+EOF
+)))
+   (check-src-loc prog '(("Module" body 0)) 1 0 1 16)
+   (check-src-loc prog '(("Module" body 1)) 2 0 17 16)
+   (check-src-loc prog '(("Module" body 2)) 3 0 33 27)
+))
+       
