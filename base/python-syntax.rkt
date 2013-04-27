@@ -22,6 +22,7 @@
   [PyExceptAs (types : (listof PyExpr)) (name : symbol) (body : PyExpr)]
   [PyTryExceptElse (try : PyExpr) (except : (listof PyExpr)) (orelse : PyExpr)]
   [PyTryFinally (try : PyExpr) (finally : PyExpr)]
+  [PyWith (context : PyExpr) (target : (optionof PyExpr)) (body : PyExpr)]
 
   ; yield
   [PyYield (expr : PyExpr)]

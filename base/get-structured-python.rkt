@@ -345,6 +345,16 @@ structure that you define in python-syntax.rkt
            [orelse (get-structured-python else-expr)])
        (PyTryExceptElse try excepts orelse))]
 
+    [(hash-table ('nodetype "With")
+                 ('body body)
+                 ('context_expr context)
+                 ('optional_vars target))
+     (PyWith (get-structured-python context)
+             (if (equal? target #\nul)
+                (none)
+                (some (get-structured-python target)))
+             (get-structured-python body))]
+
     [(hash-table ('nodetype "Break")) (PyBreak)]
 
     [(hash-table ('nodetype "Continue")) (PyContinue)]

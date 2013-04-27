@@ -69,6 +69,8 @@
               [PyTryFinally (try finally)
                             (LexTryFinally (recur try)
                                            (recur finally))]
+              [PyWith (context target body)
+                      (LexPass)] ;; just ignored for now
               ; yield
               [PyYield (expr) (LexYield (recur expr))]
                                         ;loops 
@@ -311,6 +313,8 @@
                             (flatten (list
                                        (list (recur try))
                                        (list (recur finally))))]
+              [PyWith (context target body)
+                      (list)] ;; just ignored for now
               ; yield
               [PyYield (expr) (flatten (recur expr))]
 
