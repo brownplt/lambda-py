@@ -555,6 +555,9 @@
       [LexExcept (types body) (error 'desugar "should not encounter LexExcept!")]
       [LexExceptAs (types name body) (error 'desugar "should not encounter LexExcept!")]
 
+      [LexWith (context target body)
+               (CNone)] ;; just ignored for now
+
       [LexWhile (test body orelse) (CWhile (rec-desugar test)
                                            (rec-desugar body)
                                            (rec-desugar orelse))]
