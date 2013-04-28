@@ -3,6 +3,8 @@
 (require rackunit
          "python-parser.rkt")
 
+;; Emacs help writing these: https://gist.github.com/jmillikan/5478028
+
 ;; follow-parse-path is for retrieveing a specific interior AST from a parse.
 ;; Follow a "path" where each step is an AST type and key (and index if value at key is an AST list)
 ;; Unwrap SrcLoc ASTs unless at the end of the path
@@ -33,7 +35,7 @@
 ;; Check for SrcLoc AST found found at 'path' in AST 'parsed-prog' with given attributes
 (define (check-src-loc parsed-prog path line column position span)
   (let ((target-ast (follow-parse-path parsed-prog path)))
-    (check-equal? "SrcLoc" (hash-ref target-ast 'nodetype) "Not a SrcLoc")
+    (check-equal? (hash-ref target-ast 'nodetype) "SrcLoc" "Not a SrcLoc")
     (check-equal? (map (lambda (k) (hash-ref target-ast k))
                        '(line column position span))
                   (list line column position span))))
@@ -49,7 +51,14 @@
 
 (test-begin 
  "Test that in-def statements parse with expected source locations"
- (let ((prog (parse "def f():\n  yield 1\n  return\n  return True")))
+ (let ((prog (parse 
+#<<EOF
+def f():
+  yield 1
+  return
+  return True
+EOF
+)))
    (check-src-loc prog '(("Module" body 0) ("FunctionDef" body 0)) 2 2 12 7)
    (check-src-loc prog '(("Module" body 0) ("FunctionDef" body 1)) 3 2 22 6)
    (check-src-loc prog '(("Module" body 0) ("FunctionDef" body 2)) 4 2 31 11)
@@ -177,4 +186,51 @@ EOF
    (check-src-loc prog '(("Module" body 1)) 2 0 17 16)
    (check-src-loc prog '(("Module" body 2)) 3 0 33 27)
 ))
-       
+
+(test-begin
+ "Functions, decorated functions, arguments and individual arguments, and lambda arguments (unfortunately)"
+ (let ((prog (parse
+#<<EOF
+def f(a):pass
+@g
+def h(b):pass
+lambda x:True
+EOF
+)))
+   (check-src-loc prog '(("Module" body 0)) 1 0 1 14) ;; f
+   ;; "arguments" ast spans entire function
+   (check-src-loc prog '(("Module" body 0) ("FunctionDef" args)) 1 0 1 14) 
+   (check-src-loc prog '(("Module" body 0) ("FunctionDef" args) ("arguments" args 0))
+                  1 6 7 1) ;; a
+
+   (check-src-loc prog '(("Module" body 1)) 2 0 15 17) ;; h, including decorators
+   ;; "arguments", again, maches entire def AST, including decorators
+   (check-src-loc prog '(("Module" body 1) ("FunctionDef" args)) 2 0 15 17)
+   (check-src-loc prog '(("Module" body 1) ("FunctionDef" args) ("arguments" args 0))
+                  3 6 24 1) ;; b
+
+   (check-src-loc prog '(("Module" body 2) ("Expr" value) ("Lambda" args))
+             4 0 32 13)
+   ;; lambdas aren't covered yet (4/28/13) but their arguments are...
+))
+
+(test-begin
+ "Classes, decorated classes, 'args' to classes"
+ (let ((prog (parse
+#<<EOF
+class x(y,z=a,*b,**c): pass
+@k()
+@l
+class d(e): pass
+
+EOF
+)))
+   (check-src-loc prog '(("Module" body 0)) 1 0 1 28) ;; class x
+   (check-src-loc prog '(("Module" body 1)) 2 0 29 25) ;; class d
+   ;; decorator call to k - includes newline
+   (check-src-loc prog '(("Module" body 1) ("ClassDef" decorator_list 0)) 2 0 29 5)
+   ;; decorator l (name only) - only includes name. This is not ideal wrt other decorators...
+   (check-src-loc prog '(("Module" body 1) ("ClassDef" decorator_list 1)) 3 1 35 1)
+   ;; TODO: Optional check for final (unwrapped) AST nodetype in check-src-loc, for readability and least surprise
+))
+

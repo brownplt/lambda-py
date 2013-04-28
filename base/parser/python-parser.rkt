@@ -7,59 +7,39 @@
          "stx-util.rkt"
          (prefix-in grammar: "python-grammar.rkt"))
 
+;; TODO: Ensure "Both parsers fail" for illegal syntax that the grammar allows (exprs that can't be assigned, bare generators in argument lists with other args, ???)
+
 #| 
 AST: hash of symbol -> (string | number | AST | list of AST | #\nul)
 Values of these will match the ASDL spec at http://docs.python.org/3.2/library/ast.html with the constructor name under the 'nodetype key. The exception is the "SrcLoc" nodetype which is used to wrap ASTs for which we have a specific source location (should include statements and all expressions).
 
 This format matches that produced by python-python-parser.rkt and python-parser.py. The main non-obvious aspect of it is the 'ctx attribute of each expression node, which is determined by the statement type (or by being the target of a generator).
-|#
 
-(define parser-src-loc (make-parameter #f))
-
-(define ast hasheq)
-
-
-#|
-Ragg generates a parse tree in the form of a syntax object, which can look oddly nested because of Python's grammar:
-
-Example:
-(syntax->datum (parse '(NAME NEWLINE)))
-'(file_input
-  (stmt
-   (simple_stmt
-    (small_stmt
-     (expr_stmt
-      (testlist (test (or_test (and_test (not_test (comparison (expr (xor_expr (and_expr (shift_expr (arith_expr (term (factor (power (atom NAME)))))))))))))))))
-    NEWLINE)))
-
-Most of this nesting is handled by the first clauses of expr->ast and non-simple-stmt->ast.
+Sexp: In this file, sexp refers to the syntax->datum conversion of the parse tree output from Ragg. Ragg generates a parse tree in the form of a syntax object, which can look oddly nested because of Python's grammar. Inspect (syntax->datum (grammar:parse '(NAME NEWLINE))) for instance. Most of this nesting is handled by the first clauses of expr->ast and non-simple-stmt->ast.
 
 Grammar LHS pseudo-types used in function names:
 stmt: any expression that can be derived starting with stmt - Python's statements
 expr: any expression that can be derived starting with testlist_star_expr (probably) - Python's expression language
 module/trailer/comp-op/suite/decorator etc.: Name matches the grammar LHS (here, their car)
 
-Also, I hope you like quasiquote match patterns. (Sorry.) This should move to syntax objects and syntax-case to support source position eventually.
+Source Location: There's no datatype for this. Instead, it is converted from syntax objects, looked up by ragg sexps using (get-stx), to SrcLoc AST nodes wrapping AST nodes within that sourc elocation "span". The abbreviations srcpos, src-pos, srcloc and src-loc have all been used.
 |#
+
+(define parser-src-loc (make-parameter #f))
+
+(define ast hasheq)
+
 (define (parse-python port)
   (destructure-parse (grammar:parse (get-python-lexer port))))
-
-
-#|
-Source Location
-
-The abbreviations src-loc and srcloc are used frequently.
-
-In order to support source positions (and not have to rewrite away from racket/match), use a bad parody of syntax->datum called syntax->datum+stx-hash to get the sexp parse tree & a syntax hash. Parse tree is s-expression as returned by syntax->datum applied to a ragg syntax object. The syntax hash is a hash from each list or string in the parse tree (no numbers or atoms) to its original syntax object. Use helper parameter get-stx and constructor ast-of-sexp to get an AST node with source location info.
-|#
 
 ;; destructure-parse and ast-of-sexp use the get-stx parameter to avoid passing the 
 ;; syntax hash around explicitly *a lot*, since it won't change or do anything
 ;; interesting during a parse.
 (define get-stx (make-parameter (lambda (s) (error "No syntax object retrieval defined"))))
 
-;; An AST node with source location info of sexp (via current get-stx, if currect parser-src-loc).
+;; An AST node with source location info of sexp (via current get-stx)
 ;; If #:end is also provided, the SrcLoc span reflects the "span" from sexp to end, regardless of nesting.
+;; If not (parser-src-loc), the AST is returned bare for testing against Python's parser.
 (define (ast-of-sexp sexp #:end [end #f] . rest)
   (let ((stx ((get-stx) sexp))
         (end-stx (if end ((get-stx) end) #f)))
@@ -77,6 +57,8 @@ In order to support source positions (and not have to rewrite away from racket/m
 
 ;; Call into the *->ast chain to turn ragg sexp syntax object into AST
 (define (destructure-parse stx)
+  ;; syntax->datum+stx-hash provides get-stx, which is an eq? hash from the ragg sexp
+  ;; to their original syntax objects.
   (let-values (((datum src-hash) (syntax->datum+stx-hash stx)))
     (parameterize [(get-stx (lambda (s) (hash-ref src-hash s)))]
       (file-input->ast datum))))
@@ -394,10 +376,12 @@ In order to support source positions (and not have to rewrite away from racket/m
     [`(funcdef "def" 
                (name . ,name) 
                ,parameters ,maybe-annotation ... ":" ,suite)
-     (ast
+     (ast-of-sexp py-ragg
                   'nodetype "FunctionDef"
                   'body (suite->ast-list suite)
-                  'args (build-formals (parameters->arg-sexp parameters))
+                  'args (build-formals 
+                         py-ragg #f ;; straight to ast-of-sexp...
+                         (parameters->arg-sexp parameters))
                   'name name
                   'returns (match maybe-annotation
                              [`() #\nul]
@@ -410,13 +394,16 @@ In order to support source positions (and not have to rewrite away from racket/m
        (funcdef "def"
                 (name . ,func-name)
                 ,parameters ":" ,suite))
-     (ast 'nodetype "FunctionDef"
-          'body (suite->ast-list suite)
-          'args (build-formals (parameters->arg-sexp parameters))
-          'name func-name
-          'returns #\nul
-          'decorator_list 
-          (map decorator->ast decorators))]
+     (ast-of-sexp py-ragg
+                  'nodetype "FunctionDef"
+                  'body (suite->ast-list suite)
+                  'args (build-formals 
+                         py-ragg #f ;; straight to ast-of-sexp...
+                         (parameters->arg-sexp parameters))
+                  'name func-name
+                  'returns #\nul
+                  'decorator_list 
+                  (map decorator->ast decorators))]
 
     [`(classdef "class" (name . ,name) ,maybe-args ... ":" ,suite)
      (build-call (match maybe-args
@@ -424,14 +411,15 @@ In order to support source positions (and not have to rewrite away from racket/m
                    [`("(" ")") '()]
                    [`() '()])
                  (lambda (posargs keywords kwarg stararg)
-                              (ast 'nodetype "ClassDef"
-                                   'body (suite->ast-list suite)
-                                   'bases posargs
-                                   'name name
-                                   'decorator_list '()
-                                   'kwargs kwarg
-                                   'starargs stararg
-                                   'keywords keywords)))]
+                              (ast-of-sexp py-ragg
+                                           'nodetype "ClassDef"
+                                           'body (suite->ast-list suite)
+                                           'bases posargs
+                                           'name name
+                                           'decorator_list '()
+                                           'kwargs kwarg
+                                           'starargs stararg
+                                           'keywords keywords)))]
 
     [`(decorated
        (decorators 
@@ -442,14 +430,15 @@ In order to support source positions (and not have to rewrite away from racket/m
                    [`("(" ")") '()]
                    [`() '()])
                  (lambda (posargs keywords kwarg stararg)
-                              (ast 'nodetype "ClassDef"
-                                   'body (suite->ast-list suite)
-                                   'bases posargs
-                                   'name name
-                                   'decorator_list (map decorator->ast decorators)
-                                   'kwargs kwarg
-                                   'starargs stararg
-                                   'keywords keywords)))]
+                              (ast-of-sexp py-ragg
+                                           'nodetype "ClassDef"
+                                           'body (suite->ast-list suite)
+                                           'bases posargs
+                                           'name name
+                                           'decorator_list (map decorator->ast decorators)
+                                           'kwargs kwarg
+                                           'starargs stararg
+                                           'keywords keywords)))]
 
     [_ 
      (display "=== Unhandled grammar ===\n")
@@ -496,9 +485,11 @@ In order to support source positions (and not have to rewrite away from racket/m
 
     [`(,(or 'lambdef 'lambdef_nocond) "lambda" ,maybe-args ... ":" ,expr)
      (ast 'nodetype "Lambda"
-          'args (build-formals (match maybe-args
-                                 [`((varargslist ,args ...)) args]
-                                 [`() '()]))
+          'args (build-formals 
+                 py-ragg #f ;; straight to ast-of-sexp...
+                 (match maybe-args
+                   [`((varargslist ,args ...)) args]
+                   [`() '()]))
           'body (expr->ast expr "Load"))]
 
     [(list 'yield_expr "yield" expr)
@@ -732,8 +723,8 @@ In order to support source positions (and not have to rewrite away from racket/m
             segments)]))
 
 ;; Turn dotted_name rep into expr ast  
-(define (dotted-name->ast name)
-  (match name
+(define (dotted-name->ast ragg-sexp)
+  (match ragg-sexp
     [`(dotted_name (name . ,init-name) ,segments ...)
      (foldl (lambda (name-segment name-ast)
               (match name-segment
@@ -743,9 +734,10 @@ In order to support source positions (and not have to rewrite away from racket/m
                       'ctx (ast 'nodetype "Load")
                       'value name-ast)]
                 ["." name-ast]))
-            (ast 'nodetype "Name"
-                 'ctx (ast 'nodetype "Load")
-                 'id init-name)
+            (ast-of-sexp ragg-sexp
+                         'nodetype "Name"
+                         'ctx (ast 'nodetype "Load")
+                         'id init-name)
             segments)]))
 
 (define (comp-op->ast comp-op)
@@ -846,20 +838,22 @@ In order to support source positions (and not have to rewrite away from racket/m
      (let ((dec-ast (dotted-name->ast dec-name)))
        (match decorator-rest
          [`("NEWLINE") dec-ast]
-         [`("(" ")" "NEWLINE") (ast 'nodetype "Call"
-                                    'args '()
-                                    'keywords '()
-                                    'kwargs #\nul
-                                    'starargs #\nul
-                                    'func dec-ast)]
+         [`("(" ")" "NEWLINE") (ast-of-sexp decorator
+                                            'nodetype "Call"
+                                            'args '()
+                                            'keywords '()
+                                            'kwargs #\nul
+                                            'starargs #\nul
+                                            'func dec-ast)]
          [`("(" (arglist ,args ...) ")" "NEWLINE")
           (build-call args (lambda (args keywords kwarg stararg)
-                             (ast 'nodetype "Call"
-                                  'args args
-                                  'keywords keywords
-                                  'kwargs kwarg
-                                  'starargs stararg
-                                  'func dec-ast)))]
+                             (ast-of-sexp decorator
+                                          'nodetype "Call"
+                                          'args args
+                                          'keywords keywords
+                                          'kwargs kwarg
+                                          'starargs stararg
+                                          'func dec-ast)))]
          [_ (error "Unhandled decorator rest")]))]
     [_ (error "Unhandled decorator")]))
 
@@ -924,7 +918,8 @@ In order to support source positions (and not have to rewrite away from racket/m
   (map (lambda (e) (expr->ast e expr-ctx)) (every-other (cdr lst))))
 
 ;; Currently covers both typedargslist and varargslist
-(define (build-formals args)
+;; Accept start-sexp and end-sexp as args to ast-of-sexp
+(define (build-formals start-sexp end-sexp args) 
   (local (;; This needs either a macro or better taste.
           ;; A bunch of accumulators masquerading as a data structure
           ;; TODO/warning: Some of these fields are asts/ast-lists and some still have to be "parsed"... 
@@ -936,22 +931,24 @@ In order to support source positions (and not have to rewrite away from racket/m
               [`(,_ (name . ,name) ":" ,annotation) (values name (expr->value-ast annotation))]))
           (define (*fpdef->ast n) ;; TODO: Write
             (let-values (((name anno) (fpdef-values n)))
-              (ast 'nodetype "arg"
-                   'annotation anno
-                   'arg name)))
+              (ast-of-sexp n
+                           'nodetype "arg"
+                           'annotation anno
+                           'arg name)))
           (define (formals->ast formals)
             (match-let (((struct Formals (args default-asts vararg-name kwarg-name
                                                kwargs kw-default-asts vararg-annotation kwarg-annotation)) 
                          formals))
-                       (ast 'args (map *fpdef->ast (reverse args))
-                            'defaults (reverse default-asts) ;; Defaults for only optional args
-                            'nodetype "arguments"
-                            'vararg vararg-name
-                            'kwargannotation kwarg-annotation
-                            'kwarg kwarg-name
-                            'varargannotation vararg-annotation
-                            'kw_defaults (reverse kw-default-asts) ;; A default for each kwarg (#\nul if none)
-                            'kwonlyargs (map *fpdef->ast (reverse kwargs)))))
+                       (ast-of-sexp start-sexp #:end end-sexp
+                                    'args (map *fpdef->ast (reverse args))
+                                    'defaults (reverse default-asts) ;; Defaults for only optional args
+                                    'nodetype "arguments"
+                                    'vararg vararg-name
+                                    'kwargannotation kwarg-annotation
+                                    'kwarg kwarg-name
+                                    'varargannotation vararg-annotation
+                                    'kw_defaults (reverse kw-default-asts) ;; A default for each kwarg (#\nul if none)
+                                    'kwonlyargs (map *fpdef->ast (reverse kwargs)))))
           (define (more-args args kw? formals)
             (match args
               [`() 
