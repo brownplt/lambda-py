@@ -69,6 +69,8 @@
               [PyTryFinally (try finally)
                             (LexTryFinally (recur try)
                                            (recur finally))]
+              [PyWith (context target body)
+                      (LexWith (recur context) (option-map recur target) (recur body))]
               ; yield
               [PyYield (expr) (LexYield (recur expr))]
                                         ;loops 
@@ -189,6 +191,8 @@
               [LexTryFinally (try finally)
                              (LexTryFinally (recur try)
                                             (recur finally))]
+              [LexWith (context target body)
+                       (LexWith (recur context) (option-map recur target) (recur body))]
               ; yield
               [LexYield (expr) (LexYield (recur expr))]
                                         ;loops 
@@ -311,6 +315,11 @@
                             (flatten (list
                                        (list (recur try))
                                        (list (recur finally))))]
+              [PyWith (context target body)
+                      (flatten (list (recur context)
+                                     (option->list (option-map recur target))
+                                     (recur body)))]
+
               ; yield
               [PyYield (expr) (flatten (recur expr))]
 
@@ -432,6 +441,11 @@
                              (flatten (list
                                         (list (recur try))
                                         (list (recur finally))))]
+              [LexWith (context target body)
+                       (flatten (list
+                                 (list (recur context))
+                                 (option->list (option-map recur target))
+                                 (list (recur body))))]
               ; yield
               [LexYield (expr) (flatten (recur expr))]
                                         ;loops 

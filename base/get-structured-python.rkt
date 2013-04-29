@@ -278,6 +278,26 @@ structure that you define in python-syntax.rkt
        (get-structured-python elt)
        (map get-structured-python gens))]
 
+    [(hash-table ('nodetype "SetComp")
+                 ('elt elt)
+                 ('generators gens))
+     (PyApp (PyId '%set 'Load)
+            (list (PyListComp
+                   (get-structured-python elt)
+                   (map get-structured-python gens)))
+            (list) (none) (none))]
+
+    [(hash-table ('nodetype "DictComp")
+                 ('key key)
+                 ('value value)
+                 ('generators gens))
+     (PyApp (PyId '%dict 'Load)
+            (list (PyListComp
+                   (PyTuple (list (get-structured-python key)
+                                  (get-structured-python value)))
+                   (map get-structured-python gens)))
+            (list) (none) (none))]
+
     [(hash-table ('nodetype "GeneratorExp")
                  ('elt elt)
                  ('generators gens))
@@ -335,6 +355,16 @@ structure that you define in python-syntax.rkt
            [excepts (map get-structured-python handlers)]
            [orelse (get-structured-python else-expr)])
        (PyTryExceptElse try excepts orelse))]
+
+    [(hash-table ('nodetype "With")
+                 ('body body)
+                 ('context_expr context)
+                 ('optional_vars target))
+     (PyWith (get-structured-python context)
+             (if (equal? target #\nul)
+                (none)
+                (some (get-structured-python target)))
+             (get-structured-python body))]
 
     [(hash-table ('nodetype "Break")) (PyBreak)]
 

@@ -19,7 +19,7 @@
          (typed-in racket/base (format : (string 'a -> string)))
          (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/base (quotient : (number number -> number)))
-         (typed-in racket/base (remainder : (number number -> number)))
+         (typed-in racket/base (expt : (number number -> number)))
          (typed-in racket/base (car : (('a * 'b) -> 'a)))
          (typed-in racket/base (cdr : (('a * 'b) -> 'b)))
          (typed-in racket/list (take : ((listof 'a) number -> (listof 'a))))
@@ -68,6 +68,12 @@ primitives here.
                                                     (* (MetaNum-n mval1) 
                                                        (MetaNum-n mval2))))
                                        (hash empty))))))
+
+(define (num** args env sto)
+  (check-types-pred args env sto MetaNum? MetaNum?
+                        (some (make-builtin-numv (expt (MetaNum-n mval1)
+                                                       (MetaNum-n mval2))))))
+
 (define (num/ args env sto)
     (check-types-pred args env sto MetaNum? MetaNum? 
                         (some (VObject 'num (some (MetaNum 
@@ -141,7 +147,9 @@ primitives here.
   (local [
   (define (prim-error msg op args)
     (mk-exception 'TypeError
-      (string-append msg (string-append (symbol->string op) (format " ~a" args)))
+      (string-append msg
+        (string-append (symbol->string op)
+          (format " ~a" (map (lambda (arg) (pretty arg sto)) args))))
       env
       sto))
   (define (fetch-heads l1 l2)
@@ -199,6 +207,7 @@ primitives here.
     ['num+ (prim-alloc num+ argvs)]
     ['num- (prim-alloc num- argvs)]
     ['num* (prim-alloc num* argvs)]
+    ['num** (prim-alloc num** argvs)]
     ['num/ (prim-alloc num/ argvs)]
     ['num// (prim-alloc num// argvs)]
     ['num% (prim-alloc num% argvs)]
@@ -209,6 +218,10 @@ primitives here.
     ['num<= (prim-noalloc num<= argvs)]
     ['numcmp (prim-alloc numcmp argvs)]
     ['num-str (prim-alloc num-str (fetch-heads argvs argsptrs))]
+    ['int-and (prim-alloc int-and argvs)]
+    ['int-or (prim-alloc int-or argvs)]
+    ['int-xor (prim-alloc int-xor argvs)]
+    ['int-shift (prim-alloc int-shift argvs)]
 
     ;string
     ['str+ (prim-alloc str+ (fetch-heads argvs argsptrs))]

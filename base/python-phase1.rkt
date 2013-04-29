@@ -69,6 +69,10 @@
                                                              (cascade-nonlocal all-args (pre-desugar body)))
                                                    (map pre-desugar decorators)
                                                    (none))))))]
+       [PyListComp (body generators)
+                   (LexBlock empty (LexListComp (pre-desugar body) (map pre-desugar generators)))]
+       [PyGeneratorExp (body generators)
+                       (LexBlock empty (LexGeneratorExp (pre-desugar body) (map pre-desugar generators)))]
        [PyImport (names asnames) 
                  (desugar-pyimport names asnames)]
        
@@ -400,6 +404,10 @@
                                                                    (extract-locals-helper iter)
                                                                    (extract-locals-helper body)
                                                                    (extract-locals-helper orelse)))]
+                  [LexComprehen (target iter ifs) (flatten (list (target-fun target)
+                                                                 (extract-locals-helper target)
+                                                                 (extract-locals-helper iter)
+                                                                 (map extract-locals-helper ifs)))]
                   [PyLexNonLocal (ids) ids]
                   [LexBlock (nls es) empty]
                   [LexExceptAs (types name body) (list name)]
@@ -428,6 +436,9 @@
                                                               (find-all-instance iter)
                                                               (find-all-instance body)
                                                               (find-all-instance orelse)))]
+             [LexComprehen (target iter ifs) (flatten (list (inst-lam target)
+                                                            (find-all-instance iter)
+                                                            (map find-all-instance ifs)))]
              [LexBlock (_ __) empty]
              [else (default-recur)]))))
         (extract-globals expr true))
@@ -492,6 +503,9 @@
                                                                      (recur iter locs)
                                                                      (recur body locs)
                                                                      (recur orelse locs)) ]
+                           [LexComprehen (target iter ifs) (LexComprehen (assign-func target)
+                                                                         (recur iter locs)
+                                                                         (map (lambda (e) (recur e locs)) ifs))]
                            [LexClass (scope name super body) (toplevel x)]
                            [else (default-recur)])))))))
           (recur expr discovered-vars)
@@ -613,6 +627,11 @@
                                                              (extract-locals-helper iter)
                                                              (extract-locals-helper body)
                                                              (extract-locals-helper orelse)))]
+                 [LexComprehen (target iter ifs) (flatten (list
+                                                           (extract-locals-helper target)
+                                                           (targ-fun target)
+                                                           (extract-locals-helper iter)
+                                                           (map extract-locals-helper ifs)))]
                  [LexBlock (nls es) empty]
                  [LexExceptAs (types name body) (list name)]
                  [else (default-recur)]))))

@@ -31,6 +31,7 @@
   [LexTryExceptElse (try : LexExpr) (except : (listof LexExpr))
                           (orelse : LexExpr)]
   [LexTryFinally (try : LexExpr) (finally : LexExpr)]
+  [LexWith (context : LexExpr) (target : (optionof LexExpr)) (body : LexExpr)]
 
   ;yield
   [LexYield (expr : LexExpr)]

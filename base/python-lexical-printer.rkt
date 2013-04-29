@@ -198,6 +198,21 @@
                        (display "\n")
                        this-expr)]
 
+      [LexWith (context target body)
+                     (begin
+                       (display starting-tab)
+                       (display "with ")
+                       (lexexpr-print-helper context "")
+                       (if (some? target)
+                           (begin
+                             (display " as ")
+                             (lexexpr-print-helper (some-v target) ""))
+                           (display ""))
+                       (display ":\n")
+                       (lexexpr-print-helper body (string-append "  " starting-tab))
+                       (display "\n")
+                       this-expr)]
+
       [LexYield (expr) (begin (display starting-tab) (display "yield ") (lexexpr-print-helper expr "") this-expr)]
                                         ;loops 
       [LexWhile (test body orelse)
