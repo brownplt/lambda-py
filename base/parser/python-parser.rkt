@@ -931,7 +931,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
               [`(,_ (name . ,name) ":" ,annotation) (values name (expr->value-ast annotation))]))
           (define (*fpdef->ast n) ;; TODO: Write
             (let-values (((name anno) (fpdef-values n)))
-              (ast ;;-of-sexp n ;; removed to keep get-structured-python simple
+              (ast-of-sexp n ;; removed to keep get-structured-python simple
                            'nodetype "arg"
                            'annotation anno
                            'arg name)))
@@ -939,7 +939,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
             (match-let (((struct Formals (args default-asts vararg-name kwarg-name
                                                kwargs kw-default-asts vararg-annotation kwarg-annotation)) 
                          formals))
-                       (ast ;;-of-sexp start-sexp #:end end-sexp ;; Removed to keep get-structured-python simple for now.
+                       (ast-of-sexp start-sexp #:end end-sexp ;; Removed to keep get-structured-python simple for now.
                                     'args (map *fpdef->ast (reverse args))
                                     'defaults (reverse default-asts) ;; Defaults for only optional args
                                     'nodetype "arguments"

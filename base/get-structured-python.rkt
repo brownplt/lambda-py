@@ -16,34 +16,43 @@ structure that you define in python-syntax.rkt
 
 ;; given a node in json form produce a symbol corresponding to its nodename
 (define (nodetype->symbol nodejson)
-  (string->symbol (hash-ref nodejson 'nodetype)))
+  (string->symbol (ast-ref nodejson 'nodetype)))
 
 (define (parse-func name body decorator-list args)
   (PyFunc (string->symbol name)
           (map (lambda(arg)
-                 (string->symbol (hash-ref arg 'arg)))
-               (hash-ref args 'args))
-          (if (string?  (hash-ref args 'vararg))
-              (some (string->symbol (hash-ref args 'vararg)))
+                 (string->symbol (ast-ref arg 'arg)))
+               (ast-ref args 'args))
+          (if (string?  (ast-ref args 'vararg))
+              (some (string->symbol (ast-ref args 'vararg)))
               (none))
           (map (lambda(arg)
-                 (string->symbol (hash-ref arg 'arg)))
-               (hash-ref args 'kwonlyargs))
-          (if (string?  (hash-ref args 'kwarg))
-              (some (string->symbol (hash-ref args 'kwarg)))
+                 (string->symbol (ast-ref arg 'arg)))
+               (ast-ref args 'kwonlyargs))
+          (if (string?  (ast-ref args 'kwarg))
+              (some (string->symbol (ast-ref args 'kwarg)))
               (none))
           (map get-structured-python
-               (remove #\nul (hash-ref args 'defaults)))
+               (remove #\nul (ast-ref args 'defaults)))
           (map get-structured-python
-               (remove #\nul (hash-ref args 'kw_defaults)))
+               (remove #\nul (ast-ref args 'kw_defaults)))
           (get-structured-python body)
           (map get-structured-python decorator-list)))
 
-;; Instead of building "complete" source location information in the above layer,
-;; it's being built gradually by wrapping in "SrcLoc" AST nodes.
+#| 
+Source locations - see python-parser.rkt
 
-;; Capture the "next one up" in here. Only set in the top case and only used in _ case.
+Source location (line/column/position/span) is being built gradually in the parser by wrapping real AST nodes in "SrcLoc" AST nodes. The "SrcLoc" AST is put in a parameter while walking the tree. Use ast-ref instead of hash-ref to skip "SrcLoc" nodes and get concrete properties.
+|#
+
 (define current-src-pos (make-parameter #f))
+
+;; Get concrete (non-srcloc) property of AST ast identified by key (symbol) by skipping SrcLoc nodes.
+(define (ast-ref ast key)
+  (cond
+   [(equal? "SrcLoc" (hash-ref ast 'nodetype))
+    (ast-ref (hash-ref ast 'ast) key)]
+   [else (hash-ref ast key)]))
 
 (define (get-structured-python pyjson)
   (begin
@@ -129,21 +138,21 @@ structure that you define in python-syntax.rkt
                  ('args args)
                  ('body body))
      (PyLam (map (lambda(arg)
-                   (string->symbol (hash-ref arg 'arg)))
-                 (hash-ref args 'args))
-            (if (string?  (hash-ref args 'vararg))
-                (some (string->symbol (hash-ref args 'vararg)))
+                   (string->symbol (ast-ref arg 'arg)))
+                 (ast-ref args 'args))
+            (if (string?  (ast-ref args 'vararg))
+                (some (string->symbol (ast-ref args 'vararg)))
                 (none))
             (map (lambda(arg)
-                   (string->symbol (hash-ref arg 'arg)))
-                 (hash-ref args 'kwonlyargs))
-            (if (string?  (hash-ref args 'kwarg))
-                (some (string->symbol (hash-ref args 'kwarg)))
+                   (string->symbol (ast-ref arg 'arg)))
+                 (ast-ref args 'kwonlyargs))
+            (if (string?  (ast-ref args 'kwarg))
+                (some (string->symbol (ast-ref args 'kwarg)))
                 (none))
             (map get-structured-python
-                 (remove #\nul (hash-ref args 'defaults)))
+                 (remove #\nul (ast-ref args 'defaults)))
             (map get-structured-python
-                 (remove #\nul (hash-ref args 'kw_defaults)))
+                 (remove #\nul (ast-ref args 'kw_defaults)))
             (get-structured-python body))]
 
     [(hash-table ('nodetype "arguments")
@@ -415,12 +424,12 @@ structure that you define in python-syntax.rkt
                                         ; when asname is empty, `name`
                                         ; will be used as `asname`
      (PyImport (map (lambda (x)
-                      (hash-ref x 'name)) ; name is string type
+                      (ast-ref x 'name)) ; name is string type
                     names)
                (map (lambda (x)
-                      (let ([as (hash-ref x 'asname)])
+                      (let ([as (ast-ref x 'asname)])
                         (if (equal? as #\nul)
-                            (string->symbol (hash-ref x 'name))
+                            (string->symbol (ast-ref x 'name))
                             (string->symbol as))))
                     names))]
     
@@ -431,12 +440,12 @@ structure that you define in python-syntax.rkt
                  ('level level))
      (PyImportFrom module
                    (map (lambda (x)
-                          (hash-ref x 'name))
+                          (ast-ref x 'name))
                         names)
                    (map (lambda (x)
-                          (let ([as (hash-ref x 'asname)])
+                          (let ([as (ast-ref x 'asname)])
                             (if (equal? as #\nul)
-                                (string->symbol (hash-ref x 'name))
+                                (string->symbol (ast-ref x 'name))
                                 (string->symbol as))))
                         names)
                    level)]
