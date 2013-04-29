@@ -197,20 +197,21 @@ def h(b):pass
 lambda x:True
 EOF
 )))
+   ;; TEMP: 'arguments' and 'names' temporarily removed to keep get-structured-python simple
    (check-src-loc prog '(("Module" body 0)) 1 0 1 14) ;; f
    ;; "arguments" ast spans entire function
-   (check-src-loc prog '(("Module" body 0) ("FunctionDef" args)) 1 0 1 14) 
-   (check-src-loc prog '(("Module" body 0) ("FunctionDef" args) ("arguments" args 0))
-                  1 6 7 1) ;; a
+   ;; (check-src-loc prog '(("Module" body 0) ("FunctionDef" args)) 1 0 1 14) 
+   ;; (check-src-loc prog '(("Module" body 0) ("FunctionDef" args) ("arguments" args 0))
+   ;; 1 6 7 1) ;; a
 
    (check-src-loc prog '(("Module" body 1)) 2 0 15 17) ;; h, including decorators
    ;; "arguments", again, maches entire def AST, including decorators
-   (check-src-loc prog '(("Module" body 1) ("FunctionDef" args)) 2 0 15 17)
-   (check-src-loc prog '(("Module" body 1) ("FunctionDef" args) ("arguments" args 0))
-                  3 6 24 1) ;; b
+   ;; (check-src-loc prog '(("Module" body 1) ("FunctionDef" args)) 2 0 15 17)
+   ;;(check-src-loc prog '(("Module" body 1) ("FunctionDef" args) ("arguments" args 0))
+   ;;               3 6 24 1) ;; b
 
-   (check-src-loc prog '(("Module" body 2) ("Expr" value) ("Lambda" args))
-             4 0 32 13)
+   ;; (check-src-loc prog '(("Module" body 2) ("Expr" value) ("Lambda" args))
+   ;; 4 0 32 13)
    ;; lambdas aren't covered yet (4/28/13) but their arguments are...
 ))
 
