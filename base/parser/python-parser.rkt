@@ -7,7 +7,8 @@
          "stx-util.rkt"
          (prefix-in grammar: "python-grammar.rkt"))
 
-;; TODO: Ensure "Both parsers fail" for illegal syntax that the grammar allows (exprs that can't be assigned, bare generators in argument lists with other args, duplicate argument names, etc.) Does not include variable scope.
+;; TODO: Syntax error on...
+;; Duplicate arg names
 
 #| 
 AST: hash of symbol -> (string | number | AST | list of AST | #\nul)
@@ -173,9 +174,9 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
     [(list 'del_stmt "del" expr)
      (ast-of-sexp py-ragg 
                   'nodetype "Delete"
-                  'targets (begin
-                             (validate-assign-target expr)
-                             (exprlist->ast-list expr "Del")))]
+                  'targets (let ((asts (exprlist->ast-list expr "Del")))
+                             (validate-target-list asts)
+                             asts))]
 
     [(list 'raise_stmt "raise")
      (ast-of-sexp py-ragg 
@@ -877,8 +878,8 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
 
 ;; Process arglist and call make-call-ast with args, keywords, kwarg and stararg
 (define (build-call args make-call-ast)
-  (local ((define (more-args args pos-args key-args stararg kwarg)
-            (match args
+  (local ((define (more-args remaining-args pos-args key-args stararg kwarg)
+            (match remaining-args
               [`() (make-call-ast (reverse pos-args) (reverse key-args) kwarg stararg)]
               [`("," ,more ...)
                (more-args more pos-args key-args stararg kwarg)]
@@ -897,14 +898,22 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                              stararg kwarg)]
                  ;; bare generators
                  [`((argument ,expr ,comp_for))
-                  (more-args more 
-                             (cons (build-comprehension comp_for
-                                                        (lambda (generators)
-                                                          (ast 'nodetype "GeneratorExp"
-                                                               'elt (expr->ast expr "Load")
-                                                               'generators generators)))
-                                   pos-args)
-                             key-args stararg kwarg)]
+                  ;; Must be the only argument.
+                  ;; Make sure args is either (_) or (_ ",") where _ is this generator.
+                  ;; This might be... a *little* bit inside out.
+                  (match args
+                    [(or `(,_) `(,_ ","))
+                     (more-args more 
+                                (cons (build-comprehension comp_for
+                                                           (lambda (generators)
+                                                             (ast 'nodetype "GeneratorExp"
+                                                                  'elt (expr->ast expr "Load")
+                                                                  'generators generators)))
+                                      pos-args)
+                                key-args stararg kwarg)]
+                    [_ (error-at-syntax 
+                        ((get-stx) (car arg-parts)) 
+                        "A bare generator cannot be mixed with other arguments.")])]
                  [`((argument ,expr))
                   (more-args more (cons (expr->value-ast expr) pos-args) key-args stararg kwarg)]
                  [_ 
@@ -925,36 +934,51 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
 
 ;; Currently covers both typedargslist and varargslist
 ;; Accept start-sexp and end-sexp as args to ast-of-sexp
+;; and error-sexp as sexp for error-at-syntax
 (define (build-formals start-sexp end-sexp args) 
   (local (;; This needs either a macro or better taste.
           ;; A bunch of accumulators masquerading as a data structure
-          ;; TODO/warning: Some of these fields are asts/ast-lists and some still have to be "parsed"... 
-          (struct Formals (args default-asts vararg-name kwarg-name kwargs kw-default-asts vararg-annotation kwarg-annotation))
+          ;; These are all final AST values - ASTs, AST lists (reversed), strings
+          (struct Formals (args defaults vararg-name kwarg-name kwargs kw-defaults vararg-annotation kwarg-annotation))
           ;; Take an fpdef and return the name string and annotation AST (can be #\nul)
           (define (fpdef-values d)
             (match d
               [`(,_ (name . ,name)) (values name #\nul)]
               [`(,_ (name . ,name) ":" ,annotation) (values name (expr->value-ast annotation))]))
-          (define (*fpdef->ast n) ;; TODO: Write
+          (define (*fpdef->ast n)
             (let-values (((name anno) (fpdef-values n)))
-              (ast-of-sexp n ;; removed to keep get-structured-python simple
+              (ast-of-sexp n
                            'nodetype "arg"
                            'annotation anno
                            'arg name)))
+          ;; formals here is Formals, not a ragg sexp.
           (define (formals->ast formals)
-            (match-let (((struct Formals (args default-asts vararg-name kwarg-name
-                                               kwargs kw-default-asts vararg-annotation kwarg-annotation)) 
+            (match-let (((struct Formals (args defaults vararg-name kwarg-name
+                                               kwargs kw-defaults vararg-annotation kwarg-annotation)) 
                          formals))
-                       (ast-of-sexp start-sexp #:end end-sexp ;; Removed to keep get-structured-python simple for now.
-                                    'args (map *fpdef->ast (reverse args))
-                                    'defaults (reverse default-asts) ;; Defaults for only optional args
+                       (check-names (append* (list kwarg-name vararg-name) (map arg-name kwargs) (map arg-name args) '()))
+                       (ast-of-sexp start-sexp #:end end-sexp
                                     'nodetype "arguments"
+                                    'args (reverse args)
+                                    'defaults (reverse defaults) ;; Defaults for only optional args
                                     'vararg vararg-name
                                     'kwargannotation kwarg-annotation
                                     'kwarg kwarg-name
                                     'varargannotation vararg-annotation
-                                    'kw_defaults (reverse kw-default-asts) ;; A default for each kwarg (#\nul if none)
-                                    'kwonlyargs (map *fpdef->ast (reverse kwargs)))))
+                                    'kw_defaults (reverse kw-defaults) ;; A default for each kwarg (#\nul if none)
+                                    'kwonlyargs (reverse kwargs))))
+
+          (define (arg-name arg)
+            (match arg
+              [(hash-table ('nodetype "SrcLoc") ('ast inner-ast) (_ _) ...) (arg-name inner-ast)]
+              [(hash-table ('nodetype "arg") ('arg name) (_ _) ...) name]))
+
+          ;; Take a list of names that can be a string or #\nul. Error if there are duplicates other than #\nul.
+          (define (check-names lst)
+            (let ((actual-names (remove* '(#\nul) lst)))
+              (unless (equal? actual-names (remove-duplicates actual-names))
+                (error-at-syntax ((get-stx) start-sexp) "Argument names cannot be duplicated."))))
+              
           (define (more-args args kw? formals)
             (match args
               [`() 
@@ -979,24 +1003,24 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                   (more-args rest kw?
                              (if kw?
                                  (struct-copy Formals formals 
-                                              [kwargs (cons fpdef (Formals-kwargs formals))]
-                                              [kw-default-asts
+                                              [kwargs (cons (*fpdef->ast fpdef) (Formals-kwargs formals))]
+                                              [kw-defaults
                                                (cons (expr->ast default-expr "Load") 
-                                                     (Formals-kw-default-asts formals))])
+                                                     (Formals-kw-defaults formals))])
                                  (struct-copy Formals formals 
-                                              [args (cons fpdef (Formals-args formals))]
-                                              [default-asts
+                                              [args (cons (*fpdef->ast fpdef) (Formals-args formals))]
+                                              [defaults
                                                 (cons (expr->ast default-expr "Load") 
-                                                      (Formals-default-asts formals))])))]
+                                                      (Formals-defaults formals))])))]
                  [`(,fpdef)
                   (more-args rest kw?
                              (if kw?
                                  (struct-copy Formals formals 
-                                              [kwargs (cons fpdef (Formals-kwargs formals))]
-                                              [kw-default-asts 
-                                               (cons #\nul (Formals-kw-default-asts formals))])
+                                              [kwargs (cons (*fpdef->ast fpdef) (Formals-kwargs formals))]
+                                              [kw-defaults 
+                                               (cons #\nul (Formals-kw-defaults formals))])
                                  (struct-copy Formals formals 
-                                              [args (cons fpdef (Formals-args formals))])))]
+                                              [args (cons (*fpdef->ast fpdef) (Formals-args formals))])))]
                  [_ (display "=== Unhandled formal argument ===") (newline)
                     (pretty-write args)
                     (error "Unhandled formal argument")])])))
@@ -1056,3 +1080,8 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
          (hash-table ('nodetype "List") ('elts elts) (_ _) ...))
      (andmap (lambda (elt) (validate-assign-target elt #t at-ast)) elts)]
     [_ (error-at-ast at-ast (format "Invalid assignment target, type ~a" (hash-ref ast 'nodetype)))]))
+
+;; This is a bit muddled. It's only for "Del", but calls into validate-*assign*-target...
+(define (validate-target-list ast-list)
+  (map (lambda (a) (validate-assign-target a #f a)) ast-list))
+  
