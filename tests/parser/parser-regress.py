@@ -129,6 +129,16 @@ def f():
 
     v # expr...
 
+    # Allowed assign/augassign/del/generator targets...
+    a = b
+    (c,d) = e
+    [f,g] = h
+    [i,*j,k] = l
+    m.n = o
+    p[q] = r
+    s[t:u:v] = w
+    [] = x
+
     while w: return
     while x: return y
     while z: return a,b

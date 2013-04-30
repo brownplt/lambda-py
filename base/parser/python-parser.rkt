@@ -7,7 +7,7 @@
          "stx-util.rkt"
          (prefix-in grammar: "python-grammar.rkt"))
 
-;; TODO: Ensure "Both parsers fail" for illegal syntax that the grammar allows (exprs that can't be assigned, bare generators in argument lists with other args, ???)
+;; TODO: Ensure "Both parsers fail" for illegal syntax that the grammar allows (exprs that can't be assigned, bare generators in argument lists with other args, duplicate argument names, etc.) Does not include variable scope.
 
 #| 
 AST: hash of symbol -> (string | number | AST | list of AST | #\nul)
@@ -137,7 +137,9 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                                        [("**=") "Pow"]
                                        [("//=") "FloorDiv"]
                                        [else (error "Unrecognized augassign op")]))
-                  'target (expr->ast testlist "Store")
+                  'target (let ((t (expr->ast testlist "Store")))
+                            (validate-assign-target t #f t)
+                            t)
                   'value (expr->ast val "Load"))]
 
     [`(expr_stmt ,clauses ...)
@@ -147,10 +149,12 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                       (ast-of-sexp py-ragg
                                    'nodetype "Expr"
                                    'value (expr->ast val "Load"))
-                      (ast-of-sexp py-ragg
-                                   'nodetype "Assign"
-                                   'value (expr->ast val "Load")
-                                   'targets (reverse targets)))]
+                      (begin
+                        (map (lambda (t) (validate-assign-target t #f t)) targets)
+                        (ast-of-sexp py-ragg
+                                     'nodetype "Assign"
+                                     'value (expr->ast val "Load")
+                                     'targets (reverse targets))))]
          [`(,target "=" ,rest ...)
           (more-clauses rest (cons (expr->ast target "Store")
                                    targets))]))
@@ -169,7 +173,9 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
     [(list 'del_stmt "del" expr)
      (ast-of-sexp py-ragg 
                   'nodetype "Delete"
-                  'targets (exprlist->ast-list expr "Del"))]
+                  'targets (begin
+                             (validate-assign-target expr)
+                             (exprlist->ast-list expr "Del")))]
 
     [(list 'raise_stmt "raise")
      (ast-of-sexp py-ragg 
@@ -658,7 +664,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
     [`(atom "[" "]")
      (ast 'nodetype "List"
           'elts '()
-          'ctx (ast 'nodetype "Load"))]
+          'ctx (ast 'nodetype expr-ctx))]
 
     ;; List comprehension
     [`(atom "[" (testlist_comp ,elt-expr ,(and comp (list 'comp_for _ ...))) "]")
@@ -671,8 +677,8 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
     ;; List literal
     [`(atom "[" (testlist_comp ,exprs ...) "]")
      (ast 'nodetype "List"
-          'ctx (ast 'nodetype "Load")
-          'elts (map expr->value-ast (every-other exprs)))]
+          'ctx (ast 'nodetype expr-ctx)
+          'elts (map (lambda (expr) (expr->ast expr expr-ctx)) (every-other exprs)))]
 
     #| atom paren forms |#
     ;; 0-tuple
@@ -1021,3 +1027,32 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
             (more-clauses more '() target-expr iter-expr '())]
            [_ (error "Argument to build-comprehension must be a comp_for")])))
 
+;; AST should be a SrcLoc AST. Show file position, then msg.
+(define (error-at-ast ast msg)
+  (match ast
+    [(hash-table ('nodetype "SrcLoc")
+                 ('line line)
+                 ('column column)
+                 ('position position)
+                 ('span span)
+                 ('ast _))
+     (error (format "Syntax error, line ~a, column ~a:~n~a" line column msg))]
+    [_
+     (error (format "Syntax error, unknown position:~n~a" msg))]))
+
+;; If the AST is not a valid target for an assignment, error at that AST
+(define (validate-assign-target ast in-list? at-ast)
+  (match ast
+    [(hash-table ('nodetype "SrcLoc") ('ast inner-ast) (_ _) ...) 
+     (validate-assign-target inner-ast in-list? ast)]
+    [(hash-table ('nodetype "Name") (_ _) ...) #t]
+    [(hash-table ('nodetype "Attribute") (_ _) ...) #t]
+    [(hash-table ('nodetype "Subscript") (_ _) ...) #t]
+    [(hash-table ('nodetype "Slice") (_ _) ...) #t] ;; TODO: Determine whether ExtSlice counts
+    [(hash-table ('nodetype "ExtSlice") (_ _) ...) #t]
+    [(hash-table ('nodetype "Starred") (_ _) ...) 
+     (if in-list? #t (error-at-ast at-ast "Starred assignment target must be in list or tuple"))]
+    [(or (hash-table ('nodetype "Tuple") ('elts elts) (_ _) ...)
+         (hash-table ('nodetype "List") ('elts elts) (_ _) ...))
+     (andmap (lambda (elt) (validate-assign-target elt #t at-ast)) elts)]
+    [_ (error-at-ast at-ast (format "Invalid assignment target, type ~a" (hash-ref ast 'nodetype)))]))
