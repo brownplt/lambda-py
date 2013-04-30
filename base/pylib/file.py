@@ -13,8 +13,11 @@ class file:
     def __init__(self, path, mode):
         self.path = path
         self.mode = mode
+        self.closed = False
 
     def read(self, *args):
+        if self.closed:
+            raise ValueError("I/O operation on closed file.")
         ___assign('%str', str)
         if ___delta("num=", args.__len__(), 0):
             return ___delta("file-readall", self, str)
@@ -23,14 +26,27 @@ class file:
             return ___delta("file-read", self, size, str)
 
     def readline(self):
+        if self.closed:
+            raise ValueError("I/O operation on closed file.")
         ___assign('%str', str)
         return ___delta("file-readline", self, str)
 
     def write(self, data):
+        if self.closed:
+            raise ValueError("I/O operation on closed file.")
         return ___delta("file-write", self, data)
 
     def close(self):
+        if self.closed:
+            return
+        self.closed = True
         return ___delta("file-close", self)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
 
     def __str__(self):
         return "<file '" + self.path + "', mode '" + self.mode + "'>"
