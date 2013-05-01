@@ -226,6 +226,48 @@
                           (CTuple (CId '%tuple (GlobalId)) (map rec-desugar kw_defaults)))
                 (CId '$func (LocalId))))))))]))
 
+;; desugar-with: based on the translation in http://www.python.org/dev/peps/pep-0343/
+(define (desugar-with [context : LexExpr] [target : (optionof LexExpr)] [body : LexExpr])
+  (let ([mgr (new-id)]
+        [exit (new-id)]
+        [value (new-id)]
+        [exc (new-id)])
+    (CLet mgr (LocalId) (rec-desugar context)
+      ;; exit = type(mgr).__exit__
+      (CLet exit (LocalId) (py-getfield (CBuiltinPrim '$class (list (CId mgr (LocalId))))
+                                        '__exit__)
+        ;; value = type(mgr).__enter__(mgr)
+        (CLet value (LocalId) (py-app (py-getfield (CBuiltinPrim '$class (list (CId mgr (LocalId))))
+                                                   '__enter__)
+                                      (list (CId mgr (LocalId))) (none))
+          (CLet exc (LocalId) (CTrue)
+            (CTryFinally
+             (CTryExceptElse
+              (rec-desugar
+               ;; target = value, only if as target is present
+               ;; body
+               (if (some? target)
+                   (LexSeq
+                    (list
+                     (LexAssign (option->list target) (LexLocalId value 'Load))
+                     body))
+                   body))
+              '$exc
+              ;; except: the exceptional case is handled here
+              (CSeq (CAssign (CId exc (LocalId)) (CFalse))
+                    (CIf (py-app (CId exit (LocalId))
+                                 (list (CId mgr (LocalId))
+                                       (CBuiltinPrim '$class (list (CId '$exc (LocalId))))
+                                       (CId '$exc (LocalId)) (CNone)) (none))
+                         (CNone)
+                         (CRaise (none))))
+              (CNone))
+             ;; finally: the no exception case is handled here
+             (CIf (CId exc (LocalId))
+                  (py-app (CId exit (LocalId))
+                          (list (CId mgr (LocalId)) (CNone) (CNone) (CNone)) (none))
+                  (CNone)))))))))
+
 (define (rec-desugar [expr : LexExpr] ) : CExpr 
   (begin ;(display expr) (display "\n\n")
     (type-case LexExpr expr
@@ -556,7 +598,7 @@
       [LexExceptAs (types name body) (error 'desugar "should not encounter LexExcept!")]
 
       [LexWith (context target body)
-               (CNone)] ;; just ignored for now
+               (desugar-with context target body)]
 
       [LexWhile (test body orelse) (CWhile (rec-desugar test)
                                            (rec-desugar body)
