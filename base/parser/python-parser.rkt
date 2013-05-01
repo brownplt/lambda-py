@@ -7,9 +7,6 @@
          "stx-util.rkt"
          (prefix-in grammar: "python-grammar.rkt"))
 
-;; TODO: Syntax error on...
-;; Duplicate arg names
-
 #| 
 AST: hash of symbol -> (string | number | AST | list of AST | #\nul)
 Values of these will match the ASDL spec at http://docs.python.org/3.2/library/ast.html with the constructor name under the 'nodetype key. The exception is the "SrcLoc" nodetype which is used to wrap ASTs for which we have a specific source location (should include statements and all expressions).
@@ -75,7 +72,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
      (ast-of-sexp py-ragg
                   'nodetype "Module"
                   'body (flatten (map stmt->ast-list stmts)))]
-    [_ (error-at-syntax ((get-stx) py-ragg) "Only file_input is supported.")]))
+    [_ (error-at-syntax ((get-stx) py-ragg) "Only file_input is supported." #t)]))
 
 #|
   Flowchart of most of the action here. Everything else is minor helpers and
@@ -137,7 +134,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                                        [("<<=") "LShift"]
                                        [("**=") "Pow"]
                                        [("//=") "FloorDiv"]
-                                       [else (error "Unrecognized augassign op")]))
+                                       [else (error-at-syntax ((get-stx) op) (format "Unrecognized augassign op \"~a\"" op) #t)]))
                   'target (let ((t (expr->ast testlist "Store")))
                             (validate-assign-target t #f t)
                             t)
@@ -239,7 +236,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                        'body inner-ast-list
                        'optional_vars (expr->ast var-expr "Store")
                        'context_expr (expr->ast elt-expr "Load")))]
-           [_ (error "Bad with clause")]))
+           [_ (error-at-syntax ((get-stx) with_clause) "Bad with clause" #t)]))
        (suite->ast-list with-suite)
        (reverse (every-other clauses))))]
 
@@ -286,7 +283,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
          [`("." ,rest ...) (fold-sources rest (+ 1 level) name)]
          [`("..." ,rest ...) (fold-sources rest (+ 3 level) name)]
          [`(,dotted-name ,rest ...) (fold-sources rest level (dotted-name->string dotted-name))]
-         [_ (display sources) (newline) (error "Unhandled import source")]))
+         [_ (error-at-syntax ((get-stx) (first sources)) "Error parsing import source" #t)]))
      (define (import-as-name->ast import-as-name)
        (match import-as-name
          [`(import_as_name (name . ,name))
@@ -535,7 +532,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                                           [("&") "BitAnd"]
                                           [("<<") "LShift"]
                                           [(">>") "RShift"]
-                                          [else (error "Bad arith/term op")]))))
+                                          [else (error-at-syntax ((get-stx) op) (format "Bad binary operator \"~a\"" op))]))))
               (expr->ast expr1 expr-ctx)
               ops
               exprs))]
@@ -547,7 +544,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
             'op (ast 'nodetype (case (second rest)
                                  [("or") "Or"] 
                                  [("and") "And"] 
-                                 [else (error "Bad boolean op")]))
+                                 [else (error-at-syntax ((get-stx) (second rest)) "Unrecognized boolean operator")]))
             'values (map (lambda (e) (expr->ast e expr-ctx)) exprs)))]
 
     ;; Set expr-ctx as ctx on last of trailers... Pass "Load" to interiors
@@ -608,18 +605,19 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
     ;; Bytes sequences and string sequences have been matched already...
     [(or (list 'atom (cons 'string str-parts) rest ...)
          (list 'atom (cons 'bytes str-parts) rest ...))
-     (error "Cannot mix string and bytestring literals")]
+     (error-at-syntax ((get-stx) py-ragg) "Cannot mix string and bytestring literals")]
 
     ;; atom TODO: '...' (in lexer)
     ;; Note: True, False, None lexed as names though they're in the grammar used.
     [(list 'atom (cons type val))
      (if (equal? expr-ctx "Store")
-         (error "Cannot store to a literal")
+         ;; Is this now redundant with the assignment checks?
+         (error-at-syntax ((get-stx) py-ragg) "Cannot store to a literal")
          (case type
            [(integer float) (ast 'nodetype "Num" 'n val)]
            [(imaginary) (ast 'nodetype "Num" 
                              'n (ast 'nodetype "Complex" 'value val))]
-           [else (error "Literal not handled yet")]))]
+           [else (error-at-syntax ((get-stx) py-ragg) "Literal value type has not been handled" #t)]))]
 
     #| atom curly brace forms |#
     [`(atom "{" "}")
@@ -709,10 +707,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
     [`(atom "...")
      (ast 'nodetype "Ellipsis")]
 
-    [_ 
-     (display "=== Unhandled expression ===\n")
-     (pretty-write py-ragg)
-     (error (string-append "Unhandled expression"))]))
+    [_ (error-at-syntax ((get-stx) py-ragg) (format "Unhandled parse tree with LHS ~a" (first py-ragg)) #t)]))
 
 ;; A "Load" position convenience, esp for map
 (define (expr->value-ast expr)
@@ -758,7 +753,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
          [`("!=") "NotEq"]
          [`("in") "In"]
          [`("not" "in") "NotIn"]
-         [`("<>") (error "<> operator is not supported.")]
+         [`("<>") (error "<> operator is not supported.")] ; PEP 401. Yes, this is implemented in CPython.
          [`("is") "Is"]
          [`("is" "not") "IsNot"])))
 
@@ -801,7 +796,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                    (ast 'nodetype "Index"
                         'value (expr->value-ast index))
                    (expr->value-ast index))]
-              [_ (error "Unhandled subscript")])))
+              [_ (error-at-syntax ((get-stx) s) "Unhandled subscript" #t)])))
                                 
     (match trailer
       [`(trailer "(" ")") (build-call '() make-call-ast)]
@@ -813,7 +808,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
       ;; 2+ subscripts, no slices -> "Index" w/value "Tuple" w/elts as values
       ;; 1 subscript, slice -> "Slice" 
       ;; 1 subscript, not slice -> "Index" w/value as value
-      ;; This is probably more hairy than necessary
+      ;; This is probably more hairy than necessary, considering subscript->ast
       [`(trailer "[" (subscriptlist ,subscripts ...) "]")
        (ast 'nodetype "Subscript"
             'ctx (ast 'nodetype expr-ctx)
@@ -833,11 +828,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                            [slice? (first subscript-asts)]
                            [else (ast 'nodetype "Index"
                                       'value (first subscript-asts))])))]
-           
-           [_ 
-            (display "=== Unhandled trailer ===\n")
-            (pretty-write trailer)
-            (error "Unsupported trailer (arglist) shape")])))
+      [_ (error-at-syntax ((get-stx) trailer) "Unrecognized call, subscript or slice" #t)])))
 
 (define (decorator->ast decorator)
   (match decorator 
@@ -861,15 +852,23 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                                           'kwargs kwarg
                                           'starargs stararg
                                           'func dec-ast)))]
-         [_ (error "Unhandled decorator rest")]))]
-    [_ (error "Unhandled decorator")]))
+         [_ (error-at-syntax ((get-stx) decorator) "Unrecognized decorator" #t)]))]
+    [_ (error-at-syntax ((get-stx) decorator) "Unrecognized decorator" #t)]))
 
 
-
-(define (error-at-syntax stx msg)
+;; Report syntax errors.
+;; Raise an exn:fail with an error message consisting of a source position
+;; from stx, a newline, and the attached message.
+;; If marked interal, indicate an internal error rather than a user syntax error.
+(define (error-at-syntax stx msg [internal #f])
   ;; TODO: Better error style
-  (error (format "Parse error: Line ~a, Column ~a, Position ~a~n~a" 
-          (syntax-line stx) (syntax-column stx) (syntax-position stx) msg)))
+  (error (format 
+          "~a: Line ~a, Column ~a, Position ~a~n~a" 
+          (if internal "Internal parsing error" "Syntax error")
+          (syntax-line stx) 
+          (syntax-column stx) 
+          (syntax-position stx) 
+          msg)))
 
 (define (every-other lst)
   (cond [(null? lst) '()]
@@ -916,9 +915,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                         "A bare generator cannot be mixed with other arguments.")])]
                  [`((argument ,expr))
                   (more-args more (cons (expr->value-ast expr) pos-args) key-args stararg kwarg)]
-                 [_ 
-                  (display args) (newline)
-                  (error "Error parsing args")])])))
+                 [_ (error-at-syntax ((get-stx) (car remaining-args)) "Error parsing arguments." #t)])])))
     (more-args args '() '() #\nul #\nul)))
 
 (define (exprlist->ast lst expr-ctx)
@@ -932,10 +929,11 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
 (define (exprlist->ast-list lst expr-ctx)
   (map (lambda (e) (expr->ast e expr-ctx)) (every-other (cdr lst))))
 
+;; Note: 'args' is not a ragg sexp, but each element of args should be.
 ;; Currently covers both typedargslist and varargslist
 ;; Accept start-sexp and end-sexp as args to ast-of-sexp
 ;; and error-sexp as sexp for error-at-syntax
-(define (build-formals start-sexp end-sexp args) 
+(define (build-formals start-sexp end-sexp arg-list) 
   (local (;; This needs either a macro or better taste.
           ;; A bunch of accumulators masquerading as a data structure
           ;; These are all final AST values - ASTs, AST lists (reversed), strings
@@ -986,7 +984,8 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                         (null? (Formals-kwargs formals)) 
                         (equal? #\nul (Formals-vararg-name formals)))
                    ;; A somewhat late and dirty way to catch this
-                   (error "'*' must be followed by at least one named argument")
+                   ;; Potentially confusing source position
+                   (error-at-syntax ((get-stx) (last arg-list)) "'*' must be followed by at least one named argument")
                    (formals->ast formals))]
               [`("," ,rest ...) (more-args rest kw? formals)]
               [(list (and arg-parts (not ",")) ... rest ...)
@@ -1021,10 +1020,8 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                                                (cons #\nul (Formals-kw-defaults formals))])
                                  (struct-copy Formals formals 
                                               [args (cons (*fpdef->ast fpdef) (Formals-args formals))])))]
-                 [_ (display "=== Unhandled formal argument ===") (newline)
-                    (pretty-write args)
-                    (error "Unhandled formal argument")])])))
-         (more-args args #f (Formals '() '() #\nul #\nul '() '() #\nul #\nul))))
+                 [_ (error-at-syntax ((get-stx) (first args)) "Unhandled formal argument" #t)])])))
+         (more-args arg-list #f (Formals '() '() #\nul #\nul '() '() #\nul #\nul))))
 
 (define (build-comprehension comp make-ast)
   (local ((define (generator-ast target-expr iter-expr if-exprs)
@@ -1042,14 +1039,11 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                  (more-clauses more (cons gen generators) target-expr iter-expr '()))]
               [`((comp_iter (comp_if "if" ,if-expr ,more ...)))
                (more-clauses more generators cur-target cur-iter (cons if-expr current-ifs))]
-              [_
-               (display "=== Unhandled comprehension clause ===") (newline)
-               (pretty-write comp)
-               (error "Unhandled comprehension clause")])))
+              [_ (error-at-syntax ((get-stx) (first comp)) "Unhandled comprehension clause" #t)])))
          (match comp 
            [`(comp_for "for" ,target-expr "in" ,iter-expr ,more ...)
             (more-clauses more '() target-expr iter-expr '())]
-           [_ (error "Argument to build-comprehension must be a comp_for")])))
+           [_ (error-at-syntax ((get-stx) comp) "Unhandled comprehension clause" #t)])))
 
 ;; AST should be a SrcLoc AST. Show file position, then msg.
 (define (error-at-ast ast msg)
@@ -1061,8 +1055,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                  ('span span)
                  ('ast _))
      (error (format "Syntax error, line ~a, column ~a:~n~a" line column msg))]
-    [_
-     (error (format "Syntax error, unknown position:~n~a" msg))]))
+    [_ (error (format "Syntax error, unknown position:~n~a" msg))]))
 
 ;; If the AST is not a valid target for an assignment, error at that AST
 (define (validate-assign-target ast in-list? at-ast)
