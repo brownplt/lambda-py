@@ -17,9 +17,6 @@
          "python-compile.rkt"
          (typed-in racket/string (string-join : ((listof string) string -> string)))
          (typed-in racket/base (format : (string 'a -> string)))
-         (typed-in racket/base (number->string : (number -> string)))
-         (typed-in racket/base (quotient : (number number -> number)))
-         (typed-in racket/base (expt : (number number -> number)))
          (typed-in racket/base (car : (('a * 'b) -> 'a)))
          (typed-in racket/base (cdr : (('a * 'b) -> 'b)))
          (typed-in racket/list (take : ((listof 'a) number -> (listof 'a))))
@@ -48,99 +45,6 @@ primitives here.
   (cond
     [(is-fun? (first argvs)) (some true-val)]
     [else (some false-val)]))
-
-(define (num+ args env sto)
-  (check-types-pred args env sto MetaNum? MetaNum? 
-                        (some (make-builtin-numv (+ (MetaNum-n mval1) 
-                                                    (MetaNum-n mval2))))))
-
-(define (num- args env sto)
-  (check-types-pred args env sto MetaNum? MetaNum? 
-                        (some (make-builtin-numv (- (MetaNum-n mval1) 
-                                                   (MetaNum-n mval2))))))
-(define (num* args env sto)
-        (if (and (some? (VObjectClass-mval (second args)))
-                 (MetaStr? (some-v (VObjectClass-mval (second args)))))
-            (str* (append (reverse args) (list (fetch-once (some-v (lookup '%str env)) sto)))
-                  env sto)
-            (check-types-pred args env sto MetaNum? MetaNum? 
-                         (some (VObject 'num (some (MetaNum 
-                                                    (* (MetaNum-n mval1) 
-                                                       (MetaNum-n mval2))))
-                                       (hash empty))))))
-
-(define (num** args env sto)
-  (check-types-pred args env sto MetaNum? MetaNum?
-                        (some (make-builtin-numv (expt (MetaNum-n mval1)
-                                                       (MetaNum-n mval2))))))
-
-(define (num/ args env sto)
-    (check-types-pred args env sto MetaNum? MetaNum? 
-                        (some (VObject 'num (some (MetaNum 
-                                                    (/ (MetaNum-n mval1) 
-                                                       (MetaNum-n mval2))))
-                                        (hash empty)))))
-
-(define (num// args env sto)
-    (check-types-pred args env sto MetaNum? MetaNum? 
-                        (some (VObject 'num (some (MetaNum 
-                                                    (quotient (MetaNum-n mval1) 
-                                                       (MetaNum-n mval2))))
-                                        (hash empty)))))
-(define (num% args env sto)
-    (check-types-pred args env sto MetaNum? MetaNum? 
-                        (some (VObject 'num (some (MetaNum 
-                                                    (modulo (MetaNum-n mval1)
-                                                       (MetaNum-n mval2))))
-                                        (hash empty)))))
-
-(define (num= args env sto)
-    (check-types-pred args env sto MetaNum? MetaNum?
-                        (if (= (MetaNum-n mval1) (MetaNum-n mval2))
-                          (some true-val)
-                          (some false-val))))
-(define (num> args env sto)
-    (check-types-pred args env sto MetaNum? MetaNum? 
-                        (if (> (MetaNum-n mval1) (MetaNum-n mval2))
-                          (some true-val)
-                          (some false-val))))
-(define (num< args env sto)
-    (check-types-pred args env sto MetaNum? MetaNum?
-                        (if (< (MetaNum-n mval1) (MetaNum-n mval2))
-                          (some true-val)
-                          (some false-val))))
-(define (num>= args env sto)
-    (check-types-pred args env sto MetaNum? MetaNum? 
-                        (if (>= (MetaNum-n mval1) (MetaNum-n mval2))
-                          (some true-val)
-                          (some false-val))))
-(define (num<= args env sto)
-    (check-types-pred args env sto MetaNum? MetaNum? 
-                        (if (<= (MetaNum-n mval1) (MetaNum-n mval2))
-                         (some true-val)
-                          (some false-val))))
-(define (numcmp args env sto)
-    (check-types-pred args env sto MetaNum? MetaNum?
-                        (if (< (MetaNum-n mval1) (MetaNum-n mval2))
-                            (some (VObject 'num
-                                           (some (MetaNum -1))
-                                           (hash empty)))
-                            (if (> (MetaNum-n mval1) (MetaNum-n mval2))
-                                (some (VObject 'num
-                                               (some (MetaNum 1))
-                                               (hash empty)))
-                                (some (VObject 'num
-                                               (some (MetaNum 0))
-                                               (hash empty)))))))
-(define (num-str args env sto)
-    (let ([arg (first args)]
-          [str-cls (second args)])
-            (some (VObjectClass 'str
-                           (some (MetaStr
-                             (number->string (MetaNum-n (some-v (VObjectClass-mval
-                                                                  arg))))))
-                           (hash empty)
-                           (some str-cls)))))
 
 (define (builtin-prim [op : symbol] [argsptrs : (listof CVal)] 
                       [env : Env] [sto : Store] [stk : Stack]) : Result
