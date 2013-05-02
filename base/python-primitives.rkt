@@ -218,6 +218,7 @@ primitives here.
     ['num<= (prim-noalloc num<= argvs)]
     ['numcmp (prim-alloc numcmp argvs)]
     ['num-str (prim-alloc num-str (fetch-heads argvs argsptrs))]
+    ['int (prim-alloc int argvs)]
     ['int-and (prim-alloc int-and argvs)]
     ['int-or (prim-alloc int-or argvs)]
     ['int-xor (prim-alloc int-xor argvs)]

@@ -52,7 +52,6 @@ def test_dynamics():
     d = D()
     d.foo = 1
     ___assertEqual(d.foo, 1)
-    """ NB: this fails with object has no __int__ attribute (Alejandro)
     # Test handling of int*seq and seq*int
     class I(int):
         pass
@@ -61,7 +60,6 @@ def test_dynamics():
     ___assertEqual(2*I(3), 6)
     ___assertEqual(I(3)*2, 6)
     ___assertEqual(I(3)*I(2), 6)
-    """
 
     # NB: we don't handle setting metaclass yet...
     # Test comparison of classes with dynamic metaclasses

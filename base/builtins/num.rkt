@@ -8,6 +8,8 @@
                    [bitwise-ior : (number number -> number)]
                    [bitwise-xor : (number number -> number)]
                    [arithmetic-shift : (number number -> number)]
+                   [inexact->exact : (number -> number)]
+                   [truncate : (number -> number)]
                    [exact? : (number -> boolean)]))
 
 (define (make-builtin-numv [n : number]) : CVal
@@ -30,7 +32,7 @@
              (def 'int '__new__
                   (CFunc (list 'self) (some 'args)
                         (CIf (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
-                             (CReturn (py-num 0))
+                             (CReturn (make-builtin-num 0))
                              (CReturn (py-app (py-getfield (py-getitem 'args 0) '__int__)
                                             (list)
                                             (none))))
@@ -112,7 +114,7 @@
              (def 'float '__new__
                   (CFunc (list 'self) (some 'args)
                         (CIf (CBuiltinPrim 'num= (list (py-len 'args) (py-num 0)))
-                             (CReturn (py-num 0))
+                             (CReturn (make-builtin-num 0.0))
                              (CReturn (py-app (py-getfield (py-getitem 'args 0) '__float__)
                                             (list)
                                             (none))))
@@ -277,7 +279,24 @@
                                                 (list
                                                   (CId 'self (LocalId))
                                                   (CId 'other (LocalId)))))
+                         (some 'num)))
+             (def 'num '__int__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'int
+                                                (list
+                                                 (CId 'self (LocalId)))))
+                         (some 'num)))
+             (def 'num '__float__
+                  (CFunc (list 'self) (none)
+                         (CReturn (CBuiltinPrim 'num+
+                                                (list
+                                                 (CId 'self (LocalId))
+                                                 (make-builtin-num 0.0))))
                          (some 'num))))))
+
+(define (int args env sto)
+  (check-types-pred args env sto MetaNum?
+                    (some (make-builtin-numv (inexact->exact (truncate (MetaNum-n mval1)))))))
 
 (define (int-and args env sto)
   (check-types-pred args env sto MetaNum? MetaNum?
