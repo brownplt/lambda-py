@@ -7,6 +7,11 @@
          "stx-util.rkt"
          (prefix-in grammar: "python-grammar.rkt"))
 
+(define (parse-python port)
+  (destructure-parse (grammar:parse (get-python-lexer port))))
+
+(define parser-src-loc (make-parameter #f))
+
 #| 
 AST: hash of symbol -> (string | number | AST | list of AST | #\nul)
 Values of these will match the ASDL spec at http://docs.python.org/3.2/library/ast.html with the constructor name under the 'nodetype key. The exception is the "SrcLoc" nodetype which is used to wrap ASTs for which we have a specific source location (should include statements and all expressions).
@@ -23,16 +28,13 @@ module/trailer/comp-op/suite/decorator etc.: Name matches the grammar LHS (here,
 Source Location: There's no datatype for this. Instead, it is converted from syntax objects, looked up by ragg sexps using (get-stx), to SrcLoc AST nodes wrapping AST nodes within that sourc elocation "span". The abbreviations srcpos, src-pos, srcloc and src-loc have all been used.
 |#
 
-(define parser-src-loc (make-parameter #f))
+(define ast hasheq) 
 
-(define ast hasheq)
+#|
+SOURCE LOCATION HANDLING
 
-(define (parse-python port)
-  (destructure-parse (grammar:parse (get-python-lexer port))))
-
-;; destructure-parse and ast-of-sexp use the get-stx parameter to avoid passing the 
-;; syntax hash around explicitly *a lot*, since it won't change or do anything
-;; interesting during a parse.
+destructure-parse, ast-of-sexp, with-src-sexp and error handling use the get-stx parameter to avoid passing the syntax hash around explicitly *a lot*, since it won't change or do anything interesting during a parse.
+|#
 (define get-stx (make-parameter (lambda (s) (error "No syntax object retrieval defined"))))
 
 ;; An AST node with source location info of sexp (via current get-stx)
@@ -53,6 +55,40 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
              'ast (apply ast rest))
         (apply ast rest))))
 
+;; If source locations are turned on, wrap AST ast in a SrcLoc AST using ragg sexp src-sexp
+(define (with-src-sexp src-sexp concrete-ast #:end [end #f])
+  (if (parser-src-loc)
+      (let ((stx ((get-stx) src-sexp))
+            (end-stx (if end ((get-stx) end) #f)))
+        (ast 'nodetype "SrcLoc"
+             'line (syntax-line stx)
+             'column (syntax-column stx)
+             'position (syntax-position stx)
+             'span (if end
+                       (+ (- (syntax-position end-stx) (syntax-position stx)) 
+                          (syntax-span end-stx))
+                       (syntax-span stx))
+             'ast concrete-ast))
+      concrete-ast))
+
+#| ERROR HANDLING |#
+
+;; Raise an exn:fail with an error message consisting of a source position
+;; from stx, a newline, and the attached message.
+;; If marked interal, indicate an internal error rather than a user syntax error.
+(define (error-at-syntax stx msg [internal #f])
+  ;; TODO: Make argument a sexp for consistency and to get (get-stx) out of everywhere.
+  ;; (Alternately, change above functions to take syntaxes.)
+  (error (format 
+          "~a: Line ~a, Column ~a, Position ~a~n~a" 
+          (if internal "Internal parsing error" "Syntax error")
+          (syntax-line stx) 
+          (syntax-column stx) 
+          (syntax-position stx) 
+          msg)))
+
+#| Parse tree parser begins here |#
+
 ;; Call into the *->ast chain to turn ragg sexp syntax object into AST
 (define (destructure-parse stx)
   ;; syntax->datum+stx-hash provides get-stx, which is an eq? hash from the ragg sexp
@@ -61,11 +97,6 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
     (parameterize [(get-stx (lambda (s) (hash-ref src-hash s)))]
       (file-input->ast datum))))
 
-;; Should error with source position if file-input is working right.
-;; TODO: Move this into a racket test set.
-(define (test-file-input-error)
-  (destructure-parse ((grammar:make-rule-parser single_input) (get-python-lexer (open-input-string "a = 1\n")))))
-
 (define (file-input->ast py-ragg)
   (match py-ragg
     [(list 'file_input stmts ...)
@@ -73,15 +104,6 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                   'nodetype "Module"
                   'body (flatten (map stmt->ast-list stmts)))]
     [_ (error-at-syntax ((get-stx) py-ragg) "Only file_input is supported." #t)]))
-
-#|
-  Flowchart of most of the action here. Everything else is minor helpers and
-  some builders for the more interesting bits (calls, defs, comprehensions)
-
-  stmt->ast-list +-----> non-simple-stmt->ast +-----> expr->ast +--+
-         ^                         +                    ^          |
-         +--+ suite->ast-list <----+                    +----------+
-|#
 
 ;; simple_stmt is the only derivation of stmt that Python parses into multiple statements
 ;; simple_stmt->ast-list + non-simple-stmt->ast cover the whole statement "language"
@@ -99,46 +121,43 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
 
 ;; Transform derivations of stmt other than simple_stmt into ast
 (define (non-simple-stmt->ast py-ragg)
+  (with-src-sexp py-ragg (non-simple-stmt->concrete-ast py-ragg)))
+
+(define (non-simple-stmt->concrete-ast py-ragg)
   (match py-ragg
     [(list (or 'stmt 'flow_stmt 'small_stmt 'compound_stmt) stmt) 
-     (non-simple-stmt->ast stmt)]
+     (non-simple-stmt->concrete-ast stmt)] ;; concrete here
 
     [(list 'yield_stmt expr)
-     (ast-of-sexp py-ragg
-                 'nodetype "Expr"
-                 'value (expr->ast expr "Load"))]
+     (ast 'nodetype "Expr"
+          'value (expr->ast expr "Load"))]
 
     [(list 'continue_stmt "continue") 
-     (ast-of-sexp py-ragg
-                  'nodetype "Continue")]
+     (ast 'nodetype "Continue")]
     
     [(list 'break_stmt "break")
-     (ast-of-sexp py-ragg
-                  'nodetype "Break")]
+     (ast 'nodetype "Break")]
     
-    ;; TODO: Allow only assignments to those allowed by 
-    ;; http://docs.python.org/3.2/reference/simple_stmts.html#assignment-statements
     [(list 'expr_stmt testlist (list 'augassign op) val)
-     (ast-of-sexp py-ragg
-                  'nodetype "AugAssign"
-                  'op (ast 'nodetype (case op 
-                                       [("+=") "Add"]
-                                       [("-=") "Sub"]
-                                       [("*=") "Mult"]
-                                       [("/=") "Div"]
-                                       [("%=") "Mod"]
-                                       [("&=") "BitAnd"]
-                                       [("|=") "BitOr"]
-                                       [("^=") "BitXor"]
-                                       [(">>=") "RShift"]
-                                       [("<<=") "LShift"]
-                                       [("**=") "Pow"]
-                                       [("//=") "FloorDiv"]
-                                       [else (error-at-syntax ((get-stx) op) (format "Unrecognized augassign op \"~a\"" op) #t)]))
-                  'target (let ((t (expr->ast testlist "Store")))
-                            (validate-assign-target t #f t)
-                            t)
-                  'value (expr->ast val "Load"))]
+     (ast 'nodetype "AugAssign"
+          'op (ast 'nodetype (case op 
+                               [("+=") "Add"]
+                               [("-=") "Sub"]
+                               [("*=") "Mult"]
+                               [("/=") "Div"]
+                               [("%=") "Mod"]
+                               [("&=") "BitAnd"]
+                               [("|=") "BitOr"]
+                               [("^=") "BitXor"]
+                               [(">>=") "RShift"]
+                               [("<<=") "LShift"]
+                               [("**=") "Pow"]
+                               [("//=") "FloorDiv"]
+                               [else (error-at-syntax ((get-stx) op) (format "Unrecognized augassign op \"~a\"" op) #t)]))
+          'target (let ((t (expr->ast testlist "Store")))
+                    (validate-assign-target t #f t)
+                    t)
+          'value (expr->ast val "Load"))]
 
     [`(expr_stmt ,clauses ...)
      (define (more-clauses clauses targets)
@@ -149,75 +168,64 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                                    'value (expr->ast val "Load"))
                       (begin
                         (map (lambda (t) (validate-assign-target t #f t)) targets)
-                        (ast-of-sexp py-ragg
-                                     'nodetype "Assign"
-                                     'value (expr->ast val "Load")
-                                     'targets (reverse targets))))]
+                        (ast
+                         'nodetype "Assign"
+                         'value (expr->ast val "Load")
+                         'targets (reverse targets))))]
          [`(,target "=" ,rest ...)
           (more-clauses rest (cons (expr->ast target "Store")
                                    targets))]))
      (more-clauses clauses '())]
 
     [(list 'return_stmt "return" val)
-     (ast-of-sexp py-ragg
-                  'nodetype "Return"
-                  'value (expr->ast val "Load"))]
+     (ast 'nodetype "Return"
+          'value (expr->ast val "Load"))]
 
     [(list 'return_stmt "return")
-     (ast-of-sexp py-ragg 
-                  'nodetype "Return"
-                  'value #\nul)]
+     (ast 'nodetype "Return"
+          'value #\nul)]
 
     [(list 'del_stmt "del" expr)
-     (ast-of-sexp py-ragg 
-                  'nodetype "Delete"
-                  'targets (let ((asts (exprlist->ast-list expr "Del")))
-                             (validate-target-list asts)
-                             asts))]
+     (ast 'nodetype "Delete"
+          'targets (let ((asts (exprlist->ast-list expr "Del")))
+                     (validate-target-list asts)
+                     asts))]
 
     [(list 'raise_stmt "raise")
-     (ast-of-sexp py-ragg 
-                  'nodetype "Raise"
-                  'exc #\nul
-                  'cause #\nul)]
+     (ast 'nodetype "Raise"
+          'exc #\nul
+          'cause #\nul)]
 
     [(list 'raise_stmt "raise" exc)
-     (ast-of-sexp py-ragg 
-                  'nodetype "Raise"
-                  'exc (expr->ast exc "Load")
-                  'cause #\nul)]
+     (ast 'nodetype "Raise"
+          'exc (expr->ast exc "Load")
+          'cause #\nul)]
 
     [(list 'raise_stmt "raise" exc "from" inner-exc)
-     (ast-of-sexp py-ragg 
-                  'nodetype "Raise"
-                  'exc (expr->ast exc "Load")
-                  'cause (expr->ast inner-exc "Load"))]
+     (ast 'nodetype "Raise"
+          'exc (expr->ast exc "Load")
+          'cause (expr->ast inner-exc "Load"))]
 
     [(list 'pass_stmt "pass")
-     (ast-of-sexp py-ragg 
-                  'nodetype "Pass")]
+     (ast 'nodetype "Pass")]
     
     [(list 'assert_stmt "assert" expr)
-     (ast-of-sexp py-ragg 
-                  'nodetype "Assert"
-                  'test (expr->ast expr "Load")
-                  'msg #\nul)]
+     (ast 'nodetype "Assert"
+          'test (expr->ast expr "Load")
+          'msg #\nul)]
 
     [(list 'assert_stmt "assert" test-expr "," msg-expr)
-     (ast-of-sexp py-ragg 
-                  'nodetype "Assert"
-                  'test (expr->ast test-expr "Load")
-                  'msg (expr->ast msg-expr "Load"))]
+     (ast 'nodetype "Assert"
+          'test (expr->ast test-expr "Load")
+          'msg (expr->ast msg-expr "Load"))]
 
     [(list 'global_stmt "global" rest ...)
-     (ast-of-sexp py-ragg 
-                  'nodetype "Global"
-                  'names (map cdr (every-other rest)))]
+     (ast 'nodetype "Global"
+          'names (map cdr (every-other rest)))]
 
     [(list 'nonlocal_stmt "nonlocal" rest ...)
-     (ast-of-sexp py-ragg 
-                  'nodetype "Nonlocal"
-                  'names (map cdr (every-other rest)))]
+     (ast 'nodetype "Nonlocal"
+          'names (map cdr (every-other rest)))]
 
     [`(with_stmt "with" ,clauses ... ":" ,with-suite)
      (car
@@ -227,15 +235,15 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
            [`(with_item ,elt-expr)
             (list (ast-of-sexp py-ragg ;; TODO: More fine-grained placement of these clauses...
                                'nodetype "With"
-                       'body inner-ast-list
-                       'optional_vars #\nul
-                       'context_expr (expr->ast elt-expr "Load")))]
+                               'body inner-ast-list
+                               'optional_vars #\nul
+                               'context_expr (expr->ast elt-expr "Load")))]
            [`(with_item ,elt-expr "as" ,var-expr)
             (list (ast-of-sexp py-ragg ;; TODO: ^
                                'nodetype "With"
-                       'body inner-ast-list
-                       'optional_vars (expr->ast var-expr "Store")
-                       'context_expr (expr->ast elt-expr "Load")))]
+                               'body inner-ast-list
+                               'optional_vars (expr->ast var-expr "Store")
+                               'context_expr (expr->ast elt-expr "Load")))]
            [_ (error-at-syntax ((get-stx) with_clause) "Bad with clause" #t)]))
        (suite->ast-list with-suite)
        (reverse (every-other clauses))))]
@@ -251,30 +259,28 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                              'test (expr->ast test "Load")
                              'body (suite->ast-list suite)
                              'orelse (more-clauses rest)))]
-          [`("else" ":" ,suite) ;; TODO: An optional "start" sexp or start location for suites?
-           (suite->ast-list suite)]))
-     (ast-of-sexp py-ragg
-                  'nodetype "If"
-                  'test (expr->ast test "Load")
-                  'body (suite->ast-list suite)
-                  'orelse (more-clauses rest))]
+         [`("else" ":" ,suite) ;; TODO: An optional "start" sexp or start location for suites?
+          (suite->ast-list suite)]))
+     (ast 'nodetype "If"
+          'test (expr->ast test "Load")
+          'body (suite->ast-list suite)
+          'orelse (more-clauses rest))]
     
     [`(import_stmt (import_name "import" (dotted_as_names ,names ...)))
-     (ast-of-sexp py-ragg
-                  'nodetype "Import"
-                  'names (map (lambda (name)
-                                (match name
-                                  [`(dotted_as_name ,name) 
-                                   (ast-of-sexp name
-                                                'nodetype "alias"
-                                                'name (dotted-name->string name)
-                                                'asname #\nul)]
-                                  [`(dotted_as_name ,name "as" (name . ,as-name))
-                                   (ast-of-sexp name
-                                                'nodetype "alias"
-                                                'name (dotted-name->string name)
-                                                'asname as-name)]))
-                              (every-other names)))]
+     (ast 'nodetype "Import"
+          'names (map (lambda (name)
+                        (match name
+                          [`(dotted_as_name ,name) 
+                           (ast-of-sexp name
+                                        'nodetype "alias"
+                                        'name (dotted-name->string name)
+                                        'asname #\nul)]
+                          [`(dotted_as_name ,name "as" (name . ,as-name))
+                           (ast-of-sexp name
+                                        'nodetype "alias"
+                                        'name (dotted-name->string name)
+                                        'asname as-name)]))
+                      (every-other names)))]
 
     [`(import_stmt (import_from "from" ,maybe-source-name ... "import" ,destinations ...))
      (define (fold-sources sources level name)
@@ -297,38 +303,35 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                        'name name
                        'asname interior-name)]))
      (define-values (level source-name) (fold-sources maybe-source-name 0 #\nul))
-     (ast-of-sexp py-ragg
-                  'nodetype "ImportFrom"
-                  'names (match destinations
-                           [`((import_as_names ,names ...))
-                            (map import-as-name->ast (every-other names))]
-                           [`("(" (import_as_names ,names ...) ")")
-                            (map import-as-name->ast (every-other names))]
-                           [`("*") (list (ast ;; no srcloc for now
-                                          'nodetype "alias"
-                                          'name "*"
-                                          'asname #\nul))]
-                           [_ (display destinations) (newline) (error "Unmatched import destination")])
-                  'level level
-                  'module source-name)]
+     (ast 'nodetype "ImportFrom"
+          'names (match destinations
+                   [`((import_as_names ,names ...))
+                    (map import-as-name->ast (every-other names))]
+                   [`("(" (import_as_names ,names ...) ")")
+                    (map import-as-name->ast (every-other names))]
+                   [`("*") (list (ast ;; no srcloc for now
+                                  'nodetype "alias"
+                                  'name "*"
+                                  'asname #\nul))]
+                   [_ (display destinations) (newline) (error "Unmatched import destination")])
+          'level level
+          'module source-name)]
 
     [`(try_stmt "try" ":" ,try-suite ,rest ...)
      (local ((define (more-clauses lst handler-ast-list orelse-ast-list finalbody-ast-list)
                (if (null? lst)
                    (let ((try-except-ast 
-                          (ast-of-sexp py-ragg
-                                       'nodetype "TryExcept"
-                                       'body (suite->ast-list try-suite)
-                                       'orelse orelse-ast-list
-                                       'handlers (reverse handler-ast-list))))
+                          (ast 'nodetype "TryExcept"
+                               'body (suite->ast-list try-suite)
+                               'orelse orelse-ast-list
+                               'handlers (reverse handler-ast-list))))
                      (if (null? finalbody-ast-list) 
                          try-except-ast
-                         (ast-of-sexp py-ragg
-                                      'nodetype "TryFinally"
-                                      'body (if (null? handler-ast-list)
-                                                (suite->ast-list try-suite)
-                                                (list try-except-ast))
-                                      'finalbody finalbody-ast-list)))
+                         (ast 'nodetype "TryFinally"
+                              'body (if (null? handler-ast-list)
+                                        (suite->ast-list try-suite)
+                                        (list try-except-ast))
+                              'finalbody finalbody-ast-list)))
                    (match lst
                      [`("finally" ":" ,finally-suite ,rest ...)
                       (more-clauses rest
@@ -359,38 +362,35 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
             (more-clauses rest '() '() '()))]
 
     [`(while_stmt "while" ,test-expr ":" ,body-suite ,maybe-else ...)
-     (ast-of-sexp py-ragg
-                  'nodetype "While"
-                  'test (expr->ast test-expr "Load")
-                  'orelse (match maybe-else
-                            [`("else" ":" ,else-suite) (suite->ast-list else-suite)]
-                            [`() '()])
-                  'body (suite->ast-list body-suite))]
+     (ast 'nodetype "While"
+          'test (expr->ast test-expr "Load")
+          'orelse (match maybe-else
+                    [`("else" ":" ,else-suite) (suite->ast-list else-suite)]
+                    [`() '()])
+          'body (suite->ast-list body-suite))]
 
     [`(for_stmt "for" ,bound-list "in" ,expr-list ":" ,body-suite ,maybe-else ...)
-     (ast-of-sexp py-ragg
-                  'nodetype "For"
-                  'iter (expr->ast expr-list "Load")
-                  'target (exprlist->ast bound-list "Store")
-                  'body (suite->ast-list body-suite)
-                  'orelse (match maybe-else
-                            [`("else" ":" ,else-suite) (suite->ast-list else-suite)]
-                            [`() '()]))]
+     (ast 'nodetype "For"
+          'iter (expr->ast expr-list "Load")
+          'target (exprlist->ast bound-list "Store")
+          'body (suite->ast-list body-suite)
+          'orelse (match maybe-else
+                    [`("else" ":" ,else-suite) (suite->ast-list else-suite)]
+                    [`() '()]))]
 
     [`(funcdef "def" 
                (name . ,name) 
                ,parameters ,maybe-annotation ... ":" ,suite)
-     (ast-of-sexp py-ragg
-                  'nodetype "FunctionDef"
-                  'body (suite->ast-list suite)
-                  'args (build-formals 
-                         py-ragg #f ;; straight to ast-of-sexp...
-                         (parameters->arg-sexp parameters))
-                  'name name
-                  'returns (match maybe-annotation
-                             [`() #\nul]
-                             [`("->" ,anno) (expr->value-ast anno)])  
-                  'decorator_list '())]
+     (ast 'nodetype "FunctionDef"
+          'body (suite->ast-list suite)
+          'args (build-formals 
+                 py-ragg #f ;; straight to ast-of-sexp...
+                 (parameters->arg-sexp parameters))
+          'name name
+          'returns (match maybe-annotation
+                     [`() #\nul]
+                     [`("->" ,anno) (expr->value-ast anno)])  
+          'decorator_list '())]
 
     [`(decorated
        (decorators 
@@ -398,16 +398,15 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
        (funcdef "def"
                 (name . ,func-name)
                 ,parameters ":" ,suite))
-     (ast-of-sexp py-ragg
-                  'nodetype "FunctionDef"
-                  'body (suite->ast-list suite)
-                  'args (build-formals 
-                         py-ragg #f ;; straight to ast-of-sexp...
-                         (parameters->arg-sexp parameters))
-                  'name func-name
-                  'returns #\nul
-                  'decorator_list 
-                  (map decorator->ast decorators))]
+     (ast 'nodetype "FunctionDef"
+          'body (suite->ast-list suite)
+          'args (build-formals 
+                 py-ragg #f ;; straight to ast-of-sexp...
+                 (parameters->arg-sexp parameters))
+          'name func-name
+          'returns #\nul
+          'decorator_list 
+          (map decorator->ast decorators))]
 
     [`(classdef "class" (name . ,name) ,maybe-args ... ":" ,suite)
      (build-call (match maybe-args
@@ -415,15 +414,14 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                    [`("(" ")") '()]
                    [`() '()])
                  (lambda (posargs keywords kwarg stararg)
-                              (ast-of-sexp py-ragg
-                                           'nodetype "ClassDef"
-                                           'body (suite->ast-list suite)
-                                           'bases posargs
-                                           'name name
-                                           'decorator_list '()
-                                           'kwargs kwarg
-                                           'starargs stararg
-                                           'keywords keywords)))]
+                   (ast 'nodetype "ClassDef"
+                        'body (suite->ast-list suite)
+                        'bases posargs
+                        'name name
+                        'decorator_list '()
+                        'kwargs kwarg
+                        'starargs stararg
+                        'keywords keywords)))]
 
     [`(decorated
        (decorators 
@@ -434,15 +432,14 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                    [`("(" ")") '()]
                    [`() '()])
                  (lambda (posargs keywords kwarg stararg)
-                              (ast-of-sexp py-ragg
-                                           'nodetype "ClassDef"
-                                           'body (suite->ast-list suite)
-                                           'bases posargs
-                                           'name name
-                                           'decorator_list (map decorator->ast decorators)
-                                           'kwargs kwarg
-                                           'starargs stararg
-                                           'keywords keywords)))]
+                   (ast 'nodetype "ClassDef"
+                        'body (suite->ast-list suite)
+                        'bases posargs
+                        'name name
+                        'decorator_list (map decorator->ast decorators)
+                        'kwargs kwarg
+                        'starargs stararg
+                        'keywords keywords)))]
 
     [_ 
      (display "=== Unhandled grammar ===\n")
@@ -458,14 +455,18 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
 ;; I'm assuming for now that this will handle testlist *and* test, in all cases.
 ;; I believe the expr-ctx passed on will inherently be "Load" in almost all cases, 
 ;; but I'm passing expr-ctx forward until I'm sure.
+
 (define (expr->ast py-ragg expr-ctx)
+  (with-src-sexp py-ragg (expr->concrete-ast py-ragg expr-ctx)))
+
+(define (expr->concrete-ast py-ragg expr-ctx)
   (match py-ragg
 
     #| Expression fallthroughs... |#
     [(list (or 'test_nocond 'argument 'testlist_comp 'testlist_star_expr 'testlist 'test 'or_test 'and_test 'not_test 
                'comparison 'expr 'xor_expr 'and_expr 'shift_expr 'arith_expr 'term 'factor 'power) 
            expr)
-     (expr->ast expr expr-ctx)]
+     (expr->concrete-ast expr expr-ctx)] ;; Note: expr->concrete-ast here.
 
     ;; Single item handled above. All others are tuples.
     ;; Unhandled star_expr will be caught downwind.
@@ -476,9 +477,10 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
     
     [`(star_expr "*" ,val)
      (if (equal? expr-ctx "Store")
-         (ast 'nodetype "Starred"
-              'ctx (ast 'nodetype expr-ctx)
-              'value (expr->ast val expr-ctx))
+         (ast-of-sexp py-ragg
+                      'nodetype "Starred"
+                      'ctx (ast 'nodetype expr-ctx)
+                      'value (expr->ast val expr-ctx))
          (error "Starred expressions can only be used in assignment"))]
 
     [(list 'test t-expr "if" cond-expr "else" f-expr)
@@ -549,12 +551,12 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
 
     ;; Set expr-ctx as ctx on last of trailers... Pass "Load" to interiors
     [(list 'power val all-trailers ... "**" power)
-       (ast 'nodetype "BinOp"
-            'op (ast 'nodetype "Pow")
-            'left (if (null? all-trailers) (expr->ast val "Load")
-                      (let* ((rev-trailers (reverse all-trailers))
-                             (trailers (reverse (rest rev-trailers)))
-                             (last-trailer (first rev-trailers)))
+     (ast 'nodetype "BinOp"
+          'op (ast 'nodetype "Pow")
+          'left (if (null? all-trailers) (expr->ast val "Load")
+                    (let* ((rev-trailers (reverse all-trailers))
+                           (trailers (reverse (rest rev-trailers)))
+                           (last-trailer (first rev-trailers)))
                       (wrap-with-trailer 
                        last-trailer 
                        expr-ctx
@@ -562,8 +564,9 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                         (lambda (trailer left-ast)
                           (wrap-with-trailer trailer "Load" left-ast))
                         (expr->ast val "Load")
-                        trailers))))
-            'right (expr->ast power "Load"))]
+                        trailers)
+                       py-ragg)))
+          'right (expr->ast power "Load"))]
     
     [(and (list 'power val trailers ... last-trailer)
           (not (list _ ... "**" _)))
@@ -572,9 +575,10 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
       expr-ctx
       (foldl 
        (lambda (trailer left-ast)
-         (wrap-with-trailer trailer "Load" left-ast))
+         (wrap-with-trailer trailer "Load" left-ast py-ragg))
        (expr->ast val "Load")
-       trailers))]
+       trailers) 
+      py-ragg)]
 
     [(list 'not_test "not" expr)
      (ast 'nodetype "UnaryOp"
@@ -600,14 +604,13 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
     [(list 'atom (cons 'bytes str-parts) ...)
      (ast 'nodetype "Bytes"
           's (ast 'nodetype "Bytes"
-                      'value (string-append "b'" (apply string-append str-parts) "'")))]
+                  'value (string-append "b'" (apply string-append str-parts) "'")))]
 
     ;; Bytes sequences and string sequences have been matched already...
     [(or (list 'atom (cons 'string str-parts) rest ...)
          (list 'atom (cons 'bytes str-parts) rest ...))
      (error-at-syntax ((get-stx) py-ragg) "Cannot mix string and bytestring literals")]
 
-    ;; atom TODO: '...' (in lexer)
     ;; Note: True, False, None lexed as names though they're in the grammar used.
     [(list 'atom (cons type val))
      (if (equal? expr-ctx "Store")
@@ -764,7 +767,10 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
     [(list 'suite "NEWLINE" "INDENT" stmts ... "DEDENT")
      (flatten (map stmt->ast-list stmts))]))
 
-(define (wrap-with-trailer trailer expr-ctx left-ast)
+(define (wrap-with-trailer trailer expr-ctx left-ast value-sexp)
+  (with-src-sexp value-sexp #:end trailer (wrap-with-trailer-concrete trailer expr-ctx left-ast)))
+
+(define (wrap-with-trailer-concrete trailer expr-ctx left-ast)
   (local ((define (make-call-ast args keywords kwarg stararg)
             (ast 'nodetype "Call"
                  'args args
@@ -797,38 +803,38 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                         'value (expr->value-ast index))
                    (expr->value-ast index))]
               [_ (error-at-syntax ((get-stx) s) "Unhandled subscript" #t)])))
-                                
-    (match trailer
-      [`(trailer "(" ")") (build-call '() make-call-ast)]
-      [`(trailer "(" (arglist ,args ...) ")") (build-call args make-call-ast)]
-      [`(trailer "." (name . ,name)) (attr-ast name)]
-      
-      ;; Subscript lists: "Subscript" containing slice of:
-      ;; 2+ subscripts, at least one slice -> "ExtSlice" w/dims as "Slice" and "Index"
-      ;; 2+ subscripts, no slices -> "Index" w/value "Tuple" w/elts as values
-      ;; 1 subscript, slice -> "Slice" 
-      ;; 1 subscript, not slice -> "Index" w/value as value
-      ;; This is probably more hairy than necessary, considering subscript->ast
-      [`(trailer "[" (subscriptlist ,subscripts ...) "]")
-       (ast 'nodetype "Subscript"
-            'ctx (ast 'nodetype expr-ctx)
-            'value left-ast
-            'slice (let* ((multiple-subscripts? (> (length subscripts) 1))
-                          (slice? (findf (match-lambda [`(subscript ,_ ... ":" ,_ ...) #t]
-                                                       [else #f]) subscripts))
-                          (subscript-asts (map (lambda (s) (subscript->ast s slice?)) (every-other subscripts))))
-                     (cond [(and multiple-subscripts? slice?)
-                            (ast 'nodetype "ExtSlice"
-                                 'dims subscript-asts)]
-                           [multiple-subscripts?
-                            (ast 'nodetype "Index"
-                                 'value (ast 'nodetype "Tuple"
-                                             'ctx (ast 'nodetype "Load")
-                                             'elts subscript-asts))]
-                           [slice? (first subscript-asts)]
-                           [else (ast 'nodetype "Index"
-                                      'value (first subscript-asts))])))]
-      [_ (error-at-syntax ((get-stx) trailer) "Unrecognized call, subscript or slice" #t)])))
+         
+         (match trailer
+           [`(trailer "(" ")") (build-call '() make-call-ast)]
+           [`(trailer "(" (arglist ,args ...) ")") (build-call args make-call-ast)]
+           [`(trailer "." (name . ,name)) (attr-ast name)]
+           
+           ;; Subscript lists: "Subscript" containing slice of:
+           ;; 2+ subscripts, at least one slice -> "ExtSlice" w/dims as "Slice" and "Index"
+           ;; 2+ subscripts, no slices -> "Index" w/value "Tuple" w/elts as values
+           ;; 1 subscript, slice -> "Slice" 
+           ;; 1 subscript, not slice -> "Index" w/value as value
+           ;; This is probably more hairy than necessary, considering subscript->ast
+           [`(trailer "[" (subscriptlist ,subscripts ...) "]")
+            (ast 'nodetype "Subscript"
+                 'ctx (ast 'nodetype expr-ctx)
+                 'value left-ast
+                 'slice (let* ((multiple-subscripts? (> (length subscripts) 1))
+                               (slice? (findf (match-lambda [`(subscript ,_ ... ":" ,_ ...) #t]
+                                                            [else #f]) subscripts))
+                               (subscript-asts (map (lambda (s) (subscript->ast s slice?)) (every-other subscripts))))
+                          (cond [(and multiple-subscripts? slice?)
+                                 (ast 'nodetype "ExtSlice"
+                                      'dims subscript-asts)]
+                                [multiple-subscripts?
+                                 (ast 'nodetype "Index"
+                                      'value (ast 'nodetype "Tuple"
+                                                  'ctx (ast 'nodetype "Load")
+                                                  'elts subscript-asts))]
+                                [slice? (first subscript-asts)]
+                                [else (ast 'nodetype "Index"
+                                           'value (first subscript-asts))])))]
+           [_ (error-at-syntax ((get-stx) trailer) "Unrecognized call, subscript or slice" #t)])))
 
 (define (decorator->ast decorator)
   (match decorator 
@@ -855,27 +861,17 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
          [_ (error-at-syntax ((get-stx) decorator) "Unrecognized decorator" #t)]))]
     [_ (error-at-syntax ((get-stx) decorator) "Unrecognized decorator" #t)]))
 
-
-;; Report syntax errors.
-;; Raise an exn:fail with an error message consisting of a source position
-;; from stx, a newline, and the attached message.
-;; If marked interal, indicate an internal error rather than a user syntax error.
-(define (error-at-syntax stx msg [internal #f])
-  ;; TODO: Better error style
-  (error (format 
-          "~a: Line ~a, Column ~a, Position ~a~n~a" 
-          (if internal "Internal parsing error" "Syntax error")
-          (syntax-line stx) 
-          (syntax-column stx) 
-          (syntax-position stx) 
-          msg)))
-
 (define (every-other lst)
   (cond [(null? lst) '()]
         [(null? (cdr lst)) (list (car lst))]
         [else (cons (car lst) (every-other (cddr lst)))]))
 
 ;; Process arglist and call make-call-ast with args, keywords, kwarg and stararg
+
+;; args: 'rest' of a typedargslist or varargslist sexp, or the empty list
+;; make-call-ast: A function used to construct the call
+;;    (make-call-ast pos-args key-args kwarg stararg),
+;;   'id' AST list * 'keyword' AST list * AST * AST -> AST
 (define (build-call args make-call-ast)
   (local ((define (more-args remaining-args pos-args key-args stararg kwarg)
             (match remaining-args
@@ -892,7 +888,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                   (more-args more pos-args 
                              (cons (ast 'nodetype "keyword"
                                         ;; This is backwards but works - See the note in the grammar for argument.
-                                        'arg (hash-ref (expr->value-ast key) 'id)
+                                        'arg (ast-ref (expr->value-ast key) 'id)
                                         'value (expr->value-ast val)) key-args)
                              stararg kwarg)]
                  ;; bare generators
@@ -916,7 +912,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
                  [`((argument ,expr))
                   (more-args more (cons (expr->value-ast expr) pos-args) key-args stararg kwarg)]
                  [_ (error-at-syntax ((get-stx) (car remaining-args)) "Error parsing arguments." #t)])])))
-    (more-args args '() '() #\nul #\nul)))
+         (more-args args '() '() #\nul #\nul)))
 
 (define (exprlist->ast lst expr-ctx)
   (match lst
@@ -929,10 +925,11 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
 (define (exprlist->ast-list lst expr-ctx)
   (map (lambda (e) (expr->ast e expr-ctx)) (every-other (cdr lst))))
 
-;; Note: 'args' is not a ragg sexp, but each element of args should be.
+
+;; Build the 'arguments' AST for formal arguments of functiondefs and lambdas
 ;; Currently covers both typedargslist and varargslist
-;; Accept start-sexp and end-sexp as args to ast-of-sexp
-;; and error-sexp as sexp for error-at-syntax
+;; start-sexp, end-sexp: ragg sexps for position in general error reporting
+;; args: list of ragg sexp (NOT a ragg sexp itself!)
 (define (build-formals start-sexp end-sexp arg-list) 
   (local (;; This needs either a macro or better taste.
           ;; A bunch of accumulators masquerading as a data structure
@@ -976,7 +973,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
             (let ((actual-names (remove* '(#\nul) lst)))
               (unless (equal? actual-names (remove-duplicates actual-names))
                 (error-at-syntax ((get-stx) start-sexp) "Argument names cannot be duplicated."))))
-              
+          
           (define (more-args args kw? formals)
             (match args
               [`() 
@@ -1045,6 +1042,12 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
             (more-clauses more '() target-expr iter-expr '())]
            [_ (error-at-syntax ((get-stx) comp) "Unhandled comprehension clause" #t)])))
 
+#|
+There are a few cases handled in this file by messing with ASTs instead of just producing them, since ASTs are simpler to recurse on.
+a) Validating assign/delete/generator targets
+b) ast-ref, for Getting a name from the odd case in the grammar where a test is expected but a name is needed.
+|#
+
 ;; AST should be a SrcLoc AST. Show file position, then msg.
 (define (error-at-ast ast msg)
   (match ast
@@ -1065,7 +1068,7 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
     [(hash-table ('nodetype "Name") (_ _) ...) #t]
     [(hash-table ('nodetype "Attribute") (_ _) ...) #t]
     [(hash-table ('nodetype "Subscript") (_ _) ...) #t]
-    [(hash-table ('nodetype "Slice") (_ _) ...) #t] ;; TODO: Determine whether ExtSlice counts
+    [(hash-table ('nodetype "Slice") (_ _) ...) #t]
     [(hash-table ('nodetype "ExtSlice") (_ _) ...) #t]
     [(hash-table ('nodetype "Starred") (_ _) ...) 
      (if in-list? #t (error-at-ast at-ast "Starred assignment target must be in list or tuple"))]
@@ -1077,4 +1080,11 @@ Source Location: There's no datatype for this. Instead, it is converted from syn
 ;; This is a bit muddled. It's only for "Del", but calls into validate-*assign*-target...
 (define (validate-target-list ast-list)
   (map (lambda (a) (validate-assign-target a #f a)) ast-list))
-  
+
+;; Duplicated in get-structured-python  
+;; Get concrete (non-srcloc) property of AST ast identified by key (symbol) by skipping SrcLoc nodes.
+(define (ast-ref ast key)
+  (cond
+   [(equal? "SrcLoc" (hash-ref ast 'nodetype))
+    (ast-ref (hash-ref ast 'ast) key)]
+   [else (hash-ref ast key)]))

@@ -13,19 +13,18 @@
   (match path
     ['() ast]
     [`((,path-nt ,path-key ,path-index-or-null ...) ,path-rest ...)
-     (let ((real-ast ;; Unwrap SrcLoc if current path isn't null
-            (if (equal? "SrcLoc" (hash-ref ast 'nodetype))
-                (hash-ref ast 'ast)
-                ast)))
-       (unless (equal? path-nt (hash-ref real-ast 'nodetype))
-         (error (format "Wrong nodetype following path - expected ~a, got ~a" 
-                        path-nt
-                        (hash-ref real-ast 'nodetype))))
-       (follow-parse-path 
-        (if (null? path-index-or-null)
-            (hash-ref real-ast path-key) 
-            (list-ref (hash-ref real-ast path-key) (first path-index-or-null)))
-        path-rest))]))
+     (if (equal? "SrcLoc" (hash-ref ast 'nodetype))
+         (follow-parse-path (hash-ref ast 'ast) path)
+         (begin
+           (unless (equal? path-nt (hash-ref ast 'nodetype))
+             (error (format "Wrong nodetype following path - expected ~a, got ~a" 
+                            path-nt
+                          (hash-ref ast 'nodetype))))
+           (follow-parse-path 
+            (if (null? path-index-or-null)
+                (hash-ref ast path-key) 
+                (list-ref (hash-ref ast path-key) (first path-index-or-null)))
+            path-rest)))]))
 
 ;; Get a src-loc AST of program in string s
 (define (parse s)
@@ -35,7 +34,7 @@
 ;; Check for SrcLoc AST found found at 'path' in AST 'parsed-prog' with given attributes
 (define (check-src-loc parsed-prog path line column position span)
   (let ((target-ast (follow-parse-path parsed-prog path)))
-    (check-equal? (hash-ref target-ast 'nodetype) "SrcLoc" "Not a SrcLoc")
+    (check-equal? (hash-ref target-ast 'nodetype) "SrcLoc" (format "Not a SrcLoc (~a)" position))
     (check-equal? (map (lambda (k) (hash-ref target-ast k))
                        '(line column position span))
                   (list line column position span))))
@@ -234,4 +233,29 @@ EOF
    (check-src-loc prog '(("Module" body 1) ("ClassDef" decorator_list 1)) 3 1 35 1)
    ;; TODO: Optional check for final (unwrapped) AST nodetype in check-src-loc, for readability and least surprise
 ))
+
+(test-begin
+ "Expressions 1"
+ (let ((prog (parse "a,b,1;c if d else e;lambda:f;yield g;yield;a < b;d + e;f or g")))
+   (check-src-loc prog '(("Module" body 0) ("Expr" value)) 1 0 1 5) ; tuple
+   (check-src-loc prog '(("Module" body 1) ("Expr" value)) 1 6 7 13) ; if
+   (check-src-loc prog '(("Module" body 2) ("Expr" value)) 1 20 21 8) ; lambda
+   (check-src-loc prog '(("Module" body 3) ("Expr" value)) 1 29 30 7) ; yield
+   (check-src-loc prog '(("Module" body 4) ("Expr" value)) 1 37 38 5) ; yield expr
+   (check-src-loc prog '(("Module" body 5) ("Expr" value)) 1 43 44 5) ; comp
+   (check-src-loc prog '(("Module" body 6) ("Expr" value)) 1 49 50 5) ; binops
+   (check-src-loc prog '(("Module" body 7) ("Expr" value)) 1 55 56 6) ; andor
+))
+
+(test-begin
+ "power and trailers"
+ (let ((prog (parse "a ** b;c[d];e(f);g[h](i)")))
+   (check-src-loc prog '(("Module" body 0) ("Expr" value)) 1 0 1 6) ; pow
+   (check-src-loc prog '(("Module" body 1) ("Expr" value)) 1 7 8 4) ; subscript
+   (check-src-loc prog '(("Module" body 2) ("Expr" value)) 1 12 13 4) ; call
+   (check-src-loc prog '(("Module" body 3) ("Expr" value)) 1 17 18 7) ; g[h](i)
+   (check-src-loc prog '(("Module" body 3) ("Expr" value) ("Call" func)) 1 17 18 4) ; [h]
+   ;; Might want to change trailers to include the value/function
+))
+
 
