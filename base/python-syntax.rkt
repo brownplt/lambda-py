@@ -36,7 +36,9 @@
   [PyAssert (test : PyExpr) (msg : (listof PyExpr))]
 
   ; classes and objects 
-  [PyClass (name : symbol) (bases : (listof PyExpr)) (body : PyExpr)]
+  [PyClass (name : symbol) (bases : (listof PyExpr)) (body : PyExpr)
+           (keywords : (listof PyExpr)) (stararg : (optionof PyExpr))
+           (kwarg : (optionof PyExpr)) (decorators : (listof PyExpr))]
   [PyDotField (value : PyExpr) (attr : symbol)]
 
   ; operations

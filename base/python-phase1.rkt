@@ -46,7 +46,7 @@
    expr
    (lambda (y)
      (type-case PyExpr y
-       [PyClass (name bases body)
+       [PyClass (name bases body keywords stararg kwarg decorators)
                 (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexPass))
                               (LexClass (Unknown-scope) name
                                         (let ((desugared-bases (map pre-desugar bases)))

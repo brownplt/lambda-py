@@ -84,7 +84,7 @@
               [PyAssert (test msg) (LexAssert (recur test) (map recur msg))]
               
                                         ; classes and objects 
-              [PyClass (name bases body)
+              [PyClass (name bases body keywords stararg kwarg decorators)
                        (LexClass (Unknown-scope) name (LexTuple (map recur bases)) (recur body))]
               [PyDotField (value attr) (LexDotField (recur value) attr)]
 
@@ -335,7 +335,7 @@
                         (flatten (list (list (recur test)) (map recur msg)))]
               
                                         ; classes and objects 
-              [PyClass (name bases body)
+              [PyClass (name bases body keywords stararg kwarg decorators)
                        (flatten (list (map recur bases) (recur body)))]
               [PyDotField (value attr)  (recur value)]
 
