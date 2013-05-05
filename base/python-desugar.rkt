@@ -558,7 +558,7 @@
               (py-app-kw (rec-desugar fun) (map rec-desugar args) (map rec-desugar keywords)
                          (option-map rec-desugar stararg) (option-map rec-desugar kwarg))]
 
-      [LexClass (scp name bases body)
+      [LexClass (scp name bases body keywords stararg kwarg decorators)
                 (make-class name
                             ;TODO: would be better to change bases to be a (listof LexExpr)
                             ;; and to build the tuple here (Alejandro).

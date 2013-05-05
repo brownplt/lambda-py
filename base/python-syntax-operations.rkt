@@ -85,7 +85,9 @@
               
                                         ; classes and objects 
               [PyClass (name bases body keywords stararg kwarg decorators)
-                       (LexClass (Unknown-scope) name (LexTuple (map recur bases)) (recur body))]
+                       (LexClass (Unknown-scope) name (LexTuple (map recur bases)) (recur body)
+                                 (map recur keywords) (option-map recur stararg)
+                                 (option-map recur kwarg) (map recur decorators))]
               [PyDotField (value attr) (LexDotField (recur value) attr)]
 
                                         ; operations
@@ -207,8 +209,10 @@
               [LexAssert (test msg) (LexAssert (recur test) (map recur msg))]              
               
                                         ; classes and objects 
-              [LexClass (scope name bases body)
-                       (LexClass scope name (recur bases) (recur body))]
+              [LexClass (scope name bases body keywords stararg kwarg decorators)
+                       (LexClass scope name (recur bases) (recur body)
+                                 (map recur keywords) (option-map recur stararg)
+                                 (option-map recur kwarg) (map recur decorators))]
               [LexDotField (value attr) (LexDotField (recur value) attr)]
               [LexExprField (value attr) (LexExprField (recur value) (recur attr))]
               [LexExprAssign (obj attr value) (LexExprAssign (recur obj) (recur attr) (recur value))]
@@ -461,8 +465,11 @@
                     (flatten (list (list (recur test)) (map recur msg)))]
               
                                         ; classes and objects 
-              [LexClass (scope name bases body)
-                       (flatten (list (recur bases) (recur body)))]
+              [LexClass (scope name bases body keywords stararg kwarg decorators)
+                       (flatten (list (recur bases) (recur body)
+                                      (map recur keywords)
+                                      (option->list (option-map recur stararg))
+                                      (option->list (option-map recur kwarg))))]
               [LexDotField (value attr)  (recur value)]
               [LexExprField (value attr)  (flatten (list (recur value) (recur attr)))]
               [LexExprAssign (obj attr value)  (flatten (list (recur obj) (recur attr) (recur value)))]
@@ -494,12 +501,8 @@
                       (flatten (list (list (recur fun))
                                      (map recur args)
                                      (map recur keywords)
-                                     (if (some? stararg)
-                                         (list (recur (some-v stararg)))
-                                         empty)
-                                     (if (some? kwarg)
-                                         (list (recur (some-v kwarg)))
-                                         empty)))]
+                                     (option->list (option-map recur stararg))
+                                     (option->list (option-map recur kwarg))))]
               
               [LexDelete (targets) (flatten (map recur targets))]
               

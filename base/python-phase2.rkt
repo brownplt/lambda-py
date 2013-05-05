@@ -164,7 +164,7 @@
                                    (set! list-of-functions (cons e list-of-functions))
                                    (LexLocalId (first list-of-identifiers) 'Load))]
              ;[LexBlock (nls es) e]
-             [LexClass (scope name bases body) e]
+             [LexClass (scope name bases body keywords stararg kwarg decorators) e]
              [else (default-recur)]))))
       (define (generate-identifier )
         (gensym 'class-replacement))
@@ -184,7 +184,8 @@
                                  (map recur defaults) (map recur kw_defaults)
                                  body decorators
                                  (some class-expr))]
-               [LexClass (scope name bases body) (LexClass scope name bases body)]
+               [LexClass (scope name bases body keywords stararg kwarg decorators)
+                         (LexClass scope name bases body keywords stararg kwarg decorators)]
                [else (default-recur)])))))
       (define (split-instance-into-instance-locals expr)
         (run-after-blocks
@@ -198,7 +199,8 @@
               (lexexpr-fold-tree expr (lambda (y)
                                         (type-case LexExpr y
                                           [LexInstanceId (x ctx) (list x)]
-                                          [LexClass (scope name bases body) empty]
+                                          [LexClass (scope name bases body keywords stararg kwarg decorators)
+                                                    empty]
                                           [LexBlock (nls es) empty]
                                           [else (default-recur)])))
               (split-instance-into-instance-locals-helper expr))))))
@@ -212,7 +214,8 @@
                              (type-case LexExpr e
                                [LexInstanceId (x ctx) (list x)]
                                [LexBlock (nls e) empty]
-                               [LexClass (scope name bases body) empty]
+                               [LexClass (scope name bases body keywords stararg kwarg decorators)
+                                         empty]
                                [else (default-recur)])))) expr))))
                             var))))
           (lexexpr-modify-tree
@@ -265,7 +268,7 @@
                                                     ]
                                                    [else (default-recur)])]
                [LexBlock (nls es) e]
-               [LexClass (scope name bases body) e]
+               [LexClass (scope name bases body keywords stararg kwarg decorators) e]
                [else (default-recur)])))))
 
       (define (2-map fun arg1 arg2)
@@ -284,7 +287,7 @@
          expr
          (lambda ([y : LexExpr])
            (type-case LexExpr y
-             [LexClass (scope name bases body)
+             [LexClass (scope name bases body keywords stararg kwarg decorators)
                        (let ((body
                               (type-case LexExpr body
                                 [LexBlock (nls es) (LexBlock nls (hoist-functions es))]
@@ -302,7 +305,8 @@
                                                       [Locally-scoped [] (LexLocalId name 'Store)]
                                                       [Globally-scoped [] (LexGlobalId name 'Store)]
                                                       [else (error 'e "should be no more instance scope!")]))
-                                              (LexClass scope name bases (LexPass)))
+                                              (LexClass scope name bases (LexPass)
+                                                        keywords stararg kwarg decorators))
                                              (deal-with-class
                                               new-body
                                               class-expr))))))]
@@ -314,7 +318,7 @@
              expr
              (lambda ([y : LexExpr])
                (type-case LexExpr y
-                 [LexClass (scope name bases body)
+                 [LexClass (scope name bases body keywords stararg kwarg decorators)
                            (finish-hoist-functions (if (Instance-scoped? scope)
                                  (error 'lexical "instance is not inside class")
                                  (deal-with-class
@@ -326,7 +330,7 @@
           (define (replace-classes [expr : LexExpr])
           (lexexpr-modify-tree expr (lambda (e)
           (type-case LexExpr e
-            [LexClass (scope name bases body)
+            [LexClass (scope name bases body keywords stararg kwarg decorators)
                       (type-case LocalOrGlobal scope
                         [Instance-scoped
                          []
@@ -339,8 +343,12 @@
                                         (LexSeq
                                          (list
                                           (LexClass (Locally-scoped) name
-                                                    (replace-classes bases )
-                                                    (replace-classes body))
+                                                    (replace-classes bases)
+                                                    (replace-classes body)
+                                                    (map replace-classes keywords)
+                                                    (option-map replace-classes stararg)
+                                                    (option-map replace-classes kwarg)
+                                                    (map replace-classes decorators))
                                           (LexLocalId name 'Load)))))
                                (list) (list) (none) (none)))]
                         [else (default-recur)])]
@@ -484,8 +492,13 @@
    (lambda (y)
      (type-case LexExpr y
        [LexInScopeLocals (ids) (phase2-locals ids)]
-       [LexClass (scope name bases body) (LexClass scope name (replace-lexinscopelocals bases)
-                                                   (replace-lexinscopelocals (store-locals body)))]
+       [LexClass (scope name bases body keywords stararg kwarg decorators)
+                 (LexClass scope name (replace-lexinscopelocals bases)
+                           (replace-lexinscopelocals (store-locals body))
+                           (map replace-lexinscopelocals keywords)
+                           (option-map replace-lexinscopelocals stararg)
+                           (option-map replace-lexinscopelocals kwarg)
+                           (map replace-lexinscopelocals decorators))]
        [LexReturn (v?) (type-case (optionof LexExpr) v?
                         [some (v) (LexLocalLet 'return-cleanup (replace-lexinscopelocals v)
                                                (LexSeq
@@ -586,7 +599,7 @@
      (lambda (y)
        (type-case LexExpr y
          [LexBlock (_ __) empty]
-         [LexClass (scope name bases bodyx) empty]
+         [LexClass (scope name bases bodyx keywords stararg kwarg decorators) empty]
          [LexInstanceId (x ctx) (list x)]
          [else (default-recur)])))
     starting-locals)))
@@ -621,8 +634,8 @@
          (type-case LexExpr y
            [LexBlock (nls body)
                      (block-recur nls body nls)]
-           [LexClass (scope name bases body)
-                     (LexClass scope name (recur bases) 
+           [LexClass (scope name bases body keywords stararg kwarg decorators)
+                     (LexClass scope name (recur bases)
                      (type-case LexExpr body
                        [LexBlock (nls es)
                                  (let ((locals (collect-instance-in-scope es nls)))
@@ -633,7 +646,11 @@
 
                        ]
                        [else (error 'make-local-list
-                                    (format "thing inside class body is not block:~a" body))]))]
+                                    (format "thing inside class body is not block:~a" body))])
+                     (map recur keywords)
+                     (option-map recur stararg)
+                     (option-map recur kwarg)
+                     (map recur decorators))]
            [LexTryExceptElse (try except el)
                              (LexTryExceptElse
                               (make-local-list starting-locals try)
