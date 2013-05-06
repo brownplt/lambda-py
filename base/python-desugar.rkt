@@ -559,7 +559,10 @@
                          (option-map rec-desugar stararg) (option-map rec-desugar kwarg))]
 
       [LexClass (scp name bases body keywords stararg kwarg decorators)
-                (make-class name
+               (cond
+                [(empty? decorators)
+                 ;; no decorators, desugar class
+                 (make-class name
                             ;TODO: would be better to change bases to be a (listof LexExpr)
                             ;; and to build the tuple here (Alejandro).
                             ;; (CNone) is because we may not have a tuple class object yet.
@@ -567,6 +570,12 @@
                               [CTuple (class tuple) (CTuple (CNone) tuple)]
                               [else (error 'desugar "bases is not a tuple")])
                             (desugar body))]
+                [else
+                 ;; first apply decorators to the class
+                 (rec-desugar
+                  (foldr (lambda (decorator class) (LexApp decorator (list class) (list) (none) (none)))
+                         (LexClass scp name bases body keywords stararg kwarg empty)
+                         decorators))])]
 
       [LexInstanceId (x ctx)
                      (error 'desugar "should not encounter an instance ID!")]
