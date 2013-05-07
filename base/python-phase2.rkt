@@ -300,16 +300,14 @@
                                               body
                                               class-expr
                                               )))
-                               (LexSeq (list (LexAssign
-                                              (list (type-case LocalOrGlobal scope
-                                                      [Locally-scoped [] (LexLocalId name 'Store)]
-                                                      [Globally-scoped [] (LexGlobalId name 'Store)]
-                                                      [else (error 'e "should be no more instance scope!")]))
-                                              (LexClass scope name bases (LexPass)
-                                                        keywords stararg kwarg decorators))
-                                             (deal-with-class
-                                              new-body
-                                              class-expr))))))]
+                               (LexAssign
+                                (list (type-case LocalOrGlobal scope
+                                        [Locally-scoped [] (LexLocalId name 'Store)]
+                                        [Globally-scoped [] (LexGlobalId name 'Store)]
+                                        [else (error 'e "should be no more instance scope!")]))
+                                (LexClass scope name bases
+                                          (deal-with-class new-body class-expr)
+                                          keywords stararg kwarg decorators)))))]
              [else (default-recur)])))))
           (define (top-level-deal-with-class expr)
             (begin
