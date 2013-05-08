@@ -254,6 +254,7 @@
             (bind '%special_getattr (CUndefined))
             (bind '%obj_dict (CUndefined))
             (bind '%call_stararg (CUndefined))
+            (bind '%call_metaclass (CUndefined))
             (bind 'property (CUndefined))
             ;; test functions defined in py-prelude.py
             (bind '___assertEqual (CUndefined))
