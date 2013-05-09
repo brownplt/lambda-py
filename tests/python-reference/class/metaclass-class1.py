@@ -1,9 +1,10 @@
-def f(name, bases, dict):
-  dict.__delitem__("x")
-  return type(name, bases, dict)
+class Meta(type):
+  def __new__(self, name, bases, dict):
+    dict.__delitem__("x")
+    return type(name, bases, dict)
 
 x = "global x"
-class C(metaclass=f):
+class C(metaclass=Meta):
   x = "class var"
   y = x
   def m(self):
