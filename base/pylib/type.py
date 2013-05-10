@@ -16,7 +16,7 @@ class type(object):
       name = ___delta("tuple-getitem", args, 0)
       bases = ___delta("tuple-getitem", args, 1)
       dict = ___delta("tuple-getitem", args, 2)
-      cls = ___delta("type-new", name)
+      cls = ___delta("type-new", name, self)
       if ___delta("type-uniqbases", bases):
         cls.__bases__ = bases
         try:
@@ -67,7 +67,7 @@ class type(object):
         result.extend(c_dir)
     return list(set(result))
 
-# function to call metaclass, if it is not type.
+# function to determine and call metaclass.
 def ___call_metaclass(name, bases, cls, keywords, stararg, kwarg):
 
   # collect keyword arguments (first check can be avoided with Python parser)
@@ -83,13 +83,17 @@ def ___call_metaclass(name, bases, cls, keywords, stararg, kwarg):
       kw_dict[k] = kwarg[k]
 
   if 'metaclass' in kw_dict:
+    callable = ___id("%callable")
     metaclass = kw_dict['metaclass']
     del kw_dict['metaclass']
-    if callable(metaclass):
-      return metaclass(name, bases, cls.__dict__, *stararg, **kw_dict)
-    else:
-      raise TypeError("metaclass is not callable")
-  else: # it should check for metaclass in bases
-    return cls
+  elif bases.__len__() > 0:
+    metaclass = bases[0].__class__
+  else:
+    metaclass = ___id("%type")
+
+  if callable(metaclass):
+    return metaclass(name, bases, cls.__dict__, *stararg, **kw_dict)
+  else:
+    raise TypeError("metaclass is not callable")
 
 ___assign("%call_metaclass", ___call_metaclass)

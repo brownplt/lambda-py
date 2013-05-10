@@ -4,16 +4,13 @@
 # the value of that attribute. If the named attribute does not exist, default
 # is returned if provided, otherwise AttributeError is raised.
 def getattr(obj, name, *args):
-    type = ___id("%type")
     if ___delta("num=", args.__len__(), 0):
-        if ___delta('$class', obj) is type:
-            return type.__getattribute__(obj, name)
-        else:
-            return obj.__getattribute__(name)
+        cls = ___delta('$class', obj)
+        return cls.__getattribute__(obj, name)
     elif ___delta("num=", args.__len__(), 1):
         default = ___delta("tuple-getitem", args, 0)
         try:
-            return getattribute(name)
+            return getattr(obj, name)
         except AttributeError:
             return default
     else:

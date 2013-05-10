@@ -207,7 +207,7 @@ primitives here.
     ['existing-file? (prim-noalloc existing-file? argvs)]
 
     ; type
-    ['type-new (prim-alloc type-new argvs)]
+    ['type-new (prim-alloc type-new (if (= (length argvs) 1) argvs (fetch-heads argvs argsptrs)))]
     ['type-uniqbases (prim-noalloc type-uniqbases argvs)]
     ['type-buildmro (prim-alloc type-buildmro argvs)]
 

@@ -44,13 +44,24 @@
 
 ;; type-new: creates a new class object
 ;; first argument: the name as a string
+;; second argument: the optional metaclass
 (define (type-new [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaStr?
                     (let ([name (string->symbol (MetaStr-s mval1))])
-                      (some (VObjectClass '%type
-                                          (some (MetaClass name))
-                                          (hash empty)
-                                          (none))))))
+                      (if (and (= (length args) 2) (is-obj-ptr? (second args) sto))
+                          (some (VObjectClass (get-class-name (fetch-ptr (second args) sto))
+                                              (some (MetaClass name))
+                                              (hash empty)
+                                              (some (second args))))
+                          (some (VObjectClass '%type
+                                              (some (MetaClass name))
+                                              (hash empty)
+                                              (none)))))))
+
+(define (get-class-name [cls : CVal]) : symbol
+  (if (and (some? (VObjectClass-mval cls)) (MetaClass? (some-v (VObjectClass-mval cls))))
+      (MetaClass-c (some-v (VObjectClass-mval cls)))
+      (error 'get-class-name "not a class object")))
 
 ;; type-uniqbases: check for uniqueness of bases
 ;; first argument: the tuple of bases
