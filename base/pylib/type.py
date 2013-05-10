@@ -66,3 +66,30 @@ class type(object):
         c_dir = ___delta("obj-dir", c, list, str)
         result.extend(c_dir)
     return list(set(result))
+
+# function to call metaclass, if it is not type.
+def ___call_metaclass(name, bases, cls, keywords, stararg, kwarg):
+
+  # collect keyword arguments (first check can be avoided with Python parser)
+  kw_dict = {}
+  for (k, v) in keywords:
+    if k in kw_dict:
+      raise SyntaxError("class with keyword argument repeated: " + k)
+    kw_dict[k] = v
+  if kwarg:
+    for k in kwarg:
+      if k in kw_dict:
+        raise TypeError("class with multiple values for argument: " + k)
+      kw_dict[k] = kwarg[k]
+
+  if 'metaclass' in kw_dict:
+    metaclass = kw_dict['metaclass']
+    del kw_dict['metaclass']
+    if callable(metaclass):
+      return metaclass(name, bases, cls.__dict__, *stararg, **kw_dict)
+    else:
+      raise TypeError("metaclass is not callable")
+  else: # it should check for metaclass in bases
+    return cls
+
+___assign("%call_metaclass", ___call_metaclass)

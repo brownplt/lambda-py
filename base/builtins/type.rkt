@@ -6,40 +6,41 @@
 
 ;; builtin-class: used to construct builtin classes in the core language
 (define (builtin-class [name : symbol] [bases : (listof symbol)] [body : CExpr]) : CExpr
-  (make-class name
+  (make-class (GlobalId) name
               ;; builtin classes are bound to ids in the global scope
               (CTuple (CNone) ;; we may not have a tuple class object yet
                       (map (lambda (id) (CId id (GlobalId))) bases))
               body))
 
-;; make-class: used to build class objects
-;; - create an empty class object using type-new
+;; make-class: used to build class objects and assign them to name in scope
+;; - create an empty class object using type-new and assign it to name in scope
 ;; - check uniqueness of bases using type-uniqbases and set __bases__ field
 ;; - compute linearization of bases using type-buildmro and set __mro__ field
-(define (make-class [name : symbol] [bases : CExpr] [body : CExpr]) : CExpr
-  (CLet
-   'bases (LocalId) bases
+;; - execute the class body
+(define (make-class [scope : IdType] [name : symbol] [bases : CExpr] [body : CExpr]) : CExpr
+  (CSeq
+   (CAssign (CId name scope)
+            (CBuiltinPrim 'type-new
+                          (list (CObject (CNone)
+                                         (some (MetaStr (symbol->string name)))))))
    (CLet
-    'new-class (LocalId)
-    (CBuiltinPrim 'type-new
-                  (list (CObject (CNone)
-                                 (some (MetaStr (symbol->string name))))))
+    'bases (LocalId) bases
     (CIf
      (CBuiltinPrim 'type-uniqbases (list (CId 'bases (LocalId))))
      (CSeq
-      (set-field (CId 'new-class (LocalId)) '__bases__
-                 (CId 'bases (LocalId)))
+      (set-field (CId name scope) '__bases__ (CId 'bases (LocalId)))
       (CTryExceptElse
-       (set-field (CId 'new-class (LocalId)) '__mro__
-                  (CBuiltinPrim 'type-buildmro (list
-                                                (CTuple (CNone) ;; we may not have tuple yet
-                                                        (list (CId 'new-class (LocalId))))
-                                                (CId 'bases (LocalId)))))
-       '_ (CRaise (some (make-exception 'TypeError "duplicate base")))
-       (CId 'new-class (LocalId))))
-     (CRaise (some (make-exception
-                    'TypeError
-                    "cannot create a consistent method resolution order")))))))
+       (set-field (CId name scope) '__mro__
+                  (CBuiltinPrim 'type-buildmro
+                                (list
+                                 (CTuple (CNone) ;; we may not have tuple yet
+                                         (list (CId name scope)))
+                                 (CId 'bases (LocalId)))))
+       '_ (CRaise (some (make-exception 'TypeError
+                                        "cannot create a consistent method resolution order")))
+       ;; no exception, the class object is created and assigned to name, execute the class body
+       (CSeq body (CId name scope))))
+     (CRaise (some (make-exception 'TypeError "duplicate base")))))))
 
 ;; type-new: creates a new class object
 ;; first argument: the name as a string

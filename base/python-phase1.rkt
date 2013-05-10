@@ -46,7 +46,7 @@
    expr
    (lambda (y)
      (type-case PyExpr y
-       [PyClass (name bases body)
+       [PyClass (name bases body keywords stararg kwarg decorators)
                 (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexPass))
                               (LexClass (Unknown-scope) name
                                         (let ((desugared-bases (map pre-desugar bases)))
@@ -54,7 +54,11 @@
                                                         (list (LexGlobalId '%object 'Load))
                                                         desugared-bases)))
                                         (LexBlock empty
-                                                  (pre-desugar body)))))]
+                                                  (pre-desugar body))
+                                        (map pre-desugar keywords)
+                                        (option-map pre-desugar stararg)
+                                        (option-map pre-desugar kwarg)
+                                        (map pre-desugar decorators))))]
        [PyLam (args vararg kwonlyargs kwarg defaults kw_defaults body)
               (let ([all-args (flatten (list args (option->list vararg) kwonlyargs (option->list kwarg)))])
                 (LexLam args vararg kwonlyargs kwarg (map pre-desugar defaults) (map pre-desugar kw_defaults)
@@ -181,10 +185,14 @@
                                             [else
                                              (error 'remove-unneeded-assigns "assignment is not to ID type")])))
                                       (type-case LexExpr (second es)
-                                        [LexClass (scope name bases body)
+                                        [LexClass (scope name bases body keywords stararg kwarg decorators)
                                                   (LexClass replace-scope name
                                                             (remove-unneeded-assigns bases)
-                                                            (remove-unneeded-assigns body))]
+                                                            (remove-unneeded-assigns body)
+                                                            (map remove-unneeded-assigns keywords)
+                                                            (option-map remove-unneeded-assigns stararg)
+                                                            (option-map remove-unneeded-assigns kwarg)
+                                                            (map remove-unneeded-assigns decorators))]
                                         [LexFunc (name args vararg kwonlyargs kwarg defaults kw_defaults
                                                        body decorators class)
                                                  (LexFunc name args vararg kwonlyargs kwarg
@@ -457,7 +465,7 @@
        expr
        (lambda (x)
          (type-case LexExpr x
-           [LexClass (scope name bases body)
+           [LexClass (scope name bases body keywords stararg kwarg decorators)
                            (LexClass
                             scope
                             name
@@ -468,7 +476,11 @@
                                         nls
                                         (second-level e))]
                               [else (begin (display "thing in class literal is not a block")
-                                           (error 'e "thing in class literal is not block"))]))]
+                                           (error 'e "thing in class literal is not block"))])
+                            (map toplevel keywords)
+                            (option-map toplevel stararg)
+                            (option-map toplevel kwarg)
+                            (map toplevel decorators))]
            [else (default-recur)]))))
     (define (second-level expr )
       (let
@@ -506,7 +518,7 @@
                            [LexComprehen (target iter ifs) (LexComprehen (assign-func target)
                                                                          (recur iter locs)
                                                                          (map (lambda (e) (recur e locs)) ifs))]
-                           [LexClass (scope name super body) (toplevel x)]
+                           [LexClass (scope name bases body keywords stararg kwarg decorators) (toplevel x)]
                            [else (default-recur)])))))))
           (recur expr discovered-vars)
           ))))

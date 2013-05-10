@@ -76,7 +76,7 @@
                                              (comma-separate targets)
                                              (display "\n")
                                              (lexexpr-print-helper value starting-tab))]
-                                  [LexClass (a b c d)
+                                  [LexClass (a b c d e f g h)
                                             (begin
                                               (display starting-tab)
                                               (display "# assigned to ")
@@ -257,14 +257,33 @@
                  (begin (display this-expr) this-expr)]
       
                                         ; classes and objects 
-      [LexClass (scope name bases body)
+      [LexClass (scope name bases body keywords stararg kwarg decorators)
                 (begin
                   (display starting-tab)
+                  (if (empty? decorators)
+                      (display "")
+                      (display decorators))
                   (display "class ")
                   (display name)
                   (display "(")
                   (lexexpr-print-helper bases "")
-                  (display "):")
+                  (if (empty? keywords)
+                      (display ")")
+                      (begin
+                        (display " keywords: ")
+                        (comma-separate keywords)
+                        (display ")")))
+                  (if (some? stararg)
+                      (begin
+                        (display " *")
+                        (lexexpr-print-helper (some-v stararg) ""))
+                      (display ""))
+                  (if (some? kwarg)
+                      (begin
+                        (display " **")
+                        (lexexpr-print-helper (some-v kwarg) ""))
+                      (display ""))
+                  (display ":")
                   (display "\n")
                   (lexexpr-print-helper body (string-append "  " starting-tab))
                   this-expr)]
@@ -416,12 +435,12 @@
                 (if (some? stararg)
                     (begin
                       (display " *")
-                      (display (some-v stararg)))
+                      (lexexpr-print-helper (some-v stararg) ""))
                     (display ""))
                 (if (some? kwarg)
                     (begin
                       (display " **")
-                      (display (some-v kwarg)))
+                      (lexexpr-print-helper (some-v kwarg) ""))
                     (display ""))
                 this-expr)]
 
