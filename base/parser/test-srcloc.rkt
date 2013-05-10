@@ -1,6 +1,7 @@
 #lang racket
 
 (require rackunit
+         racket/pretty
          "python-parser.rkt")
 
 ;; Emacs help writing these: https://gist.github.com/jmillikan/5478028
@@ -258,4 +259,56 @@ EOF
    ;; Might want to change trailers to include the value/function
 ))
 
+(test-begin
+ "More expressions"
+ (let ((prog (parse "not a;+b;c;'h';b'i';1;2j")))
+   (check-src-loc prog '(("Module" body 0)) 1 0 1 5)
+   (check-src-loc prog '(("Module" body 1)) 1 6 7 2)
+   (check-src-loc prog '(("Module" body 2)) 1 9 10 1)
+   (check-src-loc prog '(("Module" body 3)) 1 11 12 3)
+   (check-src-loc prog '(("Module" body 4)) 1 15 16 4)
+   (check-src-loc prog '(("Module" body 5)) 1 20 21 1)
+   (check-src-loc prog '(("Module" body 6)) 1 22 23 2)
+))
+   
+(test-begin
+ "Dict/set expressions"
+ (let ((prog (parse "{};{a for b in c};{d:e for f in g};{h:i};{j,k}")))
+   (check-src-loc prog '(("Module" body 0)) 1 0 1 2)
+   (check-src-loc prog '(("Module" body 1)) 1 3 4 14)
+   (check-src-loc prog '(("Module" body 2)) 1 18 19 16)
+   (check-src-loc prog '(("Module" body 3)) 1 35 36 5)
+   (check-src-loc prog '(("Module" body 4)) 1 41 42 5)
+))
+                    
+(test-begin
+ "List, tuple, paren and generator expressions"
+ (let ((prog (parse "[];[a for b in c];[d,e];();(f for g in h);(i,j);(k);...")))
+   (check-src-loc prog '(("Module" body 0)) 1 0 1 2)
+   (check-src-loc prog '(("Module" body 1)) 1 3 4 14)
+   (check-src-loc prog '(("Module" body 2)) 1 18 19 5)
+   (check-src-loc prog '(("Module" body 3)) 1 24 25 2) 
+   (check-src-loc prog '(("Module" body 4)) 1 27 28 14)
+   (check-src-loc prog '(("Module" body 5)) 1 42 43 5)
+   (check-src-loc prog '(("Module" body 6)) 1 48 49 3)
+   (check-src-loc prog '(("Module" body 7)) 1 52 53 3)
+))
+
+(test-begin
+ "Generator parts"
+ (let ((prog (parse "[a for b in c];[d for e in f if g if h];[(i,j) for (k,l) in m]")))
+   (check-src-loc prog '(("Module" body 0)) 1 0 1 14) ; [a for b in c]
+   ;; b in c
+   (check-src-loc prog '(("Module" body 0) ("Expr" value) ("ListComp" generators 0)) 1 7 8 6)
+   
+   (check-src-loc prog '(("Module" body 1)) 1 15 16 24) ; [d ... g]
+   ;; e in f if g if h
+   (check-src-loc prog '(("Module" body 1) ("Expr" value) ("ListComp" generators 0)) 1 22 23 16)
+
+   (check-src-loc prog '(("Module" body 2)) 1 40 41 22)
+   ;; (i,j)
+   (check-src-loc prog '(("Module" body 2) ("Expr" value) ("ListComp" elt)) 1 41 42 5)
+   ;; (k,l)
+   (check-src-loc prog '(("Module" body 2) ("Expr" value) ("ListComp" generators 0) ("comprehension" target)) 1 51 52 5)
+))
 

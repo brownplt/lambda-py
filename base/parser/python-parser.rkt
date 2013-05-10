@@ -918,9 +918,10 @@ destructure-parse, ast-of-sexp, with-src-sexp and error handling use the get-stx
   (match lst
     [(list 'exprlist expr) (expr->ast expr expr-ctx)]
     [(list 'exprlist rest ...)
-     (ast 'nodetype "Tuple"
-          'ctx (ast 'nodetype expr-ctx)
-          'elts (map (lambda (e) (expr->ast e expr-ctx)) (every-other rest)))]))
+     (ast-of-sexp lst
+                  'nodetype "Tuple"
+                  'ctx (ast 'nodetype expr-ctx)
+                  'elts (map (lambda (e) (expr->ast e expr-ctx)) (every-other rest)))]))
 
 (define (exprlist->ast-list lst expr-ctx)
   (map (lambda (e) (expr->ast e expr-ctx)) (every-other (cdr lst))))
@@ -1022,10 +1023,13 @@ destructure-parse, ast-of-sexp, with-src-sexp and error handling use the get-stx
 
 (define (build-comprehension comp make-ast)
   (local ((define (generator-ast target-expr iter-expr if-exprs)
-            (ast 'nodetype "comprehension"
-                 'target (exprlist->ast target-expr "Store")
-                 'iter (expr->ast iter-expr "Load")
-                 'ifs (map expr->value-ast if-exprs)))
+            (ast-of-sexp target-expr #:end (if (empty? if-exprs)
+                                               iter-expr
+                                               (last if-exprs))
+                         'nodetype "comprehension"
+                         'target (exprlist->ast target-expr "Store")
+                         'iter (expr->ast iter-expr "Load")
+                         'ifs (map expr->value-ast if-exprs)))
           (define (more-clauses comp generators cur-target cur-iter current-ifs)
             (match comp
               [`() 
