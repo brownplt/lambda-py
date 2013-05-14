@@ -341,7 +341,7 @@
                                         (LexSeq
                                          (list
                                           (LexClass (Locally-scoped) name
-                                                    (replace-classes bases)
+                                                    (map replace-classes bases)
                                                     (replace-classes body)
                                                     (map replace-classes keywords)
                                                     (option-map replace-classes stararg)
@@ -491,7 +491,7 @@
      (type-case LexExpr y
        [LexInScopeLocals (ids) (phase2-locals ids)]
        [LexClass (scope name bases body keywords stararg kwarg decorators)
-                 (LexClass scope name (replace-lexinscopelocals bases)
+                 (LexClass scope name (map replace-lexinscopelocals bases)
                            (replace-lexinscopelocals (store-locals body))
                            (map replace-lexinscopelocals keywords)
                            (option-map replace-lexinscopelocals stararg)
@@ -633,7 +633,7 @@
            [LexBlock (nls body)
                      (block-recur nls body nls)]
            [LexClass (scope name bases body keywords stararg kwarg decorators)
-                     (LexClass scope name (recur bases)
+                     (LexClass scope name (map recur bases)
                      (type-case LexExpr body
                        [LexBlock (nls es)
                                  (let ((locals (collect-instance-in-scope es nls)))

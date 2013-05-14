@@ -85,7 +85,7 @@
               
                                         ; classes and objects 
               [PyClass (name bases body keywords stararg kwarg decorators)
-                       (LexClass (Unknown-scope) name (LexTuple (map recur bases)) (recur body)
+                       (LexClass (Unknown-scope) name (map recur bases) (recur body)
                                  (map recur keywords) (option-map recur stararg)
                                  (option-map recur kwarg) (map recur decorators))]
               [PyDotField (value attr) (LexDotField (recur value) attr)]
@@ -210,7 +210,7 @@
               
                                         ; classes and objects 
               [LexClass (scope name bases body keywords stararg kwarg decorators)
-                       (LexClass scope name (recur bases) (recur body)
+                       (LexClass scope name (map recur bases) (recur body)
                                  (map recur keywords) (option-map recur stararg)
                                  (option-map recur kwarg) (map recur decorators))]
               [LexDotField (value attr) (LexDotField (recur value) attr)]
@@ -466,7 +466,7 @@
               
                                         ; classes and objects 
               [LexClass (scope name bases body keywords stararg kwarg decorators)
-                       (flatten (list (recur bases) (recur body)
+                       (flatten (list (map recur bases) (recur body)
                                       (map recur keywords)
                                       (option->list (option-map recur stararg))
                                       (option->list (option-map recur kwarg))))]

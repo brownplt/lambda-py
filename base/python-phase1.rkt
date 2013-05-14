@@ -49,10 +49,7 @@
        [PyClass (name bases body keywords stararg kwarg decorators)
                 (LexSeq (list (LexAssign (list (PyLexId name 'Store)) (LexPass))
                               (LexClass (Unknown-scope) name
-                                        (let ((desugared-bases (map pre-desugar bases)))
-                                          (LexTuple (if (empty? desugared-bases)
-                                                        (list (LexGlobalId '%object 'Load))
-                                                        desugared-bases)))
+                                        (map pre-desugar bases)
                                         (LexBlock empty
                                                   (pre-desugar body))
                                         (map pre-desugar keywords)
@@ -187,7 +184,7 @@
                                       (type-case LexExpr (second es)
                                         [LexClass (scope name bases body keywords stararg kwarg decorators)
                                                   (LexClass replace-scope name
-                                                            (remove-unneeded-assigns bases)
+                                                            (map remove-unneeded-assigns bases)
                                                             (remove-unneeded-assigns body)
                                                             (map remove-unneeded-assigns keywords)
                                                             (option-map remove-unneeded-assigns stararg)
@@ -469,7 +466,7 @@
                            (LexClass
                             scope
                             name
-                            (toplevel bases)
+                            (map toplevel bases)
                             (type-case LexExpr body
                               [LexBlock (nls e)
                                        (LexBlock

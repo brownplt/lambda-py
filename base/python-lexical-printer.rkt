@@ -266,11 +266,11 @@
                   (display "class ")
                   (display name)
                   (display "(")
-                  (lexexpr-print-helper bases "")
+                  (comma-separate bases)
                   (if (empty? keywords)
                       (display ")")
                       (begin
-                        (display " keywords: ")
+                        (display ", ")
                         (comma-separate keywords)
                         (display ")")))
                   (if (some? stararg)

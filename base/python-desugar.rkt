@@ -566,13 +566,11 @@
                                    [Locally-scoped () (LocalId)]
                                    [Globally-scoped () (GlobalId)]
                                    [else (error 'expr "should be no more instance scope!")])]
-                          ;TODO: would be better to change bases to be a (listof LexExpr)
-                          ;; and to build the tuple here (Alejandro).
-                          [bases-list (type-case CExpr (desugar bases)
-                                        [CTuple (class tuple) tuple]
-                                        [else (error 'desugar "bases is not a tuple")])]
+                          [bases-list (if (empty? bases)
+                                          (list (CId '%object (GlobalId)))
+                                          (map desugar bases))]
                           [base-id (new-id)]
-                          ;; (CNone) is because we may not have a tuple class object yet.
+                          ;; (CNone) is because we may not have a tuple class object yet, type-uniqbases fixes it.
                           [bases-tuple (CTuple (CNone) (cons (CId base-id (LocalId)) (rest bases-list)))]
                           [new-class (make-class scope name bases-tuple (desugar body))]
                           [call-metaclass (CApp (CId '%call_metaclass (GlobalId))
