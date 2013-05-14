@@ -15,10 +15,12 @@ class type(object):
     elif ___delta("num=", args.__len__(), 3):
       name = ___delta("tuple-getitem", args, 0)
       bases = ___delta("tuple-getitem", args, 1)
+      if bases.__len__() == 0:
+        bases = (___id("%object"),)
       dict = ___delta("tuple-getitem", args, 2)
       cls = ___delta("type-new", name, self)
-      if ___delta("type-uniqbases", bases):
-        cls.__bases__ = bases
+      try:
+        cls.__bases__ = ___delta("type-uniqbases", bases)
         try:
           cls.__mro__ = ___delta("type-buildmro", (cls,), bases)
         except:
@@ -27,7 +29,7 @@ class type(object):
           for k,v in dict.items():
             setattr(cls, k, v)
           return cls
-      else:
+      except:
         raise TypeError("duplicate base")
     else:
       raise TypeError("type() takes 1 or 3 arguments")
@@ -83,14 +85,12 @@ def ___call_metaclass(name, bases, cls, keywords, stararg, kwarg):
       kw_dict[k] = kwarg[k]
 
   if 'metaclass' in kw_dict:
-    callable = ___id("%callable")
     metaclass = kw_dict['metaclass']
     del kw_dict['metaclass']
-  elif bases.__len__() > 0:
-    metaclass = bases[0].__class__
   else:
-    metaclass = ___id("%type")
+    metaclass = bases[0].__class__
 
+  callable = ___id("%callable")
   if callable(metaclass):
     return metaclass(name, bases, cls.__dict__, *stararg, **kw_dict)
   else:

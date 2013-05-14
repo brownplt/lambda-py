@@ -568,21 +568,27 @@
                                    [else (error 'expr "should be no more instance scope!")])]
                           ;TODO: would be better to change bases to be a (listof LexExpr)
                           ;; and to build the tuple here (Alejandro).
+                          [bases-list (type-case CExpr (desugar bases)
+                                        [CTuple (class tuple) tuple]
+                                        [else (error 'desugar "bases is not a tuple")])]
+                          [base-id (new-id)]
                           ;; (CNone) is because we may not have a tuple class object yet.
-                          [bases-tuple (type-case CExpr (desugar bases)
-                                         [CTuple (class tuple) (CTuple (CNone) tuple)]
-                                         [else (error 'desugar "bases is not a tuple")])]
-                          [new-class (make-class scope name bases-tuple (desugar body))])
-                     (if (and (empty? keywords) (none? kwarg))
-                         new-class
-                         (CApp (CId '%call_metaclass (GlobalId))
-                               (list (make-builtin-str (symbol->string name))
-                                     bases-tuple
-                                     new-class
-                                     (CTuple (CId '%tuple (GlobalId)) (map rec-desugar keywords))
-                                     (CTuple (CId '%tuple (GlobalId)) (map rec-desugar (option->list stararg)))
-                                     (CTuple (CId '%tuple (GlobalId)) (map rec-desugar (option->list kwarg))))
-                               (none))))]
+                          [bases-tuple (CTuple (CNone) (cons (CId base-id (LocalId)) (rest bases-list)))]
+                          [new-class (make-class scope name bases-tuple (desugar body))]
+                          [call-metaclass (CApp (CId '%call_metaclass (GlobalId))
+                                                (list (make-builtin-str (symbol->string name))
+                                                      (CBuiltinPrim 'type-uniqbases (list bases-tuple))
+                                                      new-class
+                                                      (CTuple (CId '%tuple (GlobalId)) (map rec-desugar keywords))
+                                                      (CTuple (CId '%tuple (GlobalId)) (map rec-desugar (option->list stararg)))
+                                                      (CTuple (CId '%tuple (GlobalId)) (map rec-desugar (option->list kwarg))))
+                                                (none))])
+                     (CLet base-id (LocalId) (first bases-list)
+                           (if (and (empty? keywords) (none? kwarg))
+                               (CIf (CBuiltinPrim 'type-metaclass (list (first bases-list)))
+                                    call-metaclass
+                                    new-class)
+                               call-metaclass)))]
                   [else
                    ;; first apply decorators to the class
                    (rec-desugar

@@ -208,8 +208,9 @@ primitives here.
 
     ; type
     ['type-new (prim-alloc type-new (if (= (length argvs) 1) argvs (fetch-heads argvs argsptrs)))]
-    ['type-uniqbases (prim-noalloc type-uniqbases argvs)]
+    ['type-uniqbases (prim-alloc type-uniqbases argvs)]
     ['type-buildmro (prim-alloc type-buildmro argvs)]
+    ['type-metaclass (prim-alloc type-metaclass argvs)]
 
     ; super
     ['super-self (prim-or-none-stk super-self stk)]

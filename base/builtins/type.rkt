@@ -23,24 +23,22 @@
             (CBuiltinPrim 'type-new
                           (list (CObject (CNone)
                                          (some (MetaStr (symbol->string name)))))))
-   (CLet
-    'bases (LocalId) bases
-    (CIf
-     (CBuiltinPrim 'type-uniqbases (list (CId 'bases (LocalId))))
-     (CSeq
-      (set-field (CId name scope) '__bases__ (CId 'bases (LocalId)))
-      (CTryExceptElse
-       (set-field (CId name scope) '__mro__
-                  (CBuiltinPrim 'type-buildmro
-                                (list
-                                 (CTuple (CNone) ;; we may not have tuple yet
-                                         (list (CId name scope)))
-                                 (CId 'bases (LocalId)))))
-       '_ (CRaise (some (make-exception 'TypeError
-                                        "cannot create a consistent method resolution order")))
-       ;; no exception, the class object is created and assigned to name, execute the class body
-       (CSeq body (CId name scope))))
-     (CRaise (some (make-exception 'TypeError "duplicate base")))))))
+   (CTryExceptElse
+    (set-field (CId name scope) '__bases__ (CBuiltinPrim 'type-uniqbases (list bases)))
+    '_ (CRaise (some (make-exception 'TypeError "duplicate base")))
+    ;; no exception, bases are not duplicated, compute __mro__
+    (CTryExceptElse
+     (set-field (CId name scope) '__mro__
+                (CBuiltinPrim 'type-buildmro
+                              (list
+                               (CTuple (CNone) ;; we may not have tuple yet
+                                       (list (CId name scope)))
+                               (CBuiltinPrim 'obj-getattr (list (CId name scope)
+                                                                (make-pre-str "__bases__"))))))
+     '_ (CRaise (some (make-exception 'TypeError
+                                      "cannot create a consistent method resolution order")))
+     ;; no exception, the class object is created and assigned to name, execute the class body
+     (CSeq body (CId name scope))))))
 
 ;; type-new: creates a new class object
 ;; first argument: the name as a string
@@ -63,14 +61,24 @@
       (MetaClass-c (some-v (VObjectClass-mval cls)))
       (error 'get-class-name "not a class object")))
 
+(define (type-metaclass [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
+  (check-types-pred args env sto MetaClass?
+                    (type-case (optionof CVal) (VObjectClass-class (first args))
+                      [none () (some vnone)]
+                      [some (mc) (some mc)])))
+
 ;; type-uniqbases: check for uniqueness of bases
 ;; first argument: the tuple of bases
 (define (type-uniqbases [args : (listof CVal)] [env : Env] [sto : Store]) : (optionof CVal)
   (check-types-pred args env sto MetaTuple?
                     (let ([bases (MetaTuple-v mval1)])
-                      (some (if (= (length (remove-duplicates bases)) (length bases))
-                                true-val
-                                false-val)))))
+                      (if (= (length (remove-duplicates bases)) (length bases))
+                          (some (VObjectClass
+                                 'tuple
+                                 (some (MetaTuple bases))
+                                 (hash empty)
+                                 (none))) ;; tuple class object may not be available yet
+                          (none)))))
 
 ;; type-buildmro: merge the __mro__ of the bases using the C3 algorithm
 ;; first argument: a tuple containing the class
