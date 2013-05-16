@@ -25,6 +25,9 @@ def test_object_class():
     ___assertEqual(x.__dict__, {})
     x.foo = 1
     ___assertEqual(x.foo, 1)
+    x.__dict__['bar'] = 2
+    ___assertEqual(x.bar, 2)
+    del x.__dict__['bar']
     ___assertEqual(x.__dict__, {'foo': 1})
 
 test_object_class()

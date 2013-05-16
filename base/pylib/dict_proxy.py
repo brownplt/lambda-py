@@ -1,8 +1,9 @@
 class dict_proxy(dict):
   def __init__(self, obj):
     type = ___id("%type")
+    isinstance = ___id("%isinstance")
     self.obj = obj
-    self.is_class = ___delta("$class", self.obj) is type
+    self.is_class = isinstance(self.obj, type)
 
   def __list__(self):
     list = ___id("%list")
@@ -28,10 +29,14 @@ class dict_proxy(dict):
       raise KeyError(key)
 
   def __setitem__(self, key, val):
+    if self.is_class:
+      raise TypeError("'dict_proxy' object does not support item assignment")
     setattr = ___id("%setattr")
     setattr(self.obj, key, val)
 
   def __delitem__(self, key):
+    if self.is_class:
+      raise TypeError("'dict_proxy' object does not support item deletion")
     delattr = ___id("%delattr")
     delattr(self.obj, key)
 

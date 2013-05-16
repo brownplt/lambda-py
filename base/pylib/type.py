@@ -88,11 +88,20 @@ def ___call_metaclass(name, bases, cls, keywords, stararg, kwarg):
     metaclass = kw_dict['metaclass']
     del kw_dict['metaclass']
   else:
+    # TODO: metaclass determination should be revised in this case
     metaclass = bases[0].__class__
 
+  prepare = getattr(metaclass, '__prepare__', None)
+  if prepare:
+    dct = prepare(name, bases, *stararg, **kw_dict)
+  else:
+    dct = {}
+  # TODO: attribute order should be preserved
+  dct.update(cls.__dict__)
+  
   callable = ___id("%callable")
   if callable(metaclass):
-    return metaclass(name, bases, cls.__dict__, *stararg, **kw_dict)
+    return metaclass(name, bases, dct, *stararg, **kw_dict)
   else:
     raise TypeError("metaclass is not callable")
 
