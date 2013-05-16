@@ -29,5 +29,6 @@
  "pylib/object.py"
  "pylib/attr.py"
  "pylib/property.py"
+ "pylib/dict_proxy.py"
  "py-prelude.py"))
   

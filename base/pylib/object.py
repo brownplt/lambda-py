@@ -41,21 +41,6 @@ def special_getattr(obj, key):
 
 ___assign("%special_getattr", special_getattr)
 
-# the computed obj.__dict__ attribute is a snapshot for now,
-# it should be a proxy dict.
-def obj_dict(obj):
-    list = ___id("%list")
-    str = ___id("%str")
-    obj_dict = {}
-    obj_dir = ___delta("obj-dir", obj, list, str)
-    is_class = ___delta("$class", obj) is type
-    for key in obj_dir:
-      if not is_class or (key != "__bases__" and key != "__mro__"):
-        obj_dict[key] = ___delta("obj-getattr", obj, key)
-    return obj_dict
-
-___assign("%obj_dict", obj_dict)
-
 def ___object_setattr__(obj, key, value):
     try:
       # If the field is present on the object, then try

@@ -6,10 +6,7 @@ class dict(object):
         self.__setitem__(pair[0], pair[1])
 
   def __len__(self):
-    result = 0
-    for pair in self.__internaldict__:
-      result += pair[1].__len__()
-    return result
+    return self.__list__().__len__()
 
   def __str__(self):
     result = "{"
@@ -42,15 +39,12 @@ class dict(object):
     return result
 
   def get(self, key, *default):
-    for pair in self.__internaldict__:
-      if key.__hash__().__eq__(pair[0]):
-        for elt in pair[1]: 
-          if elt[0].__eq__(key):
-            return elt[1]
-
-    if default.__len__() == 1:
-      return default[0]
-    return None
+    try:
+      return self.__getitem__(key)
+    except:
+      if default.__len__() == 1:
+        return default[0]
+      return None
 
   def __iter__(self):
     return self.keys().__iter__()
@@ -70,7 +64,8 @@ class dict(object):
     return True
 
   def clear(self):
-    self.__internaldict__ = []
+    for key in self.keys():
+      self.__delitem__(key)
 
   def update(self, *other):
     if ___delta("num=", other.__len__(), 0):

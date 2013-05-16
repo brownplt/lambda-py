@@ -252,7 +252,7 @@
             (bind 'dir (CUndefined))
             (bind '%dir (CUndefined))
             (bind '%special_getattr (CUndefined))
-            (bind '%obj_dict (CUndefined))
+            (bind '%dict_proxy (CUndefined))
             (bind '%call_stararg (CUndefined))
             (bind '%call_metaclass (CUndefined))
             (bind 'property (CUndefined))

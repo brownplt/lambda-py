@@ -565,7 +565,7 @@
        (CBuiltinPrim '$class (list obj-exp))]
       [(eq? attr '__dict__)
        ;; special attribute __dict__, cannot be overriden.
-       (CApp (CId '%obj_dict (GlobalId)) (list obj-exp) (none))]
+       (py-app (CId '%dict_proxy (GlobalId)) (list obj-exp) (none))]
       [(eq? attr '__mro__)
        ;; special attribute __mro__, cannot be overriden.
        (CBuiltinPrim 'obj-getattr (list obj-exp (make-builtin-str "__mro__")))]
