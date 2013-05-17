@@ -7,16 +7,13 @@ def test_object_class():
     #___assertNotEqual(a, b) Not defined in python-lib-bindings (Alejandro)
     ___assertTrue(a != b)
     ___assertFalse(hasattr(a, "foo"))
-    # NB: we could easily enforce the restriction for assigning attributes to
-    # object instances in object.__setattr__ (Alejandro)
-    """
+
     try:
         a.foo = 12
     except (AttributeError, TypeError):
         pass
     else:
         assert False, "object() should not allow setting a foo attribute"
-    """
     ___assertFalse(hasattr(object(), "__dict__"))
 
     class Cdict(object):

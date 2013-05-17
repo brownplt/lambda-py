@@ -42,13 +42,17 @@ def special_getattr(obj, key):
 ___assign("%special_getattr", special_getattr)
 
 def ___object_setattr__(obj, key, value):
+    obj_cls = ___delta("$class", obj)
+    if obj_cls is ___id("%object"):
+      str = ___id("%str")
+      msg = ___delta("str+", "'object' object has no attribute ", key, str)
+      raise AttributeError(msg)
     try:
       # If the field is present on the object, then try
       # to __set__ it if an accessor, otherwise just stick
       # it on the object
       # Perhaps in the future should be
       # obj.__dict__[key]
-      obj_cls = ___delta("$class", obj)
       val = ___getattr(obj_cls, key)
     except:
       pass # key is not in class hierarchy
