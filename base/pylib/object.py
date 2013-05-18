@@ -47,6 +47,10 @@ def ___object_setattr__(obj, key, value):
       str = ___id("%str")
       msg = ___delta("str+", "'object' object has no attribute ", key, str)
       raise AttributeError(msg)
+    if ___delta("str=", key, "__dict__"):
+      obj.__dict__.clear()
+      obj.__dict__.update(value)
+      return
     try:
       # If the field is present on the object, then try
       # to __set__ it if an accessor, otherwise just stick
@@ -71,8 +75,15 @@ def ___object_setattr__(obj, key, value):
 object.__setattr__ = ___object_setattr__
 
 def ___object__delattr__(obj, key):
+    obj_cls = ___delta("$class", obj)
+    if obj_cls is ___id("%object"):
+      str = ___id("%str")
+      msg = ___delta("str+", "'object' object has no attribute ", key, str)
+      raise AttributeError(msg)
+    if ___delta("str=", key, "__dict__"):
+      obj.__dict__.clear()
+      return
     try:
-      obj_cls = ___delta("$class", obj)
       val = ___getattr(obj_cls, key)
     except:
       pass # key is not in class hierarchy

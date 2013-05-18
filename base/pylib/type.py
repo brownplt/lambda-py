@@ -2,7 +2,10 @@
 ___assign("%str", None)
 
 def __setattr__(cls, key, val):
-  ___setattr(cls, key, val)
+  if ___delta("str=", key, "__dict__"):
+    raise AttributeError("attribute '__dict__' of 'type' objects is not writable")
+  else:
+    ___setattr(cls, key, val)
 
 class type(object):
   ___assign("%type", type)
@@ -68,6 +71,14 @@ class type(object):
         c_dir = ___delta("obj-dir", c, list, str)
         result.extend(c_dir)
     return list(set(result))
+
+  def __delattr__(obj, key):
+    if ___delta("str=", key, "__dict__"):
+      raise AttributeError("attribute '__dict__' of 'type' objects is not writable")
+    else:
+      object = ___id("%object")
+      object.__delattr__(obj, key)
+
 
 # function to determine and call metaclass.
 def ___call_metaclass(name, bases, cls, keywords, stararg, kwarg):

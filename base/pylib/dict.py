@@ -71,7 +71,7 @@ class dict(object):
     if ___delta("num=", other.__len__(), 0):
       pass
     else:
-      if ___delta("isinstance", other.__getitem__(0), self.__class__):
+      if ___delta("isinstance", other.__getitem__(0), dict):
         it = other.__getitem__(0).__itemslist__()
       else:
         it = other.__getitem__(0) # may be other iterable of pairs

@@ -27,4 +27,15 @@ def test_object_class():
     del x.__dict__['bar']
     ___assertEqual(x.__dict__, {'foo': 1})
 
+    class F:
+        def __init__(self, name):
+            self.name = name
+
+    m = F("a")
+    m.__dict__ = {'x':3}
+    ___assertFalse(hasattr(m, "name"))
+    ___assertEqual(m.x, 3)
+    del m.__dict__
+    ___assertEqual(m.__dict__, {})
+
 test_object_class()
