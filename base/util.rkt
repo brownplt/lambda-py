@@ -571,10 +571,16 @@
        (CBuiltinPrim 'obj-getattr (list obj-exp (make-builtin-str "__mro__")))]
       [(is-special-method? attr)
        ;; special methods cannot be overriden by __getattribute__, call %special_getattr(obj, attr)
-       (CApp (CId '%special_getattr (GlobalId)) (list obj-exp (make-builtin-str (symbol->string attr))) (none))]
+       (CApp (CId '%special_getattr (GlobalId))
+             (list obj-exp (make-builtin-str (symbol->string attr)))
+             (none))]
       [else
        ;; normal case, call type(obj).__getattribute__(obj, attr), this can be overriden
        (CLet '$obj (LocalId) obj-exp
-             (CLet '$cls (LocalId) (CBuiltinPrim '$class (list (CId '$obj (LocalId))))
-                   (CApp (CGetAttr (CId '$cls (LocalId)) (make-builtin-str "__getattribute__"))
-                         (list (CId '$obj (LocalId)) (make-builtin-str (symbol->string attr))) (none))))])))
+             (CApp (CGetAttr
+                    (CBuiltinPrim '$class (list (CId '$obj (LocalId))))
+                    (make-builtin-str "__getattribute__"))
+                   (list
+                    (CId '$obj (LocalId))
+                    (make-builtin-str (symbol->string attr)))
+                   (none)))])))
