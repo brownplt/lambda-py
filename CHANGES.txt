@@ -1,0 +1,41 @@
+This document summarizes the features added to the originally submitted version, before the artifact evaluation, and related tests.
+
+Added support for complete Python call semantics at desugar:
+    keyword arguments and **kwargs expressions
+    generalized defaults handling in def and lambda
+    keyword only arguments and **kwarg parameter in in def and lambda
+Related tests in python-reference/functions: func_defaults.py, func_stararg.py, keyword_args1.py, keyword_args2.py, keyword_args3.py, keyword_args4.py, kwarg.py, kwonlyargs.py, lambda_defaults.py, lambda_stararg.py, non_tuple_stararg.py
+    
+Added support for the with statement and context manager protocol support to file class, related tests: python-reference/exceptions/test_with.py
+
+Added support for metaclasses other than type via metaclass keyword argument and metaclass inheritance, related tests in python-reference/class: metaclass-function.py, metaclass-class1.py, metaclass-class2.py and metaclass-class3.py
+
+Added support for Class Decorators, related tests: class/class-decorators.py
+
+Changed Generator expressions desugar to produce generators, related tests: python-reference/iter/test-genexp-lazyness.py
+
+Added support for dict and set comprehensions, related tests: python-reference/dict/dict-set-comprehensions.py
+
+Added local scope for comprehensions and generator expressions, related tests: python-reference/scope/comprehensions-leak.py
+
+Added dict_proxy class to support updatable __dict__ attribute, related tests: python-reference/types/test_object_class.py and python-reference/class/test_class_dict.py
+
+Added support for __dict__ attribute assignment and deletion, related tests: python-reference/types/test_object_class.py
+
+If expression support, related tests: python-reference/functions/memofib-function-attributes.py
+
+Missing filter predicates in list comprehensions, related tests: python-reference/iter/filter-comprehension.py
+
+Fixed missing else clause in for loops, related tests: python-reference/iter/test-for-else.py
+
+Fixed % operator, related tests: python-reference/iter/continue.py
+
+Added support for ** binary operator, related tests: python-reference/types/test_pow.py
+
+Added bitwise operators to int class, related tests: python-reference/types/bitwise_test.py
+
+Added __int__ and __float__ methods to num class, related tests: python-reference/types/test_dynamics.py
+
+Fixed return type for *, /, // and % operators, related tests: python-reference/types/test_int_float_primitives.py
+
+Forbid assigning of arbitrary attributes to instances of object, related tests: python-reference/types/test_object_class.py
