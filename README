@@ -20,19 +20,18 @@ This Repo
 
 base/
 
-  this contains our implementation of desugaring, interpreter
+  This contains our implementation of desugaring, interpreter.
 
 redex/
 
-  this contains the semantic implementation of lambda-py
+  This contains the semantic implementation of lambda-py.
 
 tests/
 
-  this contains various tests - a regression suite in python-reference,
+  This contains various tests. We have a regression suite in python-reference,
   which are the tests that we report on in the paper. Other tests in this
-  directory are ones that we haven't committed to checking regressions, and
-  may or may not pass.
-
+  directory are ones that we haven't committed to supporting yet, and
+  may or may not pass the current implementation.
 
 Installation
 ------------
@@ -50,7 +49,15 @@ uses.  Install them with:
 Then you should be able to build lambda-py itself:
 
 > cd base/
-> make
+> raco make python-main.rkt
+
+After that, you can interpret individual files with lambda-py like:
+
+> racket python-main.rkt --stdin ../tests/python-reference/scope/recursion.py --interp
+
+Or run a directory of tests (reporting failures):
+
+> racket python-main.rkt --test ../tests/python-reference
 
 If you encounter any problems or have any other questions, send mail to
 lambda-py@googlegroups.com
