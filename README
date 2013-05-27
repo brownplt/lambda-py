@@ -29,7 +29,9 @@ redex/
 tests/
 
   this contains various tests - a regression suite in python-reference,
-  and other tests.
+  which are the tests that we report on in the paper. Other tests in this
+  directory are ones that we haven't committed to checking regressions, and
+  may or may not pass.
 
 
 Installation
