@@ -1,6 +1,6 @@
 This document summarizes the features added to the originally submitted version, before the artifact evaluation, and related tests.
 
-Added support for complete Python call semantics at desugar:
+Added support for general Python call semantics at desugar:
     keyword arguments and **kwargs expressions
     generalized defaults handling in def and lambda
     keyword only arguments and **kwarg parameter in in def and lambda
@@ -8,7 +8,7 @@ Related tests in python-reference/functions: func_defaults.py, func_stararg.py, 
     
 Added support for the with statement and context manager protocol support to file class, related tests: python-reference/exceptions/test_with.py
 
-Added support for metaclasses other than type via metaclass keyword argument and metaclass inheritance, related tests in python-reference/class: metaclass-function.py, metaclass-class1.py, metaclass-class2.py and metaclass-class3.py
+Added initial support for metaclasses other than type via metaclass keyword argument and metaclass inheritance, related tests in python-reference/class: metaclass-function.py, metaclass-class1.py, metaclass-class2.py, metaclass-class3.py and test_metaclass.py
 
 Added support for Class Decorators, related tests: class/class-decorators.py
 

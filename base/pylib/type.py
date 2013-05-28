@@ -54,14 +54,25 @@ class type(object):
   def __bool__(cls): return True
 
   def __getattribute__(cls, key):
-    val = ___getattr(cls, key)
-    val_cls = ___delta("$class", val)
     try:
-      get = ___getattr(val_cls, "__get__")
+      val = ___getattr(cls, key)
+      val_cls = ___delta("$class", val)
+      try:
+        get = ___getattr(val_cls, "__get__")
+      except:
+        return val
+      else:
+        return get(val, None, cls)
     except:
-      return val
-    else:
-      return get(val, None, cls)
+      metaclass = ___delta("$class", cls)
+      val = ___getattr(metaclass, key) 
+      val_cls = ___delta("$class", val)
+      try:
+        get = ___getattr(val_cls, "__get__")
+      except:
+        return val
+      else:
+        return get(val, cls, metaclass)
 
   def __dir__(cls):
     list = ___id("%list")
