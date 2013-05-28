@@ -188,6 +188,18 @@
                            (term (store-lookup Σ ref_2))))]
   [(δ "Is" val_1 val_2 ε Σ) vfalse]
     
+  [(δ "obj-hasattr"
+    (obj-val any_cls any_meta ((string_1 val_1) ... (string_chk val_chk) (string_n val_n) ...))
+    (obj-val any_othercls (meta-str string_chk) any_dict)
+    ε Σ)
+   vtrue]
+  [(δ "obj-hasattr"
+    (obj-val any_cls any_meta ((string_1 val_1) ... ))
+    (obj-val any_othercls (meta-str string_chk) any_dict)
+    ε Σ)
+   vfalse
+   (side-condition (not (member (term string_chk) (term (string_1 ...)))))]
+
 
   [(δ "type-new" (obj-val any_cls (meta-str string) any_dict) ε Σ)
    (obj-val %type (meta-class ,(string->symbol (term string))) ())]

@@ -199,5 +199,7 @@
     ['Is (prim-alloc op argsptrs)]
     ['IsNot (prim-alloc op argsptrs)]
 
+    ['obj-hasattr (prim-alloc op argvs)]
+
    [else (prim-noalloc op argsptrs)])))
 
