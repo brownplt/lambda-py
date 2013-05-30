@@ -35,13 +35,14 @@
     (λ (value) '())
     (λ (error port) (display error port))))
 
-(define PRELUDE "py-prelude.py")
+(define-runtime-path prelude-file "py-prelude.py")
+(define PRELUDE-src (file->string prelude-file))
 
 (define (mk-python-cmdline-eval some-cmdline-path)
   (λ (name port)
     (define input-src (port->string port))
     (define proc (process some-cmdline-path))
-    (display (file->string PRELUDE) (second proc))
+    (display PRELUDE-src (second proc))
     (display input-src (second proc))
     (display eof (second proc))
     (flush-output (second proc))

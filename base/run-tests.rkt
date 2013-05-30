@@ -7,7 +7,7 @@
 (struct Result (name timeout? expected-out actual-out expected-err actual-err)
                #:transparent)
 ;; (TestSpec string string string string)
-(struct TestSpec (program-name program-src output error) #:transparent)
+(struct TestSpec (program-dir program-name program-src output error) #:transparent)
 
 
 (define INTERP-TIMEOUT-SECONDS 600)
@@ -33,7 +33,10 @@
   (define interp-thunk
     (λ ()
       (define srcport (open-input-string (TestSpec-program-src test-spec)))
-      (define result (interp (TestSpec-program-name test-spec) srcport))
+      (define result
+        (parameterize ([current-directory
+                        (TestSpec-program-dir test-spec)])
+          (interp (TestSpec-program-name test-spec) srcport)))
       (close-input-port srcport)
       result))
   (define interp-output
@@ -53,8 +56,8 @@
           (TestSpec-error test-spec)
           stderr))
 
-;; path->test-spec : some-system-path -> TestSpec
-(define (path->test-spec path)
+;; path->test-spec : some-system-path dir-name -> TestSpec
+(define (path->test-spec path dirname)
   (define strpath (some-system-path->string path))
   (define expected-path (string-append strpath ".expected"))
   (define err-path (string-append strpath ".error"))
@@ -68,7 +71,7 @@
   (define src-input (open-input-file (some-system-path->string path)))
   (define src (port->string src-input))
   (close-input-port src-input)
-  (TestSpec strpath src expected-out expected-err))
+  (TestSpec dirname strpath src expected-out expected-err))
 
 (define (test-spec->s-exp test-spec)
   ;; we ditch path information
@@ -121,7 +124,7 @@
   (when (not (directory-exists? dirname))
         (error (format "Directory not found: ~a" dirname)))
   (for/list ([path (parseltongue-paths (path->complete-path dirname))])
-    (path->test-spec path)))
+    (path->test-spec path dirname)))
 
 
 (define (run-test-specs-from-s-exp interp s-exp)
