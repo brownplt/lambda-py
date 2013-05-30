@@ -1,0 +1,429 @@
+<!doctype HTML>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <style>
+      body {
+        font-family: helvetica
+        margin: 0 auto;
+        padding-left: 5em;
+        max-width: 40em;
+      }
+      h1, h2 {
+        text-align: center;
+      }
+      li {
+        margin-top: 10px;
+      }
+      img {
+        width: 150%;
+      }
+    </style>
+
+  </head>
+
+  <body>
+    <h1>Python: The Full Monty</h1>
+    <h2>A Tested Semantics for the Python Programming Language</h2>
+    <h2><em>Artifact Evaluation Submission</em></h2>
+
+    <h3>What this Document Covers</h3>
+
+    <ul>
+      <li>Starting the λ<sub>π</sub> virtual machine and verifying the paper's results</li>
+      <li>Exploring the λ<sub>π</sub> implementation and tests</li>
+      <li>Building λ<sub>π</sub> from scratch</li>
+    </ul>
+
+    <h3>Contact</h3>
+
+    <p> If you have any problems or questions that require consulting
+    the authors during the review process, email <code>joe@cs.brown.edu</code></p>
+
+    <h3>Getting Started</h3>
+
+    <p> The virtual machine is in the <code>vm</code> directory of this archive
+    as <code>lambda-py.vmdk</code>.  You can start it via VirtualBox by
+    creating a new virtual machine, choosing 'Linux' and 'Ubuntu' (not 64-bit).
+    Provide at least 1G of memory for the VM.  In the first run wizard, choose
+    <code>lambda-py.vmdk</code> as the disk image to use.
+    </p>
+
+    <p>It may take a few minutes to start up on a screen that looks like:</p>
+    
+    <img src="img/vm-startup.png"></img>
+
+    <p>There is one useful user on the virtual
+    machine, <code>reviewer</code>, with <code>sudo</code> privileges and
+    password <code>reviewer</code>.  When prompted for a login, enter these
+    credentials and you should be presented with a desktop that looks like:
+    </p>
+
+    <img src="img/vm-desktop.png"></img>
+
+    <p>The files for review are all in the directory
+    <code>/home/reviewer/lambda-py</code>.  The implementation and tests for
+    λ<sub>π</sub> at artifact submission time are in
+    <code>lambda-py-artifact-submission</code>.  We focus on the current state
+    of the implementation, which enjoys some significant improvements over the
+    implementation at submission time.  It passes all the same tests as the
+    submission-time version and more (we include the version from submission
+    time with instructions (at the end of this document) for completeness).</p>
+
+    <p>Our first goal should be to simply verify that lambda-py runs.  Open a
+    terminal ("Applications Menu" at the top left, then "Terminal Emulator"),
+    and let's first run a very small test so we can find out if anything goes
+    wrong right away (if you have the opportunity to ask the authors for help,
+    we're putting this here for quick diagnosis): </p>
+
+    <pre>
+$ cd lambda-py/lambda-py-artifact-submission/base
+$ echo "print('lambda-py works')" | racket python-main.rkt --interp
+lambda-py works
+    </pre>
+
+    <img src="img/vm-test-lambda-py.png"></img>
+
+    <p>This will take a few seconds to run, and confirms that the λ<sub>π</sub>
+    interpreter is up and running for you.</p>
+
+    <h3>Step-by-Step Instructions</h3>
+
+    <p>To run all the tests that we report in the paper, you can run:</p>
+
+    <pre>
+$ cd ~/lambda-py/lambda-py-artifact-submission/base
+$ racket python-main.rkt --test ../../lambda-py-oopsla2013/tests/python-reference/
+175 tests succeeded
+0 tests failed
+    </pre>
+
+    <p>This runs the tests that we report in the paper using the current
+    implementation.  We expect this to take from one to two hours, depending on
+    your machine.</p>
+
+    <p>We've added new features since submission time, documented in
+    CHANGES.txt.  The new test cases are alongside the old in the
+    <code>tests/python-reference</code> subdirectory of
+    <code>lambda-py-artifact-submission</code>.  So if you run the following,
+    you will see the additional tests passing: </p>
+
+    <pre>
+$ cd ~/lambda-py/lambda-py-artifact-submission/base
+$ racket python-main.rkt --test ../tests/python-reference/
+[FILL] tests succeeded
+0 tests failed
+    </pre>
+
+    <p>We provide a script called <code>line_count.sh</code> that uses <a
+    href="http://cloc.sourceforge.net/">CLOC</a> to count the lines of code in
+    each directory of <code>python-reference</code>.  This compares the current
+    state of the repository to the numbers reported in the paper in Figure 12
+    (the "Built-in Datatypes" count is the combination of the directories
+    function, bool, builtin, tuple, lists, and dict, "Iteration" is the
+    combination of directories iter and range, and "(Multiple) Inheritance" is
+    the combination of directories super and multiple-inheritance).  So, you
+    can do:</p>
+
+    <pre>
+$ cd ~/lambda-py/lambda-py-artifact-submission/tests
+$ ./line_count.sh
+... line counts output here ...
+    </pre>
+
+    <p>The repository is also set up to run all the same tests using Python.
+    We've included an installation of Python 3.2.3 (the version we are
+    modelling) in the VM, and these tests can be run with:</p>
+
+    <pre>
+$ cd ~/lambda-py/lambda-py-artifact-submission/base
+$ racket python-main.rkt --python-path ~/install-stuff/Python-3.2.3/python --test-py ../tests/python-reference
+    </pre>
+
+    <p><b>Note:</b> We drive the Python tester with <em>Racket</em>, passing
+    the Python path as an argument.  The implementation of our test harness
+    performs the same directory traversal as when running with λ<sub>π</sub>, but
+    runs with the Python executable, and checks standard out and standard error
+    the same way.</p>
+
+    <p>That's enough to verify the test results reported in the paper, and some
+    of what we've worked on since then.</p>
+
+<h3>Looking Around</h3>
+
+    <h4>Code from the paper</h4>
+
+    <p>Many of the discussions in the paper directly correspond to a few places
+    in the code; it is useful to see how they translate.  These are presented
+    as links to Github sources, since they have a nice viewer for the
+    files.</p>
+
+    <ul>
+
+      <li>The Redex definition of the language (which is also used to typeset
+      the paper's code examples) is in <a
+      href="https://github.com/brownplt/lambda-py/blob/master/redex/lambdapy-core.rkt">lambda-py-core.rkt</a>,
+      and the definition of the reduction steps and related metafunctions
+      (which are also used to typeset the semantics shown in the paper) are in
+      <a
+      href="https://github.com/brownplt/lambda-py/blob/master/redex/lambdapy-reduction.rkt">lambda-py-reduction.rkt</a>.
+      The <code>redex/</code> directory contains a number of tests for these.
+      </li>
+
+      <li>The interpreter implementation (dubbed λ<sub>π↓</sub> in the paper)
+      defines its abstract syntax in <a
+      href="https://github.com/brownplt/lambda-py/blob/master/base/python-core-syntax.rkt"><code>python-core-syntax.rkt</code></a>,
+      which is simply an encoding in Racket structs of the AST from
+      <code>lambda-py-core.rkt</code>.   Similarly,
+      <code>python-interp.rkt</code> is a (much) more efficient
+      implementation of the reduction relation from
+      <code>lambda-py-reduction.rkt</code>.
+      </li>
+
+
+      <li> A number of straightforward operator desugarings are in <a
+      href="https://github.com/brownplt/lambda-py/blob/master/base/python-desugar.rkt#L371"><code>python-desugar.rkt</code></a>.
+      </li>
+
+      <li> The composition of all the steps of scope desugaring is split
+      between <a
+      href="https://github.com/brownplt/lambda-py/blob/master/base/python-phase1.rkt#L147"><code>python-phase1.rkt</code></a>,
+      which marks global variables and instance variables from classes and
+      rewrites class bodies, and <a
+      href="https://github.com/brownplt/lambda-py/blob/master/base/python-phase2.rkt#L19"><code>python-phase2.rkt</code></a>,
+      which desugars all identifiers down to either local or global variables.
+      These do other less fundamental work that doesn't appear in the paper for
+      straightforward desugarings of default arguments and decorators.</li>
+
+      <li>The CPS transformation and code for the skeleton in Figure 11 are in
+      the file <a
+      href="https://github.com/brownplt/lambda-py/blob/master/base/python-cps.rkt#L379"><code>python-cps.rkt</code></a>
+      </li>
+
+      <li>We try to push functionality out of Racket and into
+      Python-implemented libraries (with some macros, as indicated in Section
+      6.2).  These are in the <code>base/pylib/</code> directory.  For example
+      the <code>object</code> and <code>type</code> base classes implement a
+      large swath of built-in functionality; they are implemented in Python
+      with macros for primitive operators, at <a
+      href="https://github.com/brownplt/lambda-py/blob/master/base/pylib/type.py"><code>type.py</code></a>
+      and <a
+      href="https://github.com/brownplt/lambda-py/blob/master/base/pylib/object.py"><code>object.py</code></a>.
+      </li>
+
+      
+    </ul>
+
+    <p>As noted in the paper, λ<sub>π</sub> isn't quite to the point of running
+    Python's full <code>unittest</code> library, so these tests use a limited
+    language of assertions.  For example, if we look at
+    <code>tests/python-reference/multiple-inheritance/methods.py</code>, we see
+    lines like:
+
+    <pre>
+___assertEqual(Foo.getx(foo), 1)
+    </pre>
+
+    The implementation of <code>___assertEqual</code> is Python code that
+    simply checks that the arguments are equal according to Python's
+    <code>==</code> operator, and its implementation is in
+    <code>base/py-prelude.py</code>.
+
+
+    <h4>Playing around with λ<sub>π</sub></h4>
+
+    <p>It's easy to tweak the Python-implemented libraries of λ<sub>π</sub> to see
+    what their effects are on Python programs.  Since these libraries implement
+    so much built-in behavior, tweaking them can have interesting effects.  You
+    can run individual Python programs through λ<sub>π</sub> by passing them
+    through standard input and using the <code>--interp</code> option:</p>
+    
+    <pre>
+$ racket python-main.rkt --interp &lt; some-python-file.py
+    </pre>
+    
+    <p>Some things you might try:</p>
+
+    <ul>
+    
+      <li>Change the definition of the <code>__str__</code> method in
+      <code>pylib/dict.py</code> and run a simple program like <code>print({'x':5})</code>.
+      </li>
+
+      <li>Change the definition of the <code>__getitem__</code> method on a
+      built-in type like <code>pylib/list</code> or <code>pylib/dict</code> and
+      see the effects on lookup statements like <code>print([1,2,3][0])</code>.
+      Similarly, change <code>__add__</code> or <code>__sub__</code> and see
+      the effect on <code>+</code> and <code>-</code> expressions.</li>
+
+      <li>Change the behavior of the various <code>__getattribute__</code>
+      functions in <code>pylib/object.py</code> and see how it affects simple
+      attribute lookup
+
+    </ul>
+
+
+    <h3>Building from Scratch</h3>
+
+    <p>These instructions are included so reviewers can see the build process
+    for λ<sub>π</sub> on their own machines.  Reviewers should be able to
+    evaluate the artifact's adequacy relative to the paper from the VM, but a
+    manual installation hopefully demonstrates that the artifact is easy
+    to install and extend.</p>
+
+    <p>
+    The code for λ<sub>π</sub> is available at <a
+      href="https://github.com/brownplt/lambda-py">https://github.com/brownplt/lambda-py</a>.
+    </p>
+
+    <p> We have two points in the repository's history that are interesting for
+    this review: One at the time of our OOPSLA submission (28 March, 2013), and
+    one at the time of our artifact submission (1 June 2013).  The former is
+    tagged in the repository as <code>oopsla2013</code>, and the latter is the
+    <code>HEAD</code> of the <code>artifactevaluation</code> branch (we'll push
+    minor bugfixes here if any come up in the evaluation process, it contains
+    this index file which isn't on the master branch, and if we do work and
+    change master during the review process, we won't make breaking changes for
+    the reviewers).  </p>
+
+    <h5>Getting Racket</h5>
+
+    <p>Both require that you install Racket; the main download link at <a
+      href="http://racket-lang.org/download/">http://racket-lang.org/download/</a>
+    has installers for many platforms.  We have tested on several different
+    Ubuntus from 11.04 to 12.10, and on OSX, with both Racket 5.3.3 and Racket
+    5.3.4.  For review, we recommend Racket 5.3.4.  Download the installer and
+    run it; you can pick any of the options for installing Racket (for example,
+    you can install UNIX-style in <code>/usr/</code>, or keep the installation
+    in your home directory).  In the instructions that follow, we assume that
+    the <code>$PATH</code> environment variable is pointing to the
+    <code>bin/</code> directory of the Racket installation that holds the
+    <code>raco</code> and <code>racket</code> commands (this may be done for
+    you automatically depending on which options you choose in the Racket
+    installer).  </p>
+
+    <p><b>Example:</b></p>
+    <pre>
+$ wget http://download.racket-lang.org/installers/5.3.4/racket/racket-5.3.4-bin-i386-linux-ubuntu-karmic.sh
+$ sh racket-5.3.4-bin-i386-linux-ubuntu-karmic.sh
+    </pre>
+
+    <h5>Getting the Source of λ<sub>π</sub></h5>
+
+    <p>Github is the easiest way to get a copy of the code:</p>
+
+    <pre>
+$ git clone https://github.com/brownplt/lambda-py
+    </pre>
+
+    <p><b>BE AWARE:</b> If you fork the repository on Github, it will leak your
+    identity to us (it's up to you if that's a problem).  Just using <code>git
+    clone</code> (as above) won't.</p>
+
+    <h4>Artifact Submission-time Build</h4>
+
+    <ul>
+      <li><p><b>Check out the <code>artifactevaluation</code> branch:</b></p>
+
+      <pre>
+$ git checkout artifactevaluation
+      </pre>
+
+      <li><p><b>PLAI-Typed:</b>  λ<sub>π</sub> is built in a language that sits on
+      top of Racket called plai-typed.  We have it included with the repository
+      as <code>plai-typed-18Feb2013.plt</code> in the root of the repository.  To
+      install it, use the <code>raco</code> command:</p>
+
+      <pre>
+  $ raco setup -A plai-typed-18Feb2013.plt
+      </pre>
+      </li>
+
+      <li><p><b>Ragg:</b></p>  Since publication, we had a third-party
+      contribution of a pure Racket parser for Python (see <a
+      href="https://github.com/brownplt/lambda-py/commit/ef26e932e7f7f10b3273ec618e7b819f91ca1acf">this
+      merge</a>).  It uses the Ragg parser package for Racket; to install it, use
+      the <code>raco</code> command:</p>
+
+      <pre>
+  $ raco setup -A ragg-mangled.plt
+      </pre>
+
+      <li><p><b>Building:</b>  The implementation of λ<sub>π</sub> is in the
+      <code>base/</code> directory.  To build, simply use <code>make</code>:</p>
+
+      <pre>
+  $ cd base
+  $ make
+      </pre>
+
+      <li><p><b>Running</b> Use the same commands as above to run the tests (e.g.
+      the commands with the <code>--test</code> option).</p>
+    </ul>
+
+    
+    <h4>Paper Submission-time Build</h4>
+
+    <p><em>We recommend using the provided virtual machine to review the code
+      as it was at submission time, since it involves additional build steps
+      that we have since made much easier.</em></p>
+
+    <ul>
+      <li><b>Python</b>
+
+    <p>At the time of submission, we used Python's parser to get original ASTs
+    for desugaring (we have since switched to a pure-Racket Python parser).
+    So, to run tests at the <code>oopsla2013</code> tag, you will also need to
+    install Python3 (source is available at <a
+      href="http://www.python.org/download/releases/3.2.3/">http://www.python.org/download/releases/3.2.3/</a>).
+    </p>
+
+    <p><b>Example:</b></p>
+    <pre>
+$ wget http://www.python.org/ftp/python/3.2.3/Python-3.2.3.tgz
+$ tar xzf Python-3.2.3.tgz
+$ cd Python-3.2.3
+$ ./configure
+$ make
+    </pre>
+    </li>
+
+
+    <li>
+    <p>To view the code as it was at submission time, check out the <code>oopsla2013</code> tag:</p>
+
+    <pre>
+$ git checkout oopsla2013
+    </pre>
+
+    </li>
+
+    <li><p><b>PLAI-Typed:</b>  As in the instructions for the current build,
+    install plai-typed with:</p>
+
+    <pre>
+$ raco setup -A plai-typed-18Feb2013.plt
+    </pre>
+    </li>
+
+    <li><p><b>Running:</b>  To run the tests that were reported in the paper, run:</p>
+
+    <pre>
+# One additional build step:
+$ cd base/
+$ raco make python-main.rkt
+$ racket python-main.rkt --python-path ~/install-stuff/Python-3.2.3/python --test ../tests/python-reference/
+175 tests succeeded
+0 tests failed
+    </pre>
+
+    <p>Where <code>~/install-stuff/Python-3.2.3/python</code> is the path to
+    your Python3 installation's <code>python</code> binary.  We originally used
+    Python to get the original Python AST for desugaring, and it has since been
+    replaced.  If not building from scratch, in the
+    <code>lambda-py-28-march-2013</code> directory of the VM, running the same
+    command will run the tests on the implementation as it appeared at
+    submission time.</p>
+
+  </body>
+</html>
