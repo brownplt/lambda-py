@@ -8,6 +8,7 @@
         margin: 0 auto;
         padding-left: 5em;
         max-width: 40em;
+        text-align: justify;
       }
       h1, h2 {
         text-align: center;
@@ -18,6 +19,9 @@
       img {
         width: 150%;
       }
+      pre {
+        background-color: #efefef;
+      }
     </style>
 
   </head>
@@ -27,7 +31,20 @@
     <h2>A Tested Semantics for the Python Programming Language</h2>
     <h2><em>Artifact Evaluation Submission</em></h2>
 
-    <h3>What this Document Covers</h3>
+    <h3>This Document</h3>
+
+    <p>This documentat is intended to assist the OOPSLA Artifact Evaluation
+    Committee (AEC) and any other interested parties reproduce and extend the
+    results from our OOPSLA 2013 paper.</a>
+
+    <p>This document is available at <a
+    href="http://cs.brown.edu/research/plt/dl/lambda-py/ae/index.html">http://cs.brown.edu/research/plt/dl/lambda-py/ae/index.html</a>,
+    and in the tarball that we submitted to the AEC.  The tarball is also
+    available from <a
+    href="http://cs.brown.edu/research/plt/dl/lambda-py/ae/lambda-py.tgz">http://cs.brown.edu/research/plt/dl/lambda-py/ae/lambda-py.tgz</a>.
+    </p>
+
+    <p>This document covers:</p>
 
     <ul>
       <li>Starting the λ<sub>π</sub> virtual machine and verifying the paper's results</li>
@@ -42,14 +59,16 @@
 
     <h3>Getting Started</h3>
 
-    <p> The virtual machine is in the <code>vm</code> directory of this archive
-    as <code>lambda-py.vmdk</code>.  You can start it via VirtualBox by
-    creating a new virtual machine, choosing 'Linux' and 'Ubuntu' (not 64-bit).
-    Provide at least 1G of memory for the VM.  In the first run wizard, choose
-    <code>lambda-py.vmdk</code> as the disk image to use.
-    </p>
+    <p>The virtual machine is in the directory <code>lambda-py-server</code>.
+    The file <code>lambda-py-server.vbox</code> is runnable by double-clicking
+    on many platforms with VirtualBox installed.  You can also create a new
+    virtual machine, choosing 'Linux' and 'Ubuntu' (not 64-bit), and use
+    <code>lambda-py-server.vmdk</code> as the disk image.  If you take this
+    route, provide at least 1G of memory for the VM.  In the first run wizard,
+    choose <code>lambda-py-server.vmdk</code> as the disk image to use.  </p>
 
-    <p>It may take a few minutes to start up on a screen that looks like:</p>
+    <p>Once you start the server, it may take a few minutes to start up on a
+    screen that looks like:</p>
     
     <img src="img/vm-startup.png"></img>
 
@@ -93,7 +112,7 @@ lambda-py works
 
     <pre>
 $ cd ~/lambda-py/lambda-py-artifact-submission/base
-$ racket python-main.rkt --test ../../lambda-py-oopsla2013/tests/python-reference/
+$ racket python-main.rkt --test ../../lambda-py-28-march-2013/tests/python-reference/
 175 tests succeeded
 0 tests failed
     </pre>
@@ -110,7 +129,7 @@ $ racket python-main.rkt --test ../../lambda-py-oopsla2013/tests/python-referenc
 
     <pre>
 $ cd ~/lambda-py/lambda-py-artifact-submission/base
-[FILL] tests succeeded
+206 tests succeeded
 0 tests failed
     </pre>
 
