@@ -73,6 +73,7 @@ class tuple(object):
     return cmpresult.__eq__(0)
 
   def __hash__(self):
+    result = 0
     for elt in self:
       result += self.__hash__() * 17
     return result
