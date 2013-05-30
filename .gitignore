@@ -4,3 +4,4 @@
 *.bak
 base/compiled/
 base/builtins/compiled/
+redex/compiled
