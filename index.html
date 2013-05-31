@@ -108,29 +108,16 @@ lambda-py works
 
     <h3>Step-by-Step Instructions</h3>
 
-    <p>To run all the tests that we report in the paper, you can run:</p>
-
-    <pre>
-$ cd ~/lambda-py/lambda-py-28-march-2013/base
-$ racket python-main.rkt --python-path ~/install-stuff/Python-3.2.3/python --test ../tests/python-reference/
-175 tests succeeded
-0 tests failed
-    </pre>
-
-    <p>This runs the tests that we report in the paper using the
-    implementation as of the paper submission date.  We expect this to
-    take from one to two hours, depending on your machine.</p>
-
     <p>We've added new features since submission time, documented in
     CHANGES.txt.  The new test cases are alongside the old in the
     <code>tests/python-reference</code> subdirectory of
     <code>lambda-py-artifact-submission</code>.  So if you run the following,
-    you will see the additional tests passing: </p>
+    you will see more tests passing than the 175 we report in the paper: </p>
 
     <pre>
 $ cd ~/lambda-py/lambda-py-artifact-submission/base
 $ racket python-main.rkt --test ../tests/python-reference/
-206 tests succeeded
+205 tests succeeded
 0 tests failed
     </pre>
 
@@ -164,6 +151,20 @@ $ racket python-main.rkt --python-path ~/install-stuff/Python-3.2.3/python --tes
     performs the same directory traversal as when running with λ<sub>π</sub>, but
     runs with the Python executable, and checks standard out and standard error
     the same way.</p>
+
+    <p>To go back in time and run all the tests that we report in the paper,
+    you can visit the other pre-installed directory that contains the code from
+    that time:</p>
+
+    <pre>
+$ cd ~/lambda-py/lambda-py-28-march-2013/base
+$ racket python-main.rkt --python-path ~/install-stuff/Python-3.2.3/python --test ../tests/python-reference/
+175 tests succeeded
+0 tests failed
+    </pre>
+
+    <p>(We pass the Python path because we originally used Python to get the
+    original Python AST for desugaring, and it has since been replaced).</p>
 
     <p>That's enough to verify the test results reported in the paper, and some
     of what we've worked on since then.</p>
@@ -437,12 +438,7 @@ $ racket python-main.rkt --python-path ~/install-stuff/Python-3.2.3/python --tes
     </pre>
 
     <p>Where <code>~/install-stuff/Python-3.2.3/python</code> is the path to
-    your Python3 installation's <code>python</code> binary.  We originally used
-    Python to get the original Python AST for desugaring, and it has since been
-    replaced.  If not building from scratch, in the
-    <code>lambda-py-28-march-2013</code> directory of the VM, running the same
-    command will run the tests on the implementation as it appeared at
-    submission time.</p>
+    your Python3 installation's <code>python</code> binary.</p>
 
   </body>
 </html>
