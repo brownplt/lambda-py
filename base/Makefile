@@ -1,5 +1,8 @@
 MOD := $(shell for foo in $$(git diff --name-only | grep '\.rkt$$' | sed s%.*/%%g | grep -v 'main.rkt'); do find . -name $$foo; done)
 FILES := "${MOD}"
+artifactevaluation:
+	raco make python-main.rkt
+
 all:
 	for foo in `git grep -l 'lang plai-typed$$' | grep '\.rkt$$'`; do sed -i s/'lang plai-typed$$'/'lang plai-typed\/untyped'/g $$foo; done && git ls-files  | grep '\.rkt$$' | xargs raco make -j 5 && grep -r -l  --color='auto' -P -n "[\x80-\xFF]" | sed s/^/"Warning: found non-ascii characters: "/g | grep -v pyc$$ | grep -v zo$$ | grep -v rkt$$; make clean-python; true
 
