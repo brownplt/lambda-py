@@ -1,5 +1,5 @@
 # support file for other testing file
-TESTFN = "generated4test"
+TESTFN = "___lambdapy_generated_for_support"
 
 class Foo: 
   def __init__(self):

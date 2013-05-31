@@ -2,7 +2,9 @@
 
 (provide json-summary run-test-specs-from-s-exp get-test-specs
          serialize-test-suite run-tests results-summary simple-summary [struct-out Result] [struct-out TestSpec])
-(require racket/set)
+(require
+  racket/set
+  srfi/13)
 
 (struct Result (name timeout? expected-out actual-out expected-err actual-err)
                #:transparent)
@@ -28,6 +30,10 @@
 
 (define (clean s) (regexp-replace* "\r" s ""))
   
+(define (skip? test-spec)
+  (string-contains (TestSpec-program-name test-spec) "___lambdapy_generated"))
+
+
 ;; run-test-spec : (string port -> (pairof string string)) TestSpec -> Result
 (define (run-test-spec interp test-spec)
   (define interp-thunk
@@ -129,7 +135,8 @@
 
 
 (define (run-test-specs-from-s-exp interp s-exp)
-  (define specs (deserialize-test-suite s-exp))
+  (define specs (filter (lambda (t) (not (skip? t)))
+                        (deserialize-test-suite s-exp)))
   (for/list ([spec specs])
     (run-test-spec interp spec)))
 
@@ -165,7 +172,7 @@
 
 |#
 (define (run-tests interp dirname)
-  (define specs (get-test-specs dirname))
+  (define specs (filter (lambda (t) (not (skip? t))) (get-test-specs dirname)))
   (for/list ([spec specs])
     (run-test-spec interp spec)))
 
