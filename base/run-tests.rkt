@@ -70,8 +70,9 @@
   (define expected-err (contents-or-empty err-path))
   (define src-input (open-input-file (some-system-path->string path)))
   (define src (port->string src-input))
+  (define-values (test-dir _ __) (split-path (simplify-path path)))
   (close-input-port src-input)
-  (TestSpec dirname strpath src expected-out expected-err))
+  (TestSpec test-dir strpath src expected-out expected-err))
 
 (define (test-spec->s-exp test-spec)
   ;; we ditch path information
