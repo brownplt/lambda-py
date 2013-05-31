@@ -174,7 +174,11 @@ $ racket python-main.rkt --python-path ~/install-stuff/Python-3.2.3/python --tes
     </pre>
 
     <p>(We pass the Python path because we originally used Python to get the
-    original Python AST for desugaring, and it has since been replaced).</p>
+    original Python AST for desugaring, and it has since been replaced.  Also,
+    the <code>--test-py</code> option, when run on the submission time code,
+    reports 3 failures in the <code>modules</code> tests, this is an error in
+    the test harness setting the working directory for Python. We have since
+    fixed it.)</p>
 
     <p>That's enough to verify the test results reported in the paper, and some
     of what we've worked on since then.</p>
