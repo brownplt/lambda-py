@@ -152,10 +152,9 @@ $ racket python-main.rkt --python-path ~/install-stuff/Python-3.2.3/python --tes
       <li> The composition of all the steps of scope desugaring is split
       between <a
       href="https://github.com/brownplt/lambda-py/blob/master/base/python-phase1.rkt#L147"><code>python-phase1.rkt</code></a>,
-      which marks global variables and instance variables from classes and
-      rewrites rewrites class bodies, and <a
+      which desugars identifiers down to global variables, local variables, and instance variables, and <a
       href="https://github.com/brownplt/lambda-py/blob/master/base/python-phase2.rkt#L19"><code>python-phase2.rkt</code></a>,
-      which desugars all identifiers down to either local or global variables.
+      which rewrites rewrites class bodies, eliminating instance variables and introducing bindings for local and global variables.
       These do other less fundamental work that doesn't appear in the paper for
       straightforward desugarings of default arguments and decorators.</li>
 
