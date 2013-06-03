@@ -197,14 +197,16 @@
                                 (+ 1 (string-length str))
                                 -1)))
 
-            (define indices (filter (lambda(n) (and (< n (string-length str))
-                                                    (>= n 0)))
-                              (build-list (abs (- end-i start-i))
-                                            (lambda(n) (+ (* n step) start-i)))))
+            (define indices
+              (cond
+                [(or (and (> step 0) (> (- end-i start-i) 0))
+                     (and (< step 0) (> (- start-i end-i) 0)))
+                 (filter (lambda(n) (and (< n (string-length str)) (>= n 0)))
+                         (build-list (abs (- end-i start-i))
+                            (lambda(n) (+ (* n step) start-i))))]
+                [else empty]))
 
-            (define char-list (if (> step 0)
-                                (string->list str)
-                                (string->list str)))]
+            (define char-list (string->list str))]
 
            (some (VObjectClass 'str 
                     (some 

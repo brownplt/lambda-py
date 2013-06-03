@@ -1,0 +1,7 @@
+___assertEqual("foobar"[::], "foobar")
+___assertEqual("foobar"[0:6:], "foobar")
+___assertEqual("foobar"[0:6:1], "foobar")
+___assertEqual("foobar"[0:6:-1], "")
+___assertEqual("foobar"[6:0:-1], "raboo")
+___assertEqual("foobar"[7:0:-1], "raboo")
+___assertEqual("foobar"[::-1], "raboof")
