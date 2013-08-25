@@ -17,7 +17,13 @@ f = open(source, "w")
 f.write("a = 1 / 0")
 f.close()
 
+
+try:
 # import the new file, which contains a error
-___assertRaises(ZeroDivisionError, __import__, support.TESTFN);
+    ___assertRaises(ZeroDivisionError, __import__, support.TESTFN);
 # the sys.modules shouldn't contain the TESTFN
-___assertNotIn(support.TESTFN, sys.modules)
+    ___assertNotIn(support.TESTFN, sys.modules)
+finally:
+    f = open(source, "w")
+    f.write("")
+    f.close()

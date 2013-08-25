@@ -13,6 +13,25 @@
          (typed-in racket/base (append : ((listof 'a) (listof 'a) -> (listof 'a))))
          (typed-in racket (flatten : ((listof (listof 'a) ) -> (listof 'a)))))
 
+;;; desugar flags
+;; flags for assignment
+(define dsg-subscript-assignment true)
+(define dsg-tuple-assignment true)
+;; flags for func
+(define dsg-func-kwonlyargs true)
+(define dsg-func-kwarg true)
+;; flags for built-in primes
+(define dsg-built-in-primes true)
+;; flags for for statement
+(define dsg-for true)
+;; flags for exception, try, with statement
+(define dsg-with true)
+(define dsg-try-finally true)
+(define dsg-try-except-else true)
+;; flags for function exec
+(define dsg-app true)
+;; flags for subscript
+(define dsg-subscript true)
 
 (define (desugar-boolop [op : symbol] [values : (listof LexExpr)]) : CExpr
   (local [(define first-val (rec-desugar (first values)))]
@@ -195,36 +214,81 @@
     [else (error 'desugar "cannot convert non-id to symbol with id-to-symbol")]))
 
 ;; helper for function desugar
+
 (define (desugar-func [name : symbol] [args : (listof symbol)] [vararg : (optionof symbol)]
                       [kwonlyargs : (listof symbol)] [kwarg : (optionof symbol)]
                       [defaults : (listof LexExpr)] [kw_defaults : (listof LexExpr)]
                       [body : LexExpr] [opt-class : (optionof LexExpr)])
-  (cond
-    ;; the "normal" case is receives different treatment to enable bootstrapping.
-    [(and (empty? kwonlyargs) (none? kwarg) (empty? defaults) (empty? kw_defaults))
-     (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))]
-    [else
-     (CLet '$func (LocalId)
-           ;; keyword-only and kwarg are appended to positional arguments,
-           ;; ___nkwonlyargs and ___nkwarg attributes account for them.
-           (CFunc (flatten (list args kwonlyargs (option->list kwarg))) vararg
-                  (rec-desugar body) (option-map id-to-symbol opt-class))
-           (CSeq
-            (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___kwcall")
-                      (CTrue)) ;; this functio has kw arguments and/or defaults
-            (CSeq
-             (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___nkwonlyargs")
-                       (make-builtin-num (length kwonlyargs)))
-             (CSeq
-              (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___nkwarg")
-                        (make-builtin-num (length (option->list kwarg))))
-              (CSeq
-               (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
-                         (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defaults)))
-               (CSeq
-                (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__kwdefaults__")
-                          (CTuple (CId '%tuple (GlobalId)) (map rec-desugar kw_defaults)))
-                (CId '$func (LocalId))))))))]))
+
+    ;; (cond
+    ;;  ;; the "normal" case is receives different treatment to enable bootstrapping.
+    ;;  [(and (empty? kwonlyargs) (none? kwarg) (empty? defaults) (empty? kw_defaults))
+    ;;   (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))]
+    ;;  [else
+    ;;   (CLet '$func (LocalId)
+    ;;         ;; keyword-only and kwarg are appended to positional arguments,
+    ;;         ;; ___nkwonlyargs and ___nkwarg attributes account for them.
+    ;;         (CFunc (flatten (list args kwonlyargs (option->list kwarg))) vararg
+    ;;                (rec-desugar body) (option-map id-to-symbol opt-class))
+    ;;         (CSeq
+    ;;          (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___kwcall")
+    ;;                    (CTrue)) ;; this functio has kw arguments and/or defaults
+    ;;          (CSeq
+    ;;           (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___nkwonlyargs")
+    ;;                     (make-builtin-num (length kwonlyargs)))
+    ;;           (CSeq
+    ;;            (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___nkwarg")
+    ;;                      (make-builtin-num (length (option->list kwarg))))
+    ;;            (CSeq
+    ;;             (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
+    ;;                       (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defaults)))
+    ;;             (CSeq
+    ;;              (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__kwdefaults__")
+    ;;                        (CTuple (CId '%tuple (GlobalId)) (map rec-desugar kw_defaults)))
+    ;;              (CId '$func (LocalId))))))))]))
+  
+  (local ((define desugared-body (rec-desugar body))
+          (define option-maped-class (option-map id-to-symbol opt-class))
+          (define (get-func-with-property [kwonlyargs_p : bool] [kwarg_p : bool])
+            (cond
+             [(or (and (eq? kwonlyargs_p false) (eq? kwarg_p false))
+                  (and (empty? kwonlyargs) (none? kwarg) (empty? defaults) (empty? kw_defaults)))
+              (CFunc args vararg desugared-body option-maped-class)]
+             [else
+              (CLet '$func (LocalId) (CFunc (flatten (list args
+                                                           (if (eq? kwonlyargs_p true) kwonlyargs empty)
+                                                           (if (eq? kwarg_p true) (option->list kwarg) empty)))
+                                                     vararg desugared-body option-maped-class)
+                    ;; keyword-only and kwarg are appended to positional arguments,
+                    ;; ___nkwonlyargs and ___nkwarg attributes account for them.
+
+                    (CSeq
+                     (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___kwcall")
+                               (CTrue)) ;; this functio has kw arguments and/or defaults
+                     (CSeq
+                      (if (eq? kwonlyargs_p true)
+                          (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___nkwonlyargs")
+                                    (make-builtin-num (length kwonlyargs)))
+                          (CNone))
+                      (CSeq
+                       (if (eq? kwarg_p true)
+                           (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___nkwarg")
+                                     (make-builtin-num (length (option->list kwarg))))
+                           (CNone))
+                       (CSeq
+                        (if (eq? kwarg_p true)
+                            (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
+                                      (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defaults)))
+                            (CNone))
+                        (CSeq
+                         (if (eq? kwonlyargs_p true)
+                             (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__kwdefaults__")
+                                       (CTuple (CId '%tuple (GlobalId)) (map rec-desugar kw_defaults)))
+                             (CNone))
+                         (CId '$func (LocalId)))))
+                      )))])))
+         (get-func-with-property dsg-func-kwonlyargs dsg-func-kwarg)
+         ))
 
 ;; desugar-with: based on the translation in http://www.python.org/dev/peps/pep-0343/
 (define (desugar-with [context : LexExpr] [target : (optionof LexExpr)] [body : LexExpr])
@@ -273,7 +337,7 @@
     (type-case LexExpr expr
       [LexSeq (es) (desugar-seq es)]
       [LexModule (es) (desugar-pymodule es)]
-      [LexAssign (targets value) 
+      [LexAssign (targets value)
                 (type-case LexExpr (first targets) 
                   ; We handle three kinds of assignments.
                   ; An assignment to a subscript is desugared as a __setitem__ call.
@@ -284,11 +348,13 @@
                                         [desugared-value
                                          (rec-desugar value)]
                                         [target-id (new-id)])
-                                 (py-app (py-getfield desugared-target '__setitem__)
-                                        (list 
+                                 (if (eq? dsg-subscript-assignment true)
+                                     (py-app (py-getfield desugared-target '__setitem__)
+                                             (list 
                                               desugared-slice
                                               desugared-value)
-                                        (none)))]
+                                             (none))
+                                     (CAssign desugared-target (CNone))))]
                   ; An assignment to a tuple is desugared as multiple __setitem__ calls.
                   [LexTuple (vals)
                            (local [(define targets-r (map rec-desugar vals))
@@ -302,9 +368,11 @@
                                                          (none))))
                                            targets-r
                                            (build-list (length targets-r) identity)))]
-                              (CLet '$tuple_result (LocalId) value-r 
-                                    (foldl (λ (a so-far) (CSeq so-far a))
-                                           (first assigns) (rest assigns))))]
+                                  (if (eq? dsg-tuple-assignment true)
+                                      (CLet '$tuple_result (LocalId) value-r 
+                                            (foldl (λ (a so-far) (CSeq so-far a))
+                                                   (first assigns) (rest assigns)))
+                                      (CAssign (CId '$tuple_result (LocalId)) (CNone))))]
                   ; The others become a CAssign.
                   [else
                    ;; NOTE(joe): I think this was broken before for >1 target
@@ -507,56 +575,62 @@
       [LexTuple (values) (CTuple (CId '%tuple (GlobalId)) (map rec-desugar values))]
       
       [LexSubscript (left ctx slice)
-                    (cond
-                      [(symbol=? ctx 'Load)
-                       (local [(define left-id (new-id))
-                               (define left-var (CId left-id (LocalId)))
-                               (define left-r (rec-desugar left))]
-                         (if (LexSlice? slice)
-                             (local [(define slice-low (rec-desugar (LexSlice-lower slice)))
-                                     (define slice-up (rec-desugar (LexSlice-upper slice)))
-                                     (define slice-step (rec-desugar (LexSlice-step slice)))]
-                               (CLet left-id
-                                     (LocalId)
-                                     left-r
-                                     (py-app (py-getfield left-var
-                                                      '__slice__)
+                    (if (eq? dsg-subscript true)
+                        (cond
+                         [(symbol=? ctx 'Load)
+                          (local [(define left-id (new-id))
+                                  (define left-var (CId left-id (LocalId)))
+                                  (define left-r (rec-desugar left))]
+                                 (if (LexSlice? slice)
+                                     (local [(define slice-low (rec-desugar (LexSlice-lower slice)))
+                                             (define slice-up (rec-desugar (LexSlice-upper slice)))
+                                             (define slice-step (rec-desugar (LexSlice-step slice)))]
+                                            (CLet left-id
+                                                  (LocalId)
+                                                  left-r
+                                                  (py-app (py-getfield left-var
+                                                                       '__slice__)
 
-                                           (list slice-low
-                                                 slice-up slice-step)
-                                           (none))))
-                             (local [(define slice-r (rec-desugar slice))
-                                     (define exn-id (new-id))] 
-                               (CLet left-id
-                                     (LocalId)
-                                     left-r
-                                     (CSeq
-                                      (CTryExceptElse
-                                       (py-getfield (CId left-id (LocalId))
-                                                      '__getitem__)
-                                       exn-id
-                                       (default-except-handler
-                                         exn-id
-                                         (CRaise (some (make-exception 
-                                                         'TypeError
-                                                         "object is not subscriptable"))))
-                                       (CNone))
-                                      (py-app (py-getfield (CId left-id (LocalId))
-                                                       '__getitem__)
-                                            (list slice-r)
-                                            (none) ;TODO: not sure what to do with stararg.
-                                            ))))))]
-                      [(symbol=? ctx 'Store)
-                       (error 'desugar "bad syntax: LexSubscript has context 'Store' outside a LexAssign")]
-                      [else (error 'desugar "unrecognized context in LexSubscript")])]
+                                                          (list slice-low
+                                                                slice-up slice-step)
+                                                          (none))))
+                                     (local [(define slice-r (rec-desugar slice))
+                                             (define exn-id (new-id))] 
+                                            (CLet left-id
+                                                  (LocalId)
+                                                  left-r
+                                                  (CSeq
+                                                   (CTryExceptElse
+                                                    (py-getfield (CId left-id (LocalId))
+                                                                 '__getitem__)
+                                                    exn-id
+                                                    (default-except-handler
+                                                      exn-id
+                                                      (CRaise (some (make-exception 
+                                                                     'TypeError
+                                                                     "object is not subscriptable"))))
+                                                    (CNone))
+                                                   (py-app (py-getfield (CId left-id (LocalId))
+                                                                        '__getitem__)
+                                                           (list slice-r)
+                                                           (none) ;TODO: not sure what to do with stararg.
+                                                           ))))))]
+                         [(symbol=? ctx 'Store)
+                          (error 'desugar "bad syntax: LexSubscript has context 'Store' outside a LexAssign")]
+                         [else (error 'desugar "unrecognized context in LexSubscript")])
+                        ; when flag is off
+                        (CSym 'subscript)
+                        )]
       
       [LexBreak () (CBreak)]
 
       [LexContinue () (CContinue)]
 
       [LexApp (fun args keywords stararg kwarg)
-              (py-app-kw (rec-desugar fun) (map rec-desugar args) (map rec-desugar keywords)
-                         (option-map rec-desugar stararg) (option-map rec-desugar kwarg))]
+              (if (eq? dsg-app true)
+                  (py-app-kw (rec-desugar fun) (map rec-desugar args) (map rec-desugar keywords)
+                             (option-map rec-desugar stararg) (option-map rec-desugar kwarg))
+                  (CSym 'application))]
 
       [LexClass (scp name bases body keywords stararg kwarg decorators)
                 (cond
@@ -603,34 +677,43 @@
        (CSetAttr (rec-desugar obj) (rec-desugar attr) (rec-desugar value))]
 
       [LexTryExceptElse (try excepts orelse)
-                        (local [(define try-r (rec-desugar try))
-                                (define exn-id (new-id))
-                                (define excepts-r (desugar-excepts exn-id excepts))
-                                (define orelse-r (rec-desugar orelse))]
-                          (CTryExceptElse 
-                            try-r
-                            exn-id
-                            excepts-r
-                            orelse-r))]
+                        (if (eq? dsg-try-except-else true)
+                            (local [(define try-r (rec-desugar try))
+                                    (define exn-id (new-id))
+                                    (define excepts-r (desugar-excepts exn-id excepts))
+                                    (define orelse-r (rec-desugar orelse))]
+                                   (CTryExceptElse 
+                                    try-r
+                                    exn-id
+                                    excepts-r
+                                    orelse-r))
+                            (CTryExceptElse (CNone) (new-id) (CNone) (CNone)))]
 
       [LexTryFinally (try finally)
-                     (local [(define try-r (rec-desugar try))
-                             (define finally-r (rec-desugar finally))]
-                       (CTryFinally
-                         try-r
-                         finally-r))]
+                     (if (eq? dsg-try-finally true)
+                         (local [(define try-r (rec-desugar try))
+                                 (define finally-r (rec-desugar finally))]
+                                (CTryFinally
+                                 try-r
+                                 finally-r))
+                         (CTryFinally (CSym 'try-part) (CSym 'finally-part)))]
 
       [LexExcept (types body) (error 'desugar "should not encounter LexExcept!")]
       [LexExceptAs (types name body) (error 'desugar "should not encounter LexExcept!")]
 
       [LexWith (context target body)
-               (desugar-with context target body)]
+               (if (eq? dsg-with true)
+                   (desugar-with context target body)
+                   (CTryFinally (CNone) (CNone)))]
 
       [LexWhile (test body orelse) (CWhile (rec-desugar test)
                                            (rec-desugar body)
                                            (rec-desugar orelse))]
 
-      [LexFor (target iter body orelse) (desugar-for target iter body orelse)]
+      [LexFor (target iter body orelse)
+              (if (eq? dsg-for true)
+                  (desugar-for target iter body orelse)
+                  (CWhile (CTrue) (CNone) (CNone)))]
 
       ;; target is interpreted twice. FIX ME
       [LexAugAssign (op target value)
@@ -670,7 +753,10 @@
                       [else (CSeq (first exprs) (make-sequence (rest exprs)))]))]
                   (make-sequence (map handle-delete targets)))]
       
-      [LexBuiltinPrim (s args) (CBuiltinPrim s (map desugar args))]
+      [LexBuiltinPrim (s args)
+         (if (eq? dsg-built-in-primes true)
+             (CBuiltinPrim s (map desugar args))
+             (CBuiltinPrim s (list)))]
       [LexCore (e) e]
       [else
         (error 'desugar
