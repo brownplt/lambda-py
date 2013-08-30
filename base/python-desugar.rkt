@@ -713,7 +713,7 @@
       [LexFor (target iter body orelse)
               (if (eq? dsg-for true)
                   (desugar-for target iter body orelse)
-                  (CWhile (CTrue) (CNone) (CNone)))]
+                  (CWhile (CFalse) (CNone) (CNone)))]
 
       ;; target is interpreted twice. FIX ME
       [LexAugAssign (op target value)
