@@ -15,7 +15,7 @@
 
 ;;; desugar flags
 ;; flags for assignment
-(define dsg-subscript-assignment true)
+(define dsg-subscript-assignment false)
 (define dsg-tuple-assignment true)
 ;; flags for func
 (define dsg-func-kwonlyargs true)
@@ -619,7 +619,7 @@
                           (error 'desugar "bad syntax: LexSubscript has context 'Store' outside a LexAssign")]
                          [else (error 'desugar "unrecognized context in LexSubscript")])
                         ; when flag is off
-                        (CSym 'subscript)
+                        (CNone)
                         )]
       
       [LexBreak () (CBreak)]
@@ -630,7 +630,7 @@
               (if (eq? dsg-app true)
                   (py-app-kw (rec-desugar fun) (map rec-desugar args) (map rec-desugar keywords)
                              (option-map rec-desugar stararg) (option-map rec-desugar kwarg))
-                  (CSym 'application))]
+                  (CNone))]
 
       [LexClass (scp name bases body keywords stararg kwarg decorators)
                 (cond
