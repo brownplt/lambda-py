@@ -6,32 +6,14 @@
          "builtins/type.rkt"
          "builtins/num.rkt"
          "python-syntax-operations.rkt"
-         "builtins/str.rkt")
+         "builtins/str.rkt"
+         "python-desugar-flags.rkt")
+
 (require (typed-in racket/base (number->string : (number -> string)))
          (typed-in racket/list (last : ((listof 'a) -> 'a)))
          (typed-in racket/list (count : (('a -> boolean) (listof 'a) -> number)))
          (typed-in racket/base (append : ((listof 'a) (listof 'a) -> (listof 'a))))
          (typed-in racket (flatten : ((listof (listof 'a) ) -> (listof 'a)))))
-
-;;; desugar flags
-;; flags for assignment
-(define dsg-subscript-assignment false)
-(define dsg-tuple-assignment true)
-;; flags for func
-(define dsg-func-kwonlyargs true)
-(define dsg-func-kwarg true)
-;; flags for built-in primes
-(define dsg-built-in-primes true)
-;; flags for for statement
-(define dsg-for true)
-;; flags for exception, try, with statement
-(define dsg-with true)
-(define dsg-try-finally true)
-(define dsg-try-except-else true)
-;; flags for function exec
-(define dsg-app true)
-;; flags for subscript
-(define dsg-subscript true)
 
 (define (desugar-boolop [op : symbol] [values : (listof LexExpr)]) : CExpr
   (local [(define first-val (rec-desugar (first values)))]
@@ -627,10 +609,8 @@
       [LexContinue () (CContinue)]
 
       [LexApp (fun args keywords stararg kwarg)
-              (if (eq? dsg-app true)
-                  (py-app-kw (rec-desugar fun) (map rec-desugar args) (map rec-desugar keywords)
-                             (option-map rec-desugar stararg) (option-map rec-desugar kwarg))
-                  (CNone))]
+              (py-app-kw (rec-desugar fun) (map rec-desugar args) (map rec-desugar keywords)
+                         (option-map rec-desugar stararg) (option-map rec-desugar kwarg))]
 
       [LexClass (scp name bases body keywords stararg kwarg decorators)
                 (cond
@@ -687,7 +667,11 @@
                                     exn-id
                                     excepts-r
                                     orelse-r))
-                            (CTryExceptElse (CNone) (new-id) (CNone) (CNone)))]
+                            (local [(define except (first excepts))
+                                    (define body (if (LexExcept? except)
+                                                     (LexExcept-body except)
+                                                     (LexExceptAs-body except)))]
+                                   (CTryExceptElse (rec-desugar try) (new-id) (rec-desugar body) (rec-desugar orelse))))]
 
       [LexTryFinally (try finally)
                      (if (eq? dsg-try-finally true)
@@ -696,7 +680,7 @@
                                 (CTryFinally
                                  try-r
                                  finally-r))
-                         (CTryFinally (CSym 'try-part) (CSym 'finally-part)))]
+                         (CTryFinally (CNone) (CNone)))]
 
       [LexExcept (types body) (error 'desugar "should not encounter LexExcept!")]
       [LexExceptAs (types name body) (error 'desugar "should not encounter LexExcept!")]
@@ -754,7 +738,7 @@
                   (make-sequence (map handle-delete targets)))]
       
       [LexBuiltinPrim (s args)
-         (if (eq? dsg-built-in-primes true)
+         (if (eq? dsg-built-in-prims true)
              (CBuiltinPrim s (map desugar args))
              (CBuiltinPrim s (list)))]
       [LexCore (e) e]
