@@ -20,3 +20,6 @@
 (define dsg-app true)
 ;; flags for subscript
 (define dsg-subscript true)
+;; flags for get object fields
+(define dsg-dot-field true)
+

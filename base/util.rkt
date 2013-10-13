@@ -563,6 +563,7 @@
   (local [(define (is-special-method? [n : symbol])
             (member n (list '__in__ '__call__ '__eq__ '__cmp__ '__str__ '__getitem__ '__gt__ '__lt__ '__lte__ '__gte__)))]
     (cond
+     [(eq? dsg-dot-field false) (CNone)]
       [(eq? attr '__class__)
        ;; special attribute __class__, cannot be overriden.
        (CBuiltinPrim '$class (list obj-exp))]
