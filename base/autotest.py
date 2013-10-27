@@ -40,9 +40,15 @@ def appendFile(filename, content):
 def addProgress(flag):
     appendFile(progressFile, 'start %s\n' % flag)
 
+def getContents(filename):
+    f = open(filename, 'r')
+    contents = f.read()
+    f.close()
+    return contents
+
 def switchFlag():
 
-    contents = open(filename).read()
+    contents = getContents(filename)
     flagsAndValue = re.findall("(dsg[-\w]*)\ +(.*)\)", contents) # get flags and values
     clearFile(progressFile) # clear
 
