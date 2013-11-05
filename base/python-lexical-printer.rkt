@@ -10,10 +10,10 @@
    [(empty? (rest es)) (begin (lexexpr-print-helper (first es) "") false)]
    [else (begin (lexexpr-print-helper (first es) "") (display ", ") (comma-separate (rest es)) false)]))
 
-(define (comma-separate-2 [es : (listof symbol)]) : boolean
+(define (comma-separate-2 prefix [es : (listof symbol)]) : boolean
   (cond
    [(empty? es) false]
-   [(empty? (rest es)) (begin (display (first es) ) false)]
+   [(empty? (rest es)) (begin (display prefix) (display (first es) ) false)]
    [else (begin (display (first es) ) (display ", ") (comma-separate-2 (rest es)) false)]))
 
 (define default-color "\033[1;37m")
@@ -124,7 +124,7 @@
       [LexLocalLet (id bind body)
                    (begin
                      (display starting-tab)
-                     (display "defvar ")
+                     (display "defvar L.")
                      (display id)
                      (display " = ")
                      (lexexpr-print-helper bind "")
@@ -148,19 +148,19 @@
                       (begin
                         (display starting-tab)
                         (display "defvars ")
-                        (comma-separate-2 ids)
-                        (display " = undefined in {\n")
+                        (comma-separate-2 "G." ids)
+                        (display " = UNDEF in {\n")
                         (lexexpr-print-helper body (string-append "  " starting-tab))
                         (display "\n")
                         (display starting-tab)
                         (display "}\n")
                         this-expr))]
       [PyLexId (n ctx) (begin (display starting-tab) (display n) (display " (unknown scope) ")this-expr)]
-      [PyLexGlobal (ids) (begin (display starting-tab) (display "global ") (comma-separate-2 ids ) this-expr)]
+      [PyLexGlobal (ids) (begin (display starting-tab) (display "global ") (comma-separate-2 "G." ids ) this-expr)]
       [PyLexNonLocal (ids) (begin
                              (display starting-tab)
                              (display "nonlocal ")
-                             (comma-separate-2 ids)
+                             (comma-separate-2 "G." ids)
                              (display "\n")
                              this-expr)]
       
@@ -347,7 +347,7 @@
               (begin
                 (display starting-tab)
                 (display "(lambda ")
-                (comma-separate-2 args)
+                (comma-separate-2 "L." args)
                 (if (some? vararg)
                     (begin
                       (display ", ")
@@ -358,7 +358,7 @@
                     (display " ")
                     (begin
                       (display ", ")
-                      (comma-separate-2 kwonlyargs)))
+                      (comma-separate-2 "L." kwonlyargs)))
                 (if (some? kwarg)
                     (begin
                       (display ", ")
@@ -389,7 +389,7 @@
                  (display "def ")
                  (display name)
                  (display "(")
-                 (comma-separate-2 args)
+                 (comma-separate-2 "L." args)
                  (if (some? vararg)
                      (begin
                        (display ", ")
@@ -400,7 +400,7 @@
                      (display " ")
                      (begin
                        (display ", ")
-                       (comma-separate-2 kwonlyargs)))
+                       (comma-separate-2 "L." kwonlyargs)))
                  (if (some? kwarg)
                      (begin
                        (display ", ")
