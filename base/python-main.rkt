@@ -37,6 +37,9 @@
   ("--get-lexical-syntax-old" ""
    (pretty-write (get-lexical-syntax (current-input-port))))
 
+  ("--get-lexical-sexpr" "PyLex s-expressions"
+   (pretty-write (get-phase1-syntax (current-input-port))))
+
     ("--get-lexical-syntax-with-locals" "Get surface syntax python"
    (lexexpr-print (get-lexical-syntax-with-locals (current-input-port))))
 
