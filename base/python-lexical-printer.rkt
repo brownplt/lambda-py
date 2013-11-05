@@ -34,6 +34,11 @@
   (display 
    (cond 
    [(equal? op 'Add) '+]
+   [(equal? op 'Sub) '-]
+   [(equal? op 'Mult) '*]
+   [(equal? op 'Div) '/]
+   [(equal? op 'Mod) '%]
+   
    
    [else op])))
 
@@ -58,7 +63,7 @@
                this-expr)]
       [LexSeq (es) (begin
                      (display starting-tab)
-                     (display "#in a sequence\n")
+                     ;(display "#in a sequence\n")
                      (map (lambda (y)
                                  (begin
                                    (recur y)
