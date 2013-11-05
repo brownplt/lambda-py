@@ -30,6 +30,13 @@
     (display default-color)
     (lexexpr-print-helper expr "")))
 
+(define (pretty-print-op op)
+  (display 
+   (cond 
+   [(equal? op 'Add) '+]
+   
+   [else op])))
+
 (define (lexexpr-print-helper [this-expr : LexExpr] [ starting-tab : string]) : LexExpr
   (let ((recur (lambda [y] [lexexpr-print-helper y starting-tab])))
   (begin
@@ -96,7 +103,7 @@
                     (begin
                       (display starting-tab)
                       (lexexpr-print-helper target "")
-                      (display op)
+                      (pretty-print-op op)
                       (display "=")
                       (lexexpr-print-helper value "")
                       (display "\n")
