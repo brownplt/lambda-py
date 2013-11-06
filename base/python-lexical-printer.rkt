@@ -16,13 +16,15 @@
    [(empty? (rest es)) (begin (display prefix) (display (first es) ) false)]
    [else (begin (display (first es) ) (display ", ") (comma-separate-2 prefix (rest es)) false)]))
 
-(define default-color "\033[1;37m")
+;(define default-color "\033[1;37m")
+(define default-color "")
 
 (define (brown e)
   (begin
-  (display "\033[1;35m")
+  ;(display "\033[1;35m")
   (display e)
-  (display default-color)))
+  ;(display default-color)
+))
 ;    (display "\033[22;33mHello world!\033[1;35m")
 
 (define (lexexpr-print expr)
