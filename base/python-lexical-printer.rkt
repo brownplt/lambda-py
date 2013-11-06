@@ -44,6 +44,11 @@
    
    [else op])))
 
+(define local-prefix "(local) ")
+(define global-prefix "(global) ")
+(define instance-prefix "(instance) ")
+
+
 (define (lexexpr-print-helper [this-expr : LexExpr] [ starting-tab : string]) : LexExpr
   (let ((recur (lambda [y] [lexexpr-print-helper y starting-tab])))
   (begin
@@ -120,13 +125,13 @@
       [LexNum (n) (begin (display starting-tab) (display n) this-expr)]
       [LexBool (n) (begin (display starting-tab) (display n) this-expr)]
       [LexBuiltinPrim (s args) (begin (display starting-tab) (display this-expr) this-expr)]
-      [LexInstanceId (n ctx)  (begin (display starting-tab) (display "I.") (display n) this-expr)]
-      [LexGlobalId (n ctx) (begin (display starting-tab) (display "G.") (display n)  this-expr)]
-      [LexLocalId (n ctx) (begin (display starting-tab) (display "L.") (display n) this-expr)]
+      [LexInstanceId (n ctx)  (begin (display starting-tab) (display instance-prefix) (display n) this-expr)]
+      [LexGlobalId (n ctx) (begin (display starting-tab) (display global-prefix) (display n)  this-expr)]
+      [LexLocalId (n ctx) (begin (display starting-tab) (display local-prefix) (display n) this-expr)]
       [LexLocalLet (id bind body)
                    (begin
                      (display starting-tab)
-                     (display "defvar L.")
+                     (display "defvar local-prefix")
                      (display id)
                      (display " = ")
                      (lexexpr-print-helper bind "")
@@ -150,7 +155,7 @@
                       (begin
                         (display starting-tab)
                         (display "defvars ")
-                        (comma-separate-2 "G." ids)
+                        (comma-separate-2 global-prefix ids)
                         (display " = UNDEF in {\n")
                         (lexexpr-print-helper body (string-append "  " starting-tab))
                         (display "\n")
@@ -158,7 +163,7 @@
                         (display "}\n")
                         this-expr))]
       [PyLexId (n ctx) (begin (display starting-tab) (display n) (display " (unknown scope) ")this-expr)]
-      [PyLexGlobal (ids) (begin (display starting-tab) (display "global ") (comma-separate-2 "G." ids ) this-expr)]
+      [PyLexGlobal (ids) (begin (display starting-tab) (display "global ") (comma-separate-2 global-prefix ids ) this-expr)]
       [PyLexNonLocal (ids) (begin
                              (display starting-tab)
                              (display "nonlocal ")
@@ -349,7 +354,7 @@
               (begin
                 (display starting-tab)
                 (display "(lambda ")
-                (comma-separate-2 "L." args)
+                (comma-separate-2 local-prefix args)
                 (if (some? vararg)
                     (begin
                       (display ", ")
@@ -360,7 +365,7 @@
                     (display " ")
                     (begin
                       (display ", ")
-                      (comma-separate-2 "L." kwonlyargs)))
+                      (comma-separate-2 local-prefix kwonlyargs)))
                 (if (some? kwarg)
                     (begin
                       (display ", ")
@@ -391,7 +396,7 @@
                  (display "def ")
                  (display name)
                  (display "(")
-                 (comma-separate-2 "L." args)
+                 (comma-separate-2 local-prefix args)
                  (if (some? vararg)
                      (begin
                        (display ", ")
@@ -402,7 +407,7 @@
                      (display " ")
                      (begin
                        (display ", ")
-                       (comma-separate-2 "L." kwonlyargs)))
+                       (comma-separate-2 local-prefix kwonlyargs)))
                  (if (some? kwarg)
                      (begin
                        (display ", ")
