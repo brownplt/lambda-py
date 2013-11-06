@@ -14,7 +14,7 @@
   (cond
    [(empty? es) false]
    [(empty? (rest es)) (begin (display prefix) (display (first es) ) false)]
-   [else (begin (display (first es) ) (display ", ") (comma-separate-2 (rest es)) false)]))
+   [else (begin (display (first es) ) (display ", ") (comma-separate-2 prefix (rest es)) false)]))
 
 (define default-color "\033[1;37m")
 
