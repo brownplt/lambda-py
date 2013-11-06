@@ -162,7 +162,7 @@
       [PyLexNonLocal (ids) (begin
                              (display starting-tab)
                              (display "nonlocal ")
-                             (comma-separate-2 "G." ids)
+                             (comma-separate-2 "" ids)
                              (display "\n")
                              this-expr)]
       
