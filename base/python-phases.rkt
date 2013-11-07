@@ -4,7 +4,7 @@
          "python-macros.rkt")
 
 (define (new-scope-phase expr)
-  (phase2 (desugar-macros (scope-phase expr))))
+  (phase2 (desugar-macros (remove-global (scope-phase expr)))))
 
 ;; extract global bindings for module use 
 ;; This is not efficient BTW.
@@ -14,9 +14,10 @@
 (define (get-module-level-globals expr)
   (extract-post-transform-globals
    (remove-nonlocal
-    (collapse-pyseq
-     (post-desugar
-      (make-local-list
-       empty
-       (scope-phase expr)))))))
+    (remove-global
+     (collapse-pyseq
+      (post-desugar
+       (make-local-list
+	empty
+	(scope-phase expr))))))))
 

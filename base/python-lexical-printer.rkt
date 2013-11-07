@@ -163,7 +163,7 @@
                         (display "}\n")
                         this-expr))]
       [PyLexId (n ctx) (begin (display starting-tab) (display n) (display " (unknown scope) ")this-expr)]
-      [PyLexGlobal (ids) (begin (display starting-tab) (display "global ") (comma-separate-2 global-prefix ids ) this-expr)]
+      [PyLexGlobal (ids) (begin (display starting-tab) (display "global ") (comma-separate-2 "" ids ) this-expr)]
       [PyLexNonLocal (ids) (begin
                              (display starting-tab)
                              (display "nonlocal ")
