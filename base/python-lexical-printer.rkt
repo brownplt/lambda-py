@@ -131,7 +131,9 @@
       [LexLocalLet (id bind body)
                    (begin
                      (display starting-tab)
-                     (display "defvar local-prefix")
+                     (display "defvar ")
+                     (display local-prefix)
+                     (display " ")
                      (display id)
                      (display " = ")
                      (lexexpr-print-helper bind "")
