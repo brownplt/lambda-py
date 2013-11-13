@@ -1,0 +1,1 @@
+../../tests/python-reference/scope/nonlocal-function-vardef-shadow.py
