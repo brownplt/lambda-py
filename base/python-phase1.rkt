@@ -148,11 +148,10 @@
        (let ((replaced-locals (replace-all-locals  (replace-all-instance (pre-desugar expr)) empty empty)))
          (let ((fully-transformed (make-all-global replaced-locals))) 
             (remove-unneeded-pypass
-              (remove-global
                (replace-lexmodule
                 (remove-unneeded-assigns
                  (process-syntax-errors
-                  (bind-locals fully-transformed))))))))) ;surround every block with PyLet of locals
+                  (bind-locals fully-transformed)))))))) ;surround every block with PyLet of locals
 
 (define (replace-lexmodule expr)
   (lexexpr-modify-tree expr
@@ -298,15 +297,6 @@
 
 
 
-(define (remove-global expr)
-  (lexexpr-modify-tree
-   expr
-   (lambda (x)
-     (type-case LexExpr x
-       [PyLexGlobal(y) (LexPass)]
-       [else (default-recur)]))))
-
-
 (define (remove-unneeded-pypass expr)
   (lexexpr-modify-tree
    expr
@@ -321,7 +311,7 @@
        [else (default-recur)]))))
 
 
-#;(define (assert-pyblock-exists expr)
+#|(define (assert-pyblock-exists expr)
   (if (empty? (lexexpr-fold-tree expr (lambda (x) (type-case LexExpr x
                                              [LexBlock(_) true]
                                              [else false]))
@@ -329,7 +319,7 @@
                                         [LexBlock(a) (list a)]
                                         [else (default-recur)]))))
       (error 'assert-pyblock-exists "pyblock is missing")
-      expr))
+      expr))|#
 
 (define (cascade-undefined-locals [globals : (listof symbol) ] [body : LexExpr] ) : LexExpr
   (if (empty? globals)
@@ -658,3 +648,11 @@
 
 ]
 (scope-phase expr)))
+
+(define (remove-global expr)
+  (lexexpr-modify-tree
+   expr
+   (lambda (x)
+     (type-case LexExpr x
+       [PyLexGlobal(y) (LexPass)]
+       [else (default-recur)]))))

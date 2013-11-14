@@ -10,25 +10,44 @@
    [(empty? (rest es)) (begin (lexexpr-print-helper (first es) "") false)]
    [else (begin (lexexpr-print-helper (first es) "") (display ", ") (comma-separate (rest es)) false)]))
 
-(define (comma-separate-2 [es : (listof symbol)]) : boolean
+(define (comma-separate-2 prefix [es : (listof symbol)]) : boolean
   (cond
    [(empty? es) false]
-   [(empty? (rest es)) (begin (display (first es) ) false)]
-   [else (begin (display (first es) ) (display ", ") (comma-separate-2 (rest es)) false)]))
+   [(empty? (rest es)) (begin (display prefix) (display (first es) ) false)]
+   [else (begin (display (first es) ) (display ", ") (comma-separate-2 prefix (rest es)) false)]))
 
-(define default-color "\033[1;37m")
+;(define default-color "\033[1;37m")
+(define default-color "")
 
 (define (brown e)
   (begin
-  (display "\033[1;35m")
+  ;(display "\033[1;35m")
   (display e)
-  (display default-color)))
+  ;(display default-color)
+))
 ;    (display "\033[22;33mHello world!\033[1;35m")
 
 (define (lexexpr-print expr)
   (begin
     (display default-color)
     (lexexpr-print-helper expr "")))
+
+(define (pretty-print-op op)
+  (display 
+   (cond 
+   [(equal? op 'Add) '+]
+   [(equal? op 'Sub) '-]
+   [(equal? op 'Mult) '*]
+   [(equal? op 'Div) '/]
+   [(equal? op 'Mod) '%]
+   
+   
+   [else op])))
+
+(define local-prefix "(local) ")
+(define global-prefix "(global) ")
+(define instance-prefix "(instance) ")
+
 
 (define (lexexpr-print-helper [this-expr : LexExpr] [ starting-tab : string]) : LexExpr
   (let ((recur (lambda [y] [lexexpr-print-helper y starting-tab])))
@@ -50,8 +69,8 @@
                (display "\n")
                this-expr)]
       [LexSeq (es) (begin
-                     (display starting-tab)
-                     (display "#in a sequence\n")
+                     ;(display starting-tab)
+                     ;(display "#in a sequence\n")
                      (map (lambda (y)
                                  (begin
                                    (recur y)
@@ -96,7 +115,7 @@
                     (begin
                       (display starting-tab)
                       (lexexpr-print-helper target "")
-                      (display op)
+                      (pretty-print-op op)
                       (display "=")
                       (lexexpr-print-helper value "")
                       (display "\n")
@@ -106,13 +125,15 @@
       [LexNum (n) (begin (display starting-tab) (display n) this-expr)]
       [LexBool (n) (begin (display starting-tab) (display n) this-expr)]
       [LexBuiltinPrim (s args) (begin (display starting-tab) (display this-expr) this-expr)]
-      [LexInstanceId (n ctx)  (begin (display starting-tab) (display "I.") (display n) this-expr)]
-      [LexGlobalId (n ctx) (begin (display starting-tab) (display "G.") (display n)  this-expr)]
-      [LexLocalId (n ctx) (begin (display starting-tab) (display "L.") (display n) this-expr)]
+      [LexInstanceId (n ctx)  (begin (display starting-tab) (display instance-prefix) (display n) this-expr)]
+      [LexGlobalId (n ctx) (begin (display starting-tab) (display global-prefix) (display n)  this-expr)]
+      [LexLocalId (n ctx) (begin (display starting-tab) (display local-prefix) (display n) this-expr)]
       [LexLocalLet (id bind body)
                    (begin
                      (display starting-tab)
                      (display "defvar ")
+                     (display local-prefix)
+                     (display " ")
                      (display id)
                      (display " = ")
                      (lexexpr-print-helper bind "")
@@ -136,19 +157,19 @@
                       (begin
                         (display starting-tab)
                         (display "defvars ")
-                        (comma-separate-2 ids)
-                        (display " = undefined in {\n")
+                        (comma-separate-2 global-prefix ids)
+                        (display " = UNDEF in {\n")
                         (lexexpr-print-helper body (string-append "  " starting-tab))
                         (display "\n")
                         (display starting-tab)
                         (display "}\n")
                         this-expr))]
       [PyLexId (n ctx) (begin (display starting-tab) (display n) (display " (unknown scope) ")this-expr)]
-      [PyLexGlobal (ids) (begin (display starting-tab) (display "global ") (comma-separate-2 ids ) this-expr)]
+      [PyLexGlobal (ids) (begin (display starting-tab) (display "global ") (comma-separate-2 "" ids ) this-expr)]
       [PyLexNonLocal (ids) (begin
                              (display starting-tab)
                              (display "nonlocal ")
-                             (comma-separate-2 ids)
+                             (comma-separate-2 "" ids)
                              (display "\n")
                              this-expr)]
       
@@ -335,7 +356,7 @@
               (begin
                 (display starting-tab)
                 (display "(lambda ")
-                (comma-separate-2 args)
+                (comma-separate-2 local-prefix args)
                 (if (some? vararg)
                     (begin
                       (display ", ")
@@ -346,7 +367,7 @@
                     (display " ")
                     (begin
                       (display ", ")
-                      (comma-separate-2 kwonlyargs)))
+                      (comma-separate-2 local-prefix kwonlyargs)))
                 (if (some? kwarg)
                     (begin
                       (display ", ")
@@ -377,7 +398,7 @@
                  (display "def ")
                  (display name)
                  (display "(")
-                 (comma-separate-2 args)
+                 (comma-separate-2 local-prefix args)
                  (if (some? vararg)
                      (begin
                        (display ", ")
@@ -388,7 +409,7 @@
                      (display " ")
                      (begin
                        (display ", ")
-                       (comma-separate-2 kwonlyargs)))
+                       (comma-separate-2 local-prefix kwonlyargs)))
                  (if (some? kwarg)
                      (begin
                        (display ", ")
