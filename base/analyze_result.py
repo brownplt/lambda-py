@@ -17,24 +17,32 @@ def build_cmd():
     return args
 
 def extract_filename_and_error(source_file):
-    contents = open(source_file).read()
-    if contents == []:
-	print "nothing in %s" % source_file
-	exit(1)
-    res = re.findall("(\w+.py|=== Actual stderr ===.*?======|=== Actual stderr ===.*$)", contents, re.MULTILINE|re.DOTALL)
+    with open(source_file) as f:
+        contents = f.read()
+    if contents == "":
+        print "nothing in %s" % source_file
+        exit(1)
+    res = re.findall("([\w_-]+.py|=== Actual stderr ===.*?======|=== Actual stderr ===.*$)", contents, re.MULTILINE|re.DOTALL)
     files = {}
     for i in range(0, len(res), 2):
         files[res[i]] = res[i+1]
 
     return files
 
+def add_space(s):
+    return '   %s' % s.replace("\n", "\n   ")
+
 def show_source(file_name_and_error):
     files_with_path = locate_files(file_name_and_error.keys())
     for fname, fname_path in files_with_path.items():
-        print '==   file:%s   ==' % fname_path
-        print open(fname_path).read()
-        print file_name_and_error[fname]
-        print '\n^^^^^^^^'
+        with open(fname_path) as f:
+            print fname_path
+            print '~' * len(fname_path)
+            print '.. error::\n'
+            print add_space(file_name_and_error[fname])
+            print '\n.. code:: python\n'
+            print add_space(f.read())
+            #print '\n^^^^^^^^'
 
 def locate_files(file_names):
     res = {}
@@ -49,7 +57,7 @@ if __name__ == '__main__':
 
     args = build_cmd()
     if args.file_name == "":
-        print("supply file name please")
+        print("file name is empty")
         exit(1)
 
     if args.showsource:
