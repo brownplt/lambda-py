@@ -4,7 +4,7 @@
 ;;; desugar flags
 ;; flags for assignment
 (define dsg-subscript-assignment true)
-(define dsg-tuple-assignment false)
+(define dsg-tuple-assignment true)
 ;; flags for func
 (define dsg-func-kwonlyargs true)
 (define dsg-func-kwarg true)
