@@ -1,69 +1,102 @@
 #lang plai-typed/untyped
 
+(require [typed-in racket (format : (string 'a -> string))])
+;;; flags can control which Lex* will be desugared.
 
-;;; desugar flags
+;; this stores the str version of the flag and its modification function
+;; (hashof str * (bool -> void))
+(define _inner_flags_hash (make-hash empty))
+
+;; set-flag will take the flag's str name and set the flag to v
+;; set-flag: str * bool -> void
+(define (set-flag flag-str v)
+  (begin
+    (let ((func (hash-ref _inner_flags_hash flag-str)))
+      (type-case (optionof 'a) func
+        [none () (error 'set-flag (format "flag ~a not found" flag-str))]
+        [some (fun) (fun v)]))))
+
+;; define-flag will define a flag and push a corresponding
+;; modification function into _inner_flags_hash
+(define-syntax (define-flag stx)
+  (syntax-case stx ()
+    [(_ flag flag-modifier)
+     (with-syntax ([flag-str (datum->syntax 
+                              stx 
+                              (format "~a" (syntax->datum #'flag)))])
+                                                        
+       #'(define flag
+           (begin (hash-set! flag-modifier flag-str (lambda (v) (set! flag v)))
+                  true)))]
+    [(_ flag)
+     #'(define-flag flag _inner_flags_hash)]))
+
+
+
+;;;========= flags ===========
+
 ;; flags for assignment
-(define dsg-subscript-assignment true)
-(define dsg-tuple-assignment true)
+(define-flag dsg-subscript-assignment)
+(define-flag dsg-tuple-assignment)
 ;; flags for func
-(define dsg-func-kwonlyargs true)
-(define dsg-func-kwarg true)
+(define-flag dsg-func-kwonlyargs)
+(define-flag dsg-func-kwarg)
 ;; flags for built-in primes
-(define dsg-built-in-prims true)
+(define-flag dsg-built-in-prims)
 ;; flags for for statement
-(define dsg-for true)
+(define-flag dsg-for)
 ;; flags for exception, try, with statement
-(define dsg-with true)
-(define dsg-try-finally true)
-(define dsg-try-except-else true)
+(define-flag dsg-with)
+(define-flag dsg-try-finally)
+(define-flag dsg-try-except-else)
 ;; flags for function exec. Check the util.rkt
 ;; TODO: try to desugar LexApp to LexPass(an empty lambda)
-(define dsg-app true)
+(define-flag dsg-app)
 ;; flags for subscript
-(define dsg-subscript true)
+(define-flag dsg-subscript)
 ;; flags for get object fields
-(define dsg-dot-field true)
+(define-flag dsg-dot-field)
 
 ;; flags for while statement
-(define dsg-while true)
+(define-flag dsg-while)
 ;; flags for delete
-(define dsg-delete true)
+(define-flag dsg-delete)
 ;; flags for augmented assignment
-(define dsg-augassignment true)
+(define-flag dsg-augassignment)
 ;; flags for set attribute
-(define dsg-expr-assign true)
+(define-flag dsg-expr-assign)
 ;; flags for get attribute
-(define dsg-expr-field true)
+(define-flag dsg-expr-field)
 ;; flags for class: TODO: need more specific?
-(define dsg-class true)
+(define-flag dsg-class)
 ;; flags for tuple
-(define dsg-tuple true)
+(define-flag dsg-tuple)
 ;; flags for list
-(define dsg-list true)
+(define-flag dsg-list)
 ;; flags for set
-(define dsg-set true)
+(define-flag dsg-set)
 ;; flags for dict
-(define dsg-dict true)
+(define-flag dsg-dict)
 ;; flags for lambda
-(define dsg-lam true)
+(define-flag dsg-lam)
 ;; flags for assert
-(define dsg-assert true)
+(define-flag dsg-assert)
 ;; flags for pass: this is interesting--how important the pass statement in Python?
 ;; no idea how to write the code
-;; (define dsg-pass true)
+;; (define-flag dsg-pass)
 ;; flags for raise
-(define dsg-raise true)
+(define-flag dsg-raise)
 ;; flags for localLet and global let
-(define dsg-locallet true)
-(define dsg-globallet true)
+(define-flag dsg-locallet)
+(define-flag dsg-globallet)
 
 
 ;; may be useful
-(define dsg-listcomp true)
-(define dsg-compop true)
-(define dsg-boolop true)
-(define dsg-unaryop true)
-(define dsg-binop true)
+(define-flag dsg-listcomp)
+(define-flag dsg-compop)
+(define-flag dsg-boolop)
+(define-flag dsg-unaryop)
+(define-flag dsg-binop)
 
 
 

@@ -40,8 +40,9 @@ def show_source(file_name_and_error):
             print '~' * len(fname_path)
             print '.. error::\n'
             print add_space(file_name_and_error[fname])
-            print '\n.. code:: python\n'
-            print add_space(f.read())
+            #print '\n.. code:: python\n'
+            #print add_space(f.read())
+            print '\n.. include:: %s\n' % fname_path
             #print '\n^^^^^^^^'
 
 def locate_files(file_names):

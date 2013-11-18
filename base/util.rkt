@@ -54,6 +54,9 @@
 (define (set-pypath p)
   (set! python-path p))
 
+(define (set-false flag-str)
+  (set-flag flag-str false))
+
 (define (list-subtract [big : (listof 'a) ] [small : (listof 'a)] ) : (listof 'a)
   (local
    [(define (list-remove [l : (listof 'a) ] [e : 'a]) : (listof 'a)
