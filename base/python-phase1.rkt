@@ -212,7 +212,7 @@
    (lambda (k)
      (local
       [
-       #|(define (syntax-error [err : string]) : LexExpr
+       (define (syntax-error [err : string]) : LexExpr
          (k 
           (LexModule
            (list (LexRaise
@@ -252,7 +252,7 @@
               [LexContinue () (syntax-error "'continue' not supported inside 'finally clause")]
               ;break is totally supported inside finally blocks
               [LexWhile (a b c) (continue/break-errors e)]
-              [LexFor (a b c) (continue/break-errors e)]
+              [LexFor (a b c d) (continue/break-errors e)]
               [else (default-recur)]))))
 
        (define (continue/break-correct expr)
@@ -263,7 +263,7 @@
               [LexBlock (nls es) (LexBlock nls (continue/break-errors es))]
               [LexTryFinally (try finally)
                              (LexTryFinally
-                              (continue/break-errors try)
+                              (continue/break-correct try)
                               (continue/break-errors-finally finally))]
             [else (default-recur)])))
          )
@@ -283,16 +283,17 @@
                                             (continue/break-errors test)
                                             (continue/break-correct body)
                                             (continue/break-errors orelse))]
-              [LexFor (target iter body) (LexFor
+              [LexFor (target iter body orelse) (LexFor
                                           (continue/break-errors target)
                                           (continue/break-errors iter)
-                                          (continue/break-correct body))]
+                                          (continue/break-correct body)
+					  (continue/break-errors orelse))]
               [else (default-recur)]))));|#
        
          ]
-       ;(k (continue/break-errors (bindings-for-nonlocal empty expr)))
-      ;we're doing the smart thing and just letting python find our synatx errors.
-      expr))))
+       (k (continue/break-errors (bindings-for-nonlocal empty expr)))
+      ; ( k expr)
+      ))))
 
 
 

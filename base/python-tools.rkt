@@ -18,6 +18,7 @@
          "parser/test-parser.rkt")
 
 (provide (all-defined-out)
+         set-false
          set-pypath
          get-pypath)
 

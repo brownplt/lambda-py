@@ -72,6 +72,9 @@
   ("--python-path" path "Set the python path" 
    (set-pypath path))
 
+  ("--set-flag-false" flag "Set the desugaring flag to false(need to clean the cached pyc file manually if desugaring is changed)"
+   (set-false flag))
+
   ("--python-parser" "Use the python selected with --python-path to parse python"
    (parser python-parse-python/port))
 
