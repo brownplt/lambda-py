@@ -476,29 +476,27 @@
 ;; syntactic sugar to apply a function or method, considering keywords
 (define (py-app-kw [fun : CExpr] [args : (listof CExpr)] [keywords : (listof CExpr)]
                     [stararg : (optionof CExpr)] [kwarg : (optionof CExpr)]) : CExpr
-   (if (eq? dsg-app true)
-       (CLet '$call (LocalId) fun
-             (CTryExceptElse
-              ;; try to get __call__ attribute (functions and methods special cased only for performance)
-              (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
-                   (CNone) ;; do nothing: function.__call__ is the function itself
-                   (CIf (CBuiltinPrim 'isinstance (list (CId '$call (LocalId)) (CId '%method (GlobalId))))
-                        (CNone) ;; do nothing: method.__call__ is the method itself
-                        (CAssign (CId '$call (LocalId)) (py-getfield (CId '$call (LocalId)) '__call__))))
-              ;; exception raised, not callable
-              '_ (CRaise (some (make-exception 'TypeError "object is not callable")))
-              ;; no exception, __call__ is available
-              (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
-                   ;; __call__ is a function
-                   (py-app-fun (CId '$call (LocalId)) args keywords stararg kwarg)
-                   ;; else it should be a method, call __func__ and pass __self__ as first arg.
-                   (py-app-fun (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
-                                                                (make-builtin-str "__func__")))
-                               (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
-                                                                      (make-builtin-str "__self__")))
-                                     args)
-                               keywords stararg kwarg))))
-       (CNone)))
+  (CLet '$call (LocalId) fun
+        (CTryExceptElse
+         ;; try to get __call__ attribute (functions and methods special cased only for performance)
+         (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
+              (CNone) ;; do nothing: function.__call__ is the function itself
+              (CIf (CBuiltinPrim 'isinstance (list (CId '$call (LocalId)) (CId '%method (GlobalId))))
+                   (CNone) ;; do nothing: method.__call__ is the method itself
+                   (CAssign (CId '$call (LocalId)) (py-getfield (CId '$call (LocalId)) '__call__))))
+         ;; exception raised, not callable
+         '_ (CRaise (some (make-exception 'TypeError "object is not callable")))
+         ;; no exception, __call__ is available
+         (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
+              ;; __call__ is a function
+              (py-app-fun (CId '$call (LocalId)) args keywords stararg kwarg)
+              ;; else it should be a method, call __func__ and pass __self__ as first arg.
+              (py-app-fun (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                           (make-builtin-str "__func__")))
+                          (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                 (make-builtin-str "__self__")))
+                                args)
+                          keywords stararg kwarg)))))
 
 ;; helper to apply a function considering default arguments and keywords
 (define (py-app-fun [fun : CExpr] [args : (listof CExpr)] [keywords : (listof CExpr)]

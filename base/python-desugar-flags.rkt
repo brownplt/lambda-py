@@ -56,9 +56,9 @@
 (define-flag dsg-subscript)
 ;; flags for get object fields
 (define-flag dsg-dot-field)
-
 ;; flags for while statement
 (define-flag dsg-while)
+
 ;; flags for delete
 (define-flag dsg-delete)
 ;; flags for augmented assignment
@@ -78,17 +78,17 @@
 ;; flags for dict
 (define-flag dsg-dict)
 ;; flags for lambda
-(define-flag dsg-lam)
+(define-flag dsg-lam) ; TODO: LexLam has many arguments
 ;; flags for assert
-(define-flag dsg-assert)
+(define-flag dsg-assert) ; TODO: what to do with this?
 ;; flags for pass: this is interesting--how important the pass statement in Python?
 ;; no idea how to write the code
 ;; (define-flag dsg-pass)
 ;; flags for raise
 (define-flag dsg-raise)
 ;; flags for localLet and global let
-(define-flag dsg-locallet)
-(define-flag dsg-globallet)
+(define-flag dsg-locallet) ; TODO: what to do with this?
+(define-flag dsg-globallet); TODO: what to do with this?
 
 
 ;; may be useful

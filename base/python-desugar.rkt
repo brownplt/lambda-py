@@ -337,7 +337,17 @@
                                               desugared-slice
                                               desugared-value)
                                              (none))
-                                     (CAssign desugared-target (CNone))))]
+                                     ;; if flag is off
+                                     (CLet '$call (LocalId)
+                                           (py-getfield desugared-target '__setitem__)
+                                           (CSeq (CAssign (CId '$call (LocalId)) (py-getfield (CId '$call (LocalId)) '__call__))
+                                                 (CApp (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                                              (make-builtin-str "__func__")))
+                                                       (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                                              (make-builtin-str "__self__")))
+                                                             (list desugared-slice desugared-value))
+                                                       (none))))
+                                     ))]
                   ; An assignment to a tuple is desugared as multiple __setitem__ calls.
                   [LexTuple (vals)
                            (local [(define targets-r (map rec-desugar vals))
@@ -394,11 +404,12 @@
                                      ;;handle the implicit construction case
                                      (rec-desugar (LexApp expr (list) (list) (none) (none))) 
                                      (rec-desugar expr)))]
-
-                         (CRaise 
-                          (if (LexPass? expr)
-                              (none)
-                              (some expr-r))))]
+                         (if (eq? dsg-raise true)
+                             (CRaise 
+                              (if (LexPass? expr)
+                                  (none)
+                                  (some expr-r)))
+                             (CNone)))]
 
       [LexYield (expr) (CYield (rec-desugar expr))]
 
@@ -548,14 +559,28 @@
                                  (rec-desugar (first values))))
                    (pairs->tupleargs (rest keys) (rest values)))]))
         ]
-        (py-app (CId '%dict (GlobalId))
-          (list
-            (CList (CId '%list (GlobalId))
-                   (pairs->tupleargs keys values)))
-          (none)))]
-      [LexSet (elts) (CSet (CId '%set (GlobalId)) (map rec-desugar elts))]
-      [LexList (values) (CList (CId '%list (GlobalId)) (map rec-desugar values))]
-      [LexTuple (values) (CTuple (CId '%tuple (GlobalId)) (map rec-desugar values))]
+         (if (eq? dsg-dict true)
+             (py-app (CId '%dict (GlobalId))
+                     (list
+                      (CList (CId '%list (GlobalId))
+                             (pairs->tupleargs keys values)))
+                     (none))
+             (py-app (CId '%dict (GlobalId))
+                     (list
+                      (CList (CId '%list (GlobalId)) empty))
+                     (none))))]
+      [LexSet (elts)
+              (if (eq? dsg-set true)
+                  (CSet (CId '%set (GlobalId)) (map rec-desugar elts))
+                  (CSet (CId '%set (GlobalId)) empty))]
+      [LexList (values)
+               (if (eq? dsg-list true)
+                   (CList (CId '%list (GlobalId)) (map rec-desugar values))
+                   (CList (CId '%list (GlobalId)) empty))]
+      [LexTuple (values)
+                (if (eq? dsg-tuple true)
+                    (CTuple (CId '%tuple (GlobalId)) (map rec-desugar values))
+                    (CTuple (CId '%tuple (GlobalId)) empty))]
       
       [LexSubscript (left ctx slice)
                     (if (eq? dsg-subscript true)
@@ -653,9 +678,14 @@
                      (error 'desugar "should not encounter an instance ID!")]
 
       [LexDotField (value attr) (py-getfield (rec-desugar value) attr)]
-      [LexExprField (value attr) (CGetAttr (rec-desugar value) (rec-desugar attr))]
+      [LexExprField (value attr) 
+        (if (eq? dsg-expr-field true)
+            (CGetAttr (rec-desugar value) (rec-desugar attr))
+            (CNone))]
       [LexExprAssign (obj attr value)
-       (CSetAttr (rec-desugar obj) (rec-desugar attr) (rec-desugar value))]
+        (if (eq? dsg-expr-assign true)
+            (CSetAttr (rec-desugar obj) (rec-desugar attr) (rec-desugar value))
+            (CSetAttr (rec-desugar obj) (rec-desugar attr) (CNone)))]
 
       [LexTryExceptElse (try excepts orelse)
                         (if (eq? dsg-try-except-else true)
@@ -691,9 +721,12 @@
                    (desugar-with context target body)
                    (CTryFinally (CNone) (CNone)))]
 
-      [LexWhile (test body orelse) (CWhile (rec-desugar test)
-                                           (rec-desugar body)
-                                           (rec-desugar orelse))]
+      [LexWhile (test body orelse) 
+                (if (eq? dsg-while true)
+                    (CWhile (rec-desugar test)
+                            (rec-desugar body)
+                            (rec-desugar orelse))
+                    (CWhile (CFalse) (CNone) (CNone)))]
 
       [LexFor (target iter body orelse)
               (if (eq? dsg-for true)
@@ -704,8 +737,9 @@
       [LexAugAssign (op target value)
                     (local [(define target-r  target)
                             (define aug-r  (LexBinOp (context-load target) op value)) ]
-                           (begin
-                      (desugar (LexAssign (list target-r) (context-load aug-r)))))]
+                      (if (eq? dsg-augassignment true)
+                          (desugar (LexAssign (list target-r) (context-load aug-r)))
+                          (CNone)))]
       ; XXX: target is interpreted twice, independently.
       ; Is there any case where this might cause problems?
       ; TODO: this whole thing needs re-writing.  I'm just converting it to do a standard assignment. 
@@ -736,7 +770,9 @@
                       [(empty? exprs) (error 'make-sequence "went too far")]
                       [(empty? (rest exprs)) (first exprs)]
                       [else (CSeq (first exprs) (make-sequence (rest exprs)))]))]
-                  (make-sequence (map handle-delete targets)))]
+                  (if (eq? dsg-delete true)
+                      (make-sequence (map handle-delete targets))
+                      (CNone)))]
       
       [LexBuiltinPrim (s args)
          (if (eq? dsg-built-in-prims true)
