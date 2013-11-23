@@ -331,7 +331,7 @@
                   (display starting-tab)
                   (lexexpr-print-helper left "")
                   (display " ")
-                  (display op)
+                  (pretty-print-op op)
                   (display " ")
                   (lexexpr-print-helper right "")
                   this-expr
