@@ -353,19 +353,36 @@
                            (local [(define targets-r (map rec-desugar vals))
                                    (define value-r (rec-desugar value))
                                    (define assigns
-                                     (map2 (λ (t n) 
-                                             (CAssign t (py-app
-                                                         (py-getfield (CId '$tuple_result (LocalId)) 
-                                                                    '__getitem__)
-                                                         (list (make-builtin-num n))
-                                                         (none))))
-                                           targets-r
-                                           (build-list (length targets-r) identity)))]
-                                  (if (eq? dsg-tuple-assignment true)
-                                      (CLet '$tuple_result (LocalId) value-r 
-                                            (foldl (λ (a so-far) (CSeq so-far a))
-                                                   (first assigns) (rest assigns)))
-                                      (CAssign (CId '$tuple_result (LocalId)) (CNone))))]
+                                     (if (eq? dsg-tuple-assignment true)
+                                         (map2 (λ (t n) 
+                                                  (CAssign t (py-app
+                                                              (py-getfield (CId '$tuple_result (LocalId)) 
+                                                                           '__getitem__)
+                                                              (list (make-builtin-num n))
+                                                              (none))))
+                                               targets-r
+                                               (build-list (length targets-r) identity))
+                                         ;; if flag is off
+                                         (map2 (λ (t n) 
+                                                  (CAssign t (CLet '$call (LocalId)
+                                                                   (py-getfield (CId '$tuple_result (LocalId)) 
+                                                                                '__getitem__)
+                                                                   (CSeq (CAssign (CId '$call (LocalId)) (py-getfield (CId '$call (LocalId)) '__call__))
+                                                                         (CApp (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                                                                (make-builtin-str "__func__")))
+                                                                               (list (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                                                                      (make-builtin-str "__self__")))
+                                                                                     (make-builtin-num n))
+                                                                               (none))))))
+                                               targets-r
+                                               (build-list (length targets-r) identity))
+                                         )
+
+                                     
+                                     )]
+                             (CLet '$tuple_result (LocalId) value-r 
+                                   (foldl (λ (a so-far) (CSeq so-far a))
+                                          (first assigns) (rest assigns))))]
                   ; The others become a CAssign.
                   [else
                    ;; NOTE(joe): I think this was broken before for >1 target
@@ -404,12 +421,10 @@
                                      ;;handle the implicit construction case
                                      (rec-desugar (LexApp expr (list) (list) (none) (none))) 
                                      (rec-desugar expr)))]
-                         (if (eq? dsg-raise true)
-                             (CRaise 
-                              (if (LexPass? expr)
-                                  (none)
-                                  (some expr-r)))
-                             (CNone)))]
+                         (CRaise 
+                          (if (LexPass? expr)
+                              (none)
+                              (some expr-r))))]
 
       [LexYield (expr) (CYield (rec-desugar expr))]
 
