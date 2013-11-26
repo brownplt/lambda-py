@@ -75,6 +75,12 @@
   ("--set-flag-false" flag "Set the desugaring flag to false(need to clean the cached pyc file manually if desugaring is changed)"
    (set-false flag))
 
+  ("--count-ast-node" "Get the number of AST nodes of desugared python"
+   (pretty-write (count (get-core-syntax (current-input-port)))))
+
+  ("--count-ast-node-with-libs" "Get the number of AST nodes of desugared python and libs"
+   (pretty-write (count (desugar-w/lib (current-input-port)))))
+
   ("--python-parser" "Use the python selected with --python-path to parse python"
    (parser python-parse-python/port))
 

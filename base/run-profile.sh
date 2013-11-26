@@ -14,8 +14,6 @@ FLAG=$1
 # clean $FLAG.current file
 touch $FLAG.current && rm $FLAG.current && touch $FLAG.current
 
-#make && /usr/bin/time -f '%e' racket python-main.rkt --set-flag-false $1 --test ../tests/python-reference > "$1.output" 2>&1
-
 #---------------util function------------
 assertNotEmpty ()
 {
@@ -45,71 +43,41 @@ getInterpretationWithFlagTime ()
 }
 
 # args: test file name
-getCoreLines ()
+getCoreNodes ()
 {
     assertNotEmpty $1
-    local lines=`racket python-main.rkt --get-core-syntax < $1 | wc -l`
-    echo "line:$1:$lines"
+    local nodes=`racket python-main.rkt --count-ast-node < $1`
+    echo "node:$1:$nodes"
 }
 
-getCoreLinesWithLibs ()
+getCoreNodesWithLibs ()
 {
     assertNotEmpty $1
-    local lines=`racket python-main.rkt --get-core-syntax-with-libs < $1 | wc -l`   # really slow!
-    echo "libline:$1:$lines"
+    local nodes=`racket python-main.rkt --count-ast-node-with-libs < $1`   # slow
+    echo "libnode:$1:$nodes"
 
-}
-
-# args: test file
-getCoreLinesWithFlag()
-{
-    assertNotEmpty $1
-    local lines=`racket python-main.rkt --set-flag-false $FLAG --get-core-syntax < $1 | wc -l`
-    echo "flagline:$1:$lines"
 }
 
 # args: test file
-getCoreLinesWithFlagAndLibs()
+getCoreNodesWithFlag()
 {
     assertNotEmpty $1
-    local lines=`racket python-main.rkt --set-flag-false $FLAG --get-core-syntax-with-libs < $1 | wc -l` # really slow!
-    echo "libflagline:$1:$lines"
+    local nodes=`racket python-main.rkt --set-flag-false $FLAG --count-ast-node < $1`
+    echo "flagnode:$1:$nodes"
 }
 
-function profileInfo {
-s='The profile shows: 
-
-line
-  the length of the core language desugared by original desugaring process
-
-lineFlag
-  the length of the core language desugared by new desugaring process
-
-Diff
-  the shrinked size
-
-time
-  the time spent on interpreting the core language desugared by original desugaring process
-
-timeFlag
-  the time spent on interpreting the core langauage desugared by new desugaring process
-
-Diff
-  the time difference
-
-pass?
-  pass the test or not
-
-'
-
-    echo "$s"
-
+# args: test file
+getCoreNodesWithFlagAndLibs()
+{
+    assertNotEmpty $1
+    local nodes=`racket python-main.rkt --set-flag-false $FLAG --count-ast-node-with-libs < $1` # slow
+    echo "libflagnode:$1:$nodes"
 }
 
 # args: for loop limits
-function getCoreSyntaxLines
+function getCoreSyntaxNodes
 {
-    local lines
+    local nodes
     local output
     local limits
     local x
@@ -119,18 +87,18 @@ function getCoreSyntaxLines
     make
     echo "lib info" >> $FLAG.current
     local randomFile=`echo "$TEST_FILES" | head -n1`
-    local coreLineLibs=`getCoreLinesWithLibs $randomFile`
+    local coreNodeLibs=`getCoreNodesWithLibs $randomFile`
     
-    echo "$coreLineLibs"
+    echo "$coreNodeLibs"
 
     x=1
     for fname in $TEST_FILES
     do
         echo $fname >> $FLAG.current
 
-        lines=`getCoreLines $fname`
+        nodes=`getCoreNodes $fname`
         output=`getInterpretationTime $fname`
-        echo "$lines"
+        echo "$nodes"
         echo "$output"
         [ $x -eq $limits ] && break
         x=`$(( x + 1 ))`
@@ -139,47 +107,163 @@ function getCoreSyntaxLines
     # second pass, record the number of lexical-py with flag is false
     make
     echo "lib info" >> $FLAG.current
-    local coreLineLibsFlag=`getCoreLinesWithFlagAndLibs $randomFile`
-    echo "$coreLineLibsFlag"
+    local coreNodeLibsFlag=`getCoreNodesWithFlagAndLibs $randomFile`
+    echo "$coreNodeLibsFlag"
     
     x=1
     for fname in $TEST_FILES
     do
         echo $fname >> $FLAG.current
 
-        lines=`getCoreLinesWithFlag $fname`
+        nodes=`getCoreNodesWithFlag $fname`
         output=`getInterpretationWithFlagTime $fname`
-        echo "$lines"
+        echo "$nodes"
         echo "$output"
         [ $x -eq $limits ] && break
         x=`$(( x + 1 ))`
     done
 }
 
+getRatio()
+{
+    assertNotEmpty $1
+    assertNotEmpty $2
+    local num=`python -c "print round(($1-$2)/$1.0,3)"`
+    echo $num
+}
+
+printTitle()
+{
+    # echo table head
+    local title1='test file'
+    local title234='Comparison of the number of AST nodes'
+    local title2='old'
+    local title3='new'
+    local title4='shrink'
+    local title567='Comparison of interpretation time'
+    local title5='old'
+    local title6='new'
+    local title7='shrink'
+    local title8='pass?'
+
+    #  column of file name
+    local c1=${#title1}
+    pythonscript="import os;files=\"\"\"$TEST_FILES\"\"\"; files = files + \"\n$title1\"; print max(map(lambda x: len(os.path.basename(x)), files.split()))"
+
+    c1=`python -c "$pythonscript"`
+
+    # column of ast nodes
+    # TODO. this is bad, we have to make sure c2+c3+c4>length of title234
+    local c2=15  #initial
+    local c3=$c2
+    local c4=${#title4}
+    c4=`python -c "print max([$c4, $c2])"`
+    local c234=`python -c "print $c2+$c3+$c4"`
+
+    # column of time
+    # TODO. this is bad, we have to make sure c5+c6+c7>length of title567
+    local c5=15
+    local c6=$c5
+    local c7=${#title7}
+    c7=`python -c "print max([$c7, $c5])"`
+    local c567=`python -c "print $c5+$c6+$c7"`
+    
+    local c8=6
+    
+    # echo c1=$c1
+    # echo c2=$c2
+    # echo c3=$c3
+    # echo c4=$c4
+    # echo c234=$c234
+    # echo c5=$c5
+    # echo c6=$c6
+    # echo c7=$c7
+    # echo c8=$c8
+    echo `printf "%${c1}s|%${c2}s|%${c3}s|%${c4}s|%${c5}s|%${c6}s|%${c7}s|%${c8}s" | sed 's/ /=/g' | sed 's/|/ /g'`
+
+    printf "%${c1}s %${c234}s %${c567}s %${c8}s\n" "" "$title234" "$title567" "" 
+
+    echo `printf "%${c1}s| %${c234}s | %${c567}s |%${c8}s" | sed 's/ /-/g' | sed 's/|/ /g'`
+    printf "%${c1}s %${c2}s %${c3}s %${c4}s %${c5}s %${c6}s %${c7}s %${c8}s\n" "$title1" "$title2" "$title3" "$title4" "$title5" "$title6" "$title7" "$title8"
+
+    echo `printf "%${c1}s|%${c2}s|%${c3}s|%${c4}s|%${c5}s|%${c6}s|%${c7}s|%${c8}s" | sed 's/ /=/g' | sed 's/|/ /g'`
+
+    
+}
+
 # args: contents
 makeTable()
 {
     # echo profile and libs shrink
-    profileInfo
 
-    liblines=`echo "$1" | grep '^libline' | cut -d':' -f3`
-    libflaglines=`echo "$1" | grep '^libflagline' | cut -d':' -f3`
-    echo "shrink size: $liblines - $libflaglines = $(( liblines - libflaglines ))"
+    libnodes=`echo "$1" | grep '^libnode' | cut -d':' -f3`
+    libflagnodes=`echo "$1" | grep '^libflagnode' | cut -d':' -f3`
+    local ratio=`getRatio $libnodes $libflagnodes`
+    echo "libs shrink: $ratio"
     echo ""
 
     # echo table head
-    local c1=40 c2=10 c3=10 c4=10 c5=8 c6=8 c7=8 c8=5
-    echo `printf "%${c1}s | %${c2}s | %${c3}s | %${c4}s | %${c5}s | %${c6}s | %${c7}s | %${c8}s" | sed 's/ /=/g' | sed 's/|/ /g'`
-    printf "%${c1}s   %${c2}s   %${c3}s   %${c4}s   %${c5}s   %${c6}s   %${c7}s   %${c8}s\n" file line lineFlag Diff 'time' timeFlag Diff pass?
-    echo `printf "%${c1}s | %${c2}s | %${c3}s | %${c4}s | %${c5}s | %${c6}s | %${c7}s | %${c8}s" | sed 's/ /=/g' | sed 's/|/ /g'`
+    local title1='File Name'
+    local title234='Comparison of the number of AST nodes'
+    local title2='Old'
+    local title3='New'
+    local title4='Shrink'
+    local title567='Comparison of interpretation time'
+    local title5='Old'
+    local title6='New'
+    local title7='Shrink'
+    local title8='Pass?'
+
+    #  column of file name
+    local c1=${#title1}
+    pythonscript="import os;files=\"\"\"$TEST_FILES\"\"\"; files = files + \"\n$title1\"; print max(map(lambda x: len(os.path.basename(x)), files.split()))"
+
+    c1=`python -c "$pythonscript"`
+
+    # column of ast nodes
+    # TODO. this is bad, we have to make sure c2+c3+c4>length of title234
+    local c2=15  #initial
+    local c3=$c2
+    local c4=${#title4}
+    c4=`python -c "print max([$c4, $c2])"`
+    local c234=`python -c "print $c2+$c3+$c4"`
+
+    # column of time
+    # TODO. this is bad, we have to make sure c5+c6+c7>length of title567
+    local c5=15
+    local c6=$c5
+    local c7=${#title7}
+    c7=`python -c "print max([$c7, $c5])"`
+    local c567=`python -c "print $c5+$c6+$c7"`
+    
+    local c8=6
+    
+    # echo c1=$c1
+    # echo c2=$c2
+    # echo c3=$c3
+    # echo c4=$c4
+    # echo c234=$c234
+    # echo c5=$c5
+    # echo c6=$c6
+    # echo c7=$c7
+    # echo c8=$c8
+    echo `printf "%${c1}s|%${c2}s|%${c3}s|%${c4}s|%${c5}s|%${c6}s|%${c7}s|%${c8}s" | sed 's/ /=/g' | sed 's/|/ /g'`
+
+    printf "%${c1}s %${c234}s %${c567}s %${c8}s\n" "." "$title234" "$title567" "" 
+
+    echo `printf "%${c1}s| %${c234}s | %${c567}s |%${c8}s" | sed 's/ /-/g' | sed 's/|/ /g'`
+    printf "%${c1}s %${c2}s %${c3}s %${c4}s %${c5}s %${c6}s %${c7}s %${c8}s\n" "$title1" "$title2" "$title3" "$title4" "$title5" "$title6" "$title7" "$title8"
+
+    echo `printf "%${c1}s|%${c2}s|%${c3}s|%${c4}s|%${c5}s|%${c6}s|%${c7}s|%${c8}s" | sed 's/ /=/g' | sed 's/|/ /g'`
+
     
     # start
     for fname in $TEST_FILES
     do
         info=`echo "$1" | grep $fname`
         name=`basename $fname`
-        line=`echo "$info" | grep '^line' | cut -d':' -f3`
-        lineWithFlag=`echo "$info" | grep '^flagline' | cut -d':' -f3`
+        node=`echo "$info" | grep '^node' | cut -d':' -f3`
+        nodeWithFlag=`echo "$info" | grep '^flagnode' | cut -d':' -f3`
         time=`echo "$info" | grep '^time' | cut -d':' -f3`
         timeWithFlag=`echo "$info" | grep '^flagtime' | cut -d':' -f3`
         #output=`echo "$info" | grep '^output' | cut -d':' -f3 | tr -d ' '` # the interp result(no use)
@@ -189,15 +273,18 @@ makeTable()
         then
             succWithFlag='true'
         fi
-               # file, line, lineFlag, lineDiff, time, timeFlag, timeDiff
-        printf "%${c1}s   %${c2}s   %${c3}s   %${c4}s   %${c5}s   %${c6}s   %${c7}s   %${c8}s\n" $name $line $lineWithFlag $((line - lineWithFlag)) $time $timeWithFlag $(( time - timeWithFlag)) $succWithFlag
+               # file, node, nodeFlag, nodeDiff, time, timeFlag, timeDiff
+        local ratio1=`getRatio $node $nodeWithFlag`
+        local ratio2=`getRatio $time $timeWithFlag`
+        printf "%${c1}s %${c2}s %${c3}s %${c4}s %${c5}s %${c6}s %${c7}s %${c8}s\n" $name $node $nodeWithFlag $ratio1 $time $timeWithFlag $ratio2 $succWithFlag
     done
 
     # echo table's bottom
-    echo `printf "%${c1}s | %${c2}s | %${c3}s | %${c4}s | %${c5}s | %${c6}s | %${c7}s | %${c8}s" | sed 's/ /=/g' | sed 's/|/ /g'`
+    echo `printf "%${c1}s|%${c2}s|%${c3}s|%${c4}s|%${c5}s|%${c6}s|%${c7}s|%${c8}s" | sed 's/ /=/g' | sed 's/|/ /g'`
 }
 
-contents=`getCoreSyntaxLines` # could be `getCoreSyntaxLines 1`
+contents=`getCoreSyntaxNodes` # could be `getCoreSyntaxNodes 1`
 echo "$contents" > $FLAG.output.test
+#contents=`cat $FLAG.output.test`
 table=`makeTable "$contents"`
 echo "$table" > $FLAG.table.test

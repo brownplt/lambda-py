@@ -14,10 +14,12 @@
          "util.rkt"
          "python-evaluator.rkt"
          "parser/parser.rkt"
+         "count-node.rkt"
          "parser/python-lexer.rkt"
          "parser/test-parser.rkt")
 
 (provide (all-defined-out)
+         count
          set-false
          set-pypath
          get-pypath)
