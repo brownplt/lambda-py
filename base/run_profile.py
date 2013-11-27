@@ -202,14 +202,14 @@ class PrintTable:
 
 
     def _set_title(self):
-        self.title234 = 'Comparison of the number of AST node'
+        self.title234 = 'Comparison of the number of AST nodes'
         self.title567 = 'Comparison of interpretation time'
 
-        title = ['test file', 'Previous', 'Current', 'Change',
+        title = ['Test Files', 'Previous', 'Current', 'Change',
                 'Previous',
                 'Current',
                 'Change',
-                'Passed Test?']
+                'Pass?']
         self.table.append(title)
 
     def limitWidth(self, flt_number, digit):
@@ -254,33 +254,35 @@ class PrintTable:
         if self.width[7] < len(self.table[0][-1]):
             self.width[7] = len(self.table[0][-1])
 
+        # in any cases
+        self.width = map(lambda x: x+1, self.width)
 
 
-    def get_bottom_border(self, title=False):
-        char = '-'
-        if title:
-            char = '='
+
+    def get_bottom_border(self, border='-'):
+        char = border
         border='+%s+%s+%s+%s+%s+%s+%s+%s+' % tuple(map(lambda n: char*n, self.width))
         return border
 
 
     def draw_title(self):
         # draw
-        s = self.get_bottom_border()
+        s=self.get_bottom_border('-')
         # +2 is to fill two '+' symbol
         subtitle="|%*s|%*s|%*s|%*s|" % (self.width[0], "", sum(self.width[1:4])+2, self.title234,
                                         sum(self.width[4:7])+2, self.title567, self.width[7], "")
-        s1=self.get_bottom_border(True)
-        s2=self.draw_cell(self.table[0])
-        s3=self.get_bottom_border()
+        s1 = self.get_bottom_border('-')
+        s2=self.draw_cell(self.table[0], '=')
+        
 
-        return s+'\n'+subtitle+'\n'+s1+'\n'+s2+'\n'+s3
+        return s+'\n'+subtitle+'\n'+s1+'\n'+s2
 
-    def draw_cell(self, cell):
+    def draw_cell(self, cell, border='-'):
         "cell is [filename, xx, xx, xx, ...]"
         # build the list (width0, cell0, width1, cell1...)
         s="|%*s|%*s|%*s|%*s|%*s|%*s|%*s|%*s|" % reduce(lambda x,y: x+y, zip(self.width, cell))
-        return s
+        s3=self.get_bottom_border(border)
+        return s+'\n'+s3
 
     def draw_cells(self):
         # draw cells excluding title
@@ -294,8 +296,7 @@ class PrintTable:
 
         title=self.draw_title()
         cells=self.draw_cells()
-        bottom = self.get_bottom_border(True)
-        return libs+'\n\n'+title+'\n'+cells+'\n'+bottom
+        return libs+'\n\n'+title+'\n'+cells+'\n'
 
     def save_table(self):
         table = self.draw_table()
