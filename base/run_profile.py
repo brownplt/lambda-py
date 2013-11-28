@@ -202,8 +202,8 @@ class PrintTable:
 
 
     def _set_title(self):
-        self.title234 = 'Comparison of the number of AST nodes'
-        self.title567 = 'Comparison of interpretation time'
+        self.title234 = 'Compare the number of AST nodes'
+        self.title567 = 'Compare the interpretation time'
 
         title = ['Test Files', 'Previous', 'Current', 'Change',
                 'Previous',
