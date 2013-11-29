@@ -498,6 +498,16 @@
                                 args)
                           keywords stararg kwarg)))))
 
+;; simple py-method-app
+(define (simple-apply-method [method : CExpr] [args : (listof CExpr)]) : CExpr
+  (CLet '$call (LocalId) method
+        (CApp (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                               (make-builtin-str "__func__")))
+              (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                     (make-builtin-str "__self__")))
+                    args)
+              (none))))
+
 ;; helper to apply a function considering default arguments and keywords
 (define (py-app-fun [fun : CExpr] [args : (listof CExpr)] [keywords : (listof CExpr)]
                     [stararg : (optionof CExpr)] [kwarg : (optionof CExpr)]) : CExpr

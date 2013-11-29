@@ -330,6 +330,8 @@ class PrintTable:
 def get_current_flags():
     with open('python-desugar-flags.rkt', 'r') as f:
         contents = f.read()
+        # clean comments
+        contents = "\n".join([line for line in contents.split('\n') if not line.strip().startswith(';')])
         flags = re.findall("\(define-flag\ +(dsg[-\w]*)\)", contents)
         return flags
 

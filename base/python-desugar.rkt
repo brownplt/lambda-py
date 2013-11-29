@@ -361,23 +361,20 @@
                                                               (none))))
                                                targets-r
                                                (build-list (length targets-r) identity))
-                                         ;; if flag is off
+                                         ;; if flag is false
                                          (map2 (λ (t n) 
                                                   (CAssign t (CLet '$call (LocalId)
                                                                    (py-getfield (CId '$tuple_result (LocalId)) 
                                                                                 '__getitem__)
-                                                                         (CApp (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
-                                                                                                                (make-builtin-str "__func__")))
-                                                                               (list (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
-                                                                                                                      (make-builtin-str "__self__")))
-                                                                                     (make-builtin-num n))
-                                                                               (none)))))
+                                                                   (CApp (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                                                          (make-builtin-str "__func__")))
+                                                                         (list (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                                                                (make-builtin-str "__self__")))
+                                                                               (make-builtin-num n))
+                                                                         (none)))))
                                                targets-r
                                                (build-list (length targets-r) identity))
-                                         )
-
-                                     
-                                     )]
+                                         ))]
                              (CLet '$tuple_result (LocalId) value-r 
                                    (foldl (λ (a so-far) (CSeq so-far a))
                                           (first assigns) (rest assigns))))]
@@ -417,7 +414,11 @@
       [LexRaise (expr) (local [(define expr-r
                                  (if (or (LexLocalId? expr) (LexGlobalId? expr))
                                      ;;handle the implicit construction case
-                                     (rec-desugar (LexApp expr (list) (list) (none) (none))) 
+                                     (if (eq? dsg-raise true)
+                                         (rec-desugar (LexApp expr (list) (list) (none) (none)))
+                                        ; Why does CApp work here? it is supposed to be (simple-apply-method ...)
+                                         (CLet '$call (LocalId) (rec-desugar expr)
+                                               (CApp (py-getfield (CId '$call (LocalId)) '__call__) (list) (none)))) 
                                      (rec-desugar expr)))]
                          (CRaise 
                           (if (LexPass? expr)
@@ -578,70 +579,76 @@
                       (CList (CId '%list (GlobalId))
                              (pairs->tupleargs keys values)))
                      (none))
-             (py-app (CId '%dict (GlobalId))
-                     (list
-                      (CList (CId '%list (GlobalId)) empty))
-                     (none))))]
+             (simple-apply-method (py-getfield  (CId '%dict (GlobalId)) '__call__)
+                                  (list (CList (CId '%list (GlobalId))
+                                               (pairs->tupleargs keys values))))
+             ))]
       [LexSet (elts)
-              (if (eq? dsg-set true)
-                  (CSet (CId '%set (GlobalId)) (map rec-desugar elts))
-                  (CSet (CId '%set (GlobalId)) empty))]
+              (CSet (CId '%set (GlobalId)) (map rec-desugar elts))]
       [LexList (values)
-               (if (eq? dsg-list true)
-                   (CList (CId '%list (GlobalId)) (map rec-desugar values))
-                   (CList (CId '%list (GlobalId)) empty))]
+               (CList (CId '%list (GlobalId)) (map rec-desugar values))]
       [LexTuple (values)
-                (if (eq? dsg-tuple true)
-                    (CTuple (CId '%tuple (GlobalId)) (map rec-desugar values))
-                    (CTuple (CId '%tuple (GlobalId)) empty))]
+                (CTuple (CId '%tuple (GlobalId)) (map rec-desugar values))]
       
       [LexSubscript (left ctx slice)
-                    (if (eq? dsg-subscript true)
-                        (cond
-                         [(symbol=? ctx 'Load)
-                          (local [(define left-id (new-id))
-                                  (define left-var (CId left-id (LocalId)))
-                                  (define left-r (rec-desugar left))]
-                                 (if (LexSlice? slice)
-                                     (local [(define slice-low (rec-desugar (LexSlice-lower slice)))
-                                             (define slice-up (rec-desugar (LexSlice-upper slice)))
-                                             (define slice-step (rec-desugar (LexSlice-step slice)))]
-                                            (CLet left-id
-                                                  (LocalId)
-                                                  left-r
-                                                  (py-app (py-getfield left-var
-                                                                       '__slice__)
+                    (cond
+                     [(and (symbol=? ctx 'Load) (eq? dsg-subscript true)) ;; flag is true
+                      (local [(define left-id (new-id))
+                              (define left-var (CId left-id (LocalId)))
+                              (define left-r (rec-desugar left))]
+                        (if (LexSlice? slice)
+                            (local [(define slice-low (rec-desugar (LexSlice-lower slice)))
+                                    (define slice-up (rec-desugar (LexSlice-upper slice)))
+                                    (define slice-step (rec-desugar (LexSlice-step slice)))]
+                              (CLet left-id
+                                    (LocalId)
+                                    left-r
+                                    (py-app (py-getfield left-var
+                                                         '__slice__)
 
-                                                          (list slice-low
-                                                                slice-up slice-step)
-                                                          (none))))
-                                     (local [(define slice-r (rec-desugar slice))
-                                             (define exn-id (new-id))] 
-                                            (CLet left-id
-                                                  (LocalId)
-                                                  left-r
-                                                  (CSeq
-                                                   (CTryExceptElse
-                                                    (py-getfield (CId left-id (LocalId))
-                                                                 '__getitem__)
-                                                    exn-id
-                                                    (default-except-handler
-                                                      exn-id
-                                                      (CRaise (some (make-exception 
-                                                                     'TypeError
-                                                                     "object is not subscriptable"))))
-                                                    (CNone))
-                                                   (py-app (py-getfield (CId left-id (LocalId))
-                                                                        '__getitem__)
-                                                           (list slice-r)
-                                                           (none) ;TODO: not sure what to do with stararg.
-                                                           ))))))]
-                         [(symbol=? ctx 'Store)
-                          (error 'desugar "bad syntax: LexSubscript has context 'Store' outside a LexAssign")]
-                         [else (error 'desugar "unrecognized context in LexSubscript")])
-                        ; when flag is off
-                        (CNone)
-                        )]
+                                            (list slice-low
+                                                  slice-up slice-step)
+                                            (none))))
+                            (local [(define slice-r (rec-desugar slice))
+                                    (define exn-id (new-id))] 
+                              (CLet left-id
+                                    (LocalId)
+                                    left-r
+                                    (CSeq
+                                     (CTryExceptElse
+                                      (py-getfield (CId left-id (LocalId))
+                                                   '__getitem__)
+                                      exn-id
+                                      (default-except-handler
+                                        exn-id
+                                        (CRaise (some (make-exception 
+                                                       'TypeError
+                                                       "object is not subscriptable"))))
+                                      (CNone))
+                                     (py-app (py-getfield (CId left-id (LocalId))
+                                                          '__getitem__)
+                                             (list slice-r)
+                                             (none) ;TODO: not sure what to do with stararg.
+                                             ))))))]
+                     [(symbol=? ctx 'Load) ;; flag is false
+                      (local [(define left-id (new-id))
+                              (define left-var (CId left-id (LocalId)))
+                              (define left-r (rec-desugar left))]
+                        (if (LexSlice? slice)
+                            (local [(define slice-low (rec-desugar (LexSlice-lower slice)))
+                                    (define slice-up  (rec-desugar (LexSlice-upper slice)))
+                                    (define slice-step (rec-desugar (LexSlice-step slice)))]
+                              (CLet left-id (LocalId) left-r
+                                    (simple-apply-method (py-getfield left-var '__slice__)
+                                                        (list slice-low slice-up slice-step))))
+                            (let ((slice-r (rec-desugar slice)))
+                              (CLet left-id (LocalId left-r)
+                                    (simple-apply-method (py-getfield left-var '__getitem__)
+                                                         (list slice-r))))))
+                      ]
+                     [(symbol=? ctx 'Store)
+                      (error 'desugar "bad syntax: LexSubscript has context 'Store' outside a LexAssign")]
+                     [else (error 'desugar "unrecognized context in LexSubscript")])]
       
       [LexBreak () (CBreak)]
 

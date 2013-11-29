@@ -73,8 +73,8 @@
 (define-flag dsg-tuple)
 ;; flags for list
 (define-flag dsg-list)
-;; flags for set
-(define-flag dsg-set)
+;; flags for set(useless)
+;; (define-flag dsg-set)
 ;; flags for dict
 (define-flag dsg-dict)
 ;; flags for lambda
