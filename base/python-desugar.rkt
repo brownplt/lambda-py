@@ -418,7 +418,7 @@
                                          (rec-desugar (LexApp expr (list) (list) (none) (none)))
                                         ; Why does CApp work here? it is supposed to be (simple-apply-method ...)
                                          (CLet '$call (LocalId) (rec-desugar expr)
-                                               (CApp (py-getfield (CId '$call (LocalId)) '__call__) (list) (none)))) 
+                                               (simple-apply-method (py-getfield (CId '$call (LocalId)) '__call__) (list) ))) 
                                      (rec-desugar expr)))]
                          (CRaise 
                           (if (LexPass? expr)
@@ -640,9 +640,9 @@
                                     (define slice-step (rec-desugar (LexSlice-step slice)))]
                               (CLet left-id (LocalId) left-r
                                     (simple-apply-method (py-getfield left-var '__slice__)
-                                                        (list slice-low slice-up slice-step))))
+                                                         (list slice-low slice-up slice-step))))
                             (let ((slice-r (rec-desugar slice)))
-                              (CLet left-id (LocalId left-r)
+                              (CLet left-id (LocalId) left-r
                                     (simple-apply-method (py-getfield left-var '__getitem__)
                                                          (list slice-r))))))
                       ]

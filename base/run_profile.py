@@ -1,3 +1,6 @@
+# command line tools
+# python run_profile.py dsg-%
+
 from subprocess import Popen, PIPE
 import sys
 import os
@@ -5,12 +8,32 @@ import time
 import pickle
 import argparse
 import re
+import signal
 
-track_stdout = False
+track_though_stdout = False
+default_interp_limit = 300 # seconds(recommend 350)
+default_countlib_limit = 400 #  seconds, 400-600
 
-# command line tools
-# python run_profile.py --run-with-flag dsg-%
-# python run_profile.py --continue-if-possible --run-with-flag dsg-%
+# this file will store info of the original desugaring 
+original_info_file = "lambdapy.dumpinfo" 
+object_file_str = "{0}.output"
+tracking_file_str = "{0}.current"
+
+class TimeOut(Exception):
+    pass
+
+def alarm_handler(sig_num, arg):
+    raise TimeOut
+
+def loadObject(filename):
+    if not os.path.exists(filename):
+        return None
+    with open(filename, 'rb') as f:
+        return pickle.load(f)
+
+def writeObject(filename, obj):
+    with open(filename, 'wb') as f:
+        pickle.dump(obj, f)
 
 class RunRacket:
     def __init__(self, flag):
@@ -29,10 +52,12 @@ class RunRacket:
     def cmd_add_interp(self, current_cmd):
         return current_cmd + ['--interp']
 
-    def run_cmd(self, cmd, filename):
+    def run_cmd(self, cmd, filename, time_limit=default_interp_limit):
         """run command, opened filename as stdin
         return [stdout, stderr]"""
         with open(filename) as f:
+            signal.signal(signal.SIGALRM, alarm_handler)
+            signal.alarm(time_limit)
             p = Popen(cmd, stdin=f, stdout=PIPE, stderr=PIPE)
             return p.communicate()
 
@@ -47,13 +72,19 @@ class RunRacket:
         "given filename, return node number as int"
         cmd = self.build_cmd(self.cmd_add_count, flag)
         out, err = self.run_cmd(cmd, filename)
-        return int(out)
+        if err == '':
+            return int(out)
+        else:
+            return 0
 
-    def count_ast_node_with_libs(self, filename, flag=None):
+    def count_ast_node_with_libs(self, filename, flag=None, limit=default_countlib_limit):
         "given filename, return node number as int"
         cmd = self.build_cmd(self.cmd_add_countlibs, flag)
-        out, err = self.run_cmd(cmd, filename)
-        return int(out)
+        out, err = self.run_cmd(cmd, filename, limit)
+        if err == '':
+            return int(out)
+        else:
+            return 0
 
     def interp(self, filename, flag=None):
         "given filename, return the interp [stdin, stderr]"
@@ -74,8 +105,10 @@ class TestFiles:
         self.filenames, self.path_files = self._get_files(test_directory)
         assert self.filenames != [] and self.path_files != []
         self.file_path_map = dict(zip(self.filenames, self.path_files))
-        self.tracking_file = '%s.current' % self.flag
-        # record
+        global tracking_file_str
+        self.tracking_file = tracking_file_str.format(self.flag)
+
+        # structure for recording profile information
         self.file_time_map = {}
         self.file_interp_result_map = {}
         self.file_node_map = {}
@@ -85,19 +118,38 @@ class TestFiles:
         self.flag_file_interp_result_map = {}
         self.flag_file_node_map = {}
         self.flag_libs_node_info = 0
-
         self.init_all()
+
+        # check if the original desugaring info exists
+        # if it does, load the info directly
+        self.origin_loaded = False
+        if os.path.exists(original_info_file):
+            tmpData = loadObject(original_info_file)
+            if tmpData != None:
+                self.file_time_map = tmpData.file_time_map
+                self.file_interp_result_map = tmpData.file_interp_result_map
+                self.file_node_map = tmpData.file_node_map
+                self.libs_node_info = tmpData.libs_node_info
+                self.origin_loaded = True
+                # make sure the files in original data covers
+                # all the files current testing.
+                for i in self.filenames:
+                    if i not in tmpData.filenames:
+                        print 'files of %s file is not consistent with current files'
+                        print 'please delete %s'
+                        exit(1)
+
         # start
         self.start(self.flag)
 
     def init_all(self):
         for fname in self.filenames:
-            self.file_time_map[fname] = 0
+            self.file_time_map[fname] = None
             self.file_interp_result_map[fname] = ["",""]
-            self.file_node_map[fname] = 0
-            self.flag_file_time_map[fname] = 0
+            self.file_node_map[fname] = None
+            self.flag_file_time_map[fname] = None
             self.flag_file_interp_result_map[fname] = ["",""]
-            self.flag_file_node_map[fname] = 0
+            self.flag_file_node_map[fname] = None
 
     def _get_path(self, name):
         p = self.file_path_map[name]
@@ -117,8 +169,12 @@ class TestFiles:
         "return lib node and its shrink ratio"
         self._track('[flag=%s]get libs' % flag)
         random_file = self.path_files[0]
-        n1 = self.racket.count_ast_node_with_libs(random_file, flag)
-        n2 = self.racket.count_ast_node(random_file, flag)
+        try:
+            n1 = self.racket.count_ast_node_with_libs(random_file, flag)
+            n2 = self.racket.count_ast_node(random_file, flag)
+        except TimeOut:
+            signal.alarm(0)
+            return None
         return n1-n2
 
     def get_files_node_numbers(self, flag=None):
@@ -127,7 +183,11 @@ class TestFiles:
         for f in self.filenames:
             path = self._get_path(f)
             self._track('[flag=%s]on node: %s' % (flag, f))
-            result[f] = self.racket.count_ast_node(path, flag)
+            try:
+                result[f] = self.racket.count_ast_node(path, flag)
+            except TimeOut:
+                signal.alarm(0)
+                result[f] = None
         return result
 
     def get_interp(self, flag=None):
@@ -138,25 +198,40 @@ class TestFiles:
             path = self._get_path(f)
             self._track('[flag=%s]on interp: %s' %(flag,f))
             start = time.time()
-            result_map[f] = self.racket.interp(path, flag) #[stdout, stderr]
-            time_map[f] = time.time() - start
+            try:
+                result_map[f] = self.racket.interp(path, flag) #[stdout, stderr]
+                if result_map[f][1] != '':
+                    self._track('[flag=%s]error: %s' %(flag, result_map[f][1]))
+                else:
+                    self._track('[flag=%s]pass' % flag)
+                time_map[f] = time.time() - start
+            except TimeOut:
+                signal.alarm(0)
+                result_map[f] = ["Time Out", "Time Out"]
+                time_map[f] = None
 
         return (result_map, time_map)
 
     def start(self, flag):
+        global object_file
+
         self._clean_track()
         startTime = time.time()
 
 
         # test two time, one without flag, the other with flag
-        ### first: no flag
-        self.make()
-        if not self.ignoreLibs:
-            self.libs_node_info = self.get_libs_node_info()
-        if not self.ignoreNodes:
-            self.file_node_map = self.get_files_node_numbers()
-        if not self.ignoreInterp:
-            self.file_interp_result_map, self.file_time_map = self.get_interp()
+        if not self.origin_loaded:
+            ### first: no flag
+            self.make()
+            if not self.ignoreLibs:
+                self.libs_node_info = self.get_libs_node_info()
+            if not self.ignoreNodes:
+                self.file_node_map = self.get_files_node_numbers()
+            if not self.ignoreInterp:
+                self.file_interp_result_map, self.file_time_map = self.get_interp()
+            writeObject(object_file.format(self.flag), self)
+        else:
+            self._track('original data loaded')
 
         ### second with flag
         self.make()
@@ -173,8 +248,8 @@ class TestFiles:
 
 
     def _track(self, msg):
-        global track_stdout
-        if track_stdout:
+        global track_though_stdout
+        if track_though_stdout:
             print msg
             return
         with open(self.tracking_file, 'a') as f:
@@ -185,9 +260,15 @@ class TestFiles:
 
     def make(self):
         self._track("make")
-        p = Popen('make', stdout=PIPE, stderr=PIPE)
+        args = ''
+        if sys.platform.startswith('darwin'):
+            args = 'on-mac'
+        p = Popen(['make', args], stdout=PIPE, stderr=PIPE)
         result = p.communicate()
-        assert result[1] == ''
+        if result[1] != '':
+            print "Make Error: "
+            print result[1]
+            exit(1)
 
 class PrintTable:
     def __init__(self, testFiles):
@@ -213,6 +294,9 @@ class PrintTable:
         self.table.append(title)
 
     def limitWidth(self, flt_number, digit):
+        "limitWidth will round the given float number"
+        if flt_number is None:
+            return None
         t = str(round(flt_number, digit))
         t = t.split('.')
         assert len(t) == 2
@@ -222,6 +306,8 @@ class PrintTable:
 
 
     def getRatioStr(self, n1, n2, digit):
+        if n1 is None or n2 is None:
+            return None
         if float(n1) == 0:
             return "0."+"0"*digit
         t = self.limitWidth((float(n1)-float(n2))/float(n1), digit) # n1, n2 might be string
@@ -292,8 +378,11 @@ class PrintTable:
         return '\n'.join(s)
 
     def draw_table(self):
-        libs = "Libs Shrink: %s" % self.getRatioStr(self.info.libs_node_info, self.info.flag_libs_node_info, 3)
+        shrink = self.getRatioStr(self.info.libs_node_info, self.info.flag_libs_node_info, 3)
+        if shrink is None:
+            shrink = 'Time Out'
 
+        libs = "Libs Shrink: %s" % shrink
         title=self.draw_title()
         cells=self.draw_cells()
         return libs+'\n\n'+title+'\n'+cells+'\n'
@@ -316,16 +405,38 @@ class PrintTable:
             cell.append(self.info.flag_file_node_map[f])
             # change
             cell.append(self.getRatioStr(cell[1], cell[2], digit))
-            # previous time
+            # previous time, might be None
             cell.append(self.limitWidth(self.info.file_time_map[f], digit))
-            # current time
+            # current time, might be None
             cell.append(self.limitWidth(self.info.flag_file_time_map[f], digit))
             # time change
             cell.append(self.getRatioStr(cell[4],cell[5], digit))
+            if cell[4] is None: # now review the previous and current time column
+                cell[4] = "Time Out"
+            if cell[5] is None:
+                cell[5] = "Time Out"
             # pass?
             err = self.info.flag_file_interp_result_map[f][1]
             cell.append(str(err == ''))
             self.table.append(cell)
+
+    def get_failed_test(self):
+        s = []
+        succeed = 0
+        failed = 0
+        for f in self.info.filenames:
+            result = self.info.flag_file_interp_result_map[f]
+            if result[1] != '':
+                failed += 1
+                s.append(f)
+                s.append('+'*len(f))
+                s.append('.. sidebar:: Error Message\n\n   {0}'.format(result[1]))
+                s.append('.. literalinclude:: {0}\n'.format(self.info._get_path(f)))
+            else:
+                succeed += 1
+        s.insert(0, '{0} failed\n'.format(failed))
+        s.insert(0, '{0} succeeded\n'.format(succeed))
+        return "\n".join(s)
 
 def get_current_flags():
     with open('python-desugar-flags.rkt', 'r') as f:
@@ -340,7 +451,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="""get testing profile of lambda-py.""")
 
-    parser.add_argument('--generate-report', action='store_true',
+    parser.add_argument('--print-report', action='store_true',
                         help='given flag, the script will try to generate and print the report from existing data')
     parser.add_argument('--ignore-libs', action='store_true', default=False, help="don't collect libs info")
     parser.add_argument('--ignore-nodes', action='store_true', default=False, help="don't collect nodes info")
@@ -349,15 +460,15 @@ if __name__ == '__main__':
     parser.add_argument('--show-all-flags', action='store_true', help='show available flags')
     parser.add_argument('--stdout', action='store_true', default=False, help='print debug info through stdout instead of in a file')
     parser.add_argument('--test-directory', default='../tests/python-reference', help='set test-directory, default is %(default)s')
+    parser.add_argument('--print-failed-testcase', action='store_true', default=False, help='load the profile and print the failed test case')
 
     args = parser.parse_args()
-    track_stdout = args.stdout == True
+    track_though_stdout = args.stdout == True
 
     if args.show_all_flags:
         for flag in avaiable_flags:
             print flag
         exit(0)
-
 
     if args.flag == None:
         parser.print_help()
@@ -367,28 +478,38 @@ if __name__ == '__main__':
         print "flag %s not found" % args.flag
         exit(1)
 
-    output_file = "%s.output" % args.flag
+    object_file = object_file_str.format(args.flag)
 
-    if args.generate_report:
-        if os.path.exists(output_file):
-            with open(output_file, 'rb') as f:
-                test = pickle.load(f)
-                p = PrintTable(test)
-                print p.draw_table()
+    if args.print_report:
+        test = loadObject(object_file)
+        if test == None:
+            print 'cannot load %s, Abort' % object_file
         else:
-            print 'cannot find %s, Abort' % output_file
-        exit(1)
+            p = PrintTable(test)
+            print p.draw_table()
+        # exit
+        exit(0)
+
+    if args.print_failed_testcase:
+        test = loadObject(object_file)
+        if test == None:
+            print 'cannot load %s, Abort' % object_file
+        else:
+            p = PrintTable(test)
+            print p.get_failed_test()
+        # exit
+        exit(0)
+        
 
     test = TestFiles(args.flag, test_directory=args.test_directory,
                      ignoreLibs=args.ignore_libs,
                      ignoreNodes=args.ignore_nodes,
                      ignoreInterp=args.ignore_interp)
 
-    with open(output_file, 'wb') as f:
-        pickle.dump(test, f)
+    writeObject(object_file, test)
 
     p = PrintTable(test)
-    if track_stdout:
+    if track_though_stdout:
         print p.draw_table()
     else:
         p.save_table()

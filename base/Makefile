@@ -22,3 +22,6 @@ clean:
 
 clean-python:
 	@touch foo.pyc && touch __pycache__ && find . -iname '*.pyc' | xargs `which rm` && find . -name __pycache__ | xargs `which rm` 
+
+on-mac:
+	for foo in `git grep -l 'lang plai-typed$$' | ggrep '\.rkt$$'`; do gsed -i s/'lang plai-typed$$'/'lang plai-typed\/untyped'/g $$foo; done && git ls-files  | ggrep '\.rkt$$' | xargs raco make -j 5 && ggrep -r -l  --color='auto' -P -n "[\x80-\xFF]" | gsed s/^/"Warning: found non-ascii characters: "/g | ggrep -v pyc$$ | ggrep -v zo$$ | ggrep -v rkt$$; make clean-python; true
