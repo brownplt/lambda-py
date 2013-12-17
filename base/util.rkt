@@ -535,18 +535,25 @@
                   (CId '$exp (LocalId))
                   (py-app (CId '%tuple (GlobalId)) (list (CId '$exp (LocalId))) (none))))])
 
-    (CLet '$fun (LocalId) fun
-      (cond
-        [(and (empty? keywords) (none? kwarg))
-         ;; call without keywords can be simplified if there is no keyword/defaults in the function
-         (CIf (CBuiltinPrim 'obj-hasattr (list (CId '$fun (LocalId)) (make-builtin-str "___kwcall")))
-              ;; function has keywords arguments and/or defaults
-              (call-stararg '$fun)
-              ;; no keywords/no defaults special cased for bootstraping
-              (CApp (CId '$fun (LocalId)) args (option-map to-tuple stararg)))]
-        [else
-         ;; call with keywords or **expression
-         (call-stararg '$fun)]))))
+    (cond
+     [(or (eq? dsg-function-arguments false)
+          (and (eq? dsg-function-starargs false) (none? stararg)))
+
+      (CLet '$fun (LocalId) fun
+            (CApp (CId '$fun (LocalId)) args (none)))]
+     [else 
+      (CLet '$fun (LocalId) fun
+            (cond
+             [(and (empty? keywords) (none? kwarg))
+              ;; call without keywords can be simplified if there is no keyword/defaults in the function
+              (CIf (CBuiltinPrim 'obj-hasattr (list (CId '$fun (LocalId)) (make-builtin-str "___kwcall")))
+                   ;; function has keywords arguments and/or defaults
+                   (call-stararg '$fun)
+                   ;; no keywords/no defaults special cased for bootstraping
+                   (CApp (CId '$fun (LocalId)) args (option-map to-tuple stararg)))]
+             [else
+              ;; call with keywords or **expression
+              (call-stararg '$fun)]))])))
 
 (define (py-setfield obj attr val)
   (CLet '$obj (LocalId) obj
@@ -574,7 +581,6 @@
   (local [(define (is-special-method? [n : symbol])
             (member n (list '__in__ '__call__ '__eq__ '__cmp__ '__str__ '__getitem__ '__gt__ '__lt__ '__lte__ '__gte__)))]
     (cond
-     [(eq? dsg-dot-field false) (CNone)]
       [(eq? attr '__class__)
        ;; special attribute __class__, cannot be overriden.
        (CBuiltinPrim '$class (list obj-exp))]

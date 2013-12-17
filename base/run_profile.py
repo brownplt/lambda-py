@@ -260,10 +260,10 @@ class TestFiles:
 
     def make(self):
         self._track("make")
-        args = ''
+        cmd = ['make']
         if sys.platform.startswith('darwin'):
-            args = 'on-mac'
-        p = Popen(['make', args], stdout=PIPE, stderr=PIPE)
+            cmd.append('on-mac')
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE)
         result = p.communicate()
         if result[1] != '':
             print "Make Error: "
@@ -286,22 +286,23 @@ class PrintTable:
         self.title234 = 'Compare the number of AST nodes'
         self.title567 = 'Compare the interpretation time'
 
-        title = ['Test Files', 'Previous', 'Current', 'Change',
+        title = ['Test Files', 'Previous', 'Current', 'Improvement',
                 'Previous',
                 'Current',
-                'Change',
+                'Improvement',
                 'Pass?']
         self.table.append(title)
 
     def limitWidth(self, flt_number, digit):
-        "limitWidth will round the given float number"
+        "limitWidth will round the given float number, and produce % notation"
         if flt_number is None:
             return None
         t = str(round(flt_number, digit))
         t = t.split('.')
         assert len(t) == 2
-        if len(t[1]) < 3:
-            t[1] = t[1] + "0" * (3 - len(t[1]))
+        if len(t[1]) < digit:
+            t[1] = t[1] + "0" * (digit - len(t[1]))
+        
         return ".".join(t)
 
 
@@ -309,9 +310,9 @@ class PrintTable:
         if n1 is None or n2 is None:
             return None
         if float(n1) == 0:
-            return "0."+"0"*digit
-        t = self.limitWidth((float(n1)-float(n2))/float(n1), digit) # n1, n2 might be string
-        return t
+            return "0"
+        t = self.limitWidth((float(n1)-float(n2))/float(n1)*100.0, 1) # n1, n2 might be string
+        return t+"%"
 
     def calculateColumnWidth(self):
         self.width = [0,0,0,0,0,0,0,0]
@@ -393,7 +394,7 @@ class PrintTable:
             f.write(table)
 
     def _fill_table(self):
-        digit = 3
+        digit = 2 # digit for numbers after point
 
         for f in self.info.filenames:
             cell = []
@@ -406,12 +407,14 @@ class PrintTable:
             # change
             cell.append(self.getRatioStr(cell[1], cell[2], digit))
             # previous time, might be None
-            cell.append(self.limitWidth(self.info.file_time_map[f], digit))
+            previous_time = self.info.file_time_map[f]
+            current_time  = self.info.flag_file_time_map[f]
+            cell.append(self.limitWidth(previous_time, digit))
             # current time, might be None
-            cell.append(self.limitWidth(self.info.flag_file_time_map[f], digit))
+            cell.append(self.limitWidth(current_time, digit))
             # time change
-            cell.append(self.getRatioStr(cell[4],cell[5], digit))
-            if cell[4] is None: # now review the previous and current time column
+            cell.append(self.getRatioStr(previous_time,current_time, digit))
+            if cell[4] is None: # now check the previous and current time column
                 cell[4] = "Time Out"
             if cell[5] is None:
                 cell[5] = "Time Out"

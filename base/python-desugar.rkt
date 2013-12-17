@@ -203,75 +203,32 @@
                       [defaults : (listof LexExpr)] [kw_defaults : (listof LexExpr)]
                       [body : LexExpr] [opt-class : (optionof LexExpr)])
 
-    ;; (cond
-    ;;  ;; the "normal" case is receives different treatment to enable bootstrapping.
-    ;;  [(and (empty? kwonlyargs) (none? kwarg) (empty? defaults) (empty? kw_defaults))
-    ;;   (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))]
-    ;;  [else
-    ;;   (CLet '$func (LocalId)
-    ;;         ;; keyword-only and kwarg are appended to positional arguments,
-    ;;         ;; ___nkwonlyargs and ___nkwarg attributes account for them.
-    ;;         (CFunc (flatten (list args kwonlyargs (option->list kwarg))) vararg
-    ;;                (rec-desugar body) (option-map id-to-symbol opt-class))
-    ;;         (CSeq
-    ;;          (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___kwcall")
-    ;;                    (CTrue)) ;; this functio has kw arguments and/or defaults
-    ;;          (CSeq
-    ;;           (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___nkwonlyargs")
-    ;;                     (make-builtin-num (length kwonlyargs)))
-    ;;           (CSeq
-    ;;            (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___nkwarg")
-    ;;                      (make-builtin-num (length (option->list kwarg))))
-    ;;            (CSeq
-    ;;             (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
-    ;;                       (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defaults)))
-    ;;             (CSeq
-    ;;              (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__kwdefaults__")
-    ;;                        (CTuple (CId '%tuple (GlobalId)) (map rec-desugar kw_defaults)))
-    ;;              (CId '$func (LocalId))))))))]))
-  
-  (local ((define desugared-body (rec-desugar body))
-          (define option-maped-class (option-map id-to-symbol opt-class))
-          (define (get-func-with-property [kwonlyargs_p : bool] [kwarg_p : bool])
-            (cond
-             [(or (and (eq? kwonlyargs_p false) (eq? kwarg_p false))
-                  (and (empty? kwonlyargs) (none? kwarg) (empty? defaults) (empty? kw_defaults)))
-              (CFunc args vararg desugared-body option-maped-class)]
-             [else
-              (CLet '$func (LocalId) (CFunc (flatten (list args
-                                                           (if (eq? kwonlyargs_p true) kwonlyargs empty)
-                                                           (if (eq? kwarg_p true) (option->list kwarg) empty)))
-                                                     vararg desugared-body option-maped-class)
-                    ;; keyword-only and kwarg are appended to positional arguments,
-                    ;; ___nkwonlyargs and ___nkwarg attributes account for them.
-
-                    (CSeq
-                     (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___kwcall")
-                               (CTrue)) ;; this functio has kw arguments and/or defaults
-                     (CSeq
-                      (if (eq? kwonlyargs_p true)
-                          (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___nkwonlyargs")
-                                    (make-builtin-num (length kwonlyargs)))
-                          (CNone))
-                      (CSeq
-                       (if (eq? kwarg_p true)
-                           (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___nkwarg")
-                                     (make-builtin-num (length (option->list kwarg))))
-                           (CNone))
-                       (CSeq
-                        (if (eq? kwarg_p true)
-                            (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
-                                      (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defaults)))
-                            (CNone))
-                        (CSeq
-                         (if (eq? kwonlyargs_p true)
-                             (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__kwdefaults__")
-                                       (CTuple (CId '%tuple (GlobalId)) (map rec-desugar kw_defaults)))
-                             (CNone))
-                         (CId '$func (LocalId)))))
-                      )))])))
-         (get-func-with-property dsg-func-kwonlyargs dsg-func-kwarg)
-         ))
+  (cond
+   ;; the "normal" case is receives different treatment to enable bootstrapping.
+   [(and (empty? kwonlyargs) (none? kwarg) (empty? defaults) (empty? kw_defaults))
+    (CFunc args vararg (rec-desugar body) (option-map id-to-symbol opt-class))]
+   [else
+    (CLet '$func (LocalId)
+          ;; keyword-only and kwarg are appended to positional arguments,
+          ;; ___nkwonlyargs and ___nkwarg attributes account for them.
+          (CFunc (flatten (list args kwonlyargs (option->list kwarg))) vararg
+                 (rec-desugar body) (option-map id-to-symbol opt-class))
+          (CSeq
+           (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___kwcall")
+                     (CTrue)) ;; this functio has kw arguments and/or defaults
+           (CSeq
+            (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___nkwonlyargs")
+                      (make-builtin-num (length kwonlyargs)))
+            (CSeq
+             (CSetAttr (CId '$func (LocalId)) (make-builtin-str "___nkwarg")
+                       (make-builtin-num (length (option->list kwarg))))
+             (CSeq
+              (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__defaults__")
+                        (CTuple (CId '%tuple (GlobalId)) (map rec-desugar defaults)))
+              (CSeq
+               (CSetAttr (CId '$func (LocalId)) (make-builtin-str "__kwdefaults__")
+                         (CTuple (CId '%tuple (GlobalId)) (map rec-desugar kw_defaults)))
+               (CId '$func (LocalId))))))))]))
 
 ;; desugar-with: based on the translation in http://www.python.org/dev/peps/pep-0343/
 (define (desugar-with [context : LexExpr] [target : (optionof LexExpr)] [body : LexExpr])
@@ -352,7 +309,7 @@
                            (local [(define targets-r (map rec-desugar vals))
                                    (define value-r (rec-desugar value))
                                    (define assigns
-                                     (if (eq? dsg-tuple-assignment true)
+                                     (if (eq? dsg-multiple-assignment true)
                                          (map2 (λ (t n) 
                                                   (CAssign t (py-app
                                                               (py-getfield (CId '$tuple_result (LocalId)) 
@@ -573,16 +530,11 @@
                                  (rec-desugar (first values))))
                    (pairs->tupleargs (rest keys) (rest values)))]))
         ]
-         (if (eq? dsg-dict true)
-             (py-app (CId '%dict (GlobalId))
-                     (list
-                      (CList (CId '%list (GlobalId))
-                             (pairs->tupleargs keys values)))
-                     (none))
-             (simple-apply-method (py-getfield  (CId '%dict (GlobalId)) '__call__)
-                                  (list (CList (CId '%list (GlobalId))
-                                               (pairs->tupleargs keys values))))
-             ))]
+         (py-app (CId '%dict (GlobalId))
+                 (list
+                  (CList (CId '%list (GlobalId))
+                         (pairs->tupleargs keys values)))
+                 (none)))]
       [LexSet (elts)
               (CSet (CId '%set (GlobalId)) (map rec-desugar elts))]
       [LexList (values)
@@ -699,67 +651,47 @@
 
       [LexDotField (value attr) (py-getfield (rec-desugar value) attr)]
       [LexExprField (value attr) 
-        (if (eq? dsg-expr-field true)
-            (CGetAttr (rec-desugar value) (rec-desugar attr))
-            (CNone))]
+                    (CGetAttr (rec-desugar value) (rec-desugar attr))]
       [LexExprAssign (obj attr value)
-        (if (eq? dsg-expr-assign true)
-            (CSetAttr (rec-desugar obj) (rec-desugar attr) (rec-desugar value))
-            (CSetAttr (rec-desugar obj) (rec-desugar attr) (CNone)))]
+                     (CSetAttr (rec-desugar obj) (rec-desugar attr) (rec-desugar value))]
 
       [LexTryExceptElse (try excepts orelse)
-                        (if (eq? dsg-try-except-else true)
-                            (local [(define try-r (rec-desugar try))
-                                    (define exn-id (new-id))
-                                    (define excepts-r (desugar-excepts exn-id excepts))
-                                    (define orelse-r (rec-desugar orelse))]
-                                   (CTryExceptElse 
-                                    try-r
-                                    exn-id
-                                    excepts-r
-                                    orelse-r))
-                            (local [(define except (first excepts))
-                                    (define body (if (LexExcept? except)
-                                                     (LexExcept-body except)
-                                                     (LexExceptAs-body except)))]
-                                   (CTryExceptElse (rec-desugar try) (new-id) (rec-desugar body) (rec-desugar orelse))))]
+                        (local [(define try-r (rec-desugar try))
+                                (define exn-id (new-id))
+                                (define excepts-r (desugar-excepts exn-id excepts))
+                                (define orelse-r (rec-desugar orelse))]
+                          (CTryExceptElse 
+                           try-r
+                           exn-id
+                           excepts-r
+                           orelse-r))]
 
       [LexTryFinally (try finally)
-                     (if (eq? dsg-try-finally true)
-                         (local [(define try-r (rec-desugar try))
-                                 (define finally-r (rec-desugar finally))]
-                                (CTryFinally
-                                 try-r
-                                 finally-r))
-                         (CTryFinally (CNone) (CNone)))]
+                     (local [(define try-r (rec-desugar try))
+                             (define finally-r (rec-desugar finally))]
+                       (CTryFinally
+                        try-r
+                        finally-r))]
 
       [LexExcept (types body) (error 'desugar "should not encounter LexExcept!")]
       [LexExceptAs (types name body) (error 'desugar "should not encounter LexExcept!")]
 
       [LexWith (context target body)
-               (if (eq? dsg-with true)
-                   (desugar-with context target body)
-                   (CTryFinally (CNone) (CNone)))]
+               (desugar-with context target body)]
 
       [LexWhile (test body orelse) 
-                (if (eq? dsg-while true)
-                    (CWhile (rec-desugar test)
-                            (rec-desugar body)
-                            (rec-desugar orelse))
-                    (CWhile (CFalse) (CNone) (CNone)))]
+                (CWhile (rec-desugar test)
+                        (rec-desugar body)
+                        (rec-desugar orelse))]
 
       [LexFor (target iter body orelse)
-              (if (eq? dsg-for true)
-                  (desugar-for target iter body orelse)
-                  (CWhile (CFalse) (CNone) (CNone)))]
+              (desugar-for target iter body orelse)]
 
       ;; target is interpreted twice. FIX ME
       [LexAugAssign (op target value)
                     (local [(define target-r  target)
                             (define aug-r  (LexBinOp (context-load target) op value)) ]
-                      (if (eq? dsg-augassignment true)
-                          (desugar (LexAssign (list target-r) (context-load aug-r)))
-                          (CNone)))]
+                      (desugar (LexAssign (list target-r) (context-load aug-r))))]
       ; XXX: target is interpreted twice, independently.
       ; Is there any case where this might cause problems?
       ; TODO: this whole thing needs re-writing.  I'm just converting it to do a standard assignment. 
@@ -790,14 +722,10 @@
                       [(empty? exprs) (error 'make-sequence "went too far")]
                       [(empty? (rest exprs)) (first exprs)]
                       [else (CSeq (first exprs) (make-sequence (rest exprs)))]))]
-                  (if (eq? dsg-delete true)
-                      (make-sequence (map handle-delete targets))
-                      (CNone)))]
+                  (make-sequence (map handle-delete targets)))]
       
       [LexBuiltinPrim (s args)
-         (if (eq? dsg-built-in-prims true)
-             (CBuiltinPrim s (map desugar args))
-             (CBuiltinPrim s (list)))]
+                      (CBuiltinPrim s (map desugar args))]
       [LexCore (e) e]
       [else
         (error 'desugar
