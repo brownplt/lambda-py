@@ -93,7 +93,7 @@ class RunRacket:
         return result
 
 
-class TestFiles:
+class TestFiles(object):
     def __init__(self, flag, test_directory='../tests/python-reference',
                  ignoreLibs=False, ignoreNodes=False, ignoreInterp=False):
         self.ignoreLibs = ignoreLibs
@@ -138,9 +138,6 @@ class TestFiles:
                         print 'files of %s file is not consistent with current files'
                         print 'please delete %s'
                         exit(1)
-
-        # start
-        self.start(self.flag)
 
     def init_all(self):
         for fname in self.filenames:
@@ -423,12 +420,16 @@ class PrintTable:
             cell.append(str(err == ''))
             self.table.append(cell)
 
-    def get_failed_test(self):
+    def get_failed_test(self, with_flag=True):
         s = []
         succeed = 0
         failed = 0
+        if with_flag:
+            interp_result = self.info.flag_file_interp_result_map
+        else:
+            interp_result = self.info.file_interp_result_map
         for f in self.info.filenames:
-            result = self.info.flag_file_interp_result_map[f]
+            result = interp_result[f]
             if result[1] != '':
                 failed += 1
                 s.append(f)
@@ -508,6 +509,7 @@ if __name__ == '__main__':
                      ignoreLibs=args.ignore_libs,
                      ignoreNodes=args.ignore_nodes,
                      ignoreInterp=args.ignore_interp)
+    test.start(args.flag)
 
     writeObject(object_file, test)
 

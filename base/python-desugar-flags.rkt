@@ -46,8 +46,14 @@
 (define-flag dsg-function-arguments)
 (define-flag dsg-function-starargs)
 
+(define-flag dsg-callable-runtime-checking)
 
+;; if dsg-decorator is false, no class decorator will be desugared.
+(define-flag dsg-decorator)
+;; if dsg-metaclass is false, 
+(define-flag dsg-metaclass)
 
+(define-flag dsg-multiple-inheritance)
 
 ;; flags for pass: this is interesting--how important the pass statement in Python?
 ;; no idea how to write the code

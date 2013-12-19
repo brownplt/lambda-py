@@ -477,26 +477,39 @@
 (define (py-app-kw [fun : CExpr] [args : (listof CExpr)] [keywords : (listof CExpr)]
                     [stararg : (optionof CExpr)] [kwarg : (optionof CExpr)]) : CExpr
   (CLet '$call (LocalId) fun
-        (CTryExceptElse
-         ;; try to get __call__ attribute (functions and methods special cased only for performance)
-         (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
-              (CNone) ;; do nothing: function.__call__ is the function itself
-              (CIf (CBuiltinPrim 'isinstance (list (CId '$call (LocalId)) (CId '%method (GlobalId))))
-                   (CNone) ;; do nothing: method.__call__ is the method itself
-                   (CAssign (CId '$call (LocalId)) (py-getfield (CId '$call (LocalId)) '__call__))))
-         ;; exception raised, not callable
-         '_ (CRaise (some (make-exception 'TypeError "object is not callable")))
-         ;; no exception, __call__ is available
-         (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
-              ;; __call__ is a function
-              (py-app-fun (CId '$call (LocalId)) args keywords stararg kwarg)
-              ;; else it should be a method, call __func__ and pass __self__ as first arg.
-              (py-app-fun (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
-                                                           (make-builtin-str "__func__")))
-                          (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
-                                                                 (make-builtin-str "__self__")))
-                                args)
-                          keywords stararg kwarg)))))
+        (if (eq? dsg-callable-runtime-checking true)
+            (CTryExceptElse
+             ;; try to get __call__ attribute (functions and methods special cased only for performance)
+             (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
+                  (CNone) ;; do nothing: function.__call__ is the function itself
+                  (CIf (CBuiltinPrim 'isinstance (list (CId '$call (LocalId)) (CId '%method (GlobalId))))
+                       (CNone) ;; do nothing: method.__call__ is the method itself
+                       (CAssign (CId '$call (LocalId)) (py-getfield (CId '$call (LocalId)) '__call__))))
+             ;; exception raised, not callable
+             '_ (CRaise (some (make-exception 'TypeError "object is not callable")))
+             ;; no exception, __call__ is available
+             (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
+                  ;; __call__ is a function
+                  (py-app-fun (CId '$call (LocalId)) args keywords stararg kwarg)
+                  ;; else it should be a method, call __func__ and pass __self__ as first arg.
+                  (py-app-fun (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                               (make-builtin-str "__func__")))
+                              (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                     (make-builtin-str "__self__")))
+                                    args)
+                              keywords stararg kwarg)))
+            ;; if flag is false, turn off the runtime checking
+            (CIf (CBuiltinPrim 'is-func? (list (CId '$call (LocalId))))
+                  ;; __call__ is a function
+                  (py-app-fun (CId '$call (LocalId)) args keywords stararg kwarg)
+                  ;; else it should be a method, call __func__ and pass __self__ as first arg.
+                  (py-app-fun (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                               (make-builtin-str "__func__")))
+                              (cons (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
+                                                                     (make-builtin-str "__self__")))
+                                    args)
+                              keywords stararg kwarg))
+            )))
 
 ;; simple py-method-app
 (define (simple-apply-method [method : CExpr] [args : (listof CExpr)]) : CExpr

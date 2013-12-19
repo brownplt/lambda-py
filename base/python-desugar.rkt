@@ -373,7 +373,6 @@
                                      ;;handle the implicit construction case
                                      (if (eq? dsg-raise true)
                                          (rec-desugar (LexApp expr (list) (list) (none) (none)))
-                                        ; Why does CApp work here? it is supposed to be (simple-apply-method ...)
                                          (CLet '$call (LocalId) (rec-desugar expr)
                                                (simple-apply-method (py-getfield (CId '$call (LocalId)) '__call__) (list) ))) 
                                      (rec-desugar expr)))]
@@ -612,19 +611,44 @@
 
       [LexClass (scp name bases body keywords stararg kwarg decorators)
                 (cond
-                  [(empty? decorators)
+                 [(or (empty? decorators) (eq? dsg-decorator false))
                    ;; no decorators, desugar class
                    (let* ([scope (type-case LocalOrGlobal scp
                                    [Locally-scoped () (LocalId)]
                                    [Globally-scoped () (GlobalId)]
                                    [else (error 'expr "should be no more instance scope!")])]
+                          ;; bases-list only reserves the base class
+                          ;; meta-class is stored at keywords
                           [bases-list (if (empty? bases)
                                           (list (CId '%object (GlobalId)))
                                           (map desugar bases))]
                           [base-id (new-id)]
                           ;; (CNone) is because we may not have a tuple class object yet, type-uniqbases fixes it.
-                          [bases-tuple (CTuple (CNone) (cons (CId base-id (LocalId)) (rest bases-list)))]
-                          [new-class (make-class scope name bases-tuple (desugar body))]
+                          [bases-tuple 
+                           (if (eq? dsg-multiple-inheritance true)
+                               (CTuple (CNone) (cons (CId base-id (LocalId)) (rest bases-list)))
+                               (CTuple (CNone) (list (CId '%object (GlobalId)))))]
+                          [new-class 
+                           (if (eq? dsg-multiple-inheritance true)
+                               (make-class scope name bases-tuple (desugar body))
+                               (CSeq ;; simplify the make-class
+                                (CAssign (CId name scope)
+                                         (CBuiltinPrim 'type-new
+                                                       (list (CObject (CNone)
+                                                                      (some (MetaStr (symbol->string name)))))))
+                                (CSeq
+                                 (set-field (CId name scope) '__bases__ bases-tuple)
+                                 (CSeq
+                                  (set-field (CId name scope) '__mro__
+                                             (CBuiltinPrim 'type-buildmro
+                                                           (list
+                                                            (CTuple (CNone) (list (CId name scope)))
+                                                            (CBuiltinPrim 'obj-getattr (list (CId name scope)
+                                                                                             (make-pre-str "__bases__"))))))
+                                  (CSeq
+                                   (desugar body)
+                                   (CId name scope)))))
+                               )]
                           [call-metaclass (CApp (CId '%call_metaclass (GlobalId))
                                                 (list (make-builtin-str (symbol->string name))
                                                       (CBuiltinPrim 'type-uniqbases (list bases-tuple))
@@ -633,12 +657,42 @@
                                                       (CTuple (CId '%tuple (GlobalId)) (map rec-desugar (option->list stararg)))
                                                       (CTuple (CId '%tuple (GlobalId)) (map rec-desugar (option->list kwarg))))
                                                 (none))])
-                     (CLet base-id (LocalId) (first bases-list)
-                           (if (and (empty? keywords) (none? kwarg))
-                               (CIf (CBuiltinPrim 'type-metaclass (list (first bases-list)))
-                                    call-metaclass
-                                    new-class)
-                               call-metaclass)))]
+                     (cond [(and (eq? dsg-metaclass true)
+                                 (eq? dsg-multiple-inheritance true))
+                              (CLet base-id (LocalId) (first bases-list)
+                                    (if (and (empty? keywords) (none? kwarg))
+                                        (CIf (CBuiltinPrim 'type-metaclass (list (first bases-list)))
+                                             call-metaclass
+                                             new-class)
+                                        call-metaclass))]
+
+                           [(and (eq? dsg-metaclass false)
+                                 (eq? dsg-multiple-inheritance false))
+                            (CSeq
+                             (CAssign (CId name scope)
+                                      (CBuiltinPrim 'type-new
+                                                    (list (CObject (CNone) (some (MetaStr (symbol->string name)))))))
+                             (CSeq
+                              (set-field (CId name scope) '__bases__
+                                         (CTuple (CNone) (list (CId '%object (GlobalId)))))
+                              (CSeq
+                               (set-field (CId name scope) '__mro__
+                                          (CBuiltinPrim 'type-buildmro
+                                                        (list
+                                                         (CTuple (CNone)
+                                                                 (list (CId name scope)))
+                                                         (CBuiltinPrim 'obj-getattr (list (CId name scope)
+                                                                                          (make-pre-str "__bases__"))))))
+                               (CSeq body (CId name scope)))))]
+                           [(eq? dsg-metaclass false) ;; TODO: this can be simplified too.
+                            (CLet base-id (LocalId) (first bases-list)
+                                  new-class)]
+                           
+                           [(eq? dsg-multiple-inheritance false)
+                            (if (and (empty? keywords) (none? kwarg))
+                                new-class
+                                call-metaclass)]
+                           ))]
                   [else
                    ;; first apply decorators to the class
                    (rec-desugar
