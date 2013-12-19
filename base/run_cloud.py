@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from run_profile import *
 import os
 from subprocess import Popen, PIPE
@@ -33,9 +35,10 @@ def get_task_id(filename):
 
 def get_job_id_from_pattern(file_starts):
     files = get_files("{0}*.*".format(file_starts), ".")[0]
-    assert len(files)!=0, 'could not find file starting with:%s' % file_starts
+    assert len(files)!=0, 'could not find file starting with: %s' % file_starts
     return get_job_id(files[0])
 
+flag="cloud_specified_lambdapy_flag.txt"
 object_cached_file="cloud_cached_info.obj"
 filename_list="cloud_all_test.txt"
 lib_node_output="cloud_lib_node_info.txt"
@@ -115,9 +118,9 @@ Note:
 
 class Info(TestFiles):
     """ members of Info class are compatible with the class TestFiles in run_profile"""
-    def __init__(self, flag, test_directory="../tests/python-reference"):
+    def __init__(self, test_directory="../tests/python-reference"):
         global all_tests
-        super(Info, self).__init__(flag, test_directory)
+        super(Info, self).__init__('foo', test_directory)
         self.filenames, self.path_files = all_tests
 
     def init_all(self):
@@ -199,13 +202,16 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="""generate script for Brown grid""")
 
-    parser.add_argument('--get-script', action='store_true',
+    parser.add_argument('--flag', 
                         help='given flag, the script will try to generate script for running test on Brown grid')
 
     parser.add_argument('--how-to', action='store_true',
                         help='tell you how to run the generated script')
 
-    parser.add_argument('--interp-result', action='store_true',
+    parser.add_argument('--interp-origin-result', action='store_true',
+                        help='get interp success/fail information(useful for regression test')
+
+    parser.add_argument('--interp-flag-result', action='store_true',
                         help='get interp success/fail information(useful for regression test')
 
     parser.add_argument('--collect-info', action='store_true',
@@ -217,7 +223,6 @@ if __name__ == '__main__':
     parser.add_argument('--print-cached-failed-testcase', action='store_true',
                         help='load cached file, print failed test in rst form. use --collect-info to generate cached file once before printing the cached table')
 
-    parser.add_argument('flag', nargs='?', help='specify a flag')
 
     args = parser.parse_args()
 
@@ -248,21 +253,50 @@ if __name__ == '__main__':
         print p.get_failed_test()
         exit(0)
 
-    if args.interp_result:
-        info = Info('dsg-metaclass') #random dsg flag
+    if args.interp_origin_result:
+        info = Info() #random dsg flag
         interp_time_jobid = get_job_id_from_pattern(interp_script)
         info.set_result_map(interp_time_jobid, with_flag=False)
         p = PrintTable(info)
         print p.get_failed_test(with_flag=False)
         exit(0)
         
-        
-        
-    if args.flag == None:
-        parser.print_help()
-        exit(1)
+    if args.interp_flag_result == True:
+        info = Info()
+        flag_interp_time_jobid = get_job_id_from_pattern(flag_interp_script)
+        info.set_result_map(flag_interp_time_jobid, with_flag=True)
+        p = PrintTable(info)
+        print p.get_failed_test(with_flag=True)
+        exit(0)
 
-    if args.get_script == True:
+    if args.collect_info == True:
+        info = Info()
+
+        info.libs_node_info = read_file(lib_node_output).strip()
+        info.flag_libs_node_info = read_file(lib_node_flag_output).strip()
+
+        # get related files
+        node_job_id = get_job_id_from_pattern(node_script)
+        info.set_node_map(node_job_id)
+
+        flag_node_job_id = get_job_id_from_pattern(flag_node_script)
+        info.set_node_map(flag_node_job_id, with_flag=True)
+
+        interp_time_jobid = get_job_id_from_pattern(interp_script)
+        flag_interp_time_jobid = get_job_id_from_pattern(flag_interp_script)
+
+        info.set_time_map(interp_time_jobid, with_flag=False)
+        info.set_time_map(flag_interp_time_jobid, with_flag=True)
+
+        info.set_result_map(interp_time_jobid, with_flag=False)
+        info.set_result_map(flag_interp_time_jobid, with_flag=True)
+
+        writeObject(object_cached_file, info)
+        print 'now, maybe you want to print cached table or check if you break the regression test?\n "-h" would tell you more'
+    
+        exit(0)
+
+    if args.flag != None:
         p = Popen(["which", "racket"], stdout=PIPE, stderr=PIPE)
         [racket_path, error] = p.communicate()
         assert error == '', 'could not find racket'
@@ -288,27 +322,5 @@ if __name__ == '__main__':
 
         exit(0)
 
-    if args.collect_info == True:
-        info = Info(args.flag)
-
-        info.libs_node_info = read_file(lib_node_output).strip()
-        info.flag_libs_node_info = read_file(lib_node_flag_output).strip()
-
-        # get related files
-        node_job_id = get_job_id_from_pattern(node_script)
-        info.set_node_map(node_job_id)
-
-        flag_node_job_id = get_job_id_from_pattern(flag_node_script)
-        info.set_node_map(flag_node_job_id, with_flag=True)
-
-        interp_time_jobid = get_job_id_from_pattern(interp_script)
-        flag_interp_time_jobid = get_job_id_from_pattern(flag_interp_script)
-
-        info.set_time_map(interp_time_jobid, with_flag=False)
-        info.set_time_map(flag_interp_time_jobid, with_flag=True)
-
-        info.set_result_map(interp_time_jobid, with_flag=False)
-        info.set_result_map(flag_interp_time_jobid, with_flag=True)
-
-        writeObject(object_cached_file, info)
-
+    parser.print_help()    
+    exit(0)
