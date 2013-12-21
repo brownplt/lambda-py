@@ -38,7 +38,6 @@ def get_job_id_from_pattern(file_starts):
     assert len(files)!=0, 'could not find file starting with: %s' % file_starts
     return get_job_id(files[0])
 
-flag="cloud_specified_lambdapy_flag.txt"
 object_cached_file="cloud_cached_info.obj"
 filename_list="cloud_all_test.txt"
 lib_node_output="cloud_lib_node_info.txt"
@@ -50,10 +49,40 @@ flag_libnode_script="cloud_4_flag_libnode_and_cached_file.sh"
 flag_node_script="cloud_5_flag_get_node.sh"
 flag_interp_script="cloud_6_flag_get_interp.sh"
 clean_script="cloud_clean.sh"
+script_wrapper="cloud_general_step.sh"
 
 all_tests = get_files("*.py")
 all_tests_path = all_tests[1]
 tests_number = len(all_tests_path)
+
+script_wrapper_template = """
+#!/bin/sh
+
+sh {1} && qsub -t 1-{0} {2} && qsub -t 1-{0} {3}
+while true
+do
+    lines=`qstat | wc -m`
+    if [ $lines -eq 0 ]
+    then
+        break
+    fi
+    sleep 10
+done
+sh {4} && qsub -t 1-{0} {5} && qsub -t 1-{0} {6}
+
+while true
+do
+    lines=`qstat | wc -m`
+    if [ $lines -eq 0 ]
+    then
+        break
+    fi
+    sleep 10
+done
+
+python {7} --collect-info
+
+"""
 
 script_template = """#!/bin/sh
 #$ -cwd
@@ -107,13 +136,16 @@ script_usage_info = """How to run the script generated(in order):
 clean:
    {7}
 
+use script wrapper:
+   {8}
+
 Note:
 1. use qstat to check the running state
 2. use qacct -j jobid to check the running information
-2. Interp any file once to generate the cached lib files before running on the grid.
 """.format(libnode_script, node_script, interp_script,
            flag_libnode_script, flag_node_script, flag_interp_script,
-           str(tests_number), clean_script)
+           str(tests_number), clean_script,
+    script_wrapper)
 
 
 class Info(TestFiles):
@@ -202,7 +234,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="""generate script for Brown grid""")
 
-    parser.add_argument('--flag', 
+    parser.add_argument('--flag',
                         help='given flag, the script will try to generate script for running test on Brown grid')
 
     parser.add_argument('--how-to', action='store_true',
@@ -223,7 +255,6 @@ if __name__ == '__main__':
     parser.add_argument('--print-cached-failed-testcase', action='store_true',
                         help='load cached file, print failed test in rst form. use --collect-info to generate cached file once before printing the cached table')
 
-
     args = parser.parse_args()
 
     #================start=================
@@ -240,10 +271,10 @@ if __name__ == '__main__':
             print "could not find object file, use --collect-info instead"
             exit(1)
         p = PrintTable(info)
-        
+
         print p.draw_table()
         exit(0)
-    
+
     if args.print_cached_failed_testcase:
         info = loadObject(object_cached_file)
         if info == None:
@@ -260,7 +291,7 @@ if __name__ == '__main__':
         p = PrintTable(info)
         print p.get_failed_test(with_flag=False)
         exit(0)
-        
+
     if args.interp_flag_result == True:
         info = Info()
         flag_interp_time_jobid = get_job_id_from_pattern(flag_interp_script)
@@ -292,11 +323,15 @@ if __name__ == '__main__':
         info.set_result_map(flag_interp_time_jobid, with_flag=True)
 
         writeObject(object_cached_file, info)
-        print 'now, maybe you want to print cached table or check if you break the regression test?\n "-h" would tell you more'
-    
+        print 'done.'
+
         exit(0)
 
     if args.flag != None:
+        if args.flag not in available_flags:
+            print "flag %s not found" % args.flag
+            exit(1)
+            
         p = Popen(["which", "racket"], stdout=PIPE, stderr=PIPE)
         [racket_path, error] = p.communicate()
         assert error == '', 'could not find racket'
@@ -318,9 +353,15 @@ if __name__ == '__main__':
         write_file(flag_interp_script, script_template.format(filename_list, "--set-flag-false {0} --interp".format(args.flag)))
         write_file(clean_script, clean_template)
 
+        # generate script wrapper
+        write_file(script_wrapper,
+                   script_wrapper_template.format(tests_number, libnode_script, node_script, interp_script,
+                                                  flag_libnode_script, flag_node_script, flag_interp_script,
+                                                  sys.argv[0]));
+
         print usage
 
         exit(0)
 
-    parser.print_help()    
+    parser.print_help()
     exit(0)
