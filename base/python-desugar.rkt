@@ -627,7 +627,7 @@
                           [bases-tuple 
                            (if (eq? dsg-multiple-inheritance true)
                                (CTuple (CNone) (cons (CId base-id (LocalId)) (rest bases-list)))
-                               (CTuple (CNone) (list (CId '%object (GlobalId)))))]
+                               (CTuple (CNone) (list (CId base-id (LocalId)))))]
                           [new-class 
                            (if (eq? dsg-multiple-inheritance true)
                                (make-class scope name bases-tuple (desugar body))
@@ -637,7 +637,7 @@
                                                        (list (CObject (CNone)
                                                                       (some (MetaStr (symbol->string name)))))))
                                 (CSeq
-                                 (set-field (CId name scope) '__bases__ bases-tuple)
+                                 (set-field (CId name scope) '__bases__ (CBuiltinPrim 'type-uniqbases (list bases-tuple)))
                                  (CSeq
                                   (set-field (CId name scope) '__mro__
                                              (CBuiltinPrim 'type-buildmro
@@ -689,9 +689,10 @@
                                   new-class)]
                            
                            [(eq? dsg-multiple-inheritance false)
-                            (if (and (empty? keywords) (none? kwarg))
-                                new-class
-                                call-metaclass)]
+                            (CLet base-id (LocalId) (first bases-list)
+                                (if (and (empty? keywords) (none? kwarg))
+                                    new-class
+                                    call-metaclass))]
                            ))]
                   [else
                    ;; first apply decorators to the class

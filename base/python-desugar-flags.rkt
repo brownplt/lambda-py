@@ -47,7 +47,6 @@
 (define-flag dsg-function-starargs)
 
 (define-flag dsg-callable-runtime-checking)
-
 ;; if dsg-decorator is false, no class decorator will be desugared.
 (define-flag dsg-decorator)
 ;; if dsg-metaclass is false, 
