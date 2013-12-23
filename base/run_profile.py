@@ -306,7 +306,7 @@ class PrintTable:
     def getRatioStr(self, n1, n2, digit):
         if n1 is None or n2 is None:
             return None
-        if float(n1) == 0:
+        if float(n1) == 0.0:
             return "0"
         t = self.limitWidth((float(n1)-float(n2))/float(n1)*100.0, 1) # n1, n2 might be string
         return t+"%"
@@ -380,7 +380,7 @@ class PrintTable:
         if shrink is None:
             shrink = 'Time Out'
 
-        libs = "Libs Shrink: %s" % shrink
+        libs = "Libs Shrink: %s->%s: %s" % (self.info.libs_node_info, self.info.flag_libs_node_info, shrink)
         title=self.draw_title()
         cells=self.draw_cells()
         return libs+'\n\n'+title+'\n'+cells+'\n'
