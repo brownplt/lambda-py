@@ -289,11 +289,11 @@
                                          (rec-desugar value)]
                                         [target-id (new-id)])
                                  (if (eq? dsg-subscript-assignment true)
-                                     (py-app (py-getfield desugared-target '__setitem__)
+                                     (py-method (py-getfield desugared-target '__setitem__)
                                              (list 
                                               desugared-slice
                                               desugared-value)
-                                             (none))
+                                             )
                                      ;; if flag is off
                                      (CLet '$call (LocalId)
                                            (py-getfield desugared-target '__setitem__)
@@ -311,11 +311,11 @@
                                    (define assigns
                                      (if (eq? dsg-multiple-assignment true)
                                          (map2 (λ (t n) 
-                                                  (CAssign t (py-app
+                                                  (CAssign t (py-method
                                                               (py-getfield (CId '$tuple_result (LocalId)) 
                                                                            '__getitem__)
                                                               (list (make-builtin-num n))
-                                                              (none))))
+                                                              )))
                                                targets-r
                                                (build-list (length targets-r) identity))
                                          ;; if flag is false
@@ -374,7 +374,7 @@
                                      (if (eq? dsg-raise true)
                                          (rec-desugar (LexApp expr (list) (list) (none) (none)))
                                          (CLet '$call (LocalId) (rec-desugar expr)
-                                               (simple-apply-method (py-getfield (CId '$call (LocalId)) '__call__) (list) ))) 
+                                               (py-method (py-getfield (CId '$call (LocalId)) '__call__) (list) ))) 
                                      (rec-desugar expr)))]
                          (CRaise 
                           (if (LexPass? expr)
@@ -406,57 +406,57 @@
                        (define right-r (rec-desugar right))
                        (define right-c right-r)] 
                  (case op 
-                   ['Add (py-app (py-getfield left-c '__add__)
+                   ['Add (py-method (py-getfield left-c '__add__)
                                (list right-c)
-                               (none))]
-                   ['Sub (py-app (py-getfield left-c '__sub__)
+                               )]
+                   ['Sub (py-method (py-getfield left-c '__sub__)
                                (list right-c)
-                               (none))]
-                   ['Mult (py-app (py-getfield left-c '__mult__)
+                               )]
+                   ['Mult (py-method (py-getfield left-c '__mult__)
                                 (list right-c)
-                                (none))]
-                   ['Pow (py-app (py-getfield left-c '__pow__)
+                                )]
+                   ['Pow (py-method (py-getfield left-c '__pow__)
                                  (list right-c)
-                                 (none))]
-                   ['Div (py-app (py-getfield left-c '__div__)
+                                 )]
+                   ['Div (py-method (py-getfield left-c '__div__)
                                (list right-c)
-                               (none))]
-                   ['FloorDiv (py-app (py-getfield left-c '__floordiv__)
+                               )]
+                   ['FloorDiv (py-method (py-getfield left-c '__floordiv__)
                                     (list right-c)
-                                    (none))]
-                   ['Mod (py-app (py-getfield left-c '__mod__)
+                                    )]
+                   ['Mod (py-method (py-getfield left-c '__mod__)
                                (list right-c)
-                               (none))]
-                   ['BitAnd (py-app (py-getfield left-c '__and__)
+                               )]
+                   ['BitAnd (py-method (py-getfield left-c '__and__)
                                   (list right-c)
-                                  (none))]
-                   ['BitOr (py-app (py-getfield left-c '__or__)
+                                  )]
+                   ['BitOr (py-method (py-getfield left-c '__or__)
                                  (list right-c)
-                                 (none))]
-                   ['BitXor (py-app (py-getfield left-c '__xor__)
+                                 )]
+                   ['BitXor (py-method (py-getfield left-c '__xor__)
                                   (list right-c)
-                                  (none))]
-                   ['LShift (py-app (py-getfield left-c '__lshift__)
+                                  )]
+                   ['LShift (py-method (py-getfield left-c '__lshift__)
                                     (list right-c)
-                                    (none))]
-                   ['RShift (py-app (py-getfield left-c '__rshift__)
+                                    )]
+                   ['RShift (py-method (py-getfield left-c '__rshift__)
                                     (list right-c)
-                                    (none))]
-                   ['Eq (py-app (py-getfield left-c '__eq__)
+                                    )]
+                   ['Eq (py-method (py-getfield left-c '__eq__)
                               (list right-c)
-                              (none))]
-                   ['Gt (py-app (py-getfield left-c '__gt__)
+                              )]
+                   ['Gt (py-method (py-getfield left-c '__gt__)
                               (list right-c)
-                              (none))]
-                   ['Lt (py-app (py-getfield left-c '__lt__)
+                              )]
+                   ['Lt (py-method (py-getfield left-c '__lt__)
                               (list right-c)
-                              (none))]
-                   ['LtE (py-app (py-getfield left-c '__lte__)
+                              )]
+                   ['LtE (py-method (py-getfield left-c '__lte__)
                                (list right-c)
-                               (none))]
-                   ['GtE (py-app (py-getfield left-c '__gte__)
+                               )]
+                   ['GtE (py-method (py-getfield left-c '__gte__)
                                (list right-c)
-                               (none))]
+                               )]
                    ['NotEq (rec-desugar (LexUnaryOp 'Not (LexBinOp left 'Eq right)))]
                    ['In (CApp (CFunc (list 'container 'test) (none)
                                      (CLet '__infunc__ (LocalId)
@@ -464,11 +464,11 @@
                                                       '__in__)
                                            (CIf (CId '__infunc__ (LocalId))
                                                 (CReturn
-                                                  (py-app
+                                                  (py-method
                                                     (CId '__infunc__ (LocalId))
                                                     (list 
                                                           (CId 'test (LocalId)))
-                                                    (none)))
+                                                    ))
                                                 (CRaise (some
                                                   (make-exception 'TypeError
                                                                   (string-append
@@ -486,9 +486,9 @@
                     ['USub (rec-desugar (LexBinOp (LexNum 0) 'Sub operand))]
                     ['UAdd (rec-desugar (LexBinOp (LexNum 0) 'Add operand))]
                     ['Invert (local [(define roperand (rec-desugar operand))]
-                               (py-app (py-getfield roperand '__invrt__)
+                               (py-method (py-getfield roperand '__invrt__)
                                      (list)
-                                     (none)))]
+                                     ))]
                     [else (CBuiltinPrim op (list (rec-desugar operand)))])]
       
       [LexBoolOp (op values) (desugar-boolop op values)]
@@ -554,12 +554,12 @@
                               (CLet left-id
                                     (LocalId)
                                     left-r
-                                    (py-app (py-getfield left-var
+                                    (py-method (py-getfield left-var
                                                          '__slice__)
 
                                             (list slice-low
                                                   slice-up slice-step)
-                                            (none))))
+                                            )))
                             (local [(define slice-r (rec-desugar slice))
                                     (define exn-id (new-id))] 
                               (CLet left-id
@@ -576,10 +576,10 @@
                                                        'TypeError
                                                        "object is not subscriptable"))))
                                       (CNone))
-                                     (py-app (py-getfield (CId left-id (LocalId))
+                                     (py-method (py-getfield (CId left-id (LocalId))
                                                           '__getitem__)
                                              (list slice-r)
-                                             (none) ;TODO: not sure what to do with stararg.
+                                              ;TODO: not sure what to do with stararg.
                                              ))))))]
                      [(symbol=? ctx 'Load) ;; flag is false
                       (local [(define left-id (new-id))
@@ -590,11 +590,11 @@
                                     (define slice-up  (rec-desugar (LexSlice-upper slice)))
                                     (define slice-step (rec-desugar (LexSlice-step slice)))]
                               (CLet left-id (LocalId) left-r
-                                    (simple-apply-method (py-getfield left-var '__slice__)
+                                    (py-method (py-getfield left-var '__slice__)
                                                          (list slice-low slice-up slice-step))))
                             (let ((slice-r (rec-desugar slice)))
                               (CLet left-id (LocalId) left-r
-                                    (simple-apply-method (py-getfield left-var '__getitem__)
+                                    (py-method (py-getfield left-var '__getitem__)
                                                          (list slice-r))))))
                       ]
                      [(symbol=? ctx 'Store)
@@ -761,11 +761,11 @@
                                               [target-id (new-id)]
                                               [target-var (CId target-id (LocalId))])
                                        (CLet target-id (LocalId) desugared-target
-                                             (py-app (py-getfield target-var
+                                             (py-method (py-getfield target-var
                                                               '__delitem__)
                                                    (list 
                                                     desugared-slice)
-                                                   (none))))]
+                                                   )))]
                        [LexLocalId (x ctx) (rec-desugar
                                             (LexAssign (list (LexLocalId x ctx)) (LexUndefined)))]
                        [LexGlobalId (x ctx) (rec-desugar

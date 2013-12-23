@@ -58,6 +58,7 @@
 ;; no idea how to write the code
 ;; (define-flag dsg-pass)
 
+(define-flag dsg-dummy)
 
 
 

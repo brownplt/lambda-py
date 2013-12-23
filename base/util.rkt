@@ -386,14 +386,14 @@
   (CObject (gid '%num) (some (MetaNum n))))
 
 (define (py-len name)
-  (py-app (py-getfield (CId name (LocalId)) '__len__)
+  (py-method (py-getfield (CId name (LocalId)) '__len__)
         (list)
-        (none)))
+        ))
 
 (define (py-getitem name index)
-  (py-app (py-getfield (CId name (LocalId)) '__getitem__)
+  (py-method (py-getfield (CId name (LocalId)) '__getitem__)
         (list (CObject (gid '%num) (some (MetaNum index))))
-        (none)))
+        ))
 
 (define-syntax pylam
   (syntax-rules ()
@@ -512,7 +512,7 @@
             )))
 
 ;; simple py-method-app
-(define (simple-apply-method [method : CExpr] [args : (listof CExpr)]) : CExpr
+(define (py-method [method : CExpr] [args : (listof CExpr)]) : CExpr
   (CLet '$call (LocalId) method
         (CApp (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
                                                (make-builtin-str "__func__")))
