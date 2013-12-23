@@ -241,9 +241,10 @@
       (CLet exit (LocalId) (py-getfield (CBuiltinPrim '$class (list (CId mgr (LocalId))))
                                         '__exit__)
         ;; value = type(mgr).__enter__(mgr)
-        (CLet value (LocalId) (py-app (py-getfield (CBuiltinPrim '$class (list (CId mgr (LocalId))))
+        ;;(Junsong): __enter__, __exit__ were implemented as a function
+        (CLet value (LocalId) (py-function (py-getfield (CBuiltinPrim '$class (list (CId mgr (LocalId))))
                                                    '__enter__)
-                                      (list (CId mgr (LocalId))) (none))
+                                      (list (CId mgr (LocalId))))
           (CLet exc (LocalId) (CTrue)
             (CTryFinally
              (CTryExceptElse
@@ -259,17 +260,17 @@
               '$exc
               ;; except: the exceptional case is handled here
               (CSeq (CAssign (CId exc (LocalId)) (CFalse))
-                    (CIf (py-app (CId exit (LocalId))
+                    (CIf (py-function (CId exit (LocalId))
                                  (list (CId mgr (LocalId))
                                        (CBuiltinPrim '$class (list (CId '$exc (LocalId))))
-                                       (CId '$exc (LocalId)) (CNone)) (none))
+                                       (CId '$exc (LocalId)) (CNone)))
                          (CNone)
                          (CRaise (none))))
               (CNone))
              ;; finally: the no exception case is handled here
              (CIf (CId exc (LocalId))
-                  (py-app (CId exit (LocalId))
-                          (list (CId mgr (LocalId)) (CNone) (CNone) (CNone)) (none))
+                  (py-function (CId exit (LocalId))
+                          (list (CId mgr (LocalId)) (CNone) (CNone) (CNone)))
                   (CNone)))))))))
 
 (define (rec-desugar [expr : LexExpr] ) : CExpr 

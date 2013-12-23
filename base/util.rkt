@@ -511,7 +511,7 @@
                               keywords stararg kwarg))
             )))
 
-;; simple py-method-app
+;; simplification: use this method instead of py-app if the argument is just a method
 (define (py-method [method : CExpr] [args : (listof CExpr)]) : CExpr
   (CLet '$call (LocalId) method
         (CApp (CBuiltinPrim 'obj-getattr (list (CId '$call (LocalId))
@@ -520,6 +520,10 @@
                                                      (make-builtin-str "__self__")))
                     args)
               (none))))
+
+(define (py-function [func : CExpr] [args : (listof CExpr)]) : CExpr
+    (CLet '$fun (LocalId) func
+        (CApp (CId '$fun (LocalId)) args (none))))
 
 ;; helper to apply a function considering default arguments and keywords
 (define (py-app-fun [fun : CExpr] [args : (listof CExpr)] [keywords : (listof CExpr)]
