@@ -525,6 +525,14 @@
     (CLet '$fun (LocalId) func
         (CApp (CId '$fun (LocalId)) args (none))))
 
+(define (py-object [cls : CExpr] [args : (listof CExpr)]) : CExpr
+  (CLet '$call (LocalId) cls
+        (CSeq
+         (CAssign (CId '$call (LocalId))
+                  (py-getfield (CId '$call (LocalId)) '__call__))
+         (py-method (CId '$call (LocalId))
+                    args))))
+
 ;; helper to apply a function considering default arguments and keywords
 (define (py-app-fun [fun : CExpr] [args : (listof CExpr)] [keywords : (listof CExpr)]
                     [stararg : (optionof CExpr)] [kwarg : (optionof CExpr)]) : CExpr
@@ -550,7 +558,7 @@
        (CLet '$exp (LocalId) exp
              (CIf (CBuiltinPrim 'isinstance (list (CId '$exp (LocalId)) (CId '%tuple (GlobalId))))
                   (CId '$exp (LocalId))
-                  (py-app (CId '%tuple (GlobalId)) (list (CId '$exp (LocalId))) (none))))])
+                  (py-object (CId '%tuple (GlobalId)) (list (CId '$exp (LocalId))))))])
 
     (cond
      [(or (eq? dsg-function-arguments false)
@@ -603,7 +611,7 @@
        (CBuiltinPrim '$class (list obj-exp))]
       [(eq? attr '__dict__)
        ;; special attribute __dict__, cannot be overriden.
-       (py-app (CId '%dict_proxy (GlobalId)) (list obj-exp) (none))]
+       (py-object (CId '%dict_proxy (GlobalId)) (list obj-exp))]
       [(eq? attr '__mro__)
        ;; special attribute __mro__, cannot be overriden.
        (CBuiltinPrim 'obj-getattr (list obj-exp (make-builtin-str "__mro__")))]

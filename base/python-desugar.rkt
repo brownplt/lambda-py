@@ -483,7 +483,7 @@
 
       [LexUnaryOp (op operand)
                   (case op
-                    ['Not (CIf (py-app (CId '%bool (GlobalId)) (list (desugar operand)) (none)) (CId 'False (GlobalId)) (CId 'True (GlobalId)))]
+                    ['Not (CIf (py-object (CId '%bool (GlobalId)) (list (desugar operand))) (CId 'False (GlobalId)) (CId 'True (GlobalId)))]
                     ['USub (rec-desugar (LexBinOp (LexNum 0) 'Sub operand))]
                     ['UAdd (rec-desugar (LexBinOp (LexNum 0) 'Add operand))]
                     ['Invert (local [(define roperand (rec-desugar operand))]
@@ -530,11 +530,11 @@
                                  (rec-desugar (first values))))
                    (pairs->tupleargs (rest keys) (rest values)))]))
         ]
-         (py-app (CId '%dict (GlobalId))
+         (py-object (CId '%dict (GlobalId))
                  (list
                   (CList (CId '%list (GlobalId))
                          (pairs->tupleargs keys values)))
-                 (none)))]
+                 ))]
       [LexSet (elts)
               (CSet (CId '%set (GlobalId)) (map rec-desugar elts))]
       [LexList (values)
