@@ -28,11 +28,11 @@
        (let-phase
          (remove-nonlocal
           (collapse-pyseq
-           (globals-fun
+
             (post-desugar
              (make-local-list
               empty
-              expr))))))))))))
+              expr)))))))))))
 
 
 
